@@ -1,104 +1,195 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { puertaT } from "@/lib/i18n/puerta";
-import { ENTRADA_T, type EntradaLang } from "@/lib/entrada/i18n";
+import type { EntradaLang } from "@/lib/entrada/i18n";
+import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
+import { buildHilo, LOCAL_VACIO, progressSteps, type Ask, type EditKey, type HiloLocal, type Msg, type Urgency } from "@/lib/entrada/hilo";
 import type { ClientView } from "@/lib/entrada/view";
 
 const TOKEN_KEY = "tj-entrada";
+const LOCAL_KEY = (t: string) => `tj-entrada-hilo:${t}`;
 const LANG_CODES = ["es", "fr", "en", "de", "it", "pt", "nl", "ro", "ar", "ca", "sv", "no", "el", "ru", "uk", "pl", "zh"];
-function langNames(ui: string): [string, string][] {
-  let dn: Intl.DisplayNames | null = null;
-  try {
-    dn = new Intl.DisplayNames([ui], { type: "language" });
-  } catch {}
-  return LANG_CODES.map((c) => {
-    const n = dn?.of(c) ?? c.toUpperCase();
-    return [c, n.charAt(0).toUpperCase() + n.slice(1)];
-  });
-}
 const EXT_TYPES: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", heic: "image/heic", heif: "image/heif", tif: "image/tiff", tiff: "image/tiff", webp: "image/webp" };
-const card = "rounded-xl border border-bleu/15 bg-card p-5 shadow-paper";
-const btn = "rounded-lg bg-bleu px-5 py-3 font-semibold text-white disabled:opacity-40";
-const btn2 = "rounded-lg border border-bleu/30 px-5 py-3 font-semibold text-bleu";
+const btn = "rounded-full bg-bleu px-4 py-2 text-sm font-semibold text-white disabled:opacity-40";
+const chip = (on: boolean) => `rounded-full border px-3 py-1.5 text-sm ${on ? "border-bleu bg-bleu text-white" : "border-bleu/30 bg-white text-bleu"}`;
+const field = "w-full rounded-lg border border-graphite/30 bg-white px-3 py-2 text-base";
 
 type Res = { ok: boolean; error?: string; busy?: boolean; view?: ClientView; token?: string };
 
-function store(get: true): string | null;
-function store(get: false, v: string | null): void;
-function store(get: boolean, v?: string | null) {
+function storage<T>(key: string, value?: T | null): T | null {
   try {
-    if (get) return sessionStorage.getItem(TOKEN_KEY);
-    if (v) sessionStorage.setItem(TOKEN_KEY, v);
-    else sessionStorage.removeItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
+    if (value === undefined) {
+      const raw = sessionStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as T) : null;
+    }
+    if (value === null) sessionStorage.removeItem(key);
+    else sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+  return null;
 }
 
 async function call(path: string, method = "GET", body?: unknown): Promise<{ status: number; retryAfter: number; data: Res }> {
-  const r = await fetch(path, { method, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
-  const data = (await r.json().catch(() => ({ ok: false, error: "Error de conexión." }))) as Res;
-  return { status: r.status, retryAfter: Number(r.headers.get("Retry-After")) || 0, data };
+  try {
+    const r = await fetch(path, { method, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
+    const data = (await r.json().catch(() => ({ ok: false }))) as Res;
+    return { status: r.status, retryAfter: Number(r.headers.get("Retry-After")) || 0, data };
+  } catch {
+    return { status: 0, retryAfter: 0, data: { ok: false } };
+  }
 }
 
 const mimeOf = (f: File) => f.type || EXT_TYPES[f.name.split(".").pop()?.toLowerCase() ?? ""] || "";
+const digits = (s: string) => s.replace(/[^0-9]/g, "").slice(0, 6);
+
+function names(ui: string, type: "language" | "region"): (code: string) => string {
+  let dn: Intl.DisplayNames | null = null;
+  try {
+    dn = new Intl.DisplayNames([ui], { type });
+  } catch {}
+  return (c) => {
+    const n = dn?.of(type === "region" ? c.toUpperCase() : c) ?? c.toUpperCase();
+    return n.charAt(0).toUpperCase() + n.slice(1);
+  };
+}
+
+function Bubble({ from, children, onEdit, editLabel }: { from: "casa" | "cliente"; children: ReactNode; onEdit?: () => void; editLabel?: string }) {
+  const base = from === "casa" ? "self-start rounded-2xl rounded-tl-sm bg-white text-encre shadow-sm" : "self-end rounded-2xl rounded-tr-sm bg-bleu/10 text-encre";
+  if (onEdit) {
+    return (
+      <button type="button" onClick={onEdit} className={`${base} max-w-[85%] px-4 py-2.5 text-left`} aria-label={editLabel}>
+        {children}
+        <span className="mt-1 block text-[11px] text-bleu/70">{editLabel}</span>
+      </button>
+    );
+  }
+  return <div className={`${base} max-w-[85%] px-4 py-2.5`}>{children}</div>;
+}
 
 export default function PuertaV2({ source = null, lang = "es" }: { source?: string | null; lang?: EntradaLang }) {
-  const t = ENTRADA_T[lang] ?? ENTRADA_T.es;
+  const t = HILO_T[lang] ?? HILO_T.es;
   const T = puertaT[lang] ?? puertaT.es;
-  const LANGS = langNames(lang);
+  const langName = useMemo(() => names(lang, "language"), [lang]);
+  const countryName = useMemo(() => names(lang, "region"), [lang]);
+  const langs = useMemo(() => LANG_CODES.map((c) => [c, langName(c)] as const), [langName]);
+  const paises = useMemo(() => [...PAISES].map((c) => [c, countryName(c)] as const).sort((a, b) => a[1].localeCompare(b[1], lang)), [countryName, lang]);
+
   const [token, setToken] = useState<string | null>(null);
   const [view, setView] = useState<ClientView | null>(null);
+  const [local, setLocal] = useState<HiloLocal>(LOCAL_VACIO);
+  const [editing, setEditing] = useState<EditKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [asking, setAsking] = useState(false);
-  const [adding, setAdding] = useState(false);
+  const [step, setStep] = useState(0);
 
   const [email, setEmail] = useState("");
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [targetLang, setTargetLang] = useState("es");
-  const [sourceLang, setSourceLang] = useState("");
   const [gdpr, setGdpr] = useState(false);
   const [marketing, setMarketing] = useState(false);
-
-  const [urgency, setUrgency] = useState<"" | "ASAP" | "DATE" | "FLEXIBLE">("");
-  const [neededBy, setNeededBy] = useState("");
+  const [code, setCode] = useState("");
+  const [destinos, setDestinos] = useState<string[]>(["es"]);
+  const [answer, setAnswer] = useState("");
+  const [fecha, setFecha] = useState("");
+  const [pais, setPais] = useState("");
   const [organismo, setOrganismo] = useState("");
   const [notas, setNotas] = useState("");
-  const [code, setCode] = useState("");
-  const fileInput = useRef<HTMLInputElement>(null);
-  const reading = useRef(false);
 
+  const emailRef = useRef<HTMLInputElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const lastRef = useRef<HTMLLIElement>(null);
+  const reading = useRef(false);
+  const verifying = useRef(false);
+
+  const patchLocal = useCallback((p: Partial<HiloLocal>) => setLocal((l) => ({ ...l, ...p })), []);
   const apply = useCallback((d: Res) => {
     if (d.view) setView(d.view);
-    setError(d.ok ? null : d.error ?? t.genericError);
-  }, [t.genericError]);
+    setError(d.ok ? null : d.error ?? t.error);
+    return d.ok;
+  }, [t.error]);
 
   useEffect(() => {
-    const t = store(true);
-    if (!t) return;
-    call(`/api/entrada/${t}`).then(({ status, data }) => {
-      if (status === 404) return store(false, null);
-      setToken(t);
+    const saved = storage<string>(TOKEN_KEY);
+    if (!saved) return;
+    call(`/api/entrada/${saved}`).then(({ status, data }) => {
+      if (status === 404) return void storage(TOKEN_KEY, null);
+      setToken(saved);
+      setLocal({ ...LOCAL_VACIO, ...(storage<HiloLocal>(LOCAL_KEY(saved)) ?? {}), leyendo: false });
       apply(data);
     });
   }, [apply]);
 
+  useEffect(() => {
+    if (token) storage(LOCAL_KEY(token), local);
+  }, [token, local]);
+
+  const { messages, ask } = useMemo(() => buildHilo({ email: view?.email ?? null, view, local, editing }), [view, local, editing]);
+
+  useEffect(() => {
+    lastRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    lastRef.current?.focus({ preventScroll: true });
+  }, [messages.length, ask?.kind]);
+
+  // Autofill sometimes fills inputs without firing React events: read the DOM while those asks are open.
+  useEffect(() => {
+    if (ask?.kind !== "codigo" && ask?.kind !== "contacto") return;
+    const id = setInterval(() => {
+      if (codeRef.current && digits(codeRef.current.value) !== code) setCode(digits(codeRef.current.value));
+      if (emailRef.current && emailRef.current.value !== email) setEmail(emailRef.current.value);
+    }, 500);
+    return () => clearInterval(id);
+  }, [ask?.kind, code, email]);
+
+  const verify = useCallback(async (value: string) => {
+    if (!token || verifying.current || value.length !== 6) return;
+    verifying.current = true;
+    const { data } = await call(`/api/entrada/${token}/verificar`, "POST", { code: value });
+    verifying.current = false;
+    if (!apply(data)) setCode("");
+  }, [token, apply]);
+
+  useEffect(() => {
+    if (ask?.kind === "codigo" && code.length === 6) void verify(code);
+  }, [ask?.kind, code, verify]);
+
+  useEffect(() => {
+    if (ask?.kind !== "leyendo") return setStep(0);
+    const id = setInterval(() => setStep((s) => s + 1), 5000);
+    return () => clearInterval(id);
+  }, [ask?.kind]);
+
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const contactoFalta = [!emailOk && t.faltaEmail, !(gdpr && marketing) && t.faltaConsent].filter((x): x is string => Boolean(x));
+  const origen = view?.idiomas.origen ?? local.origen;
 
   async function open() {
-    setBusy(t.oneMoment);
-    const { data } = await call("/api/entrada", "POST", {
-      email: email.trim(), nombre: nombre.trim() || null, telefono: telefono.trim() || null, targetLang: targetLang || null, sourceLang: sourceLang || null, gdprConsent: gdpr, marketingConsent: marketing, source, lang,
-    });
+    const value = (emailRef.current?.value ?? email).trim();
+    setEmail(value);
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) || !gdpr || !marketing) return;
+    setBusy(t.start);
+    const { data } = await call("/api/entrada", "POST", { email: value, nombre: nombre.trim() || null, telefono: telefono.trim() || null, gdprConsent: true, marketingConsent: true, source, lang });
     setBusy(null);
-    if (!data.ok || !data.token) return setError(data.error ?? t.startError);
-    store(false, data.token);
+    if (!data.ok || !data.token) return void apply(data);
+    storage(TOKEN_KEY, data.token);
     setToken(data.token);
-    const v = await call(`/api/entrada/${data.token}`);
-    apply(v.data);
+    apply((await call(`/api/entrada/${data.token}`)).data);
+  }
+
+  async function setLangs(source: string | null, targets: string[]) {
+    if (!token) return false;
+    const { data } = await call(`/api/entrada/${token}/documentos`, "POST", { op: "setLangs", sourceLang: source, targetLangs: targets });
+    return apply(data);
+  }
+
+  async function answerOrigen(code: string | null) {
+    patchLocal({ origenDado: true, origen: code });
+    if (view?.idiomas.destinos.length) await setLangs(code, view.idiomas.destinos);
+    setEditing(null);
+  }
+
+  async function answerDestinos() {
+    if (await setLangs(origen, destinos)) setEditing(null);
   }
 
   async function addFiles(list: FileList | null) {
@@ -106,7 +197,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
     const { upload } = await import("@vercel/blob/client");
     for (const file of Array.from(list)) {
       const mimeType = mimeOf(file);
-      if (!EXT_TYPES[file.name.split(".").pop()?.toLowerCase() ?? ""] && !Object.values(EXT_TYPES).includes(mimeType)) {
+      if (!Object.values(EXT_TYPES).includes(mimeType)) {
         setError(t.badType(file.name));
         continue;
       }
@@ -118,289 +209,370 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
       try {
         const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
         const blob = await upload(`entrada/${Date.now()}-${safe}`, file, { access: "public", handleUploadUrl: "/api/documents/upload", clientPayload: JSON.stringify({ gdprConsent: true }) });
-        const { data } = await call(`/api/entrada/${token}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType });
-        apply(data);
+        apply((await call(`/api/entrada/${token}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType })).data);
       } catch (e) {
-        setError(e instanceof Error ? e.message : t.genericError);
+        setError(e instanceof Error ? e.message : t.error);
       }
     }
     setBusy(null);
     if (fileInput.current) fileInput.current.value = "";
   }
 
-  async function verify() {
-    if (!token) return;
-    setBusy(t.oneMoment);
-    const { data } = await call(`/api/entrada/${token}/verificar`, "POST", { code: code.trim() });
-    setBusy(null);
-    apply(data);
-  }
-
-  async function resend() {
-    if (!token) return;
-    const { data } = await call(`/api/entrada/${token}/codigo`, "POST");
-    apply(data);
-  }
-
   async function remove(id: string) {
-    if (!token) return;
-    const { data } = await call(`/api/entrada/${token}/archivos?id=${encodeURIComponent(id)}`, "DELETE");
-    apply(data);
+    if (token) apply((await call(`/api/entrada/${token}/archivos?id=${encodeURIComponent(id)}`, "DELETE")).data);
   }
 
   async function read() {
     if (!token || reading.current) return;
     reading.current = true;
-    setAsking(false);
-    setAdding(false);
+    patchLocal({ leyendo: true });
     const started = Date.now();
     for (;;) {
-      setBusy(t.reading);
       const { status, retryAfter, data } = await call(`/api/entrada/${token}/leer`, "POST");
       if (status === 202 || (status === 503 && data.busy)) {
         if (data.view) setView(data.view);
-        await new Promise((r) => setTimeout(r, Math.max(10, retryAfter) * 1000));
-        if (status === 202) {
-          const g = await call(`/api/entrada/${token}`);
-          if (g.data.view && g.data.view.estado !== "abierta") {
-            apply(g.data);
-            break;
-          }
+        await new Promise((r) => setTimeout(r, Math.max(4, Math.min(retryAfter, 30)) * 1000));
+        const g = await call(`/api/entrada/${token}`);
+        if (g.data.view && g.data.view.estado !== "abierta" && g.data.view.lectura?.fase !== "leyendo") {
+          apply(g.data);
+          break;
         }
         if (Date.now() - started < 8 * 60 * 1000) continue;
       }
       apply(data);
       break;
     }
-    setBusy(null);
+    patchLocal({ leyendo: false, terminado: false });
     reading.current = false;
   }
 
   async function edit(body: unknown) {
-    if (!token) return;
-    const { data } = await call(`/api/entrada/${token}/documentos`, "POST", body);
-    apply(data);
+    if (token) apply((await call(`/api/entrada/${token}/documentos`, "POST", body)).data);
   }
 
-  async function confirm() {
+  async function answerPregunta(index: number, text: string) {
+    if (!text.trim()) return;
+    patchLocal({ respuestas: { ...local.respuestas, [index]: text.trim() } });
+    setAnswer("");
+    setEditing(null);
+  }
+
+  async function answerPreguntaIdioma(index: number) {
+    if (await setLangs(origen, destinos)) {
+      patchLocal({ respuestas: { ...local.respuestas, [index]: destinos.map(langName).join(", ") } });
+      setEditing(null);
+    }
+  }
+
+  function answerPlazo(u: Urgency) {
+    if (u === "DATE" && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return patchLocal({ urgency: "DATE", neededBy: null });
+    patchLocal({ urgency: u, neededBy: u === "DATE" ? fecha : null });
+    setEditing(null);
+  }
+
+  function answerLugar(skip: boolean) {
+    patchLocal({ lugarHecho: true, pais: skip ? null : pais || null, organismo: skip ? null : organismo.trim() || null });
+    setEditing(null);
+  }
+
+  async function enviar() {
     if (!token || !view) return;
-    setBusy(t.sending);
+    setBusy(t.enviar);
+    const preguntas = view.lectura?.preguntas ?? [];
     const { data } = await call(`/api/entrada/${token}/confirmar`, "POST", {
-      urgency, neededBy: urgency === "DATE" ? neededBy : null, organismo: organismo.trim() || null, notas: notas.trim() || null, loteUpdatedAt: view.lectura?.loteUpdatedAt ?? null,
+      urgency: local.urgency ?? view.plazo.urgency, neededBy: local.urgency === "DATE" ? local.neededBy : null, organismo: local.organismo, pais: local.pais,
+      notas: notas.trim() || null, loteUpdatedAt: view.lectura?.loteUpdatedAt ?? null,
+      respuestas: Object.entries(local.respuestas).map(([i, r]) => ({ pregunta: (preguntas[Number(i)] ?? "").slice(0, 300), respuesta: r.slice(0, 1000) })),
     });
     setBusy(null);
     apply(data);
   }
 
   function restart() {
-    store(false, null);
+    if (token) storage(LOCAL_KEY(token), null);
+    storage(TOKEN_KEY, null);
     setToken(null);
     setView(null);
+    setLocal(LOCAL_VACIO);
   }
 
-  const errorBox = error && <p className="rounded-lg border border-rouge/30 bg-rouge/5 px-4 py-3 text-sm text-rouge" role="alert">{error}</p>;
-  const busyBox = busy && <p className="rounded-lg bg-cream px-4 py-3 text-sm text-encre" aria-live="polite">{busy}</p>;
+  const fmtDate = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(lang, { timeZone: "UTC", day: "numeric", month: "long" });
+  const startEdit = (key: EditKey) => () => {
+    if (key === "destino") setDestinos(view?.idiomas.destinos.length ? view.idiomas.destinos : ["es"]);
+    if (key.startsWith("pregunta:")) setAnswer(local.respuestas[Number(key.slice(9))] ?? "");
+    setEditing(key);
+  };
 
-  if (!token || !view) {
-    const ready = emailOk && gdpr && marketing && !busy;
-    return (
-      <div className="space-y-5">
-        <div className={card}>
-          <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">{t.startTitle}</h2>
-          <p className="mb-4 text-sm text-graphite">{t.startSub}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-encre sm:col-span-2">{t.email}
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" autoComplete="email" />
-            </label>
-            <label className="text-sm text-encre">{t.name}
-              <input value={nombre} onChange={(e) => setNombre(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" autoComplete="name" />
-            </label>
-            <label className="text-sm text-encre">{t.whatsapp}
-              <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" autoComplete="tel" />
-            </label>
-            <label className="text-sm text-encre">{t.target}
-              <select value={targetLang} onChange={(e) => setTargetLang(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2">
-                <option value="">{t.targetUnknown}</option>
-                {LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
-              </select>
-            </label>
-            <label className="text-sm text-encre">{t.source}
-              <select value={sourceLang} onChange={(e) => setSourceLang(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2">
-                <option value="">{t.sourceDetect}</option>
-                {LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
-              </select>
-            </label>
-          </div>
-        </div>
-        <div className={`${card} space-y-3`}>
-          <label className="flex items-start gap-2 text-xs text-graphite">
-            <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{T.marketingConsent}</span>
-          </label>
-          <label className="flex items-start gap-2 text-xs text-graphite">
-            <input type="checkbox" checked={gdpr} onChange={(e) => setGdpr(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{T.gdprConsent} <a href="/privacidad" target="_blank" className="text-bleu underline">{T.gdprPrivacyLink}</a>.</span>
-          </label>
-        </div>
-        {errorBox}
-        <button className={btn} disabled={!ready} onClick={open}>{t.startBtn}</button>
-      </div>
-    );
-  }
-
-  if (view.estado === "sin_jurado" && view.sinJurado) {
-    return (
-      <div className={`${card} space-y-3`}>
-        <h2 className="font-baskerville text-xl font-bold text-bleu">{t.noJuradoTitle(LANGS.find(([c]) => c === view.sinJurado!.codigo)?.[1] ?? view.sinJurado.idioma)}</h2>
-        <p className="text-graphite">{t.noJuradoBody}</p>
-        <a href={view.sinJurado.maecUrl} target="_blank" rel="noopener noreferrer" className={`${btn} inline-block`}>{t.maecBtn}</a>
-        <p className="text-sm text-graphite">{t.noJuradoFoot}</p>
-      </div>
-    );
-  }
-
-  if (view.estado === "confirmada") {
-    return (
-      <div className={`${card} space-y-3`}>
-        <h2 className="font-baskerville text-xl font-bold text-bleu">{t.doneTitle}</h2>
-        <p className="text-graphite">{t.doneBody}</p>
-        <button className={btn2} onClick={restart}>{t.again}</button>
-      </div>
-    );
-  }
-
-  const l = view.lectura;
-  const showReview = view.estado === "leida" && l && l.fase !== "leyendo" && !adding;
-
-  if (!showReview) {
-    return (
-      <div className="space-y-5">
-        <div className={card}>
-          <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">{t.uploadTitle}</h2>
-          <p className="mb-4 text-sm text-graphite">{t.uploadSub}</p>
-          <ul className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {view.archivos.map((f) => (
+  function content(m: Msg): ReactNode {
+    const l = view?.lectura;
+    switch (m.kind) {
+      case "hola": return t.hola;
+      case "email": return view?.email;
+      case "pide_codigo": return t.pideCodigo(view?.email ?? "");
+      case "codigo_ok": return t.codigoOk;
+      case "pide_origen": return t.pideOrigen;
+      case "origen": return origen ? langName(origen) : t.noSe;
+      case "pide_destino": return t.pideDestino;
+      case "destino": return (view?.idiomas.destinos ?? []).map(langName).join(", ");
+      case "pide_archivos": return t.pideArchivos;
+      case "archivos":
+        return (
+          <ul className="grid grid-cols-3 gap-2">
+            {view!.archivos.map((f) => (
               <li key={f.id} className="relative overflow-hidden rounded-lg border border-graphite/20 bg-parchment">
                 {f.mimeType.startsWith("image/") && !/hei[cf]|tiff/.test(f.mimeType) ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={f.url} alt={f.name} className="h-28 w-full object-cover" />
+                  <img src={f.url} alt={f.name} className="h-20 w-full object-cover" />
                 ) : (
-                  <div className="flex h-28 items-center justify-center text-2xl font-bold text-sepia">{f.mimeType === "application/pdf" ? "PDF" : "IMG"}</div>
+                  <div className="flex h-20 items-center justify-center text-lg font-bold text-sepia">{f.mimeType === "application/pdf" ? "PDF" : "IMG"}</div>
                 )}
-                <p className="truncate px-2 py-1 text-xs text-encre" title={f.name}>{f.name}</p>
-                <button onClick={() => remove(f.id)} className="absolute right-1 top-1 rounded-full bg-white/90 px-2 text-sm text-rouge" aria-label={t.remove(f.name)}>×</button>
+                <p className="truncate px-1.5 pt-1 text-[11px]" title={f.name}>{f.name}</p>
+                <p className={`px-1.5 pb-1 text-[11px] ${f.pages === 0 ? "text-rouge" : "text-graphite"}`}>{f.pages === 0 ? t.noAbre : f.pages ? t.pages(f.pages) : " "}</p>
+                {ask?.kind === "archivos" && (
+                  <button type="button" onClick={() => remove(f.id)} className="absolute right-1 top-1 rounded-full bg-white/90 px-2 text-sm text-rouge" aria-label={t.quitar(f.name)}>×</button>
+                )}
               </li>
             ))}
-            <li>
-              <button onClick={() => fileInput.current?.click()} className="flex h-full min-h-[8.5rem] w-full items-center justify-center rounded-lg border-2 border-dashed border-bleu/30 text-sm font-semibold text-bleu" disabled={!!busy}>{t.add}</button>
-            </li>
           </ul>
-          <input ref={fileInput} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.tif,.tiff,.webp" className="hidden" onChange={(e) => addFiles(e.target.files)} />
-        </div>
-        {!view.emailVerificado && (
-          <div className={`${card} space-y-3`}>
-            <p className="text-sm text-encre">{t.codeTitle(view.email ?? "")}</p>
-            <div className="flex flex-wrap gap-3">
-              <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))} className="w-32 rounded-lg border border-graphite/30 px-3 py-2 text-center text-lg tracking-widest" />
-              <button className={btn} disabled={code.length !== 6 || !!busy} onClick={verify}>{t.codeBtn}</button>
-              <button className="text-sm text-bleu underline" onClick={resend}>{t.codeResend}</button>
-            </div>
-          </div>
-        )}
-        {busyBox}
-        {errorBox}
-        {!view.emailVerificado && view.archivos.length > 0 && <p className="text-sm text-graphite">{t.codeNeeded}</p>}
-        {asking ? (
-          <div className={`${card} space-y-3`}>
-            <p className="font-semibold text-encre">{t.askTitle}</p>
-            <p className="text-sm text-graphite">{t.askBody}</p>
-            <div className="flex flex-wrap gap-3">
-              <button className={btn} onClick={read}>{t.askYes}</button>
-              <button className={btn2} onClick={() => setAsking(false)}>{t.askMore}</button>
-            </div>
-          </div>
-        ) : (
-          <button className={btn} disabled={view.archivos.length === 0 || !view.emailVerificado || !!busy} onClick={() => setAsking(true)}>{t.finished}</button>
-        )}
-      </div>
-    );
-  }
-
-  const needsTarget = l!.fase === "lista" && !l!.targetLang;
-  const deadlineOk = urgency === "ASAP" || urgency === "FLEXIBLE" || (urgency === "DATE" && /^\d{4}-\d{2}-\d{2}$/.test(neededBy));
-  return (
-    <div className="space-y-5">
-      <div className={card}>
-        <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">{l!.fase === "lista" ? t.summary(view.archivos.length, l!.documentos.filter((d) => d.incluido).length) : l!.resumen}</h2>
-        {l!.fase === "revision_manual" && <p className="text-sm text-graphite">{t.manual}</p>}
-        {l!.fase === "lista" && (
-          <ul className="mt-3 space-y-3">
-            {l!.documentos.map((d) => (
-              <li key={d.id} className={`rounded-lg border px-4 py-3 ${d.incluido ? "border-bleu/20" : "border-graphite/20 bg-cream/60 text-graphite"}`}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-encre">{d.titulo}</p>
-                    <p className="text-xs text-graphite">{t.pages(d.paginas)}{d.apostilla ? t.withApostille : ""}</p>
-                  </div>
-                  {l!.editable && (
-                    <button className="text-xs text-bleu underline" onClick={() => edit(d.incluido ? { op: "exclude", id: d.id } : { op: "include", id: d.id })}>
-                      {d.incluido ? t.notNeeded : t.wantIt}
+        );
+      case "terminado": return t.terminado;
+      case "pregunta_terminado": return t.preguntaTerminado;
+      case "leyendo": {
+        const steps = progressSteps(view?.archivos ?? []);
+        return (
+          <ul className="space-y-1">
+            {steps.slice(0, Math.min(step + 1, steps.length)).map((s, i) => (
+              <li key={i} className={i === Math.min(step, steps.length - 1) ? "font-medium" : "text-graphite"}>
+                {s.kind === "inicio" ? t.inicio(s.files, s.pages) : s.kind === "archivo" ? t.archivo(s.name, s.pages) : t[s.kind]}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+      case "manual": return t.manual;
+      case "resultado":
+        return (
+          <div className="space-y-2">
+            <p>{t.resumenLectura(view!.archivos.length, l!.documentos.filter((d) => d.incluido).length)}</p>
+            <ul className="space-y-2">
+              {l!.documentos.map((d) => (
+                <li key={d.id} className={`rounded-lg border px-3 py-2 ${d.incluido ? "border-bleu/20" : "border-graphite/20 text-graphite"}`}>
+                  <p className="font-semibold">{d.titulo}</p>
+                  <p className="text-xs text-graphite">{t.pages(d.paginas)}{d.apostilla ? ` · ${t.conApostilla}` : ""}</p>
+                  {d.faltan.length > 0 && <p className="mt-1 text-sm text-rouge">{t.faltan(d.faltan.join(", "))}</p>}
+                  {d.ilegible && <p className="mt-1 text-sm text-rouge">{t.ilegible}</p>}
+                  {!d.incluido && d.motivo && <p className="mt-1 text-xs">{t.noIncluido}: {d.motivo}</p>}
+                  {l!.editable && view!.estado === "leida" && (
+                    <button type="button" className="mt-1 text-xs text-bleu underline" onClick={() => edit(d.incluido ? { op: "exclude", id: d.id } : { op: "include", id: d.id })}>
+                      {d.incluido ? t.noNecesito : t.siNecesito}
                     </button>
                   )}
-                </div>
-                {d.faltan.length > 0 && <p className="mt-2 text-sm text-rouge">{t.missing(d.faltan.join(", "))}</p>}
-                {d.ilegible && <p className="mt-2 text-sm text-rouge">{t.illegible}</p>}
-                {!d.incluido && d.motivo && <p className="mt-1 text-xs">{t.excluded}: {d.motivo}</p>}
-              </li>
-            ))}
-          </ul>
-        )}
-        {l!.noIncluidos.length > 0 && (
-          <div className="mt-4">
-            <p className="text-sm font-semibold text-encre">{t.notIncluded}</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-graphite">
-              {l!.noIncluidos.map((n, i) => <li key={i}>{n.que}: {n.motivo}</li>)}
+                </li>
+              ))}
             </ul>
+            {l!.noIncluidos.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold">{t.noIncluido}</p>
+                <ul className="list-disc pl-5 text-sm text-graphite">{l!.noIncluidos.map((n, i) => <li key={i}>{n.que}: {n.motivo}</li>)}</ul>
+              </div>
+            )}
           </div>
-        )}
-        {l!.preguntas.length > 0 && (
-          <div className="mt-4 rounded-lg bg-cream px-4 py-3">
-            <p className="text-sm font-semibold text-encre">{t.questionsTitle}</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-encre">{l!.preguntas.map((q, i) => <li key={i}>{q}</li>)}</ul>
-            <p className="mt-1 text-xs text-graphite">{t.questionsHint}</p>
+        );
+      case "solo_lectura": return view?.soloLectura === "otra_entrada" ? t.soloLecturaOtra : t.soloLecturaCaso;
+      case "pregunta": return m.text;
+      case "respuesta": return local.respuestas[m.index!];
+      case "pide_plazo": return t.pidePlazo;
+      case "plazo": {
+        const u = local.urgency ?? view?.plazo.urgency;
+        const d = local.neededBy ?? view?.plazo.neededBy;
+        return u === "ASAP" ? t.asap : u === "FLEXIBLE" ? t.sinPrisa : d ? t.para(fmtDate(d)) : t.fecha;
+      }
+      case "pide_lugar": return t.pideLugar;
+      case "lugar": {
+        const p = local.pais ?? view?.pais;
+        const o = local.organismo ?? view?.organismo;
+        return [o, p && countryName(p)].filter(Boolean).join(" · ") || t.noSeAun;
+      }
+      case "resumen": return t.resumen;
+      case "enviado": return t.enviado;
+      case "sin_jurado":
+        return (
+          <div className="space-y-2">
+            <p>{t.sinJurado(view?.sinJurado ? langName(view.sinJurado.codigo) : "")}</p>
+            <a href={view?.sinJurado?.maecUrl} target="_blank" rel="noopener noreferrer" className={`${btn} inline-block`}>{t.maec}</a>
           </div>
-        )}
-        <button className="mt-4 text-sm text-bleu underline" onClick={() => setAdding(true)}>{t.addRemove}</button>
-      </div>
+        );
+    }
+  }
 
-      <div className={`${card} space-y-4`}>
-        {needsTarget && (
-          <label className="block text-sm text-encre">{t.targetRequired}
-            <select className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" value="" onChange={(e) => e.target.value && edit({ op: "setTargetLang", targetLang: e.target.value })}>
-              <option value="">{t.choose}</option>
-              {LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
-            </select>
-          </label>
-        )}
-        <fieldset>
-          <legend className="text-sm font-semibold text-encre">{t.deadline}</legend>
-          <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            {([["ASAP", t.asap], ["DATE", t.date], ["FLEXIBLE", t.flexible]] as const).map(([v, label]) => (
-              <button key={v} type="button" onClick={() => setUrgency(v)} className={`rounded-lg border px-3 py-2 text-left text-sm ${urgency === v ? "border-bleu bg-bleu/5 font-semibold text-encre" : "border-graphite/20 text-graphite"}`}>{label}</button>
-            ))}
+  const langPicker = (multi: boolean, value: string[], onPick: (c: string) => void) => (
+    <div className="flex flex-wrap gap-1.5">
+      {langs.map(([c, n]) => (
+        <button key={c} type="button" className={chip(value.includes(c))} aria-pressed={value.includes(c)} onClick={() => onPick(c)}>{n}</button>
+      ))}
+    </div>
+  );
+  const toggle = (c: string) => setDestinos((d) => (d.includes(c) ? d.filter((x) => x !== c) : [...d, c]));
+  const same = origen !== null && destinos.includes(origen);
+  const cancel = editing && (
+    <button type="button" className="text-sm text-graphite underline" onClick={() => setEditing(null)}>{t.cancelar}</button>
+  );
+
+  function askBox(a: Ask): ReactNode {
+    switch (a.kind) {
+      case "contacto":
+        return (
+          <div className="space-y-3">
+            <input ref={emailRef} type="email" inputMode="email" autoComplete="email" placeholder={t.email} aria-label={t.email} value={email}
+              onChange={(e) => setEmail(e.target.value)} onInput={(e) => setEmail(e.currentTarget.value)} onBlur={(e) => setEmail(e.currentTarget.value)} className={field} />
+            <div className="grid grid-cols-2 gap-2">
+              <input autoComplete="name" placeholder={t.name} aria-label={t.name} value={nombre} onChange={(e) => setNombre(e.target.value)} className={field} />
+              <input type="tel" autoComplete="tel" placeholder={t.whatsapp} aria-label={t.whatsapp} value={telefono} onChange={(e) => setTelefono(e.target.value)} className={field} />
+            </div>
+            <label className="flex items-start gap-2 text-xs text-graphite">
+              <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{T.marketingConsent}</span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-graphite">
+              <input type="checkbox" checked={gdpr} onChange={(e) => setGdpr(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{T.gdprConsent} <a href="/privacidad" target="_blank" className="text-bleu underline">{T.gdprPrivacyLink}</a>.</span>
+            </label>
+            <button type="button" className={btn} disabled={!!busy || contactoFalta.length > 0} onClick={open}>{t.start}</button>
+            {contactoFalta.length > 0 && <p className="text-xs text-graphite">{t.falta(contactoFalta)}</p>}
           </div>
-          {urgency === "DATE" && <input type="date" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} className="mt-2 rounded-lg border border-graphite/30 px-3 py-2" />}
-        </fieldset>
-        <label className="block text-sm text-encre">{t.organismo}
-          <input value={organismo} onChange={(e) => setOrganismo(e.target.value)} placeholder={t.organismoPh} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" />
-        </label>
-        <label className="block text-sm text-encre">{t.notes}
-          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={3} placeholder={t.notesPh} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" />
-        </label>
-      </div>
-      {busyBox}
-      {errorBox}
-      <button className={btn} disabled={!deadlineOk || needsTarget || !!busy} onClick={confirm}>{t.confirm}</button>
+        );
+      case "codigo":
+        return (
+          <div className="space-y-2">
+            <input ref={codeRef} inputMode="numeric" autoComplete="one-time-code" aria-label={t.codigoLabel} placeholder="000000" value={code}
+              onChange={(e) => setCode(digits(e.target.value))} onInput={(e) => setCode(digits(e.currentTarget.value))}
+              onPaste={(e) => { e.preventDefault(); setCode(digits(e.clipboardData.getData("text"))); }}
+              className="w-40 rounded-lg border border-graphite/30 bg-white px-3 py-2 text-center text-xl tracking-[0.4em]" />
+            {code.length > 0 && code.length < 6 && <p className="text-xs text-graphite">{t.faltaCodigo}</p>}
+            <button type="button" className="block text-sm text-bleu underline" onClick={async () => token && apply((await call(`/api/entrada/${token}/codigo`, "POST")).data)}>{t.reenviar}</button>
+          </div>
+        );
+      case "origen":
+        return (
+          <div className="space-y-2">
+            {langPicker(false, origen ? [origen] : [], (c) => void answerOrigen(c))}
+            <div className="flex gap-3">
+              <button type="button" className={chip(false)} onClick={() => void answerOrigen(null)}>{t.noSe}</button>
+              {cancel}
+            </div>
+          </div>
+        );
+      case "destino":
+        return (
+          <div className="space-y-2">
+            {langPicker(true, destinos, toggle)}
+            {same && <p className="text-xs text-rouge">{t.mismoIdioma}</p>}
+            <div className="flex items-center gap-3">
+              <button type="button" className={btn} disabled={destinos.length === 0 || same} onClick={answerDestinos}>{t.listo}</button>
+              {cancel}
+            </div>
+            {destinos.length === 0 && <p className="text-xs text-graphite">{t.choose}</p>}
+          </div>
+        );
+      case "archivos":
+        return (
+          <div className="space-y-2">
+            <input ref={fileInput} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.tif,.tiff,.webp" className="hidden" onChange={(e) => addFiles(e.target.files)} />
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={chip(false)} disabled={!!busy} onClick={() => fileInput.current?.click()}>{t.add}</button>
+              <button type="button" className={btn} disabled={!view?.archivos.length || !!busy} onClick={() => patchLocal({ terminado: true })}>{t.terminado}</button>
+            </div>
+            {!view?.archivos.length && <p className="text-xs text-graphite">{t.faltaArchivo}</p>}
+          </div>
+        );
+      case "terminado":
+        return (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={btn} onClick={read}>{t.si}</button>
+            <button type="button" className={chip(false)} onClick={() => patchLocal({ terminado: false })}>{t.mas}</button>
+          </div>
+        );
+      case "leyendo":
+        return null;
+      case "pregunta":
+        if (a.idioma) {
+          return (
+            <div className="space-y-2">
+              {langPicker(true, destinos, toggle)}
+              {same && <p className="text-xs text-rouge">{t.mismoIdioma}</p>}
+              <div className="flex items-center gap-3">
+                <button type="button" className={btn} disabled={destinos.length === 0 || same} onClick={() => answerPreguntaIdioma(a.index)}>{t.listo}</button>
+                {cancel}
+              </div>
+            </div>
+          );
+        }
+        return (
+          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void answerPregunta(a.index, answer); }}>
+            <input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder={t.responder} aria-label={t.responder} className={field} />
+            <button type="submit" className={btn} disabled={!answer.trim()}>{t.enviarRespuesta}</button>
+            {cancel}
+          </form>
+        );
+      case "plazo":
+        return (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={chip(local.urgency === "ASAP")} onClick={() => answerPlazo("ASAP")}>{t.asap}</button>
+              <button type="button" className={chip(local.urgency === "DATE")} onClick={() => patchLocal({ urgency: "DATE", neededBy: null })}>{t.fecha}</button>
+              <button type="button" className={chip(local.urgency === "FLEXIBLE")} onClick={() => answerPlazo("FLEXIBLE")}>{t.sinPrisa}</button>
+            </div>
+            {local.urgency === "DATE" && (
+              <div className="flex items-center gap-2">
+                <input type="date" value={fecha} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setFecha(e.target.value)} className="rounded-lg border border-graphite/30 bg-white px-3 py-2" />
+                <button type="button" className={btn} disabled={!fecha} onClick={() => answerPlazo("DATE")}>{t.listo}</button>
+              </div>
+            )}
+            {cancel}
+          </div>
+        );
+      case "lugar":
+        return (
+          <div className="space-y-2">
+            <select value={pais} onChange={(e) => setPais(e.target.value)} aria-label={t.pais} className={field}>
+              <option value="">{t.pais}</option>
+              {paises.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+            </select>
+            <input value={organismo} onChange={(e) => setOrganismo(e.target.value)} placeholder={t.organismoPh} aria-label={t.organismo} className={field} />
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={btn} disabled={!pais && !organismo.trim()} onClick={() => answerLugar(false)}>{t.continuar}</button>
+              <button type="button" className={chip(false)} onClick={() => answerLugar(true)}>{t.noSeAun}</button>
+              {cancel}
+            </div>
+          </div>
+        );
+      case "enviar":
+        return (
+          <div className="space-y-2">
+            <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} placeholder={t.notasPh} aria-label={t.notas} className={field} />
+            <button type="button" className={btn} disabled={!!busy} onClick={enviar}>{t.enviar}</button>
+          </div>
+        );
+    }
+  }
+
+  return (
+    <div className="mx-auto flex max-w-xl flex-col rounded-2xl bg-cream/60 p-3 sm:p-4">
+      <ol className="flex flex-col gap-2" role="log" aria-live="polite" aria-relevant="additions">
+        {messages.map((m, i) => (
+          <li key={m.id} ref={i === messages.length - 1 ? lastRef : undefined} tabIndex={-1} className="flex flex-col outline-none">
+            <Bubble from={m.from} onEdit={m.from === "cliente" && "editKey" in m && m.editKey && view?.estado !== "confirmada" ? startEdit(m.editKey) : undefined} editLabel={t.tocar}>
+              {content(m)}
+            </Bubble>
+          </li>
+        ))}
+      </ol>
+      {busy && <p className="mt-2 self-start text-xs text-graphite" aria-live="polite">{busy}</p>}
+      {error && <p className="mt-2 rounded-lg bg-rouge/5 px-3 py-2 text-sm text-rouge" role="alert">{error}</p>}
+      {ask && <div className="mt-3 rounded-2xl bg-white p-3 shadow-sm">{askBox(ask)}</div>}
+      {view?.estado === "confirmada" && (
+        <button type="button" className="mt-3 self-center text-sm text-bleu underline" onClick={restart}>{HILO_T[lang].start}</button>
+      )}
     </div>
   );
 }

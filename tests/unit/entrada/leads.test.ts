@@ -4,7 +4,7 @@ import { entradaLeads, type EntradaParaLead } from "../../../lib/entrada/leads.t
 import { selectLeadSla } from "../../../lib/lead-sla-core.ts";
 import { planRecalculo } from "../../../lib/caso/sombra-plan.ts";
 import { puedeCaso, esCasoEstado } from "../../../lib/caso/estados.ts";
-import { ENTRADA_T } from "../../../lib/entrada/i18n.ts";
+import { HILO_T } from "../../../lib/entrada/hilo-i18n.ts";
 import { OpenBody } from "../../../lib/entrada/api.ts";
 
 const NOW = new Date("2026-11-19T12:00:00Z");
@@ -42,5 +42,5 @@ test("(a)(b) the open body keeps the ?p= preset and the client's language; unkno
   assert.equal(OpenBody.safeParse({ ...base, source: "uge-ce", lang: "fr" }).success, true);
   assert.equal(OpenBody.safeParse({ ...base, source: "spam" }).success, false);
   assert.equal(OpenBody.safeParse({ ...base, lang: "zz" }).success, false);
-  for (const l of ["es", "fr", "en", "de", "pt"] as const) assert.match(ENTRADA_T[l].summary(2, 1), /2/);
+  for (const l of ["es", "fr", "en", "de", "pt"] as const) assert.match(HILO_T[l].resumenLectura(2, 1), /2/);
 });
