@@ -14,7 +14,7 @@ export const SLA_SMS_UNTIL_HOUR = 22;
 const SITE = "https://www.traduccionesjuradas.net";
 const TEST_EMAIL = /yopmail\.com$|mailinator\.com$|^prueba@|^test@/;
 
-export type SlaDoc = GraphLead & { fileName: string | null; sourceLanguage: string | null; targetLanguage: string | null; estimatedWords: number | null; quoteAmount: number | string | null; createdAt: Date; urgency?: string | null; neededBy?: Date | null };
+export type SlaDoc = GraphLead & { link?: string; fileName: string | null; sourceLanguage: string | null; targetLanguage: string | null; estimatedWords: number | null; quoteAmount: number | string | null; createdAt: Date; urgency?: string | null; neededBy?: Date | null };
 export type SlaInbound = { fromEmail: string; fromName: string | null; fromPhone: string | null; subject: string; receivedAt: Date; status: string; quoteId: string | null; repliedAt: Date | null; channel: string };
 export type SlaSolicitud = GraphSolicitud & { status: string; priceCents: number | null; par: string; createdAt: Date };
 export type SlaQuote = GraphQuote & { sentAt: Date | null; createdAt: Date };
@@ -80,7 +80,7 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
       at: d.createdAt, kind: "puerta", name: d.clientName, email: d.clientEmail ? normEmail(d.clientEmail) : null, phone: d.clientPhone,
       pair: pairOf(d.sourceLanguage, d.targetLanguage), fileKey: `${d.fileName}|${d.sourceLanguage}|${d.targetLanguage}|${d.estimatedWords}`,
       motor: d.quoteAmount == null ? null : Number(d.quoteAmount),
-      link: `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(d.sessionToken || "")}`,
+      link: d.link ?? `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(d.sessionToken || "")}`,
       urgency: d.urgency ?? null, neededBy: d.neededBy ?? null,
     });
   }

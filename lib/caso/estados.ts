@@ -2,7 +2,8 @@
 // El estado sale de que EXISTA pedido y de su flujo, no del cobro: un cliente de
 // crédito tiene pedido sin pagar (lib/quote-credit.ts) y su caso ya está EN_CURSO.
 
-export const CASO_ESTADOS = ["ABIERTO", "EN_CURSO", "ENTREGADO", "PERDIDO", "CANCELADO"] as const;
+// SIN_JURADO: idioma sin traductor jurado; cerrado sin contar como pérdida.
+export const CASO_ESTADOS = ["ABIERTO", "EN_CURSO", "ENTREGADO", "PERDIDO", "CANCELADO", "SIN_JURADO"] as const;
 export type CasoEstado = (typeof CASO_ESTADOS)[number];
 
 export const CASO_EVENTOS = ["creado", "adjuntado", "posible", "transicion", "discrepancia", "comparacion", "veredicto", "fallo_resolver", "backfill", "aviso_humano", "aviso_humano_repetido", "solicitud_reemplazada", "reserva_solicitud"] as const;
@@ -16,9 +17,10 @@ export const QUOTE_FORMALIZADOS = ["PAID", "IN_PROGRESS", "DELIVERED"] as const;
 export const LPR_VIVA_DIAS = 30;
 
 const TRANSICIONES: Record<CasoEstado, CasoEstado[]> = {
-  ABIERTO: ["EN_CURSO", "ENTREGADO", "CANCELADO", "PERDIDO"],
+  ABIERTO: ["EN_CURSO", "ENTREGADO", "CANCELADO", "PERDIDO", "SIN_JURADO"],
   // Llega el pedido de un caso dado por perdido: el pedido manda.
   PERDIDO: ["ABIERTO", "EN_CURSO", "ENTREGADO", "CANCELADO"],
+  SIN_JURADO: ["ABIERTO", "EN_CURSO", "ENTREGADO", "CANCELADO"],
   EN_CURSO: ["ENTREGADO", "CANCELADO"],
   ENTREGADO: [],
   CANCELADO: [],

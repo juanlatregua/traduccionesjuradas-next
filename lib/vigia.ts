@@ -2,6 +2,8 @@
 // recuperar y de lo que Juan tiene que traducir/seguir. Solo lectura.
 // La consumen: scripts/vigia-pedidos.ts (CLI del agente vigia-pedidos) y el cron
 // /api/cron/vigia-agenda (email de las 8:00). Una sola fuente de verdad.
+import { loadEntradaLeads } from "@/lib/entrada/leads-db";
+import { ENTRADA_SESSION_PREFIX } from "@/lib/entrada/leads";
 import { prisma } from "@/lib/prisma";
 import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed, periodLabel } from "@/lib/credit-terms";
 import { buildPersonGraph } from "@/lib/vigia-graph";
@@ -103,10 +105,10 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     where: { paymentStatus: "PAID", paidAt: { gte: SINCE } },
     select: { reference: true, status: true, clientEmail: true, clientName: true, clientPhone: true, langPair: true, paidAt: true },
   });
-  const [leadDocs, windowQuotes, openQuotes, marcasDb] = await Promise.all([
+  const [docLeads, windowQuotes, openQuotes, marcasDb, entradaLeadDocs] = await Promise.all([
     prisma.documentAnalysis.findMany({
       // El Lector de requerimientos pide email (24-sep) pero no es un lead de traducción.
-      where: { createdAt: { gte: SINCE }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }], AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] },
+      where: { createdAt: { gte: SINCE }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }, { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } }], AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] },
       orderBy: { createdAt: "asc" },
       select: { clientEmail: true, clientName: true, clientPhone: true, fileName: true, documentType: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, sessionToken: true, createdAt: true, marketingConsent: true, fileHash: true },
     }),
@@ -119,7 +121,9 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     }),
     // Marcas «Ya lo traté» / «Posponer» (app/api/vigia/marca): FunnelEvent «vigia:<clave>».
     prisma.funnelEvent.findMany({ where: { step: { in: ["vigia_tratado", "vigia_posponer"] }, createdAt: { gte: new Date(NOW.getTime() - 8 * 864e5) } }, select: { sessionId: true, step: true, createdAt: true, metadata: true } }).catch(() => []),
+    loadEntradaLeads(SINCE),
   ]);
+  const leadDocs: ((typeof docLeads)[number] & { link?: string })[] = [...docLeads, ...entradaLeadDocs];
   type QLite = { holder: string | null; name: string; id: string; email: string; phone: string | null; numero: string; status: string; par: string; expRef: string | null; createdAt: Date };
   const quoteMap = new Map<string, QLite>();
   for (const q of [...windowQuotes, ...openQuotes]) quoteMap.set(q.id, { holder: (q as any).holderNames ?? null, name: (q as any).customerName ?? "", id: q.id, email: q.customerEmail, phone: (q as any).customerPhone ?? null, numero: q.quoteNumber, status: q.status, par: pairOf(q.sourceLang, q.targetLang), expRef: q.expedienteRef, createdAt: q.createdAt });
@@ -253,7 +257,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     if (/yopmail\.com$|mailinator\.com$|^prueba@|^test@/.test(email)) continue;
     const covering = quotesOfRoot.get(root) || [];
     const sols = solsOfRoot.get(root) || [];
-    const e = leadMap.get(root) || { email, emails: new Set<string>(), root, name: d.clientName, phone: d.clientPhone, first: d.createdAt, docs: [], solicitud: sols[0] || null, quote: covering.slice().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] || null, consent: false, session: d.sessionToken };
+    const e = leadMap.get(root) || { email, emails: new Set<string>(), root, name: d.clientName, phone: d.clientPhone, first: d.createdAt, docs: [], solicitud: sols[0] || null, quote: covering.slice().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] || null, consent: false, session: d.sessionToken, link: d.link };
     e.emails.add(email);
     e.name ||= d.clientName; e.phone ||= d.clientPhone; e.consent ||= d.marketingConsent;
     e.docs.push({ file: d.fileName, tipo: d.documentType, par: pairOf(d.sourceLanguage, d.targetLanguage), palabras: d.estimatedWords, motor: d.quoteAmount == null ? null : Number(d.quoteAmount) });
@@ -276,7 +280,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
     else accion = `no-FR sin solicitud al colectivo → mandar solicitud desde el builder (?session=) y avisar al cliente`;
     const otros = l.emails.size > 1 ? ` (+${[...l.emails].filter((x: string) => x !== l.email).join(", ")})` : "";
     if (!l.quote && !l.solicitud && !isHidden(l.root, `lead ${l.email}`)) {
-      act(total, sinDestino ? 2 : fr ? 2 : 3, `Lead ${l.email}${otros}${phone ? ` · ${phone}` : ""} (${pares}, motor ${eur(total)}): ${sinDestino ? "preguntar idioma de destino" : fr ? "toque humano" : "mandar solicitud a lavori"}`, `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(l.session || "")}`, personExtra(l.root, null));
+      act(total, sinDestino ? 2 : fr ? 2 : 3, `Lead ${l.email}${otros}${phone ? ` · ${phone}` : ""} (${pares}, motor ${eur(total)}): ${sinDestino ? "preguntar idioma de destino" : fr ? "toque humano" : "mandar solicitud a lavori"}`, l.link || `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(l.session || "")}`, personExtra(l.root, null));
     }
     const { emails, root, ...rest } = l;
     return { ...rest, phone, wa: waLink(phone), smsMuerto: smsDead(phone), total, fr, accion, first: madrid(l.first) };

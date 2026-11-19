@@ -465,7 +465,7 @@ export function planBackfill(input: BackfillInput): BackfillPlan {
 }
 
 export function casoCerradoEn(c: CasoPlan): Date | null {
-  return casoTerminal(c.estado) || c.estado === "PERDIDO" ? c.lastActivityAt : null;
+  return casoTerminal(c.estado) || c.estado === "PERDIDO" || c.estado === "SIN_JURADO" ? c.lastActivityAt : null;
 }
 
 export const NOTA_SUSTITUIDO = AUTO_LOST_NOTES.REPLACED;

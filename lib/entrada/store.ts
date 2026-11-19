@@ -11,6 +11,9 @@ export type EntradaRow = {
   loteId: string | null;
   regla: string | null;
   posibles: string[];
+  relacionados: string[];
+  source: string | null;
+  lang: string | null;
   email: string | null;
   phone9: string | null;
   nombre: string | null;
@@ -25,7 +28,7 @@ export type EntradaRow = {
   updatedAt: Date;
 };
 
-export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nombre" | "sourceLang" | "targetLang"> & {
+export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nombre" | "sourceLang" | "targetLang" | "source" | "lang"> & {
   tokenHash: string;
   ipHash: string | null;
   gdprConsentAt: Date;
@@ -34,7 +37,7 @@ export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nomb
 
 export type ArchivoRow = { id: string; name: string; url: string; mimeType: string; size: number; sha256: string };
 
-export type EntradaPatch = Partial<Pick<EntradaRow, "estado" | "casoId" | "loteId" | "regla" | "posibles" | "targetLang" | "urgency" | "neededBy" | "organismo" | "notas" | "confirmedAt">>;
+export type EntradaPatch = Partial<Pick<EntradaRow, "estado" | "casoId" | "loteId" | "regla" | "posibles" | "relacionados" | "targetLang" | "urgency" | "neededBy" | "organismo" | "notas" | "confirmedAt">>;
 
 export type EntradaStore = {
   create(data: NuevaEntrada): Promise<EntradaRow>;

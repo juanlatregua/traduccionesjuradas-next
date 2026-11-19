@@ -34,7 +34,7 @@ export type FlowDeps = {
     ref(casoId: string): Promise<string | null>;
     evento(casoId: string, tipo: string, actor: string, payload: Record<string, unknown>): Promise<void>;
     plazo(casoId: string, urgency: string, neededBy: Date | null): Promise<void>;
-    /** Closes the caso as lost only if nothing else lives in it (quotes, orders, requests, other entradas). */
+    /** Closes the caso as SIN_JURADO (not a loss) only if nothing else lives in it (quotes, orders, requests, other entradas). */
     cerrarSinJurado(casoId: string, entradaId: string): Promise<boolean>;
   };
   notify(aviso: Aviso): Promise<void>;
@@ -45,11 +45,11 @@ export type FlowDeps = {
 export const tokenHashOf = (token: string) => createHash("sha256").update(token).digest("hex");
 const actorOf = (e: EntradaRow) => `cliente:${e.email ?? e.phone9 ?? e.id}`;
 
-export async function abrirEntrada(deps: FlowDeps, input: { canal: Canal; email: string | null; phone9: string | null; nombre: string | null; sourceLang: string | null; targetLang: string | null; ipHash: string | null; marketing: boolean }) {
+export async function abrirEntrada(deps: FlowDeps, input: { canal: Canal; email: string | null; phone9: string | null; nombre: string | null; sourceLang: string | null; targetLang: string | null; ipHash: string | null; marketing: boolean; source?: string | null; lang?: string | null }) {
   const token = randomBytes(24).toString("base64url");
   const now = deps.now();
   const entrada = await deps.store.create({
-    canal: input.canal, email: input.email, phone9: input.phone9, nombre: input.nombre, sourceLang: input.sourceLang, targetLang: input.targetLang,
+    canal: input.canal, email: input.email, phone9: input.phone9, nombre: input.nombre, sourceLang: input.sourceLang, targetLang: input.targetLang, source: input.source ?? null, lang: input.lang ?? null,
     tokenHash: tokenHashOf(token), ipHash: input.ipHash, gdprConsentAt: now, marketingConsentAt: input.marketing ? now : null,
   });
   return { token, entrada };
@@ -130,7 +130,7 @@ export async function leerEntrada(deps: FlowDeps, e: EntradaRow): Promise<Outcom
       ancla: sessionKeyOf(e.id), actor: actorOf(e), ahora: deps.now(),
     });
     casoId = gate.casoId;
-    await deps.store.update(e.id, { casoId, regla: gate.decision.regla, posibles: gate.decision.posibles }, ["abierta", "leida"]);
+    await deps.store.update(e.id, { casoId, regla: gate.decision.regla, posibles: gate.decision.posibles, relacionados: gate.decision.relacionados }, ["abierta", "leida"]);
   }
   await deps.store.linkFilesToCaso(e.id, casoId);
   let cur: EntradaRow = { ...e, casoId };

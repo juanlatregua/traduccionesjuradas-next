@@ -23,6 +23,7 @@ export type CasoFila = {
   esAgencia: boolean;
   lastActivityAt: Date;
   hashes: string[];
+  conPedido: boolean;
 };
 
 export type Busqueda = { hashes: string[]; emails: string[]; phones: string[]; vivosDesde: Date; ids: string[] };
@@ -80,6 +81,14 @@ async function huellasBajoDemanda(deps: GateDeps, input: GateInput): Promise<Map
   return out;
 }
 
+async function marcas(tx: GateTx, casoId: string, d: DecisionEntrada, actor: string) {
+  if (d.posibles.length) await tx.evento(casoId, "posible", actor, { con: d.posibles, regla: d.regla });
+  if (d.relacionados.length) {
+    await tx.evento(casoId, "relacionado", actor, { con: d.relacionados, motivo: "mismo archivo que un caso ya encargado o cerrado" });
+    for (const otro of d.relacionados) await tx.evento(otro, "relacionado", actor, { con: [casoId], motivo: "el mismo archivo ha vuelto a entrar" });
+  }
+}
+
 export async function resolverEntrada(deps: GateDeps, input: GateInput): Promise<GateResult> {
   const hashes = [...new Set(input.hashes)];
   const extra = await huellasBajoDemanda(deps, { ...input, hashes });
@@ -116,8 +125,8 @@ export async function resolverEntrada(deps: GateDeps, input: GateInput): Promise
         reabrir: caso.estado === "PERDIDO",
         ahora: input.ahora,
       });
-      await tx.evento(caso.id, "adjuntado", input.actor, { ...payload, yaEncargado: decision.yaEncargado });
-      if (decision.posibles.length) await tx.evento(caso.id, "posible", input.actor, { con: decision.posibles, regla: decision.regla });
+      await tx.evento(caso.id, "adjuntado", input.actor, payload);
+      await marcas(tx, caso.id, decision, input.actor);
       return { casoId: caso.id, ref: caso.ref, creado: false, decision };
     }
 
@@ -131,8 +140,8 @@ export async function resolverEntrada(deps: GateDeps, input: GateInput): Promise
       actor: input.actor,
       ahora: input.ahora,
     });
-    await tx.evento(caso.id, "creado", input.actor, { ...payload, posibles: decision.posibles });
-    if (decision.posibles.length) await tx.evento(caso.id, "posible", input.actor, { con: decision.posibles, regla: decision.regla });
+    await tx.evento(caso.id, "creado", input.actor, { ...payload, posibles: decision.posibles, relacionados: decision.relacionados });
+    await marcas(tx, caso.id, decision, input.actor);
     return { casoId: caso.id, ref: caso.ref, creado: true, decision };
   });
 }

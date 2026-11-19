@@ -201,7 +201,7 @@ export function planRecalculo(i: {
   const pedidos = i.pedidos.length ? i.pedidos : pedidosDeFormalizados(vivos);
   const propuesto = estadoDeCaso({ pedidos, vivo });
   const estado = puedeCaso(actual, propuesto) ? propuesto : actual;
-  const cerrado = casoTerminal(estado) || estado === "PERDIDO";
+  const cerrado = casoTerminal(estado) || estado === "PERDIDO" || estado === "SIN_JURADO";
   const closedAt = cerrado ? (i.closedAt ? "dejar" : "poner") : i.closedAt ? "quitar" : "dejar";
   return { estado, cambia: estado !== actual, closedAt };
 }

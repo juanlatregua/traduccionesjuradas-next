@@ -19,18 +19,22 @@ export type CasoVisto = {
   esAgencia: boolean;
   lastActivityAt: Date;
   hashes: string[];
+  /** Has an order (paid or on credit) or a request already accepted by a sworn translator. */
+  conPedido: boolean;
 };
 
 export type SenalEntrada = { identidad: Identidad; nombre: string | null; hashes: string[]; ahora: Date };
 
-export type ReglaEntrada = "huella" | "contacto" | "agencia" | "dudoso" | "nuevo";
+export type ReglaEntrada = "huella" | "contacto" | "agencia" | "dudoso" | "relacionado" | "nuevo";
 export type DecisionEntrada = {
   accion: "unir" | "crear";
   casoId?: string;
   regla: ReglaEntrada;
   dudoso: boolean;
+  /** «¿Mismo cliente que…?»: never joined. */
   posibles: string[];
-  yaEncargado: boolean;
+  /** Same file in a caso that is already ordered, delivered or closed: the new caso points to it. */
+  relacionados: string[];
 };
 
 const PARTICULAS = new Set(["de", "del", "la", "las", "los", "da", "das", "do", "dos", "van", "von", "der", "den", "el", "y", "e"]);
@@ -61,26 +65,24 @@ export function decidirEntrada(s: SenalEntrada, casos: CasoVisto[]): DecisionEnt
   const hs = new Set(s.hashes);
 
   const porHuella = casos.filter((c) => c.hashes.some((h) => hs.has(h))).sort(reciente);
-  const unible = (c: CasoVisto) => c.estado === "ABIERTO" || (["PERDIDO", "EN_CURSO", "ENTREGADO"].includes(c.estado) && edad(c) <= VENTANA_HUELLA_DIAS * DAY);
-  const elegido = porHuella.find((c) => c.estado === "ABIERTO") ?? porHuella.find(unible);
+  const unible = (c: CasoVisto) => !c.conPedido && (c.estado === "ABIERTO" || (c.estado === "PERDIDO" && edad(c) <= VENTANA_HUELLA_DIAS * DAY));
+  const elegido = porHuella.find((c) => unible(c) && c.estado === "ABIERTO") ?? porHuella.find(unible);
+  const relacionados = porHuella.filter((c) => !unible(c)).map((c) => c.id);
   if (elegido) {
-    return {
-      accion: "unir", casoId: elegido.id, regla: "huella", dudoso: false,
-      posibles: porHuella.filter((c) => c !== elegido).map((c) => c.id),
-      yaEncargado: elegido.estado === "EN_CURSO" || elegido.estado === "ENTREGADO",
-    };
+    return { accion: "unir", casoId: elegido.id, regla: "huella", dudoso: false, posibles: porHuella.filter((c) => c !== elegido && unible(c)).map((c) => c.id), relacionados };
   }
-  const posibles = porHuella.map((c) => c.id);
 
-  const vivos = casos.filter((c) => c.estado === "ABIERTO" && edad(c) <= VENTANA_CONTACTO_DIAS * DAY);
+  const vivos = casos.filter((c) => c.estado === "ABIERTO" && !c.conPedido && edad(c) <= VENTANA_CONTACTO_DIAS * DAY);
   const fuerzas = vivos.map((c) => ({ c, f: s.identidad.keys.length ? compararIdentidad(s.identidad, c.identidad) : "ninguna" }));
-  const mismo = fuerzas.filter(({ f }) => f === "fuerte" || f === "telefono").map(({ c }) => c).sort(reciente);
+  const mismo = fuerzas.filter(({ f }) => f === "fuerte").map(({ c }) => c).sort(reciente);
   if (mismo.length > 0) {
-    if (mismo[0].esAgencia) return { accion: "crear", regla: "agencia", dudoso: false, posibles: uniq([...posibles, ...mismo.map((c) => c.id)]), yaEncargado: false };
-    return { accion: "unir", casoId: mismo[0].id, regla: "contacto", dudoso: false, posibles: uniq([...posibles, ...mismo.slice(1).map((c) => c.id)]), yaEncargado: false };
+    if (mismo[0].esAgencia) return { accion: "crear", regla: "agencia", dudoso: false, posibles: mismo.map((c) => c.id), relacionados };
+    return { accion: "unir", casoId: mismo[0].id, regla: "contacto", dudoso: false, posibles: mismo.slice(1).map((c) => c.id), relacionados };
   }
 
-  const dudas = fuerzas.filter(({ c, f }) => f === "posible" || (f === "ninguna" && nombreParecido(s.nombre, c.nombre))).map(({ c }) => c.id);
-  if (dudas.length > 0) return { accion: "crear", regla: "dudoso", dudoso: true, posibles: uniq([...posibles, ...dudas]), yaEncargado: false };
-  return { accion: "crear", regla: "nuevo", dudoso: false, posibles: uniq(posibles), yaEncargado: false };
+  const dudas = fuerzas
+    .filter(({ c, f }) => f === "telefono" || f === "posible" || (f === "ninguna" && nombreParecido(s.nombre, c.nombre)))
+    .map(({ c }) => c.id);
+  if (dudas.length > 0) return { accion: "crear", regla: "dudoso", dudoso: true, posibles: uniq(dudas), relacionados };
+  return { accion: "crear", regla: relacionados.length ? "relacionado" : "nuevo", dudoso: false, posibles: [], relacionados };
 }

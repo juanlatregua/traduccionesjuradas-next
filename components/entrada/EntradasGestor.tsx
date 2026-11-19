@@ -7,6 +7,9 @@ type Entrada = {
   casoId: string | null;
   regla: string | null;
   posibles: string[];
+  relacionados: string[];
+  source: string | null;
+  lang: string | null;
   email: string | null;
   phone9: string | null;
   nombre: string | null;
@@ -33,7 +36,11 @@ export function EntradaResumen({ entradas, refs }: { entradas: Entrada[]; refs: 
             {e.confirmedAt ? ` · ${fecha(e.confirmedAt)}` : ""}
           </p>
           <p className="text-slate-400">{[e.nombre, e.email, e.phone9].filter(Boolean).join(" · ")} · {plazo(e)}{e.organismo ? ` · ${e.organismo}` : ""}</p>
+          {(e.source || (e.lang && e.lang !== "es")) && <p className="text-slate-500">{[e.source && `origen ${e.source}`, e.lang && e.lang !== "es" && `idioma del cliente: ${e.lang}`].filter(Boolean).join(" · ")}</p>}
           {e.notas && <p className="mt-1 text-slate-300">«{e.notas}»</p>}
+          {e.relacionados.length > 0 && (
+            <p className="mt-1 text-sky-300">Relacionado con {e.relacionados.map((id) => refs[id] ?? id).join(", ")}: mismo archivo en un caso ya encargado o cerrado. No se ha unido.</p>
+          )}
           {e.regla === "dudoso" && e.posibles.length > 0 && (
             <p className="mt-1 text-amber-300">
               ¿Mismo cliente que {e.posibles.map((id) => refs[id] ?? id).join(", ")}? No se ha unido: revísalo.
@@ -56,6 +63,7 @@ export function EntradasPendientes({ entradas, refs }: { entradas: Entrada[]; re
             <a href={e.casoId ? `/zona-traductor/lectura?caso=${encodeURIComponent(e.casoId)}` : "#"} className="block rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-200 hover:border-cyan-700">
               <span className="font-semibold text-white">{e.casoId ? refs[e.casoId] ?? e.casoId : "sin caso"}</span> · {ESTADO[e.estado] ?? e.estado} · {[e.nombre, e.email, e.phone9].filter(Boolean).join(" · ")} · {plazo(e)}
               {e.regla === "dudoso" && <span className="ml-2 text-amber-300">¿mismo cliente?</span>}
+              {e.relacionados.length > 0 && <span className="ml-2 text-sky-300">relacionado con {e.relacionados.map((id) => refs[id] ?? id).join(", ")}</span>}
               <span className="ml-2 text-slate-500">{fecha(e.confirmedAt ?? e.createdAt)}</span>
             </a>
           </li>

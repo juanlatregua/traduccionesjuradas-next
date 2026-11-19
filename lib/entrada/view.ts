@@ -42,7 +42,7 @@ export type ClientView = {
         preguntas: string[];
         resumen: string;
       };
-  sinJurado: null | { idioma: string; maecUrl: string };
+  sinJurado: null | { idioma: string; codigo: string; maecUrl: string };
   plazo: { urgency: string | null; neededBy: string | null };
   organismo: string | null;
 };
@@ -78,7 +78,7 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
     estado: entrada.estado,
     archivos: archivos.map(({ id, name, url, mimeType, size }) => ({ id, name, url, mimeType, size })),
     lectura: null,
-    sinJurado: sinJurado ? { idioma: langName(sinJurado), maecUrl: MAEC_URL } : null,
+    sinJurado: sinJurado ? { idioma: langName(sinJurado), codigo: sinJurado, maecUrl: MAEC_URL } : null,
     plazo: { urgency: entrada.urgency, neededBy: entrada.neededBy ? entrada.neededBy.toISOString().slice(0, 10) : null },
     organismo: entrada.organismo,
   };

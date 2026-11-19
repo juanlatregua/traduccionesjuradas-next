@@ -18,6 +18,10 @@ const DAY = 24 * HOUR;
 export const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/heic", "image/heif", "image/tiff", "image/webp"] as const;
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
+/** Same attribution presets as /presupuesto-instantaneo (?p=) and /api/documents/register. */
+export const ENTRADA_SOURCES = ["regularizacion-2026", "uge-ce", "lavori", "precios", "whatsapp"] as const;
+export const ENTRADA_LANGS = ["es", "fr", "en", "de", "pt"] as const;
+
 const Lang = z.string().trim().toLowerCase().regex(/^[a-z]{2,3}$/);
 const Text = (max: number) => z.string().trim().max(max);
 
@@ -27,6 +31,8 @@ export const OpenBody = z.strictObject({
   telefono: Text(40).nullable().optional(),
   sourceLang: Lang.nullable().optional(),
   targetLang: Lang.nullable().optional(),
+  source: z.enum(ENTRADA_SOURCES).nullable().optional(),
+  lang: z.enum(ENTRADA_LANGS).nullable().optional(),
   gdprConsent: z.literal(true),
   marketingConsent: z.literal(true),
 });
@@ -108,7 +114,7 @@ export async function handleOpen(req: Request, deps: EntradaApiDeps): Promise<Ap
   const phone9 = b.telefono ? telefono9(b.telefono) : null;
   if (b.telefono && !phone9) return json(400, { ok: false, error: "Ese teléfono no parece válido." });
   const { token } = await abrirEntrada(deps, {
-    canal: "web", email, phone9, nombre: b.nombre || null, sourceLang: b.sourceLang ?? null, targetLang: b.targetLang ?? null, ipHash: deps.ipHash(ip), marketing: true,
+    canal: "web", email, phone9, nombre: b.nombre || null, sourceLang: b.sourceLang ?? null, targetLang: b.targetLang ?? null, ipHash: deps.ipHash(ip), marketing: true, source: b.source ?? null, lang: b.lang ?? null,
   });
   return json(200, { ok: true, token });
 }

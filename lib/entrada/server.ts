@@ -54,8 +54,8 @@ async function notify(a: Aviso): Promise<void> {
     : `Entrada web sin jurado (${langName(a.idioma)}) — ${a.casoRef ?? e.casoId}`;
   const plazo = e.urgency === "DATE" && e.neededBy ? `para el ${fmtNeededBy(e.neededBy)}` : e.urgency === "ASAP" ? "lo antes posible" : e.urgency === "FLEXIBLE" ? "sin prisa" : "sin indicar";
   const html = a.kind === "confirmada"
-    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p><p>${a.documentos} documento(s) · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}</p>${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}<p><a href="${link}">Abrir la lectura y presupuestar</a></p>`
-    : `<h2>Idioma sin jurado: ${escapeHtml(langName(a.idioma))}</h2><p>${who}</p><p>Al cliente se le ha dado el buscador del MAEC y el caso queda cerrado «sin jurado» si no tenía nada más.</p><p><a href="${link}">Ver el caso</a></p>`;
+    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p><p>${a.documentos} documento(s) · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}</p>${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir la lectura y presupuestar</a></p>`
+    : `<h2>Idioma sin jurado: ${escapeHtml(langName(a.idioma))}</h2><p>${who}</p><p>Al cliente se le ha dado el buscador del MAEC y el caso queda en «Sin jurado» (no cuenta como perdido) si no tenía nada más.</p><p><a href="${link}">Ver el caso</a></p>`;
   await sendMail({ to, subject, html });
 }
 
@@ -87,7 +87,7 @@ export const flowDeps: FlowDeps = {
         prisma.entrada.count({ where: { casoId, id: { not: entradaId } } }),
       ]);
       if (quotes + orders + requests + entradas > 0) return false;
-      const r = await prisma.caso.updateMany({ where: { id: casoId, estado: "ABIERTO" }, data: { estado: "PERDIDO", closedAt: new Date() } });
+      const r = await prisma.caso.updateMany({ where: { id: casoId, estado: "ABIERTO" }, data: { estado: "SIN_JURADO", closedAt: new Date() } });
       return r.count === 1;
     },
   },

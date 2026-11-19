@@ -2,14 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { puertaT } from "@/lib/i18n/puerta";
+import { ENTRADA_T, type EntradaLang } from "@/lib/entrada/i18n";
 import type { ClientView } from "@/lib/entrada/view";
 
-const T = puertaT.es;
 const TOKEN_KEY = "tj-entrada";
-const LANGS: [string, string][] = [
-  ["es", "Español"], ["fr", "Francés"], ["en", "Inglés"], ["de", "Alemán"], ["it", "Italiano"], ["pt", "Portugués"], ["nl", "Neerlandés"],
-  ["ro", "Rumano"], ["ar", "Árabe"], ["ca", "Catalán"], ["sv", "Sueco"], ["no", "Noruego"], ["el", "Griego"], ["ru", "Ruso"], ["uk", "Ucraniano"], ["pl", "Polaco"], ["zh", "Chino"],
-];
+const LANG_CODES = ["es", "fr", "en", "de", "it", "pt", "nl", "ro", "ar", "ca", "sv", "no", "el", "ru", "uk", "pl", "zh"];
+function langNames(ui: string): [string, string][] {
+  let dn: Intl.DisplayNames | null = null;
+  try {
+    dn = new Intl.DisplayNames([ui], { type: "language" });
+  } catch {}
+  return LANG_CODES.map((c) => {
+    const n = dn?.of(c) ?? c.toUpperCase();
+    return [c, n.charAt(0).toUpperCase() + n.slice(1)];
+  });
+}
 const EXT_TYPES: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", heic: "image/heic", heif: "image/heif", tif: "image/tiff", tiff: "image/tiff", webp: "image/webp" };
 const card = "rounded-xl border border-bleu/15 bg-card p-5 shadow-paper";
 const btn = "rounded-lg bg-bleu px-5 py-3 font-semibold text-white disabled:opacity-40";
@@ -37,7 +44,10 @@ async function call(path: string, method = "GET", body?: unknown): Promise<{ sta
 
 const mimeOf = (f: File) => f.type || EXT_TYPES[f.name.split(".").pop()?.toLowerCase() ?? ""] || "";
 
-export default function PuertaV2() {
+export default function PuertaV2({ source = null, lang = "es" }: { source?: string | null; lang?: EntradaLang }) {
+  const t = ENTRADA_T[lang] ?? ENTRADA_T.es;
+  const T = puertaT[lang] ?? puertaT.es;
+  const LANGS = langNames(lang);
   const [token, setToken] = useState<string | null>(null);
   const [view, setView] = useState<ClientView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,8 +72,8 @@ export default function PuertaV2() {
 
   const apply = useCallback((d: Res) => {
     if (d.view) setView(d.view);
-    setError(d.ok ? null : d.error ?? "Algo ha fallado.");
-  }, []);
+    setError(d.ok ? null : d.error ?? t.genericError);
+  }, [t.genericError]);
 
   useEffect(() => {
     const t = store(true);
@@ -78,12 +88,12 @@ export default function PuertaV2() {
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
 
   async function open() {
-    setBusy("Un momento…");
+    setBusy(t.oneMoment);
     const { data } = await call("/api/entrada", "POST", {
-      email: email.trim(), nombre: nombre.trim() || null, telefono: telefono.trim() || null, targetLang: targetLang || null, sourceLang: sourceLang || null, gdprConsent: gdpr, marketingConsent: marketing,
+      email: email.trim(), nombre: nombre.trim() || null, telefono: telefono.trim() || null, targetLang: targetLang || null, sourceLang: sourceLang || null, gdprConsent: gdpr, marketingConsent: marketing, source, lang,
     });
     setBusy(null);
-    if (!data.ok || !data.token) return setError(data.error ?? "No hemos podido empezar.");
+    if (!data.ok || !data.token) return setError(data.error ?? t.startError);
     store(false, data.token);
     setToken(data.token);
     const v = await call(`/api/entrada/${data.token}`);
@@ -96,21 +106,21 @@ export default function PuertaV2() {
     for (const file of Array.from(list)) {
       const mimeType = mimeOf(file);
       if (!EXT_TYPES[file.name.split(".").pop()?.toLowerCase() ?? ""] && !Object.values(EXT_TYPES).includes(mimeType)) {
-        setError(`«${file.name}»: sube PDF o fotos (JPG, PNG, HEIC).`);
+        setError(t.badType(file.name));
         continue;
       }
       if (file.size > 20 * 1024 * 1024) {
-        setError(`«${file.name}» pasa de 20 MB.`);
+        setError(t.tooBig(file.name));
         continue;
       }
-      setBusy(`Subiendo «${file.name}»…`);
+      setBusy(t.uploading(file.name));
       try {
         const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
         const blob = await upload(`entrada/${Date.now()}-${safe}`, file, { access: "public", handleUploadUrl: "/api/documents/upload", clientPayload: JSON.stringify({ gdprConsent: true }) });
         const { data } = await call(`/api/entrada/${token}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType });
         apply(data);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "No se ha podido subir.");
+        setError(e instanceof Error ? e.message : t.genericError);
       }
     }
     setBusy(null);
@@ -130,7 +140,7 @@ export default function PuertaV2() {
     setAdding(false);
     const started = Date.now();
     for (;;) {
-      setBusy("Estamos revisando el conjunto de tus archivos. Suele tardar uno o dos minutos…");
+      setBusy(t.reading);
       const { status, retryAfter, data } = await call(`/api/entrada/${token}/leer`, "POST");
       if (status === 202 || (status === 503 && data.busy)) {
         if (data.view) setView(data.view);
@@ -159,7 +169,7 @@ export default function PuertaV2() {
 
   async function confirm() {
     if (!token || !view) return;
-    setBusy("Enviando…");
+    setBusy(t.sending);
     const { data } = await call(`/api/entrada/${token}/confirmar`, "POST", {
       urgency, neededBy: urgency === "DATE" ? neededBy : null, organismo: organismo.trim() || null, notas: notas.trim() || null, loteUpdatedAt: view.lectura?.loteUpdatedAt ?? null,
     });
@@ -181,27 +191,27 @@ export default function PuertaV2() {
     return (
       <div className="space-y-5">
         <div className={card}>
-          <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">Empecemos por ti</h2>
-          <p className="mb-4 text-sm text-graphite">Te escribimos aquí con el presupuesto cerrado. No hace falta crear cuenta.</p>
+          <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">{t.startTitle}</h2>
+          <p className="mb-4 text-sm text-graphite">{t.startSub}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm text-encre sm:col-span-2">Email *
+            <label className="text-sm text-encre sm:col-span-2">{t.email}
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" autoComplete="email" />
             </label>
-            <label className="text-sm text-encre">Nombre
+            <label className="text-sm text-encre">{t.name}
               <input value={nombre} onChange={(e) => setNombre(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" autoComplete="name" />
             </label>
-            <label className="text-sm text-encre">WhatsApp (opcional)
+            <label className="text-sm text-encre">{t.whatsapp}
               <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" autoComplete="tel" />
             </label>
-            <label className="text-sm text-encre">¿A qué idioma lo necesitas?
+            <label className="text-sm text-encre">{t.target}
               <select value={targetLang} onChange={(e) => setTargetLang(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2">
-                <option value="">Aún no lo sé</option>
+                <option value="">{t.targetUnknown}</option>
                 {LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
               </select>
             </label>
-            <label className="text-sm text-encre">Idioma del documento
+            <label className="text-sm text-encre">{t.source}
               <select value={sourceLang} onChange={(e) => setSourceLang(e.target.value)} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2">
-                <option value="">Lo vemos nosotros</option>
+                <option value="">{t.sourceDetect}</option>
                 {LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
               </select>
             </label>
@@ -218,7 +228,7 @@ export default function PuertaV2() {
           </label>
         </div>
         {errorBox}
-        <button className={btn} disabled={!ready} onClick={open}>Subir mis documentos</button>
+        <button className={btn} disabled={!ready} onClick={open}>{t.startBtn}</button>
       </div>
     );
   }
@@ -226,10 +236,10 @@ export default function PuertaV2() {
   if (view.estado === "sin_jurado" && view.sinJurado) {
     return (
       <div className={`${card} space-y-3`}>
-        <h2 className="font-baskerville text-xl font-bold text-bleu">Ahora mismo no tenemos traductor jurado de {view.sinJurado.idioma}</h2>
-        <p className="text-graphite">Preferimos decírtelo ya a hacerte esperar. El Ministerio de Asuntos Exteriores publica la lista oficial de traductores jurados por idioma y provincia:</p>
-        <a href={view.sinJurado.maecUrl} target="_blank" rel="noopener noreferrer" className={`${btn} inline-block`}>Buscar en la lista oficial del MAEC</a>
-        <p className="text-sm text-graphite">Juan ha recibido tu solicitud; si encontramos a alguien, te escribimos.</p>
+        <h2 className="font-baskerville text-xl font-bold text-bleu">{t.noJuradoTitle(LANGS.find(([c]) => c === view.sinJurado!.codigo)?.[1] ?? view.sinJurado.idioma)}</h2>
+        <p className="text-graphite">{t.noJuradoBody}</p>
+        <a href={view.sinJurado.maecUrl} target="_blank" rel="noopener noreferrer" className={`${btn} inline-block`}>{t.maecBtn}</a>
+        <p className="text-sm text-graphite">{t.noJuradoFoot}</p>
       </div>
     );
   }
@@ -237,9 +247,9 @@ export default function PuertaV2() {
   if (view.estado === "confirmada") {
     return (
       <div className={`${card} space-y-3`}>
-        <h2 className="font-baskerville text-xl font-bold text-bleu">Recibido, gracias</h2>
-        <p className="text-graphite">Juan revisa tus documentos y te escribe con el presupuesto cerrado, normalmente en el día. Si le falta algo, te lo pide él.</p>
-        <button className={btn2} onClick={restart}>Empezar otra solicitud</button>
+        <h2 className="font-baskerville text-xl font-bold text-bleu">{t.doneTitle}</h2>
+        <p className="text-graphite">{t.doneBody}</p>
+        <button className={btn2} onClick={restart}>{t.again}</button>
       </div>
     );
   }
@@ -251,8 +261,8 @@ export default function PuertaV2() {
     return (
       <div className="space-y-5">
         <div className={card}>
-          <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">Tus documentos</h2>
-          <p className="mb-4 text-sm text-graphite">Sube todo lo que tengas: cada página, el reverso y la apostilla si la lleva. Varias fotos de un mismo documento valen; las juntamos nosotros.</p>
+          <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">{t.uploadTitle}</h2>
+          <p className="mb-4 text-sm text-graphite">{t.uploadSub}</p>
           <ul className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {view.archivos.map((f) => (
               <li key={f.id} className="relative overflow-hidden rounded-lg border border-graphite/20 bg-parchment">
@@ -263,11 +273,11 @@ export default function PuertaV2() {
                   <div className="flex h-28 items-center justify-center text-2xl font-bold text-sepia">{f.mimeType === "application/pdf" ? "PDF" : "IMG"}</div>
                 )}
                 <p className="truncate px-2 py-1 text-xs text-encre" title={f.name}>{f.name}</p>
-                <button onClick={() => remove(f.id)} className="absolute right-1 top-1 rounded-full bg-white/90 px-2 text-sm text-rouge" aria-label={`Quitar ${f.name}`}>×</button>
+                <button onClick={() => remove(f.id)} className="absolute right-1 top-1 rounded-full bg-white/90 px-2 text-sm text-rouge" aria-label={t.remove(f.name)}>×</button>
               </li>
             ))}
             <li>
-              <button onClick={() => fileInput.current?.click()} className="flex h-full min-h-[8.5rem] w-full items-center justify-center rounded-lg border-2 border-dashed border-bleu/30 text-sm font-semibold text-bleu" disabled={!!busy}>+ Añadir</button>
+              <button onClick={() => fileInput.current?.click()} className="flex h-full min-h-[8.5rem] w-full items-center justify-center rounded-lg border-2 border-dashed border-bleu/30 text-sm font-semibold text-bleu" disabled={!!busy}>{t.add}</button>
             </li>
           </ul>
           <input ref={fileInput} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.tif,.tiff,.webp" className="hidden" onChange={(e) => addFiles(e.target.files)} />
@@ -276,15 +286,15 @@ export default function PuertaV2() {
         {errorBox}
         {asking ? (
           <div className={`${card} space-y-3`}>
-            <p className="font-semibold text-encre">¿Has terminado?</p>
-            <p className="text-sm text-graphite">Revisamos el conjunto de una vez. Comprueba que están todas las páginas, el reverso si tiene algo escrito y la apostilla o legalización.</p>
+            <p className="font-semibold text-encre">{t.askTitle}</p>
+            <p className="text-sm text-graphite">{t.askBody}</p>
             <div className="flex flex-wrap gap-3">
-              <button className={btn} onClick={read}>Sí, ya están todos</button>
-              <button className={btn2} onClick={() => setAsking(false)}>Añadir más</button>
+              <button className={btn} onClick={read}>{t.askYes}</button>
+              <button className={btn2} onClick={() => setAsking(false)}>{t.askMore}</button>
             </div>
           </div>
         ) : (
-          <button className={btn} disabled={view.archivos.length === 0 || !!busy} onClick={() => setAsking(true)}>He terminado</button>
+          <button className={btn} disabled={view.archivos.length === 0 || !!busy} onClick={() => setAsking(true)}>{t.finished}</button>
         )}
       </div>
     );
@@ -295,8 +305,8 @@ export default function PuertaV2() {
   return (
     <div className="space-y-5">
       <div className={card}>
-        <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">{l!.resumen}</h2>
-        {l!.fase === "revision_manual" && <p className="text-sm text-graphite">No hemos podido revisarlos automáticamente. Juan los mira personalmente; dinos para cuándo lo necesitas y envíalo.</p>}
+        <h2 className="mb-1 font-baskerville text-xl font-bold text-bleu">{l!.fase === "lista" ? t.summary(view.archivos.length, l!.documentos.filter((d) => d.incluido).length) : l!.resumen}</h2>
+        {l!.fase === "revision_manual" && <p className="text-sm text-graphite">{t.manual}</p>}
         {l!.fase === "lista" && (
           <ul className="mt-3 space-y-3">
             {l!.documentos.map((d) => (
@@ -304,24 +314,24 @@ export default function PuertaV2() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="font-semibold text-encre">{d.titulo}</p>
-                    <p className="text-xs text-graphite">{d.paginas} {d.paginas === 1 ? "página" : "páginas"}{d.apostilla ? " · con apostilla" : ""}</p>
+                    <p className="text-xs text-graphite">{t.pages(d.paginas)}{d.apostilla ? t.withApostille : ""}</p>
                   </div>
                   {l!.editable && (
                     <button className="text-xs text-bleu underline" onClick={() => edit(d.incluido ? { op: "exclude", id: d.id } : { op: "include", id: d.id })}>
-                      {d.incluido ? "No hace falta traducirlo" : "Sí, quiero traducirlo"}
+                      {d.incluido ? t.notNeeded : t.wantIt}
                     </button>
                   )}
                 </div>
-                {d.faltan.length > 0 && <p className="mt-2 text-sm text-rouge">El documento numera más páginas: faltan la {d.faltan.join(", ")}. Si las tienes, añádelas.</p>}
-                {d.ilegible && <p className="mt-2 text-sm text-rouge">Se lee mal. Si puedes, vuelve a hacer la foto con más luz y sin reflejos.</p>}
-                {!d.incluido && d.motivo && <p className="mt-1 text-xs">No incluido: {d.motivo}</p>}
+                {d.faltan.length > 0 && <p className="mt-2 text-sm text-rouge">{t.missing(d.faltan.join(", "))}</p>}
+                {d.ilegible && <p className="mt-2 text-sm text-rouge">{t.illegible}</p>}
+                {!d.incluido && d.motivo && <p className="mt-1 text-xs">{t.excluded}: {d.motivo}</p>}
               </li>
             ))}
           </ul>
         )}
         {l!.noIncluidos.length > 0 && (
           <div className="mt-4">
-            <p className="text-sm font-semibold text-encre">No incluido</p>
+            <p className="text-sm font-semibold text-encre">{t.notIncluded}</p>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-graphite">
               {l!.noIncluidos.map((n, i) => <li key={i}>{n.que}: {n.motivo}</li>)}
             </ul>
@@ -329,42 +339,42 @@ export default function PuertaV2() {
         )}
         {l!.preguntas.length > 0 && (
           <div className="mt-4 rounded-lg bg-cream px-4 py-3">
-            <p className="text-sm font-semibold text-encre">Para que no falte nada</p>
+            <p className="text-sm font-semibold text-encre">{t.questionsTitle}</p>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-encre">{l!.preguntas.map((q, i) => <li key={i}>{q}</li>)}</ul>
-            <p className="mt-1 text-xs text-graphite">Puedes contestar abajo, en «Algo más».</p>
+            <p className="mt-1 text-xs text-graphite">{t.questionsHint}</p>
           </div>
         )}
-        <button className="mt-4 text-sm text-bleu underline" onClick={() => setAdding(true)}>Añadir o quitar archivos</button>
+        <button className="mt-4 text-sm text-bleu underline" onClick={() => setAdding(true)}>{t.addRemove}</button>
       </div>
 
       <div className={`${card} space-y-4`}>
         {needsTarget && (
-          <label className="block text-sm text-encre">¿A qué idioma necesitas la traducción? *
+          <label className="block text-sm text-encre">{t.targetRequired}
             <select className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" value="" onChange={(e) => e.target.value && edit({ op: "setTargetLang", targetLang: e.target.value })}>
-              <option value="">Elige</option>
+              <option value="">{t.choose}</option>
               {LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
             </select>
           </label>
         )}
         <fieldset>
-          <legend className="text-sm font-semibold text-encre">¿Para cuándo lo necesitas? *</legend>
+          <legend className="text-sm font-semibold text-encre">{t.deadline}</legend>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
-            {([["ASAP", "Lo antes posible"], ["DATE", "Para una fecha"], ["FLEXIBLE", "Sin prisa"]] as const).map(([v, label]) => (
+            {([["ASAP", t.asap], ["DATE", t.date], ["FLEXIBLE", t.flexible]] as const).map(([v, label]) => (
               <button key={v} type="button" onClick={() => setUrgency(v)} className={`rounded-lg border px-3 py-2 text-left text-sm ${urgency === v ? "border-bleu bg-bleu/5 font-semibold text-encre" : "border-graphite/20 text-graphite"}`}>{label}</button>
             ))}
           </div>
           {urgency === "DATE" && <input type="date" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} className="mt-2 rounded-lg border border-graphite/30 px-3 py-2" />}
         </fieldset>
-        <label className="block text-sm text-encre">¿Dónde lo vas a presentar? (organismo y país)
-          <input value={organismo} onChange={(e) => setOrganismo(e.target.value)} placeholder="Ej.: Consulado de Francia en Madrid" className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" />
+        <label className="block text-sm text-encre">{t.organismo}
+          <input value={organismo} onChange={(e) => setOrganismo(e.target.value)} placeholder={t.organismoPh} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" />
         </label>
-        <label className="block text-sm text-encre">Algo más
-          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={3} placeholder="Si lo necesitas en papel, a nombre de quién va, o lo que quieras contarnos" className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" />
+        <label className="block text-sm text-encre">{t.notes}
+          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={3} placeholder={t.notesPh} className="mt-1 w-full rounded-lg border border-graphite/30 px-3 py-2" />
         </label>
       </div>
       {busyBox}
       {errorBox}
-      <button className={btn} disabled={!deadlineOk || needsTarget || !!busy} onClick={confirm}>Confirmar y enviar a Juan</button>
+      <button className={btn} disabled={!deadlineOk || needsTarget || !!busy} onClick={confirm}>{t.confirm}</button>
     </div>
   );
 }

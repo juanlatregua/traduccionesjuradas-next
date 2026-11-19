@@ -45,7 +45,7 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
       orderBy: [{ confirmedAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
       take: 100,
     });
-    const refs = await casoRefs(entradas.flatMap((e) => [e.casoId, ...e.posibles]));
+    const refs = await casoRefs(entradas.flatMap((e) => [e.casoId, ...e.posibles, ...e.relacionados]));
     return (
       <div className="min-h-screen bg-slate-950">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -74,7 +74,7 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
   };
   const expedienteRef = sessionKey.startsWith("exp:") ? sessionKey.slice(4) : null;
   const entradas = casoId && puertaV2On() ? await prisma.entrada.findMany({ where: { casoId }, orderBy: { createdAt: "asc" } }) : [];
-  const entradaRefs = await casoRefs(entradas.flatMap((e) => e.posibles));
+  const entradaRefs = await casoRefs(entradas.flatMap((e) => [...e.posibles, ...e.relacionados]));
 
   return (
     <div className="min-h-screen bg-slate-950">

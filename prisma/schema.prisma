@@ -1349,6 +1349,9 @@ model Entrada {
   loteId             String?
   regla              String?
   posibles           String[]
+  relacionados       String[]
+  source             String?
+  lang               String?
   email              String?
   phone9             String?
   nombre             String?

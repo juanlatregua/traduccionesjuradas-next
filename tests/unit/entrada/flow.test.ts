@@ -69,7 +69,7 @@ test("Diego: same Facturas.pdf by email and WhatsApp, in either order → 1 caso
 
 test("legacy WhatsApp file without stored hash (fileHash NULL) is hashed on demand and joins", async () => {
   const w = world(blobs);
-  w.casos.push({ id: "old", ref: "CASO-OLD", estado: "ABIERTO", email: null, phone9: "997504962", nombre: null, esAgencia: false, lastActivityAt: new Date(AHORA.getTime() - 3 * 864e5), hashes: [], origen: "whatsapp", dudoso: false });
+  w.casos.push({ id: "old", ref: "CASO-OLD", estado: "ABIERTO", email: null, phone9: "997504962", nombre: null, esAgencia: false, lastActivityAt: new Date(AHORA.getTime() - 3 * 864e5), hashes: [], conPedido: false, origen: "whatsapp", dudoso: false });
   w.docs.push({ id: "legacy", casoId: "old", session: "exp:X", url: `${BLOB}/wa/Facturas-b.pdf`, name: "Facturas.pdf", size: DIEGO_PDF.length, hash: null, mimeType: "application/pdf" });
   const deps = flowDeps(w, { read: (fs) => okReading(fs, "pt") });
   const r = await entrar(deps, "web", { email: "diegoarndt@outlook.com" }, [`${BLOB}/web/Facturas-a.pdf`]);
@@ -144,7 +144,7 @@ test("language without sworn translator: declared pair closes without spending a
   assert.equal(r.entrada.estado, "sin_jurado");
   assert.equal(r.read.ok && r.read.view.sinJurado?.idioma, "griego");
   assert.match(r.read.ok ? r.read.view.sinJurado!.maecUrl : "", /exteriores\.gob\.es/);
-  assert.equal(w.casos[0].estado, "PERDIDO");
+  assert.equal(w.casos[0].estado, "SIN_JURADO");
   assert.equal(w.avisos[0].kind, "sin_jurado");
 });
 
@@ -184,4 +184,25 @@ test("a file uploaded twice in one entrada is one file", async () => {
   await registrarArchivo(deps, entrada, { url: `${BLOB}/wa/acta-y2.pdf`, name: "acta (1).pdf", size: 1, mimeType: "application/pdf" });
   assert.equal((await vistaEntrada(deps, entrada)).archivos.length, 1);
   assert.equal(w.docs[0].size, JEN_PDF.length, "size comes from the bytes, not from the client");
+});
+
+test("Juan 1: the same file after the first caso was ordered opens a new caso, related both ways", async () => {
+  const w = world(blobs);
+  const deps = flowDeps(w, { read: (fs) => okReading(fs) });
+  const first = await entrar(deps, "web", { email: "ana@x.com" }, [`${BLOB}/web/acta-x1.pdf`]);
+  w.casos[0].conPedido = true;
+  w.casos[0].estado = "EN_CURSO";
+  const again = await entrar(deps, "whatsapp", { phone9: "600111222" }, [`${BLOB}/wa/acta-y2.pdf`]);
+  assert.equal(casoCount(w), 2);
+  assert.notEqual(again.entrada.casoId, first.entrada.casoId);
+  assert.deepEqual(again.entrada.relacionados, [first.entrada.casoId]);
+  assert.ok(w.eventos.some((e) => e.casoId === again.entrada.casoId && e.tipo === "relacionado"));
+  assert.ok(w.eventos.some((e) => e.casoId === first.entrada.casoId && e.tipo === "relacionado"));
+});
+
+test("attribution and language travel with the entrada and onto its files", async () => {
+  const w = world(blobs);
+  const deps = flowDeps(w);
+  const { entrada } = await abrirEntrada(deps, { canal: "web", email: "ana@x.com", phone9: null, nombre: null, sourceLang: null, targetLang: null, ipHash: null, marketing: true, source: "uge-ce", lang: "fr" });
+  assert.deepEqual([entrada.source, entrada.lang], ["uge-ce", "fr"]);
 });

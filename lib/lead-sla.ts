@@ -10,6 +10,8 @@ import { getStaffEmails } from "@/lib/staff-access";
 import { loadQuoteHashes } from "@/lib/vigia-graph-db";
 import { deadlineLine, urgentSubjectPrefix } from "@/lib/needed-by";
 import { runPuertaFr } from "@/lib/puerta-fr";
+import { loadEntradaLeads } from "@/lib/entrada/leads-db";
+import { ENTRADA_SESSION_PREFIX } from "@/lib/entrada/leads";
 import { paidSince } from "@/lib/paid-orders";
 import { SLA_WINDOW_HOURS, dedupeId, selectLeadSla, smsAllowed, type SlaLead } from "@/lib/lead-sla-core";
 
@@ -22,9 +24,9 @@ const waiting = (min: number) => (min < 120 ? `${min} min` : `${Math.floor(min /
 export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
   const since = new Date(now.getTime() - SLA_WINDOW_HOURS * 36e5);
   const quotesSince = new Date(now.getTime() - 90 * 864e5);
-  const [docs, inbound, solicitudes, quotes, paidOrders] = await Promise.all([
+  const [docRows, inbound, solicitudes, quotes, paidOrders, entradaDocs] = await Promise.all([
     prisma.documentAnalysis.findMany({
-      where: { createdAt: { gte: since }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "staff:" } }], AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] },
+      where: { createdAt: { gte: since }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "staff:" } }, { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } }], AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] },
       select: { clientEmail: true, clientName: true, clientPhone: true, sessionToken: true, fileHash: true, fileName: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, createdAt: true, urgency: true, neededBy: true },
     }),
     prisma.inboundEmail.findMany({
@@ -37,7 +39,9 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
       select: { id: true, customerEmail: true, customerPhone: true, expedienteRef: true, holderNames: true, sentAt: true, createdAt: true },
     }),
     prisma.order.findMany({ where: { paymentStatus: "PAID", paidAt: { gte: paidSince(now) } }, select: { clientEmail: true, clientName: true, clientPhone: true, paidAt: true, quoteId: true, documentAnalyses: { select: { fileHash: true } } } }),
+    loadEntradaLeads(since),
   ]);
+  const docs: ((typeof docRows)[number] & { link?: string })[] = [...docRows, ...entradaDocs];
   const hashesOfQuote = await loadQuoteHashes([...new Set([...quotes.map((q) => q.id), ...paidOrders.map((o) => o.quoteId).filter((x): x is string => !!x)])]);
   const staffEmails = [...getStaffEmails(), process.env.PRESUPUESTO_TO, process.env.ADMIN_EMAIL, process.env.EMAIL_FROM, "info@traduccionesjuradas.net"].filter((e): e is string => !!e);
   return selectLeadSla({

@@ -50,7 +50,9 @@ export default function PresupuestoInstantaneoPage({
   const lang = toPuertaLang(searchParams?.l);
   const resumeToken = searchParams?.r || null;
 
-  if (puertaV2On()) {
+  const v2 = puertaV2On();
+
+  if (v2 && source !== "whatsapp") {
     return (
       <section className="mx-auto max-w-3xl px-4 py-12">
         <div className="mb-8 text-center">
@@ -59,7 +61,7 @@ export default function PresupuestoInstantaneoPage({
             Sube tus documentos, los revisamos juntos para que no falte nada y Juan te manda el presupuesto cerrado, normalmente en el día.
           </p>
         </div>
-        <PuertaV2 />
+        <PuertaV2 source={source} lang="es" />
       </section>
     );
   }
@@ -84,7 +86,7 @@ export default function PresupuestoInstantaneoPage({
         </nav>
         <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-base text-emerald-900">{head.banner}</p>
         <h1 className="mb-6 font-baskerville text-2xl font-bold leading-tight text-bleu sm:text-3xl">{head.title}</h1>
-        <PuertaClient purpose={purpose} source={source} lang={lang} resumeToken={resumeToken} />
+        {v2 ? <PuertaV2 source={source} lang={lang} /> : <PuertaClient purpose={purpose} source={source} lang={lang} resumeToken={resumeToken} />}
       </section>
     );
   }

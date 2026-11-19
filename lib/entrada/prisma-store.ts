@@ -8,7 +8,7 @@ import type { Canal } from "./identidad.ts";
 type EntradaRecord = Prisma.EntradaGetPayload<{}>;
 
 const toEntrada = (r: EntradaRecord): EntradaRow => ({
-  id: r.id, canal: r.canal as Canal, estado: r.estado as EntradaEstado, casoId: r.casoId, loteId: r.loteId, regla: r.regla, posibles: r.posibles,
+  id: r.id, canal: r.canal as Canal, estado: r.estado as EntradaEstado, casoId: r.casoId, loteId: r.loteId, regla: r.regla, posibles: r.posibles, relacionados: r.relacionados, source: r.source, lang: r.lang,
   email: r.email, phone9: r.phone9, nombre: r.nombre, sourceLang: r.sourceLang, targetLang: r.targetLang, urgency: r.urgency, neededBy: r.neededBy,
   organismo: r.organismo, notas: r.notas, confirmedAt: r.confirmedAt, createdAt: r.createdAt, updatedAt: r.updatedAt,
 });
@@ -37,7 +37,7 @@ export function prismaEntradaStore(db: PrismaClient): EntradaStore {
     async addFile(e, f) {
       const r = await db.documentAnalysis.create({
         data: {
-          fileName: f.name, fileUrl: f.url, fileSize: f.size, mimeType: f.mimeType, fileHash: f.sha256, sessionToken: sessionKeyOf(e.id), source: "puerta-v2",
+          fileName: f.name, fileUrl: f.url, fileSize: f.size, mimeType: f.mimeType, fileHash: f.sha256, sessionToken: sessionKeyOf(e.id), source: e.source,
           status: "UPLOADED", gdprConsent: true, gdprConsentAt: new Date(), clientEmail: e.email, clientName: e.nombre, clientPhone: e.phone9,
           ...(e.email ? { marketingConsent: true, marketingConsentAt: new Date() } : {}),
           ...(e.sourceLang ? { sourceLanguage: e.sourceLang } : {}),
@@ -81,7 +81,11 @@ export function prismaGateTx(tx: Prisma.TransactionClient): GateTx {
         },
         orderBy: { lastActivityAt: "desc" },
         take: 300,
-        select: { id: true, ref: true, estado: true, email: true, phone9: true, nombre: true, esAgencia: true, lastActivityAt: true },
+        select: {
+          id: true, ref: true, estado: true, email: true, phone9: true, nombre: true, esAgencia: true, lastActivityAt: true,
+          orders: { where: { status: { not: "CANCELLED" } }, select: { id: true }, take: 1 },
+          priceRequests: { where: { status: "ACCEPTED" }, select: { id: true }, take: 1 },
+        },
       });
       const ids = casos.map((c) => c.id);
       const known = new Map<string, Set<string>>();
@@ -93,7 +97,7 @@ export function prismaGateTx(tx: Prisma.TransactionClient): GateTx {
         for (const d of await tx.documentAnalysis.findMany({ where: { casoId: { in: ids }, fileHash: { not: null } }, select: { casoId: true, fileHash: true } })) add(d.casoId, d.fileHash);
         for (const a of await tx.lecturaArchivo.findMany({ where: { sha256: { not: null }, lote: { casoId: { in: ids } } }, select: { sha256: true, lote: { select: { casoId: true } } } })) add(a.lote.casoId, a.sha256);
       }
-      return casos.map((c): CasoFila => ({ ...c, hashes: [...(known.get(c.id) ?? [])] }));
+      return casos.map(({ orders, priceRequests, ...c }): CasoFila => ({ ...c, hashes: [...(known.get(c.id) ?? [])], conPedido: orders.length > 0 || priceRequests.length > 0 }));
     },
     async crear(d) {
       return tx.caso.create({

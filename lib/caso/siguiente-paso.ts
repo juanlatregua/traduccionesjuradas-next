@@ -202,5 +202,5 @@ export function siguientePaso(i: {
       },
     };
   }
-  return { clave: "perdido", grupo: "cerrado", titulo: i.estado === "PERDIDO" ? "Perdido: nada vivo" : `Cerrado (${i.estado})`, accion: null };
+  return { clave: "perdido", grupo: "cerrado", titulo: i.estado === "PERDIDO" ? "Perdido: nada vivo" : i.estado === "SIN_JURADO" ? "Sin jurado para el idioma" : `Cerrado (${i.estado})`, accion: null };
 }

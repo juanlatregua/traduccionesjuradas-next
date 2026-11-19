@@ -53,7 +53,7 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
     },
     async crear(d) {
       const id = `caso-${++seq}`;
-      casos.push({ id, ref: `CASO-${seq}`, estado: "ABIERTO", email: d.email, phone9: d.phone9, nombre: d.nombre, esAgencia: false, lastActivityAt: d.ahora, hashes: [], origen: d.origen, dudoso: d.dudoso });
+      casos.push({ id, ref: `CASO-${seq}`, estado: "ABIERTO", email: d.email, phone9: d.phone9, nombre: d.nombre, esAgencia: false, lastActivityAt: d.ahora, hashes: [], conPedido: false, origen: d.origen, dudoso: d.dudoso });
       return { id, ref: `CASO-${seq}` };
     },
     async unir(id, p) {
@@ -85,7 +85,7 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
 
   const store: EntradaStore = {
     async create(data) {
-      const e = { ...data, id: `ent-${++seq}`, estado: "abierta" as const, casoId: null, loteId: null, regla: null, posibles: [], urgency: null, neededBy: null, organismo: null, notas: null, confirmedAt: null, createdAt: AHORA, updatedAt: AHORA };
+      const e = { ...data, id: `ent-${++seq}`, estado: "abierta" as const, casoId: null, loteId: null, regla: null, posibles: [], relacionados: [], urgency: null, neededBy: null, organismo: null, notas: null, confirmedAt: null, createdAt: AHORA, updatedAt: AHORA };
       entradas.push(e);
       return { ...e };
     },
@@ -171,7 +171,7 @@ export function flowDeps(w: World, opts: { read?: (files: SourceFile[], attempt:
       plazo: async () => {},
       cerrarSinJurado: async (casoId) => {
         const c = w.casos.find((x) => x.id === casoId)!;
-        c.estado = "PERDIDO";
+        c.estado = "SIN_JURADO";
         return true;
       },
     },

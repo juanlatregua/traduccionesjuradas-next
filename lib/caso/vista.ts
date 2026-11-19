@@ -46,6 +46,7 @@ export const ESTADO_PILL: Record<string, string> = {
   EN_CURSO: "bg-violet-500/15 text-violet-300",
   ENTREGADO: "bg-teal-500/15 text-teal-300",
   PERDIDO: "bg-slate-600/30 text-slate-400",
+  SIN_JURADO: "bg-amber-500/15 text-amber-300",
   CANCELADO: "bg-rose-500/15 text-rose-300",
 };
 export const ESTADO_LABEL: Record<string, string> = {
@@ -53,6 +54,7 @@ export const ESTADO_LABEL: Record<string, string> = {
   EN_CURSO: "En curso",
   ENTREGADO: "Entregado",
   PERDIDO: "Perdido",
+  SIN_JURADO: "Sin jurado",
   CANCELADO: "Cancelado",
 };
 
