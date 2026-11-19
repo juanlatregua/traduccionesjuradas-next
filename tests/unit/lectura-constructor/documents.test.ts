@@ -69,14 +69,35 @@ test("setType can also fix the source language the reading got wrong", () => {
   assert.ok(r.ok && r.documents[0].sourceLang === "fr");
 });
 
-test("merge of an included deed with an excluded annex stays included; all excluded keeps the reasons", () => {
+test("merge of an included deed with an excluded annex is rejected; all excluded keeps the reasons", () => {
   const acta = working("D1", [[1, 1], [1, 2]], { type: "other", typeLabelEs: "Acta notarial" }, { position: 0 });
   const anexo = working("D2", [[1, 3]], { typeLabelEs: "Certificado de defunción" }, { position: 1, included: false, excludedReason: "parecía repetido" });
   const r = applyEdit([acta, anexo], { op: "merge", ids: [acta.id, anexo.id] }, "j", newId);
-  assert.ok(r.ok && r.documents.length === 1 && r.documents[0].included && r.documents[0].excludedReason === null);
+  assert.deepEqual(r, { ok: false, error: "Incluye primero D2 o quítalo de la unión." });
   const a = { ...acta, included: false, excludedReason: "duplicado" };
   const both = applyEdit([a, anexo], { op: "merge", ids: [a.id, anexo.id] }, "j", newId);
   assert.ok(both.ok && !both.documents[0].included && both.documents[0].excludedReason === "duplicado · parecía repetido");
+});
+
+test("a loose apostille joined to its document is an apostille of the set, never body pages", () => {
+  const cert = working("D1", [[1, 1]], {}, { position: 0 });
+  const loose = working("D2", [[2, 1]], { type: "apostille", typeLabelEs: "Apostilla", apostille: null }, { position: 1, reasons: [{ code: "loose_apostille", detail: "apostilla sin documento", documentId: "D2" }] });
+  const solo = applyEdit([cert, loose], { op: "merge", ids: [loose.id, cert.id] }, "j", newId);
+  assert.ok(solo.ok);
+  if (!solo.ok) return;
+  const m = solo.documents[0];
+  assert.equal(m.type, "birth_certificate");
+  assert.equal(m.pageCount, 1);
+  assert.deepEqual(m.parts, cert.parts);
+  assert.deepEqual(m.apostille?.parts, [{ fileIndex: 2, page: 1 }]);
+  assert.equal(apostilleCount(m.apostille), 1);
+  assert.equal(m.reasons.some((x) => x.code === "loose_apostille"), false);
+  assert.equal(buildLines([m], [], "es").lines[0].unitPriceCents, 3500);
+  const numbered = { ...loose, apostille: ap([], { number: "Z-9" }) };
+  const withNumber = applyEdit([cert, numbered], { op: "merge", ids: [cert.id, numbered.id] }, "j", newId);
+  assert.ok(withNumber.ok && labelOf(withNumber.documents[0]) === "Certificado de nacimiento — apostilla n.º Z-9");
+  const onlyApostilles = applyEdit([loose, { ...loose, id: "w-D3", docKey: "D3" }], { op: "merge", ids: [loose.id, "w-D3"] }, "j", newId);
+  assert.equal(onlyApostilles.ok, false);
 });
 
 test("merging documents with apostilles counts every apostille and names every number read", () => {

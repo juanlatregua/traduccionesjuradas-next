@@ -4,7 +4,7 @@ import { quoteTotals, type QuoteTotals } from "../dinero/totals.ts";
 import { OWN_WORK, UNKNOWN_COST, costFromStoredBase, type SupplierCost } from "../dinero/supplier.ts";
 import { canIssue } from "../dinero/margin.ts";
 import { formatEuros } from "../dinero/format.ts";
-import { priceFrToEs } from "../dinero/tariff-fr.ts";
+import { priceFrToEs, type FrPrice } from "../dinero/tariff-fr.ts";
 import { apostilleCount, labelOf, type WorkingDocument } from "./documents.ts";
 
 export type LectureFile = { position: number | null; url: string | null; pageCount: number | null; name: string };
@@ -47,18 +47,23 @@ function fileRange(doc: WorkingDocument, files: readonly LectureFile[]) {
   return { sourceFileUrl: first.url, pageStart: Math.min(...pages), pageEnd: Math.max(...pages) };
 }
 
-export function tariffFor(doc: WorkingDocument, targetLang: string, bankStatementsInQuote: number) {
+export function tariffFor(doc: WorkingDocument, targetLang: string, bankStatementsInQuote: number): FrPrice | null {
   if (!isFrEs(doc.sourceLang, targetLang)) return null;
-  return priceFrToEs({
-    docType: doc.type,
-    category: doc.category,
-    pages: doc.pageCount,
-    words: doc.words,
-    apostille: doc.apostille !== null,
-    apostilles: apostilleCount(doc.apostille),
-    apostilleOnSeparatePage: false,
-    bankStatementsInQuote,
-  });
+  try {
+    return priceFrToEs({
+      docType: doc.type,
+      category: doc.category,
+      pages: doc.pageCount,
+      words: doc.words,
+      apostille: doc.apostille !== null,
+      ...(doc.apostille ? { apostilles: apostilleCount(doc.apostille) } : {}),
+      apostilleOnSeparatePage: false,
+      bankStatementsInQuote,
+    });
+  } catch (err) {
+    if (err instanceof RangeError) return { kind: "noTariff", reason: err.message };
+    throw err;
+  }
 }
 
 /** Included documents → quote lines. Amounts only from lib/dinero; a person confirms every line before it exists. */

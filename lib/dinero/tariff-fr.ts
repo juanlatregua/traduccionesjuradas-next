@@ -84,10 +84,14 @@ function rcCents(pages: number): Cents {
   return cents;
 }
 
+export const FR_MAX_APOSTILLES = 50;
+
 function apostilleCount(doc: FrDocInput): number {
-  if (!doc.apostille) return 0;
-  const n = Math.floor(Number(doc.apostilles ?? 1));
-  return Number.isFinite(n) && n >= 1 ? n : 1;
+  if (doc.apostilles === undefined) return doc.apostille ? 1 : 0;
+  const n = doc.apostilles;
+  if (!Number.isSafeInteger(n) || n < 1 || n > FR_MAX_APOSTILLES) throw new RangeError(`apostillas: ${n} no es un entero de 1 a ${FR_MAX_APOSTILLES}`);
+  if (doc.apostille !== true) throw new RangeError(`apostillas: ${n} sin apostilla en el documento`);
+  return n;
 }
 
 function withApostille(cents: Cents, count: number, why: string[]): Cents {

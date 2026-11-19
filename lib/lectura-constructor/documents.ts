@@ -2,8 +2,8 @@ import { documentLabel } from "../lectura/label.ts";
 import type { ReviewReason } from "../lectura/assess.ts";
 import type { DocumentType, Part, ReadDocumentRaw } from "../lectura/schema.ts";
 
-/** One apostille as read, or several once documents are joined: `count` apostilles, `numbers` as read (null = not legible). */
-export type Apostille = (NonNullable<ReadDocumentRaw["apostille"]> & { count?: number; numbers?: (string | null)[] }) | null;
+/** One apostille as read, or several once documents are joined: one entry in `numbers` per apostille (null = not legible). */
+export type Apostille = (NonNullable<ReadDocumentRaw["apostille"]> & { numbers?: (string | null)[] }) | null;
 export type DocReason = ReviewReason | { code: "person_edit"; detail: string; documentId?: string };
 
 export type WorkingDocument = {
@@ -35,7 +35,7 @@ export type WorkingDocument = {
 
 export type ReadDocumentLike = ReadDocumentRaw & { pageCount: number; words: number; wordsBasis: "exact" | "estimated" };
 
-export const apostilleCount = (a: Apostille): number => (a ? Math.max(1, a.count ?? 1) : 0);
+export const apostilleCount = (a: Apostille): number => (!a ? 0 : Array.isArray(a.numbers) && a.numbers.length > 0 ? a.numbers.length : 1);
 const apostilleNumbers = (a: NonNullable<Apostille>): (string | null)[] => a.numbers ?? [a.number];
 
 export function labelOf(d: Pick<WorkingDocument, "typeLabelEs" | "holder" | "apostille">): string {
@@ -101,7 +101,6 @@ function mergeApostilles(list: Apostille[]): Apostille {
     onDocumentPage: present.some((a) => a.onDocumentPage),
     number: read.length === numbers.length ? read.join(" / ") : null,
     matchedBy: "weak",
-    count: present.reduce((n, a) => n + apostilleCount(a), 0),
     numbers,
   };
 }
@@ -115,21 +114,34 @@ export function applyEdit(documents: readonly WorkingDocument[], edit: EditOp, b
     if (ids.length < 2) return { ok: false, error: "Para unir hacen falta al menos dos documentos." };
     const picked = documents.filter((d) => ids.includes(d.id));
     if (picked.length !== ids.length) return { ok: false, error: "Algún documento ya no existe: recarga la lectura." };
-    const [first] = picked;
+    const excluded = picked.filter((d) => !d.included);
+    if (excluded.length > 0 && excluded.length < picked.length) {
+      return { ok: false, error: `Incluye primero ${excluded.map((d) => d.docKey).join(", ")} o quítalo de la unión.` };
+    }
+    const bodies = picked.filter((d) => d.type !== "apostille");
+    const loose = picked.filter((d) => d.type === "apostille");
+    if (bodies.length === 0) return { ok: false, error: "Solo hay apostillas: une cada apostilla con el documento que certifica." };
+    const [first] = bodies;
+    const looseAsApostille = loose.map((d): Apostille => ({
+      parts: [...d.parts, ...d.annexes.flatMap((a) => a.parts), ...(d.apostille?.parts ?? [])],
+      onDocumentPage: false,
+      number: d.apostille?.number ?? null,
+      matchedBy: "weak",
+    }));
     const merged: WorkingDocument = {
       ...first,
       id: newId(),
       docKey: picked.map((d) => d.docKey).join("+"),
-      parts: picked.flatMap((d) => d.parts),
-      annexes: picked.flatMap((d) => d.annexes),
-      apostille: mergeApostilles(picked.map((d) => d.apostille)),
+      parts: bodies.flatMap((d) => d.parts),
+      annexes: bodies.flatMap((d) => d.annexes),
+      apostille: mergeApostilles([...bodies.map((d) => d.apostille), ...looseAsApostille]),
       words: picked.reduce((n, d) => n + d.words, 0),
       wordsBasis: picked.every((d) => d.wordsBasis === "exact") ? "exact" : "estimated",
       estimatedWords: picked.reduce((n, d) => n + d.estimatedWords, 0),
       confidence: Math.min(...picked.map((d) => d.confidence)),
-      reasons: [...picked.flatMap((d) => d.reasons), personReason(`unido a mano por ${by} (${picked.length} documentos)`, first.docKey)],
-      included: picked.some((d) => d.included),
-      excludedReason: picked.some((d) => d.included) ? null : picked.map((d) => d.excludedReason).filter(Boolean).join(" · ") || null,
+      reasons: [...picked.flatMap((d) => d.reasons.filter((r) => r.code !== "loose_apostille")), personReason(`unido a mano por ${by} (${picked.length} documentos)`, first.docKey)],
+      included: excluded.length === 0,
+      excludedReason: excluded.length === 0 ? null : excluded.map((d) => d.excludedReason).filter(Boolean).join(" · ") || null,
       manualPriceCents: null,
       manualCostCents: null,
       editedBy: by,
