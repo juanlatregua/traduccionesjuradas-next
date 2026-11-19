@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { emailReal, telefono9 } from "../caso/identidad.ts";
 import { parseDeadline } from "../needed-by.ts";
-import { abrirEntrada, confirmarEntrada, editarEntrada, enviarCodigo, leerEntrada, quitarArchivo, registrarArchivo, tokenHashOf, verificarCodigo, vistaEntrada, type FlowDeps, type Outcome } from "./flow.ts";
+import { abrirEntrada, confirmarEntrada, currentFingerprint, editarEntrada, enviarCodigo, readingInProgress, leerEntrada, quitarArchivo, registrarArchivo, tokenHashOf, verificarCodigo, vistaEntrada, type FlowDeps, type Outcome } from "./flow.ts";
 import type { EntradaRow } from "./store.ts";
 
 export type ApiResponse = { status: number; body: unknown; headers?: Record<string, string> };
@@ -181,8 +181,8 @@ export async function handleRead(req: Request, token: string, deps: EntradaApiDe
   if ("status" in g) return g;
   const e = g.entrada;
   if (!e.emailVerifiedAt || e.estado === "confirmada" || e.estado === "sin_jurado") return fromOutcome(await leerEntrada(deps, e));
-  const lote = e.loteId ? await deps.lectura.store.get(e.loteId) : null;
-  const continuing = lote?.lote.status === "running" || lote?.lote.status === "busy";
+  const running = await readingInProgress(deps, e);
+  const continuing = running !== null && running.fingerprint === (await currentFingerprint(deps, e));
   if (!continuing) {
     const who = e.email ?? e.phone9 ?? e.id;
     const rl = await limits(deps, [[`read:entrada:${e.id}`, 12, DAY], [`read:email:${who}`, READS_PER_EMAIL_DAY, DAY], [`read:ip:${g.ip}`, READS_PER_IP_DAY, DAY]]);

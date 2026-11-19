@@ -93,6 +93,9 @@ export function isPlaceholderEmail(addr: string | null | undefined): boolean {
   return /@whatsapp\.local$/i.test(String(addr || "").trim());
 }
 
+/** One-time codes (6 digits) never reach the logs. */
+export const redactCodes = (s: string) => s.replace(/\b\d{6}\b/g, "[código oculto]");
+
 export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, attachments, saveToSentItems }: SendMailOptions) {
   // Fallback de la MISMA marca: el anterior era la academia de francés, así que
   // borrar EMAIL_FROM habría hecho que los emails a clientes de tj.net saliesen
@@ -101,7 +104,7 @@ export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, atta
   const from = process.env.EMAIL_FROM || "hola@traduccionesjuradas.net";
 
   if (!isEmailConfigured()) {
-    console.log(`[AzureMail] Not configured. Subject: ${subject} → ${Array.isArray(to) ? to.join(", ") : to}`);
+    console.log(`[AzureMail] Not configured. Subject: ${redactCodes(subject)} → ${Array.isArray(to) ? to.join(", ") : to}`);
     return;
   }
 
@@ -115,7 +118,7 @@ export async function sendMail({ to, cc, bcc, replyTo, subject, html, text, atta
   const rawTo = Array.isArray(to) ? to : [to];
   const toArray = rawTo.filter((addr) => !isPlaceholderEmail(addr));
   if (toArray.length === 0) {
-    console.log(`[AzureMail] Sin destinatario real (solo @whatsapp.local). Subject: ${subject} → ${rawTo.join(", ")}`);
+    console.log(`[AzureMail] Sin destinatario real (solo @whatsapp.local). Subject: ${redactCodes(subject)} → ${rawTo.join(", ")}`);
     return;
   }
   const casa = new Set(

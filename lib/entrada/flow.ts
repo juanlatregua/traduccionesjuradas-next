@@ -8,7 +8,8 @@ import type { Canal } from "./identidad.ts";
 import { sha256, type GateInput, type GateResult } from "./puerta.ts";
 import { CODE_MAX_ATTEMPTS, CODE_TTL_MS, codeHashOf, codeMatches, newCode } from "./codigo.ts";
 import { sessionKeyOf, type ArchivoRow, type EntradaRow, type EntradaStore } from "./store.ts";
-import { clientView, type ClientView, type ReadingExtras } from "./view.ts";
+import { clientView, ownLote, type ClientView, type ReadingExtras } from "./view.ts";
+import { fingerprintOf } from "../lectura-constructor/run.ts";
 
 export const MAX_ARCHIVOS = 40;
 export const EXCLUDED_BY_CLIENT = "el cliente indica que no hace falta traducirlo";
@@ -106,8 +107,24 @@ export async function verificarCodigo(deps: FlowDeps, e: EntradaRow, code: strin
   return { ok: true, view: await vistaEntrada(deps, { ...e, ...patch }) };
 }
 
+/** A reading of this entrada is running or waiting to retry. */
+export async function readingInProgress(deps: FlowDeps, e: EntradaRow): Promise<{ fingerprint: string } | null> {
+  if (!e.loteId) return null;
+  const data = await deps.lectura.store.get(e.loteId);
+  return data && (data.lote.status === "running" || data.lote.status === "busy") ? { fingerprint: data.lote.fingerprint } : null;
+}
+
+/** Fingerprint the current file set would read with (same formula as the lote). */
+export async function currentFingerprint(deps: FlowDeps, e: EntradaRow): Promise<string> {
+  const files = await deps.store.files(e.id);
+  return fingerprintOf(files.map((f) => ({ name: f.name, url: f.url, mimeType: f.mimeType })), e.targetLang, e.sourceLang);
+}
+
+const READING_NOW = "Estamos revisando tus archivos: espera a que terminemos para añadir o quitar.";
+
 export async function registrarArchivo(deps: FlowDeps, e: EntradaRow, f: { url: string; name: string; size: number; mimeType: string }): Promise<Outcome> {
   if (e.estado !== "abierta" && e.estado !== "leida") return fail(409, "Esta solicitud ya está enviada.");
+  if (await readingInProgress(deps, e)) return fail(409, READING_NOW);
   const files = await deps.store.files(e.id);
   if (files.length >= MAX_ARCHIVOS) return fail(422, `Caben como mucho ${MAX_ARCHIVOS} archivos. Si tienes más, escríbenos y te ayudamos.`);
   let bytes: Uint8Array;
@@ -126,6 +143,7 @@ export async function registrarArchivo(deps: FlowDeps, e: EntradaRow, f: { url: 
 
 export async function quitarArchivo(deps: FlowDeps, e: EntradaRow, fileId: string): Promise<Outcome> {
   if (e.estado !== "abierta" && e.estado !== "leida") return fail(409, "Esta solicitud ya está enviada.");
+  if (await readingInProgress(deps, e)) return fail(409, READING_NOW);
   if (!(await deps.store.removeFile(e.id, fileId))) return fail(404, "Ese archivo no está en tu solicitud.");
   if (e.estado === "leida") await deps.store.update(e.id, { estado: "abierta" }, ["leida"]);
   return { ok: true, view: await vistaEntrada(deps, (await deps.store.get(e.id)) ?? e) };
@@ -215,6 +233,12 @@ export async function editarEntrada(deps: FlowDeps, e: EntradaRow, edit: ClientE
   if (e.estado !== "leida" || !e.loteId) return fail(409, "Ahora no se puede cambiar.");
   const data = await deps.lectura.store.get(e.loteId);
   if (!data || data.lote.status !== "ok") return fail(409, "Esta revisión ya no se puede cambiar.", { view: await vistaEntrada(deps, e) });
+  const own = ownLote(e, data.lote);
+  if (edit.op === "setTargetLang" && !own) {
+    await deps.store.update(e.id, { targetLang: edit.targetLang }, ["leida"]);
+    return { ok: true, view: await vistaEntrada(deps, { ...e, targetLang: edit.targetLang }) };
+  }
+  if (!own) return fail(409, "Juan revisa estos documentos contigo: cuéntanos en «Algo más» lo que no haga falta traducir.", { view: await vistaEntrada(deps, e) });
   if (edit.op === "setTargetLang") {
     if (!(await deps.lectura.store.setTargetLang(e.loteId, edit.targetLang))) return fail(409, "La revisión ha cambiado: recarga la página.");
     await deps.store.update(e.id, { targetLang: edit.targetLang }, ["leida"]);

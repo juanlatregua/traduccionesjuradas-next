@@ -1,7 +1,7 @@
 // Lo que ve el cliente: documentos, lo que falta y lo que no se incluye. Nunca precios, palabras ni tarifas.
 import { labelOf, type WorkingDocument } from "../lectura-constructor/documents.ts";
 import type { FileRow, LoteRow } from "../lectura-constructor/store.ts";
-import type { ArchivoRow, EntradaRow } from "./store.ts";
+import { sessionKeyOf, type ArchivoRow, type EntradaRow } from "./store.ts";
 
 export const MAEC_URL = "https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Buscador-STIJ.aspx";
 
@@ -75,6 +75,11 @@ function where(files: FileRow[], parts: PartRef[]): string {
   }).join("; ");
 }
 
+/** The client may only edit a lote read for this entrada alone, in a caso it created. */
+export function ownLote(e: Pick<EntradaRow, "id" | "regla">, lote: Pick<LoteRow, "sessionKey">): boolean {
+  return lote.sessionKey === sessionKeyOf(e.id) && e.regla !== "huella" && e.regla !== "contacto";
+}
+
 export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: LoteData | null, extras: ReadingExtras | null, sinJurado: string | null): ClientView {
   const base: ClientView = {
     estado: entrada.estado,
@@ -114,7 +119,7 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
     lectura: {
       fase,
       loteUpdatedAt: lote.updatedAt.toISOString(),
-      editable: lote.status === "ok" && entrada.estado === "leida",
+      editable: lote.status === "ok" && entrada.estado === "leida" && ownLote(entrada, lote),
       targetLang: lote.targetLang && lote.targetLang !== "unknown" ? lote.targetLang : entrada.targetLang,
       documentos,
       noIncluidos,
