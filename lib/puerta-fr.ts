@@ -11,6 +11,8 @@ import { isStaffEmail } from "@/lib/staff-access";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { findClientSaidNo, findLiveBlock } from "@/lib/respuesta-guard-db";
 import { presupuestoVivoDelCaso, solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
+import { hasPaidOrder, personPaidOrdersWhere } from "@/lib/paid-orders";
+import { loadQuoteHashes } from "@/lib/vigia-graph-db";
 import { quoteFr } from "@/lib/quote-fr";
 import { buildQuoteReply, checkSegments, greetingName, isHouseAddress, splitOrRepeatedReason, FR_DELIVERY_TERM, type ReplyLang } from "@/lib/agente-bandeja-math";
 import {
@@ -111,17 +113,22 @@ async function processSession(
   const phone = list.find((r: any) => r.clientPhone)?.clientPhone || null;
   const name = list.find((r: any) => r.clientName)?.clientName || null;
   const expedienteRef = `puerta:${token}`;
-  const day = new Date(now.getTime() - 24 * 3_600_000);
+  const leadAt = new Date(Math.min(...list.map((r: any) => r.createdAt.getTime())));
+  const paidWhere = personPaidOrdersWhere({ email, phone }, now);
 
   // Quien ya pagó o ya tiene presupuesto vivo en su caso/par no es un lead (la misma comprobación que lead-nudge).
-  const [paid, existing] = await Promise.all([
-    prisma.order.findFirst({ where: { clientEmail: { equals: email, mode: "insensitive" }, paymentStatus: "PAID", paidAt: { gte: day } }, select: { id: true } }),
+  const [paidOrders, existing] = await Promise.all([
+    paidWhere ? prisma.order.findMany({ where: paidWhere, select: { clientEmail: true, clientPhone: true, paidAt: true, quoteId: true, documentAnalyses: { select: { fileHash: true } } } }) : [],
     prisma.quote.findFirst({ where: { deletedAt: null, expedienteRef }, select: { id: true } }),
   ]);
+  const qHashes = paidOrders.some((o) => o.quoteId) ? await loadQuoteHashes([...new Set(paidOrders.map((o) => o.quoteId).filter((x): x is string => !!x))]) : new Map<string, string[]>();
+  const paid = hasPaidOrder(
+    { email, phone, at: leadAt, hashes: list.map((r: any) => r.fileHash) },
+    paidOrders.map((o) => ({ ...o, paidAt: o.paidAt!, fileHashes: [...o.documentAnalyses.map((d) => d.fileHash), ...(o.quoteId ? qHashes.get(o.quoteId) || [] : [])] }))
+  );
   if (paid || existing) return null;
   const casoId = list.find((r: any) => r.casoId)?.casoId || null;
   if (casoId && (await presupuestoVivoDelCaso(casoId, "FR>ES"))) return null;
-  const leadAt = new Date(Math.min(...list.map((r: any) => r.createdAt.getTime())));
   if (await findLiveBlock({ email, phone }, { leadAt })) return null;
   // Ya habló o dijo que no: no se le empuja (si la guarda lanza, cae al catch y no se envía).
   if (await findClientSaidNo({ email, phone })) return null;

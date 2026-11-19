@@ -10,6 +10,7 @@ import { getStaffEmails } from "@/lib/staff-access";
 import { loadQuoteHashes } from "@/lib/vigia-graph-db";
 import { deadlineLine, urgentSubjectPrefix } from "@/lib/needed-by";
 import { runPuertaFr } from "@/lib/puerta-fr";
+import { paidSince } from "@/lib/paid-orders";
 import { SLA_WINDOW_HOURS, dedupeId, selectLeadSla, smsAllowed, type SlaLead } from "@/lib/lead-sla-core";
 
 const STEP = "lead_sla";
@@ -35,9 +36,9 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
       where: { deletedAt: null, OR: [{ createdAt: { gte: quotesSince } }, { sentAt: { gte: quotesSince } }] },
       select: { id: true, customerEmail: true, customerPhone: true, expedienteRef: true, holderNames: true, sentAt: true, createdAt: true },
     }),
-    prisma.order.findMany({ where: { paymentStatus: "PAID", paidAt: { gte: since } }, select: { clientEmail: true, clientName: true, clientPhone: true } }),
+    prisma.order.findMany({ where: { paymentStatus: "PAID", paidAt: { gte: paidSince(now) } }, select: { clientEmail: true, clientName: true, clientPhone: true, paidAt: true, quoteId: true, documentAnalyses: { select: { fileHash: true } } } }),
   ]);
-  const hashesOfQuote = await loadQuoteHashes(quotes.map((q) => q.id));
+  const hashesOfQuote = await loadQuoteHashes([...new Set([...quotes.map((q) => q.id), ...paidOrders.map((o) => o.quoteId).filter((x): x is string => !!x)])]);
   const staffEmails = [...getStaffEmails(), process.env.PRESUPUESTO_TO, process.env.ADMIN_EMAIL, process.env.EMAIL_FROM, "info@traduccionesjuradas.net"].filter((e): e is string => !!e);
   return selectLeadSla({
     now,
@@ -45,7 +46,7 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
     inbound: inbound.map((m) => ({ ...m, channel: String(m.channel), status: String(m.status) })),
     solicitudes,
     quotes: quotes.map((q) => ({ id: q.id, email: q.customerEmail, phone: q.customerPhone, expRef: q.expedienteRef, holder: q.holderNames, sentAt: q.sentAt, createdAt: q.createdAt })),
-    paidOrders,
+    paidOrders: paidOrders.map(({ documentAnalyses, quoteId, ...o }) => ({ ...o, paidAt: o.paidAt!, fileHashes: [...documentAnalyses.map((d) => d.fileHash), ...(quoteId ? hashesOfQuote.get(quoteId) || [] : [])] })),
     hashesOfQuote,
     staffEmails,
   });
