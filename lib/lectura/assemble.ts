@@ -1,4 +1,4 @@
-import { DEFAULT_HEAVY, HeavyWorker, WorkerDied, WorkerTimeout } from "./heavy.ts";
+import { DEFAULT_HEAVY, HeavyBusy, HeavyWorker, WorkerDied, WorkerTimeout } from "./heavy.ts";
 import type { PreparedBatch } from "./prepare.ts";
 import type { Part, ReadDocumentRaw } from "./schema.ts";
 import { documentLabel } from "./label.ts";
@@ -21,7 +21,8 @@ export function documentFileNames(documents: readonly Pick<ReadDocumentRaw, "hol
 
 export type AssembledPdf =
   | { ok: true; fileName: string; bytes: Uint8Array; pageCount: number }
-  | { ok: false; kind: "cannot_assemble"; reasonEs: string };
+  | { ok: false; kind: "cannot_assemble"; reasonEs: string }
+  | { ok: false; kind: "busy"; retryable: true; reasonEs: string };
 
 type AssemblyDocument = Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs" | "parts" | "apostille"> & { annexes?: ReadDocumentRaw["annexes"] };
 
@@ -69,6 +70,11 @@ export async function assembleDocumentPdfs(
     try {
       out = (await worker.run<{ results: typeof out }>("assemble", { files, documents: jobs }, ASSEMBLY_TIMEOUT_MS)).results;
     } catch (err) {
+      if (err instanceof HeavyBusy) {
+        if (!heavy) await worker.close();
+        const busy: AssembledPdf = { ok: false, kind: "busy", retryable: true, reasonEs: "El servidor está ocupado: el montaje se puede reintentar en un minuto." };
+        return results.map((r) => r ?? busy);
+      }
       const why = err instanceof WorkerTimeout ? "el montaje ha tardado demasiado" : err instanceof WorkerDied ? "el montaje se ha quedado sin memoria" : "el montaje ha fallado";
       out = jobs.map(() => ({ ok: false, reasonEs: why }));
     } finally {

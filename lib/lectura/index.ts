@@ -1,5 +1,5 @@
 import type { BetaMessage, BetaMessageParam } from "@anthropic-ai/sdk/resources/beta/messages/messages";
-import { DEFAULT_LIMITS, prepareBatch, type BatchLimits, type PreparedBatch, type SourceFile } from "./prepare.ts";
+import { DEFAULT_LIMITS, prepareBatch, type BatchLimits, type Busy, type PreparedBatch, type SourceFile } from "./prepare.ts";
 import { batchContent, buildRequest, callReading, defaultModelCall, messageUsages, retryMessages, READING_MODEL, type CallOptions, type ModelCall, type ReadError } from "./read.ts";
 import { validateReading } from "./validate.ts";
 import { billableWords, countWords, TEXT_PAGE_MIN_WORDS } from "./words.ts";
@@ -8,7 +8,7 @@ import type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
 import type { ReadingContext } from "./prompt.ts";
 import { assessReading, type Assessment } from "./assess.ts";
 
-export type { SourceFile, PreparedBatch, BatchLimits } from "./prepare.ts";
+export type { SourceFile, PreparedBatch, BatchLimits, Busy } from "./prepare.ts";
 export type { ReadingContext } from "./prompt.ts";
 export type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
 export { prepareBatch, DEFAULT_LIMITS } from "./prepare.ts";
@@ -30,6 +30,7 @@ export type Reading =
   | ({ status: "nothing_to_translate"; batch: PreparedBatch; reading: ModelReading; assessment: Assessment } & Meter)
   | { status: "too_large"; limit: "files" | "pages" | "bytes"; max: number; actual: number; reasonEs: string }
   | { status: "empty"; reasonEs: string; skipped: PreparedBatch["skipped"] }
+  | Busy
   | ({ status: "refused"; batch: PreparedBatch; category: string | null; explanation: string | null } & Meter)
   | ({ status: "truncated"; batch: PreparedBatch; stopReason: string } & Meter)
   | ({ status: "invalid"; batch: PreparedBatch; errors: string[]; reading: ModelReading | null } & Meter)

@@ -76,3 +76,6 @@ export function reading(documents: ReadDocumentRaw[], extra: Partial<ModelReadin
 }
 
 export const files = (counts: number[]) => ({ files: counts.map((pageCount, i) => ({ index: i + 1, pageCount })) }) as never;
+
+/** An absolute RSS ceiling `mb` above what the process uses now. */
+export const ceilingAbove = (mb: number) => Math.ceil(process.memoryUsage.rss() / 1024 / 1024) + mb;

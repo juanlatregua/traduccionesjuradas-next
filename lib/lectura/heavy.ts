@@ -1,12 +1,15 @@
 import { Worker } from "node:worker_threads";
+import { INSPECT_SOURCE } from "./inspect-source.ts";
 
-// All heavy or synchronous work on client bytes (inflate, pdf.js, pdf-lib, heic-convert, sharp) runs in a worker thread
-// with a V8 memory cap; a deadline is enforced by TERMINATING the worker, which also stops synchronous loops.
-// Memory outside V8 (Uint8Array backing stores, wasm, libvips) escapes that cap: while a task runs, the main thread
-// compares the process RSS with a fixed per-process base and terminates the worker past the budget, so the budget caps
-// the whole process (main thread included), not each task. A killed worker is awaited before its slot is reused. With
-// two slots, a task that blows the budget also costs the task running beside it (possibly another batch's file). The worker source is a plain JS string (no bundler can
-// rewrite it) and loads its modules with createRequire(cwd).
+// All work on client bytes beyond magic bytes and sizes (ZIP directory, HEIF headers, inflate, pdf.js, pdf-lib,
+// heic-convert, sharp) runs in a worker thread with a V8 memory cap; a deadline is enforced by TERMINATING the worker,
+// which also stops synchronous loops. Memory outside V8 (Uint8Array backing stores, wasm, libvips) escapes that cap:
+// while a task runs, the main thread watches the ABSOLUTE RSS of the process and terminates the worker above a ceiling
+// derived from the function's memory, which is what actually brings the function down. A task does not start while
+// the process is above the ceiling (it waits, then fails as HeavyBusy: retryable, the instance is full). A killed
+// worker is awaited before its slot is reused. With two slots, a task that pushes the process over the ceiling also
+// costs the task running beside it. The worker source is a plain JS string (no bundler can rewrite it) and loads its
+// modules with createRequire(cwd).
 
 export function workerSource(extraTasks = ""): string {
   return String.raw`
@@ -21,6 +24,7 @@ const lib = {
   // pdf-parse's own entry (not its index, which reads a test file when loaded); it drives pdf.js 1.10.
   pdfParse: () => (pdfParse ??= req("pdf-parse/lib/pdf-parse.js")),
 };
+${INSPECT_SOURCE}
 // pdf.js 1.10 misreads a Node Buffer (offsets go wrong: "Invalid PDF structure"); a plain Uint8Array copy reads fine.
 const own = (bytes) => new Uint8Array(bytes);
 async function pageText(page) {
@@ -81,6 +85,8 @@ async function assembleOne(PDFDocument, files, loaded, parts) {
 }
 const tasks = {
   ${extraTasks}
+  heifPixels: async ({ bytes }) => ({ pixels: heifPixels(bytes) }),
+  zipList: async ({ bytes }) => ({ entries: listZip(bytes) }),
   inflate: async ({ bytes, max }) => {
     try { const out = zlib.inflateRawSync(bytes, { maxOutputLength: Math.max(1, max) }); return { bytes: new Uint8Array(out) }; }
     catch (e) { if (e && e.code === "ERR_BUFFER_TOO_LARGE") return { tooLarge: true }; return { broken: true }; }
@@ -157,14 +163,29 @@ export class WorkerTimeout extends Error {}
 export class WorkerDied extends Error {}
 export class WorkerOutOfMemory extends WorkerDied {}
 export class WorkerTaskError extends Error {}
+/** The process is above the RSS ceiling before the task starts: nothing was tried, the batch can be retried later. */
+export class HeavyBusy extends Error {}
 
-/** memoryMb: V8 heap of the worker. rssMb: growth of the process RSS over its base while heavy work runs (V8 + everything outside it). */
-export type HeavyLimits = { memoryMb: number; rssMb: number; timeoutMs: number };
-export const DEFAULT_HEAVY: HeavyLimits = { memoryMb: 768, rssMb: 1024, timeoutMs: 30_000 };
+const MB = 1024 * 1024;
+/**
+ * Absolute RSS ceiling of the process: the function's memory (AWS_LAMBDA_FUNCTION_MEMORY_SIZE on Vercel) minus a margin
+ * for Next itself; LECTURA_RSS_CEILING_MB overrides it; 1536 MB when neither is known.
+ */
+export function rssCeilingMb(env: Record<string, string | undefined> = process.env): number {
+  const explicit = Number(env.LECTURA_RSS_CEILING_MB);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const fn = Number(env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE);
+  if (Number.isFinite(fn) && fn > 0) return Math.max(256, Math.floor(fn - Math.max(256, fn * 0.15)));
+  return 1536;
+}
+
+/** memoryMb: V8 heap of the worker. rssCeilingMb: absolute RSS of the whole process. settleMs: wait for room before a task. */
+export type HeavyLimits = { memoryMb: number; rssCeilingMb: number; timeoutMs: number; settleMs?: number };
+export const DEFAULT_HEAVY: HeavyLimits = { memoryMb: 768, rssCeilingMb: rssCeilingMb(), timeoutMs: 30_000 };
 export const HEAVY_SLOTS = 2;
 const RSS_POLL_MS = 5;
 const SETTLE_POLL_MS = 50;
-const SETTLE_MAX_MS = 5_000;
+const SETTLE_MS = 5_000;
 
 class Semaphore {
   private free: number;
@@ -186,8 +207,6 @@ class Semaphore {
   }
 }
 const slots = new Semaphore(HEAVY_SLOTS);
-/** RSS of the process when the first heavy task started: every task is measured against it, never against its own start. */
-let processBaseRss: number | null = null;
 
 /** One worker, one task at a time; a timed-out, oversized or crashed worker is discarded and replaced on the next task. */
 export class HeavyWorker {
@@ -218,14 +237,12 @@ export class HeavyWorker {
 
   private async exec<T>(task: string, args: Record<string, unknown>, timeoutMs: number): Promise<T> {
     const release = await slots.acquire();
-    processBaseRss ??= process.memoryUsage.rss();
-    const base = processBaseRss;
-    const budget = this.limits.rssMb * 1024 * 1024;
-    // Memory of a worker just killed can take a moment to go back to the system: wait for it instead of starting over budget.
-    for (let waited = 0; process.memoryUsage.rss() - base > budget; waited += SETTLE_POLL_MS) {
-      if (waited >= SETTLE_MAX_MS) {
+    const ceiling = this.limits.rssCeilingMb * MB;
+    // Memory of a worker just killed (or of other requests) can take a moment to go back: wait instead of starting over the ceiling.
+    for (let waited = 0; process.memoryUsage.rss() > ceiling; waited += SETTLE_POLL_MS) {
+      if (waited >= (this.limits.settleMs ?? SETTLE_MS)) {
         release();
-        throw new WorkerOutOfMemory(`${task}: el proceso sigue por encima de ${this.limits.rssMb} MB de memoria de trabajo`);
+        throw new HeavyBusy(`${task}: el proceso está por encima de ${this.limits.rssCeilingMb} MB`);
       }
       await new Promise((r) => setTimeout(r, SETTLE_POLL_MS));
     }
@@ -257,7 +274,7 @@ export class HeavyWorker {
       };
       const timer = setTimeout(() => done(() => reject(new WorkerTimeout(`${task}: más de ${timeoutMs} ms`)), true), timeoutMs);
       const watch = setInterval(() => {
-        if (process.memoryUsage.rss() - base > budget) done(() => reject(new WorkerOutOfMemory(`${task}: el proceso pasa de ${this.limits.rssMb} MB de memoria de trabajo`)), true);
+        if (process.memoryUsage.rss() > ceiling) done(() => reject(new WorkerOutOfMemory(`${task}: el proceso pasa de ${this.limits.rssCeilingMb} MB`)), true);
       }, RSS_POLL_MS);
       const onMessage = (m: { id: number; ok: boolean; result?: T; error?: { name: string; message: string } }) => {
         if (m.id !== id) return;

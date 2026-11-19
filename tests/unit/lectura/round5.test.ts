@@ -1,20 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { HeavyWorker, WorkerOutOfMemory, workerSource } from "../../../lib/lectura/heavy.ts";
-import { heifPixels, sniffType } from "../../../lib/lectura/prepare.ts";
+import { HeavyBusy, HeavyWorker, WorkerOutOfMemory, workerSource } from "../../../lib/lectura/heavy.ts";
+import { sniffType } from "../../../lib/lectura/prepare.ts";
 import { assessReading } from "../../../lib/lectura/assess.ts";
-import { doc, reading } from "./fixtures.ts";
+import { ceilingAbove, doc, reading } from "./fixtures.ts";
 
 const MB = 1024 * 1024;
 
 test("killed workers do not stack the budget: three bombs in a row keep the process under one budget", async () => {
   const src = workerSource(`hog: async ({ mb }) => { const keep = []; for (let i = 0; i < mb; i++) { const b = new Uint8Array(1024 * 1024); b.fill(1); keep.push(b); await new Promise((r) => setTimeout(r, 1)); } return {}; },`);
-  const h = new HeavyWorker({ memoryMb: 2048, rssMb: 300, timeoutMs: 20_000 }, src);
+  const h = new HeavyWorker({ memoryMb: 2048, rssCeilingMb: ceilingAbove(300), timeoutMs: 20_000, settleMs: 500 }, src);
   const base = process.memoryUsage.rss();
   let peak = base;
   const timer = setInterval(() => { peak = Math.max(peak, process.memoryUsage.rss()); }, 2);
   try {
-    for (let k = 0; k < 3; k++) await assert.rejects(h.run("hog", { mb: 2000 }), WorkerOutOfMemory);
+    for (let k = 0; k < 3; k++) await assert.rejects(h.run("hog", { mb: 2000 }), (e) => e instanceof WorkerOutOfMemory || e instanceof HeavyBusy);
   } finally {
     clearInterval(timer);
     await h.close();
@@ -41,15 +41,19 @@ function ilocBomb(items: number, inMeta: boolean): Uint8Array {
   return new Uint8Array(Buffer.concat(inMeta ? [ftyp, meta, iloc] : [ftyp, iloc]));
 }
 
-test("HEIF parsing is linear: an iloc with empty fields and 65535 extents is read in < 50 ms", () => {
+test("HEIF parsing is linear: an iloc with empty fields and 65535 extents is read in < 50 ms", async () => {
+  const w = new HeavyWorker();
+  const heifPixels = async (bytes: Uint8Array) => (await w.run<{ pixels: number }>("heifPixels", { bytes })).pixels;
+  await heifPixels(new Uint8Array(16));
   for (const [n, inMeta] of [[5000, false], [65_535, false], [5000, true], [65_535, true]] as const) {
     const b = ilocBomb(n, inMeta);
     assert.equal(sniffType(b), "heic");
     const t0 = performance.now();
-    assert.equal(heifPixels(b), 0);
+    assert.equal(await heifPixels(b), 0);
     const ms = performance.now() - t0;
     assert.ok(ms < 50, `${b.length} bytes: ${ms.toFixed(1)} ms`);
   }
+  await w.close();
 });
 
 const codes = (docs: any[], extra = {}) => assessReading({ skipped: [] }, reading(docs, { targetLangBasis: "stated_by_client", ...extra })).reasons.map((r) => r.code);

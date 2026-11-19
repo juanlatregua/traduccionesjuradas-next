@@ -5,11 +5,11 @@ import { createDeflate } from "node:zlib";
 import sharp from "sharp";
 import { PDFDocument, PDFName, PDFNumber } from "pdf-lib";
 import { HeavyWorker, WorkerOutOfMemory, WorkerTaskError, workerSource, HEAVY_SLOTS } from "../../../lib/lectura/heavy.ts";
-import { prepareBatch, heifPixels, DEFAULT_LIMITS } from "../../../lib/lectura/prepare.ts";
+import { prepareBatch, DEFAULT_LIMITS } from "../../../lib/lectura/prepare.ts";
 import { assembleDocumentPdfs } from "../../../lib/lectura/assemble.ts";
 import { assessReading } from "../../../lib/lectura/assess.ts";
 import { cleanTypeLabel, documentLabel } from "../../../lib/lectura/label.ts";
-import { ap, doc, lorem, makePdf, reading } from "./fixtures.ts";
+import { ap, ceilingAbove, doc, lorem, makePdf, reading } from "./fixtures.ts";
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));
 
@@ -40,7 +40,7 @@ test("PDF bomb (1 MB → 2 GB object stream): the RSS watch kills the worker, th
   const timer = setInterval(() => { peak = Math.max(peak, process.memoryUsage.rss()); }, 5);
   const t0 = Date.now();
   try {
-    const r = await prepareBatch([{ name: "bomba.pdf", bytes }], { ...DEFAULT_LIMITS, workerMemoryMb: 128, workerRssMb: 256 });
+    const r = await prepareBatch([{ name: "bomba.pdf", bytes }], { ...DEFAULT_LIMITS, workerMemoryMb: 128, rssCeilingMb: ceilingAbove(256) });
     assert.equal(r.status, "empty");
     if (r.status === "empty") assert.match(r.skipped[0].reasonEs, /sin memoria/);
   } finally {
@@ -52,7 +52,7 @@ test("PDF bomb (1 MB → 2 GB object stream): the RSS watch kills the worker, th
 });
 
 test("worker: memory outside V8 is cut by the RSS watch; the production worker has no test tasks", async () => {
-  const w = new HeavyWorker({ memoryMb: 64, rssMb: 128, timeoutMs: 10_000 }, workerSource(`
+  const w = new HeavyWorker({ memoryMb: 64, rssCeilingMb: ceilingAbove(128), timeoutMs: 10_000 }, workerSource(`
     buffers: async () => { const keep = []; for (let i = 0; i < 4000; i++) keep.push(new Uint8Array(1024 * 1024).fill(1)); return { n: keep.length }; },
   `));
   const prod = new HeavyWorker();
@@ -92,11 +92,14 @@ const patchIspe = (bytes: Uint8Array, w: number, h: number) => {
 };
 
 test("HEIC/AVIF: a lying ispe does not hide the coded size (HEVC SPS, AV1 sequence header)", async () => {
+  const w = new HeavyWorker();
+  const heifPixels = async (bytes: Uint8Array) => (await w.run<{ pixels: number }>("heifPixels", { bytes })).pixels;
   const heic = fixture("sintetica-64x48.heic");
-  assert.ok(heifPixels(patchIspe(heic, 1, 1)) >= 64 * 48);
+  assert.ok((await heifPixels(patchIspe(heic, 1, 1))) >= 64 * 48);
   const avif = new Uint8Array(await sharp({ create: { width: 3000, height: 2000, channels: 3, background: "#345" } }).avif().toBuffer());
   const liar = patchIspe(avif, 10, 10);
-  assert.equal(heifPixels(liar), 3000 * 2000);
+  assert.equal(await heifPixels(liar), 3000 * 2000);
+  await w.close();
   const r = await prepareBatch([{ name: "mentira.avif", bytes: liar }], { ...DEFAULT_LIMITS, maxImagePixels: 1_000_000 });
   assert.equal(r.status, "empty");
   if (r.status === "empty") assert.match(r.skipped[0].reasonEs, /demasiado grande/);

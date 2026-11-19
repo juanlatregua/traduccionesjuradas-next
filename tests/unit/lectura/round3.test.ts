@@ -97,7 +97,7 @@ async function peakRss<T>(fn: () => Promise<T>): Promise<{ result: T; peakMb: nu
 }
 
 test("worker: a long synchronous task is really cut at the deadline; running out of memory kills only the worker", async () => {
-  const w = new HeavyWorker({ memoryMb: 128, rssMb: 2048, timeoutMs: 5000 }, TEST_SOURCE);
+  const w = new HeavyWorker({ memoryMb: 128, rssCeilingMb: 16_384, timeoutMs: 5000 }, TEST_SOURCE);
   try {
     const t0 = Date.now();
     await assert.rejects(w.run("spin", { ms: 20_000 }, 300), WorkerTimeout);

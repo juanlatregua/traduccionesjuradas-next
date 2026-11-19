@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { countWords, isReliableTextLayer } from "./words.ts";
-import { listZip } from "./zip.ts";
-import { HeavyWorker, WorkerDied, WorkerTimeout } from "./heavy.ts";
+import { HeavyBusy, HeavyWorker, rssCeilingMb, WorkerDied, WorkerTimeout } from "./heavy.ts";
 
 export type SourceFile = { name: string; mimeType?: string | null; bytes: Uint8Array };
 export type PageRef = { fileIndex: number; page: number };
@@ -51,8 +50,8 @@ export type BatchLimits = {
   maxImagePixels: number;
   maxFileMs: number;
   workerMemoryMb: number;
-  /** Growth of the process RSS over its base allowed while heavy work runs (covers memory outside V8: buffers, wasm, libvips). */
-  workerRssMb: number;
+  /** Absolute RSS ceiling of the process while heavy work runs (covers memory outside V8: buffers, wasm, libvips). */
+  rssCeilingMb: number;
 };
 
 // API (Claude, nov-2026): ≤600 images/PDF pages per request, >20 images ⇒ ≤3000 px per side, ≤10 MB per image
@@ -72,14 +71,21 @@ export const DEFAULT_LIMITS: BatchLimits = {
   maxImagePixels: 60_000_000,
   maxFileMs: 30_000,
   workerMemoryMb: 768,
-  workerRssMb: 1024,
+  rssCeilingMb: rssCeilingMb(),
 };
 
 export type TooLarge = { status: "too_large"; limit: "files" | "pages" | "bytes"; max: number; actual: number; reasonEs: string };
 export type PrepareResult =
   | { status: "ok"; batch: PreparedBatch }
   | TooLarge
-  | { status: "empty"; reasonEs: string; skipped: { name: string; reasonEs: string }[] };
+  | { status: "empty"; reasonEs: string; skipped: { name: string; reasonEs: string }[] }
+  | Busy;
+/** The instance had no memory room for the heavy work: nothing about the files is known, retry the whole batch later. */
+export type Busy = { status: "busy"; retryable: true; reasonEs: string };
+export const BUSY_ES = "El servidor está ocupado con otros lotes y no ha podido abrir los archivos: vuelve a intentarlo en un minuto.";
+const rethrowBusy = (err: unknown) => {
+  if (err instanceof HeavyBusy) throw err;
+};
 
 export function sha256Hex(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
@@ -111,212 +117,6 @@ export function sniffType(b: Uint8Array): DetectedType {
   return "unknown";
 }
 
-class Bits {
-  private pos = 0;
-  private b: Uint8Array;
-  constructor(b: Uint8Array) {
-    this.b = b;
-  }
-  u(n: number): number {
-    let v = 0;
-    for (let i = 0; i < n; i++) {
-      const byte = this.b[this.pos >> 3];
-      if (byte === undefined) throw new RangeError("fin de datos");
-      v = v * 2 + ((byte >> (7 - (this.pos & 7))) & 1);
-      this.pos++;
-    }
-    return v;
-  }
-  ue(): number {
-    let zeros = 0;
-    while (this.u(1) === 0) if (++zeros > 31) throw new RangeError("ue demasiado largo");
-    return 2 ** zeros - 1 + this.u(zeros);
-  }
-}
-
-/** Coded size of an HEVC sequence parameter set (NAL header included). */
-function hevcSpsPixels(nal: Uint8Array): number {
-  const rbsp: number[] = [];
-  for (let i = 2; i < nal.length; i++) {
-    if (i >= 4 && nal[i] === 3 && nal[i - 1] === 0 && nal[i - 2] === 0) continue;
-    rbsp.push(nal[i]);
-  }
-  const r = new Bits(Uint8Array.from(rbsp));
-  r.u(4);
-  const maxSub = r.u(3);
-  r.u(1);
-  r.u(96);
-  const present: [number, number][] = [];
-  for (let i = 0; i < maxSub; i++) present.push([r.u(1), r.u(1)]);
-  if (maxSub > 0) for (let i = maxSub; i < 8; i++) r.u(2);
-  for (const [profile, level] of present) {
-    if (profile) r.u(88);
-    if (level) r.u(8);
-  }
-  r.ue();
-  if (r.ue() === 3) r.u(1);
-  return r.ue() * r.ue();
-}
-
-/** Max frame size of an AV1 sequence header OBU inside av1C (0 when absent or not parseable here). */
-function av1SequencePixels(obus: Uint8Array): number {
-  let i = 0;
-  while (i < obus.length) {
-    const header = obus[i];
-    const type = (header >> 3) & 15;
-    const ext = (header >> 2) & 1;
-    const hasSize = (header >> 1) & 1;
-    i += 1 + ext;
-    let size = obus.length - i;
-    if (hasSize) {
-      size = 0;
-      for (let k = 0; k < 8; k++) {
-        const byte = obus[i++];
-        size += (byte & 127) * 2 ** (7 * k);
-        if (!(byte & 128)) break;
-      }
-    }
-    if (type === 1) {
-      const r = new Bits(obus.subarray(i, i + size));
-      r.u(3);
-      r.u(1);
-      if (r.u(1)) r.u(5);
-      else {
-        if (r.u(1)) return 0;
-        r.u(1);
-        const points = r.u(5) + 1;
-        for (let p = 0; p < points; p++) {
-          r.u(12);
-          if (r.u(5) > 7) r.u(1);
-        }
-      }
-      const wb = r.u(4) + 1;
-      const hb = r.u(4) + 1;
-      return (r.u(wb) + 1) * (r.u(hb) + 1);
-    }
-    i += size;
-  }
-  return 0;
-}
-
-/**
- * Pixels an HEIF/AVIF will decode to, read before decoding. The `ispe` boxes are only a declaration: the coded size in
- * the HEVC SPS / AV1 sequence header also counts, and a grid multiplies the tile size by the number of coded items.
- * The decoder itself is still bounded by the worker memory watch.
- */
-export function heifPixels(b: Uint8Array): number {
-  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  type Box = { type: string; start: number; end: number };
-  // Real boxes only (size-delimited), never a byte-by-byte tag search: the work is linear in the file size.
-  const children = (from: number, to: number): Box[] => {
-    const out: Box[] = [];
-    let p = from;
-    while (p + 8 <= to) {
-      let size = v.getUint32(p);
-      let head = 8;
-      if (size === 1) {
-        if (p + 16 > to) break;
-        size = Number(v.getBigUint64(p + 8));
-        head = 16;
-      } else if (size === 0) size = to - p;
-      if (size < head || p + size > to) break;
-      out.push({ type: String.fromCharCode(b[p + 4], b[p + 5], b[p + 6], b[p + 7]), start: p + head, end: p + size });
-      p += size;
-    }
-    return out;
-  };
-  const find = (list: Box[], type: string) => list.find((x) => x.type === type);
-  const meta = find(children(0, b.length), "meta");
-  if (!meta) return 0;
-  const inMeta = children(meta.start + 4, meta.end);
-  let ispe = 0;
-  let coded = 0;
-  let grid = false;
-  const items = new Map<number, string>();
-  const located = new Map<number, [number, number]>();
-  const uint = (p: number, n: number) => (n === 0 ? 0 : n === 2 ? v.getUint16(p) : n === 4 ? v.getUint32(p) : Number(v.getBigUint64(p)));
-  try {
-    const iinf = find(inMeta, "iinf");
-    if (iinf) {
-      for (const e of children(iinf.start + 4 + (b[iinf.start] === 0 ? 2 : 4), iinf.end)) {
-        if (e.type !== "infe" || b[e.start] < 2 || e.end - e.start < 12) continue;
-        const wide = b[e.start] !== 2;
-        const id = uint(e.start + 4, wide ? 4 : 2);
-        const t = e.start + 4 + (wide ? 4 : 2) + 2;
-        const type = String.fromCharCode(b[t], b[t + 1], b[t + 2], b[t + 3]);
-        items.set(id, type);
-        if (type === "grid") grid = true;
-      }
-    }
-  } catch {}
-  try {
-    const iloc = find(inMeta, "iloc");
-    if (iloc) {
-      const end = iloc.end;
-      const version = b[iloc.start];
-      const offSize = b[iloc.start + 4] >> 4, lenSize = b[iloc.start + 4] & 15, baseSize = b[iloc.start + 5] >> 4, idxSize = version >= 1 ? b[iloc.start + 5] & 15 : 0;
-      const idSize = version < 2 ? 2 : 4;
-      let p = iloc.start + 6;
-      const count = uint(p, idSize);
-      p += idSize;
-      const extentSize = idxSize + offSize + lenSize;
-      for (let k = 0; k < count && p < end; k++) {
-        const id = uint(p, idSize);
-        p += idSize;
-        const method = version >= 1 ? v.getUint16(p) & 15 : 0;
-        if (version >= 1) p += 2;
-        p += 2;
-        const base = uint(p, baseSize);
-        p += baseSize;
-        const extents = v.getUint16(p);
-        p += 2;
-        if (extents === 0 || extentSize === 0) continue;
-        if (p + extents * extentSize > end) break;
-        const off = uint(p + idxSize, offSize);
-        const len = uint(p + idxSize + offSize, lenSize);
-        if (method === 0) located.set(id, [base + off, len]);
-        p += extents * extentSize;
-      }
-    }
-  } catch {}
-  const ipco = (() => {
-    const iprp = find(inMeta, "iprp");
-    return iprp ? find(children(iprp.start, iprp.end), "ipco") : undefined;
-  })();
-  for (const prop of ipco ? children(ipco.start, ipco.end) : []) {
-    try {
-      if (prop.type === "ispe" && prop.end - prop.start >= 12) ispe = Math.max(ispe, v.getUint32(prop.start + 4) * v.getUint32(prop.start + 8));
-      else if (prop.type === "hvcC") {
-        let p = prop.start + 22;
-        const arrays = b[p++] ?? 0;
-        for (let a = 0; a < arrays && p + 3 <= prop.end; a++) {
-          const type = b[p] & 63;
-          const n = v.getUint16(p + 1);
-          p += 3;
-          for (let k = 0; k < n && p + 2 <= prop.end; k++) {
-            const len = v.getUint16(p);
-            p += 2;
-            if (type === 33) coded = Math.max(coded, hevcSpsPixels(b.subarray(p, Math.min(prop.end, p + len))));
-            p += len;
-          }
-        }
-      } else if (prop.type === "av1C") coded = Math.max(coded, av1SequencePixels(b.subarray(prop.start + 4, prop.end)));
-    } catch {}
-  }
-  let codedItems = 0;
-  for (const [id, type] of items) {
-    if (type !== "hvc1" && type !== "av01") continue;
-    codedItems++;
-    const at = located.get(id);
-    if (type === "av01" && at && at[0] < b.length) {
-      try {
-        coded = Math.max(coded, av1SequencePixels(b.subarray(at[0], Math.min(b.length, at[0] + (at[1] || b.length)))));
-      } catch {}
-    }
-  }
-  return Math.max(ispe, grid ? coded * Math.max(1, codedItems) : coded);
-}
-
 const UNSUPPORTED_ES: Partial<Record<DetectedType, string>> = {
   office: "documento de Word/Office: hay que pedirlo en PDF o foto",
   unknown: "formato no reconocido",
@@ -334,7 +134,14 @@ type Budget = { expanded: number };
 type Skip = PreparedBatch["skipped"];
 
 async function expandZip(file: RawEntry, limits: BatchLimits, budget: Budget, heavy: HeavyWorker, skipped: Skip): Promise<RawEntry[] | TooLarge> {
-  const entries = listZip(file.bytes);
+  type Listed = { name: string; method: number; encrypted: boolean; compressedSize: number; declaredSize: number; start: number };
+  let listed: Listed[] | null = null;
+  try {
+    listed = (await heavy.run<{ entries: Listed[] | null }>("zipList", { bytes: file.bytes }, limits.maxFileMs)).entries;
+  } catch (err) {
+    rethrowBusy(err);
+  }
+  const entries = listed?.map((e) => ({ ...e, data: file.bytes.subarray(e.start, e.start + e.compressedSize) }));
   if (!entries) {
     skipped.push({ name: file.name, reasonEs: "ZIP dañado o en un formato que no se puede abrir (ZIP64)" });
     return [];
@@ -379,6 +186,7 @@ async function expandZip(file: RawEntry, limits: BatchLimits, budget: Budget, he
         // The header may lie: the real output is cut at the room left (per entry and per batch), inside the worker.
         r = await heavy.run("inflate", { bytes: e.data, max: room }, limits.maxFileMs);
       } catch (err) {
+        rethrowBusy(err);
         skipped.push({ name, reasonEs: err instanceof WorkerTimeout ? "entrada del ZIP: tiempo de descompresión agotado" : "entrada del ZIP: la descompresión se quedó sin memoria" });
         continue;
       }
@@ -430,7 +238,7 @@ async function probe(u: { name: string; bytes: Uint8Array; type: DetectedType },
   const notes: string[] = [];
   let input = u.bytes;
   if (u.type === "heic" || u.type === "avif") {
-    const px = heifPixels(u.bytes);
+    const px = (await heavy.run<{ pixels: number }>("heifPixels", { bytes: u.bytes }, limits.maxFileMs)).pixels;
     if (px === 0) throw new Unreadable(`${u.type.toUpperCase()} sin dimensiones legibles: imagen dañada`);
     if (px > limits.maxImagePixels) throw new Unreadable(`imagen demasiado grande (más de ${limits.maxImagePixels / 1e6} megapíxeles)`);
   }
@@ -456,9 +264,12 @@ function heavyReason(err: unknown, what: string): string {
 }
 
 export async function prepareBatch(input: readonly SourceFile[], limits: BatchLimits = DEFAULT_LIMITS): Promise<PrepareResult> {
-  const heavy = new HeavyWorker({ memoryMb: limits.workerMemoryMb, rssMb: limits.workerRssMb, timeoutMs: limits.maxFileMs });
+  const heavy = new HeavyWorker({ memoryMb: limits.workerMemoryMb, rssCeilingMb: limits.rssCeilingMb, timeoutMs: limits.maxFileMs });
   try {
     return await prepareWith(input, limits, heavy);
+  } catch (err) {
+    if (err instanceof HeavyBusy) return { status: "busy", retryable: true, reasonEs: BUSY_ES };
+    throw err;
   } finally {
     await heavy.close();
   }
@@ -517,6 +328,7 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
     try {
       p = await probe(u, limits, heavy);
     } catch (err) {
+      rethrowBusy(err);
       skipped.push({ name: u.name, reasonEs: heavyReason(err, u.type === "pdf" ? "PDF" : "imagen") });
       continue;
     }
@@ -537,7 +349,10 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
     if (p.kind === "pdf") {
       let pageTexts: string[] | null = null;
       if (u.bytes.length <= limits.maxPdfjsBytes) {
-        const t = await heavy.run<{ texts: string[]; numPages: number }>("pdfText", { bytes: u.bytes }, limits.maxFileMs).catch(() => null);
+        const t = await heavy.run<{ texts: string[]; numPages: number }>("pdfText", { bytes: u.bytes }, limits.maxFileMs).catch((err) => {
+          rethrowBusy(err);
+          return null;
+        });
         if (t && t.numPages !== p.pageCount) {
           skipped.push({ name: u.name, reasonEs: `PDF con un recuento de páginas dudoso (${p.pageCount} o ${t.numPages} según cómo se lea): hay que pedirlo de nuevo` });
           continue;
@@ -561,6 +376,7 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
         images.push(r.bytes);
       }
     } catch (err) {
+      rethrowBusy(err);
       skipped.push({ name: u.name, reasonEs: heavyReason(err, "imagen") });
       continue;
     }

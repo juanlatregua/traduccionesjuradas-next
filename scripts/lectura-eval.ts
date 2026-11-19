@@ -206,7 +206,7 @@ function summarize(c: Pick<Case, "key" | "kind" | "expected">, r: Reading | null
     key: c.key, kind: c.kind, status: r ? r.status : "archivos borrados", files: 0, pages: 0, missingFiles, expectedDocs: c.expected.docs, obtainedDocs: null, check: checks,
     targetLang: null, targetBasis: null, docs: [], notToTranslate: [], duplicatePages: 0, questionKinds: [], reviewCodes: [], tokens: null, costUsd: 0, seconds, attempts: 0,
   };
-  if (!r || r.status === "too_large" || r.status === "empty") return base;
+  if (!r || r.status === "too_large" || r.status === "empty" || r.status === "busy") return base;
   base.files = r.batch.files.length;
   base.pages = r.batch.pages.length;
   base.tokens = r.usage;
