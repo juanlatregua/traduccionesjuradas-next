@@ -6,7 +6,8 @@ import type { DocumentType, ModelReading, ReadDocumentRaw } from "./schema.ts";
 // every received page is a body page (one apostille sheet per document at most), nothing set aside, nothing merged
 // across files, no file shared between documents, pages in file order, no repeated types, words counted (not
 // estimated) and in line with the model's estimate whenever the price depends on them, and a price floor per page.
-// Juan's rule: a document priced by the word or longer than 2 pages is never clean. Anything else goes to a person.
+// Juan's rule: a document priced by the word or longer than 2 pages is never clean. Only French → Spanish with a
+// French tariff can be clean: any other pair, or no applicable tariff, always has a reason. Anything else goes to a person.
 // Only a clean reading may ever price without one.
 
 export type ReviewCode =
@@ -14,7 +15,8 @@ export type ReviewCode =
   | "missing_pages" | "declared_pages_mismatch" | "pages_unverified" | "legibility" | "low_confidence" | "type_other"
   | "words_near_threshold" | "words_estimated_price" | "price_below_floor" | "same_type_repeated" | "multi_file_document"
   | "skipped_files" | "target_basis" | "questions" | "annexes" | "apostille_number_unread" | "apostille_pairing_weak" | "not_assessed"
-  | "long_document" | "per_word_price" | "words_mismatch" | "bilingual_duplicate" | "file_split" | "pages_out_of_order";
+  | "long_document" | "per_word_price" | "words_mismatch" | "bilingual_duplicate" | "file_split" | "pages_out_of_order"
+  | "no_tariff" | "pair_without_tariff";
 export type ReviewReason = { code: ReviewCode; detail: string; documentId?: string };
 export type Assessment = { clean: boolean; reasons: ReviewReason[] };
 
@@ -113,8 +115,8 @@ export function assessReading(
         if (dependsOnWords && !exact) add("words_estimated_price", `el precio depende de las palabras (${price.rule}) y están estimadas, no contadas`, d.id);
         const received = body + sheets;
         if (price.cents < pageFloorCents(received)) add("price_below_floor", `precio bajo para ${received} página(s): ${price.cents / 100} € < ${pageFloorCents(received) / 100} €`, d.id);
-      }
-    }
+      } else add("no_tariff", `sin tarifa francesa aplicable: ${price.reason}`, d.id);
+    } else add("pair_without_tariff", `par ${(d.sourceLang || "?").trim().toLowerCase()}→${target || "?"}: solo francés→español tiene tarifa automática`, d.id);
   }
   return { clean: reasons.length === 0, reasons };
 }

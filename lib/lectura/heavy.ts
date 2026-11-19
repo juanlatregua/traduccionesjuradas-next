@@ -2,9 +2,10 @@ import { Worker } from "node:worker_threads";
 
 // All heavy or synchronous work on client bytes (inflate, pdf.js, pdf-lib, heic-convert, sharp) runs in a worker thread
 // with a V8 memory cap; a deadline is enforced by TERMINATING the worker, which also stops synchronous loops.
-// Memory outside V8 (Uint8Array backing stores, wasm, libvips) escapes that cap: the main thread watches the process
-// RSS while a task runs and terminates the worker when it grows past the budget. A process-wide semaphore bounds how
-// many tasks run at once, so the budget holds per process. The worker source is a plain JS string (no bundler can
+// Memory outside V8 (Uint8Array backing stores, wasm, libvips) escapes that cap: while a task runs, the main thread
+// compares the process RSS with a fixed per-process base and terminates the worker past the budget, so the budget caps
+// the whole process (main thread included), not each task. A killed worker is awaited before its slot is reused. With
+// two slots, a task that blows the budget also costs the task running beside it (possibly another batch's file). The worker source is a plain JS string (no bundler can
 // rewrite it) and loads its modules with createRequire(cwd).
 
 export function workerSource(extraTasks = ""): string {
@@ -157,11 +158,13 @@ export class WorkerDied extends Error {}
 export class WorkerOutOfMemory extends WorkerDied {}
 export class WorkerTaskError extends Error {}
 
-/** memoryMb: V8 heap of the worker. rssMb: growth of the process RSS during one task (V8 + everything outside it). */
+/** memoryMb: V8 heap of the worker. rssMb: growth of the process RSS over its base while heavy work runs (V8 + everything outside it). */
 export type HeavyLimits = { memoryMb: number; rssMb: number; timeoutMs: number };
 export const DEFAULT_HEAVY: HeavyLimits = { memoryMb: 768, rssMb: 1024, timeoutMs: 30_000 };
 export const HEAVY_SLOTS = 2;
 const RSS_POLL_MS = 5;
+const SETTLE_POLL_MS = 50;
+const SETTLE_MAX_MS = 5_000;
 
 class Semaphore {
   private free: number;
@@ -183,6 +186,8 @@ class Semaphore {
   }
 }
 const slots = new Semaphore(HEAVY_SLOTS);
+/** RSS of the process when the first heavy task started: every task is measured against it, never against its own start. */
+let processBaseRss: number | null = null;
 
 /** One worker, one task at a time; a timed-out, oversized or crashed worker is discarded and replaced on the next task. */
 export class HeavyWorker {
@@ -213,6 +218,17 @@ export class HeavyWorker {
 
   private async exec<T>(task: string, args: Record<string, unknown>, timeoutMs: number): Promise<T> {
     const release = await slots.acquire();
+    processBaseRss ??= process.memoryUsage.rss();
+    const base = processBaseRss;
+    const budget = this.limits.rssMb * 1024 * 1024;
+    // Memory of a worker just killed can take a moment to go back to the system: wait for it instead of starting over budget.
+    for (let waited = 0; process.memoryUsage.rss() - base > budget; waited += SETTLE_POLL_MS) {
+      if (waited >= SETTLE_MAX_MS) {
+        release();
+        throw new WorkerOutOfMemory(`${task}: el proceso sigue por encima de ${this.limits.rssMb} MB de memoria de trabajo`);
+      }
+      await new Promise((r) => setTimeout(r, SETTLE_POLL_MS));
+    }
     let w: Worker;
     try {
       w = this.worker ??= this.spawn();
@@ -221,33 +237,34 @@ export class HeavyWorker {
       throw err;
     }
     const id = ++this.seq;
-    const base = process.memoryUsage.rss();
-    const budget = this.limits.rssMb * 1024 * 1024;
     return new Promise<T>((resolve, reject) => {
-      const done = (fn: () => void) => {
+      let settled = false;
+      const done = (outcome: () => void, kill: boolean) => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
         clearInterval(watch);
-        release();
         w.off("message", onMessage);
         w.off("error", onError);
         w.off("exit", onExit);
-        fn();
+        if (this.worker === w && kill) this.worker = null;
+        // The slot is only given back once the killed worker's memory is gone.
+        const gone = kill ? w.terminate().then(() => undefined, () => undefined) : Promise.resolve();
+        void gone.then(() => {
+          release();
+          outcome();
+        });
       };
-      const kill = () => {
-        if (this.worker === w) this.worker = null;
-        void w.terminate();
-      };
-      const timer = setTimeout(() => done(() => { kill(); reject(new WorkerTimeout(`${task}: más de ${timeoutMs} ms`)); }), timeoutMs);
+      const timer = setTimeout(() => done(() => reject(new WorkerTimeout(`${task}: más de ${timeoutMs} ms`)), true), timeoutMs);
       const watch = setInterval(() => {
-        const grown = process.memoryUsage.rss() - base;
-        if (grown > budget) done(() => { kill(); reject(new WorkerOutOfMemory(`${task}: más de ${this.limits.rssMb} MB de memoria`)); });
+        if (process.memoryUsage.rss() - base > budget) done(() => reject(new WorkerOutOfMemory(`${task}: el proceso pasa de ${this.limits.rssMb} MB de memoria de trabajo`)), true);
       }, RSS_POLL_MS);
       const onMessage = (m: { id: number; ok: boolean; result?: T; error?: { name: string; message: string } }) => {
         if (m.id !== id) return;
-        done(() => (m.ok ? resolve(m.result as T) : reject(new WorkerTaskError(m.error?.message ?? "error"))));
+        done(() => (m.ok ? resolve(m.result as T) : reject(new WorkerTaskError(m.error?.message ?? "error"))), false);
       };
-      const onError = (err: Error) => done(() => { kill(); reject(new WorkerDied(err.message)); });
-      const onExit = (code: number) => done(() => { if (this.worker === w) this.worker = null; reject(new WorkerDied(`salió con código ${code}`)); });
+      const onError = (err: Error) => done(() => reject(new WorkerDied(err.message)), true);
+      const onExit = (code: number) => done(() => reject(new WorkerDied(`salió con código ${code}`)), true);
       w.on("message", onMessage);
       w.on("error", onError);
       w.on("exit", onExit);

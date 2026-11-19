@@ -51,7 +51,7 @@ export type BatchLimits = {
   maxImagePixels: number;
   maxFileMs: number;
   workerMemoryMb: number;
-  /** Growth of the process RSS allowed to one worker task (covers memory outside V8: buffers, wasm, libvips). */
+  /** Growth of the process RSS over its base allowed while heavy work runs (covers memory outside V8: buffers, wasm, libvips). */
   workerRssMb: number;
 };
 
@@ -134,8 +134,6 @@ class Bits {
   }
 }
 
-const tag = (b: Uint8Array, i: number, t: string) => b[i] === t.charCodeAt(0) && b[i + 1] === t.charCodeAt(1) && b[i + 2] === t.charCodeAt(2) && b[i + 3] === t.charCodeAt(3);
-
 /** Coded size of an HEVC sequence parameter set (NAL header included). */
 function hevcSpsPixels(nal: Uint8Array): number {
   const rbsp: number[] = [];
@@ -207,65 +205,102 @@ function av1SequencePixels(obus: Uint8Array): number {
  * The decoder itself is still bounded by the worker memory watch.
  */
 export function heifPixels(b: Uint8Array): number {
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  type Box = { type: string; start: number; end: number };
+  // Real boxes only (size-delimited), never a byte-by-byte tag search: the work is linear in the file size.
+  const children = (from: number, to: number): Box[] => {
+    const out: Box[] = [];
+    let p = from;
+    while (p + 8 <= to) {
+      let size = v.getUint32(p);
+      let head = 8;
+      if (size === 1) {
+        if (p + 16 > to) break;
+        size = Number(v.getBigUint64(p + 8));
+        head = 16;
+      } else if (size === 0) size = to - p;
+      if (size < head || p + size > to) break;
+      out.push({ type: String.fromCharCode(b[p + 4], b[p + 5], b[p + 6], b[p + 7]), start: p + head, end: p + size });
+      p += size;
+    }
+    return out;
+  };
+  const find = (list: Box[], type: string) => list.find((x) => x.type === type);
+  const meta = find(children(0, b.length), "meta");
+  if (!meta) return 0;
+  const inMeta = children(meta.start + 4, meta.end);
   let ispe = 0;
   let coded = 0;
   let grid = false;
   const items = new Map<number, string>();
   const located = new Map<number, [number, number]>();
-  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
   const uint = (p: number, n: number) => (n === 0 ? 0 : n === 2 ? v.getUint16(p) : n === 4 ? v.getUint32(p) : Number(v.getBigUint64(p)));
-  const boxEnd = (i: number) => Math.min(b.length, i - 4 + v.getUint32(i - 4));
-  for (let i = 4; i + 16 <= b.length; i++) {
-    try {
-      if (tag(b, i, "ispe")) ispe = Math.max(ispe, v.getUint32(i + 8) * v.getUint32(i + 12));
-      else if (tag(b, i, "infe") && b[i + 4] >= 2) {
-        const wide = b[i + 4] !== 2;
-        const id = uint(i + 8, wide ? 4 : 2);
-        const t = i + 8 + (wide ? 4 : 2) + 2;
+  try {
+    const iinf = find(inMeta, "iinf");
+    if (iinf) {
+      for (const e of children(iinf.start + 4 + (b[iinf.start] === 0 ? 2 : 4), iinf.end)) {
+        if (e.type !== "infe" || b[e.start] < 2 || e.end - e.start < 12) continue;
+        const wide = b[e.start] !== 2;
+        const id = uint(e.start + 4, wide ? 4 : 2);
+        const t = e.start + 4 + (wide ? 4 : 2) + 2;
         const type = String.fromCharCode(b[t], b[t + 1], b[t + 2], b[t + 3]);
         items.set(id, type);
         if (type === "grid") grid = true;
-      } else if (tag(b, i, "iloc")) {
-        const version = b[i + 4];
-        const offSize = b[i + 8] >> 4, lenSize = b[i + 8] & 15, baseSize = b[i + 9] >> 4, idxSize = version >= 1 ? b[i + 9] & 15 : 0;
-        let p = i + 10;
-        const count = uint(p, version < 2 ? 2 : 4);
-        p += version < 2 ? 2 : 4;
-        for (let k = 0; k < count; k++) {
-          const id = uint(p, version < 2 ? 2 : 4);
-          p += version < 2 ? 2 : 4;
-          const method = version >= 1 ? v.getUint16(p) & 15 : 0;
-          if (version >= 1) p += 2;
-          p += 2;
-          const base = uint(p, baseSize);
-          p += baseSize;
-          const extents = v.getUint16(p);
-          p += 2;
-          for (let e = 0; e < extents; e++) {
-            p += idxSize;
-            const off = uint(p, offSize);
-            p += offSize;
-            const len = uint(p, lenSize);
-            p += lenSize;
-            if (e === 0 && method === 0) located.set(id, [base + off, len]);
-          }
-        }
-      } else if (tag(b, i, "hvcC")) {
-        const end = boxEnd(i);
-        let p = i + 4 + 22;
+      }
+    }
+  } catch {}
+  try {
+    const iloc = find(inMeta, "iloc");
+    if (iloc) {
+      const end = iloc.end;
+      const version = b[iloc.start];
+      const offSize = b[iloc.start + 4] >> 4, lenSize = b[iloc.start + 4] & 15, baseSize = b[iloc.start + 5] >> 4, idxSize = version >= 1 ? b[iloc.start + 5] & 15 : 0;
+      const idSize = version < 2 ? 2 : 4;
+      let p = iloc.start + 6;
+      const count = uint(p, idSize);
+      p += idSize;
+      const extentSize = idxSize + offSize + lenSize;
+      for (let k = 0; k < count && p < end; k++) {
+        const id = uint(p, idSize);
+        p += idSize;
+        const method = version >= 1 ? v.getUint16(p) & 15 : 0;
+        if (version >= 1) p += 2;
+        p += 2;
+        const base = uint(p, baseSize);
+        p += baseSize;
+        const extents = v.getUint16(p);
+        p += 2;
+        if (extents === 0 || extentSize === 0) continue;
+        if (p + extents * extentSize > end) break;
+        const off = uint(p + idxSize, offSize);
+        const len = uint(p + idxSize + offSize, lenSize);
+        if (method === 0) located.set(id, [base + off, len]);
+        p += extents * extentSize;
+      }
+    }
+  } catch {}
+  const ipco = (() => {
+    const iprp = find(inMeta, "iprp");
+    return iprp ? find(children(iprp.start, iprp.end), "ipco") : undefined;
+  })();
+  for (const prop of ipco ? children(ipco.start, ipco.end) : []) {
+    try {
+      if (prop.type === "ispe" && prop.end - prop.start >= 12) ispe = Math.max(ispe, v.getUint32(prop.start + 4) * v.getUint32(prop.start + 8));
+      else if (prop.type === "hvcC") {
+        let p = prop.start + 22;
         const arrays = b[p++] ?? 0;
-        for (let a = 0; a < arrays && p + 3 <= end; a++) {
+        for (let a = 0; a < arrays && p + 3 <= prop.end; a++) {
           const type = b[p] & 63;
           const n = v.getUint16(p + 1);
           p += 3;
-          for (let k = 0; k < n && p + 2 <= end; k++) {
+          for (let k = 0; k < n && p + 2 <= prop.end; k++) {
             const len = v.getUint16(p);
             p += 2;
-            if (type === 33) coded = Math.max(coded, hevcSpsPixels(b.subarray(p, Math.min(end, p + len))));
+            if (type === 33) coded = Math.max(coded, hevcSpsPixels(b.subarray(p, Math.min(prop.end, p + len))));
             p += len;
           }
         }
-      } else if (tag(b, i, "av1C")) coded = Math.max(coded, av1SequencePixels(b.subarray(i + 8, boxEnd(i))));
+      } else if (prop.type === "av1C") coded = Math.max(coded, av1SequencePixels(b.subarray(prop.start + 4, prop.end)));
     } catch {}
   }
   let codedItems = 0;
