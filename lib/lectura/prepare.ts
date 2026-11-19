@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { countWords, isReliableTextLayer } from "./words.ts";
 import { HeavyBusy, HeavyWorker, rssCeilingMb, WorkerDied, WorkerTimeout } from "./heavy.ts";
 
 export type SourceFile = { name: string; mimeType?: string | null; bytes: Uint8Array };
@@ -21,8 +20,12 @@ export type PreparedFile = {
   /** PDF with an /Encrypt dictionary that opens without a password (owner password only). */
   encrypted: boolean;
   textLayer: boolean;
+  /** Why a PDF's text is not used (too long for its size, bomb-like), null when it is or there was none. */
+  textNote: string | null;
   /** Text per page (index 0 = page 1) when the PDF has a text layer at all. */
   pageTexts: string[] | null;
+  /** Words per page counted in the worker (index 0 = page 1), alongside pageTexts. */
+  pageWords: number[] | null;
 };
 
 export type PreparedBatch = {
@@ -50,6 +53,9 @@ export type BatchLimits = {
   maxImagePixels: number;
   maxFileMs: number;
   workerMemoryMb: number;
+  /** Text kept from a PDF page / from the whole batch: beyond it the text layer is not used at all. */
+  maxPageTextChars: number;
+  maxTextChars: number;
   /** Absolute RSS ceiling of the process while heavy work runs (covers memory outside V8: buffers, wasm, libvips). */
   rssCeilingMb: number;
 };
@@ -71,6 +77,8 @@ export const DEFAULT_LIMITS: BatchLimits = {
   maxImagePixels: 60_000_000,
   maxFileMs: 30_000,
   workerMemoryMb: 768,
+  maxPageTextChars: 20_000,
+  maxTextChars: 400_000,
   rssCeilingMb: rssCeilingMb(),
 };
 
@@ -345,11 +353,14 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
 
   const files: PreparedFile[] = [];
   const indexBySha = new Map<string, number>();
+  let textLeft = limits.maxTextChars;
   for (const { u, p } of probed) {
     if (p.kind === "pdf") {
-      let pageTexts: string[] | null = null;
+      let text: { texts: string[]; words: number[]; reliable: boolean } | null = null;
+      let textNote: string | null = null;
       if (u.bytes.length <= limits.maxPdfjsBytes) {
-        const t = await heavy.run<{ texts: string[]; numPages: number }>("pdfText", { bytes: u.bytes }, limits.maxFileMs).catch((err) => {
+        type Text = { numPages: number; over: "page" | "file" | null; texts: string[] | null; words: number[] | null; reliable: boolean; chars: number };
+        const t = await heavy.run<Text>("pdfText", { bytes: u.bytes, maxPageChars: limits.maxPageTextChars, maxChars: textLeft }, limits.maxFileMs).catch((err) => {
           rethrowBusy(err);
           return null;
         });
@@ -357,13 +368,19 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
           skipped.push({ name: u.name, reasonEs: `PDF con un recuento de páginas dudoso (${p.pageCount} o ${t.numPages} según cómo se lea): hay que pedirlo de nuevo` });
           continue;
         }
-        if (t && t.texts.length === p.pageCount) pageTexts = t.texts;
+        if (t?.over) textNote = t.over === "page" ? `una página trae más de ${limits.maxPageTextChars} caracteres de texto: no se usa` : `el texto del lote pasa de ${limits.maxTextChars} caracteres: no se usa`;
+        else if (t?.texts && t.words && t.texts.length === p.pageCount) {
+          text = { texts: t.texts, words: t.words, reliable: t.reliable };
+          textLeft -= t.chars;
+        }
       }
       files.push({
         index: files.length + 1, name: u.name, sha256: u.sha256, detected: "pdf", kind: "pdf", mediaType: "application/pdf",
         bytes: u.bytes, pageCount: p.pageCount, conversion: null, encrypted: p.encrypted,
-        textLayer: pageTexts ? isReliableTextLayer(pageTexts.map(countWords)) : false,
-        pageTexts,
+        textLayer: text?.reliable ?? false,
+        textNote,
+        pageTexts: text?.texts ?? null,
+        pageWords: text?.words ?? null,
       });
       indexBySha.set(u.sha256, files.length);
       continue;
@@ -384,7 +401,7 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
     images.forEach((img, i) => {
       files.push({
         index: files.length + 1, name: images.length > 1 ? `${u.name} (hoja ${i + 1})` : u.name, sha256: u.sha256, detected: u.type,
-        kind: "image", mediaType: "image/jpeg", bytes: img, pageCount: 1, conversion: notes.join(", ") || "recomprimida", encrypted: false, textLayer: false, pageTexts: null,
+        kind: "image", mediaType: "image/jpeg", bytes: img, pageCount: 1, conversion: notes.join(", ") || "recomprimida", encrypted: false, textLayer: false, textNote: null, pageTexts: null, pageWords: null,
       });
       if (i === 0) indexBySha.set(u.sha256, files.length);
     });

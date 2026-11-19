@@ -2,6 +2,20 @@
 // content beyond magic bytes and sizes. Every loop is bounded by a fixed window, an item cap or the box size.
 
 export const INSPECT_SOURCE = String.raw`
+// Same rules as words.ts (kept in parity by a test): Word-like count, text layer trusted when dense and widespread.
+const TEXT_PAGE_MIN_WORDS = 10;
+function countWords(text) {
+  if (!text) return 0;
+  let n = 0;
+  for (const token of text.split(/\s+/)) if (/[\p{L}\p{N}]/u.test(token)) n++;
+  return n;
+}
+function isReliableTextLayer(pageWords) {
+  const pages = pageWords.length;
+  const total = pageWords.reduce((s, n) => s + n, 0);
+  if (pages === 0 || total < 30 || total / pages < 40) return false;
+  return pageWords.filter((n) => n >= TEXT_PAGE_MIN_WORDS).length / pages >= 0.5;
+}
 const HEIF_MAX_ITEMS = 64;
 const HEIF_WINDOW = 64 * 1024;
 class Bits {

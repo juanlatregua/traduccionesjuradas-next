@@ -27,7 +27,7 @@ const lib = {
 ${INSPECT_SOURCE}
 // pdf.js 1.10 misreads a Node Buffer (offsets go wrong: "Invalid PDF structure"); a plain Uint8Array copy reads fine.
 const own = (bytes) => new Uint8Array(bytes);
-async function pageText(page) {
+async function pageText(page, max) {
   const content = await page.getTextContent({ normalizeWhitespace: false, disableCombineTextItems: false });
   let text = "", lastY, lastEnd = 0;
   for (const item of content.items) {
@@ -37,6 +37,7 @@ async function pageText(page) {
     else text += "\n" + item.str;
     lastY = y;
     lastEnd = x + (item.width || 0);
+    if (text.length > max) break;
   }
   return text;
 }
@@ -107,10 +108,21 @@ const tasks = {
       return { pages: 0, encrypted, openPassword: !!e && e.name === "PasswordException", checked: true };
     }
   },
-  pdfText: async ({ bytes }) => {
+  pdfText: async ({ bytes, maxPageChars, maxChars }) => {
     const texts = [];
-    const r = await lib.pdfParse()(own(bytes), { pagerender: async (page) => { const t = await pageText(page); texts.push(t); return t; } });
-    return { texts, numPages: Number(r.numpages) || 0 };
+    let total = 0, over = null;
+    const r = await lib.pdfParse()(own(bytes), { pagerender: async (page) => {
+      if (over) return "";
+      const t = await pageText(page, maxPageChars);
+      if (t.length > maxPageChars) over = "page";
+      else if ((total += t.length) > maxChars) over = "file";
+      else texts.push(t);
+      return "";
+    } });
+    const numPages = Number(r.numpages) || 0;
+    if (over) return { numPages, over, texts: null, words: null, reliable: false, chars: 0 };
+    const words = texts.map(countWords);
+    return { numPages, over: null, texts, words, reliable: isReliableTextLayer(words), chars: total };
   },
   heic: async ({ bytes }) => ({ bytes: new Uint8Array(await lib.heic()({ buffer: bytes, format: "JPEG", quality: 0.92 })) }),
   imageMeta: async ({ bytes }) => {
@@ -207,6 +219,19 @@ class Semaphore {
   }
 }
 const slots = new Semaphore(HEAVY_SLOTS);
+const OWN_MEMORY_WAIT_MS = 200;
+
+/** Heap + external memory (ArrayBuffers, wasm) of the worker; null when it cannot say in time (then it counts as its own). */
+type HeapStats = { used_heap_size: number; external_memory?: number };
+async function ownMemory(w: Worker): Promise<number | null> {
+  const read = (w as Worker & { getHeapStatistics?: () => Promise<HeapStats> }).getHeapStatistics;
+  if (!read) return null;
+  const stats = await Promise.race([
+    read.call(w).catch(() => null),
+    new Promise<null>((r) => setTimeout(() => r(null), OWN_MEMORY_WAIT_MS).unref()),
+  ]);
+  return stats ? stats.used_heap_size + (stats.external_memory ?? 0) : null;
+}
 
 /** One worker, one task at a time; a timed-out, oversized or crashed worker is discarded and replaced on the next task. */
 export class HeavyWorker {
@@ -254,6 +279,7 @@ export class HeavyWorker {
       throw err;
     }
     const id = ++this.seq;
+    const startRss = process.memoryUsage.rss();
     return new Promise<T>((resolve, reject) => {
       let settled = false;
       const done = (outcome: () => void, kill: boolean) => {
@@ -273,8 +299,21 @@ export class HeavyWorker {
         });
       };
       const timer = setTimeout(() => done(() => reject(new WorkerTimeout(`${task}: más de ${timeoutMs} ms`)), true), timeoutMs);
+      let judging = false;
       const watch = setInterval(() => {
-        if (process.memoryUsage.rss() > ceiling) done(() => reject(new WorkerOutOfMemory(`${task}: el proceso pasa de ${this.limits.rssCeilingMb} MB`)), true);
+        if (judging) return;
+        const rss = process.memoryUsage.rss();
+        if (rss <= ceiling) return;
+        judging = true;
+        // Whose memory is it? The worker's own heap + buffers (readable even mid-loop) must explain at least half of
+        // the growth since the task started; otherwise the excess belongs to a neighbour and the batch is retryable.
+        void ownMemory(w).then((own) => {
+          const grown = Math.max(0, rss - startRss);
+          const mine = own === null || own * 2 >= grown;
+          done(() => reject(mine
+            ? new WorkerOutOfMemory(`${task}: el proceso pasa de ${this.limits.rssCeilingMb} MB`)
+            : new HeavyBusy(`${task}: el proceso pasa de ${this.limits.rssCeilingMb} MB por memoria ajena a esta tarea`)), true);
+        });
       }, RSS_POLL_MS);
       const onMessage = (m: { id: number; ok: boolean; result?: T; error?: { name: string; message: string } }) => {
         if (m.id !== id) return;

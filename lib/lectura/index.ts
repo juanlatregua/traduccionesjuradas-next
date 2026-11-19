@@ -2,7 +2,7 @@ import type { BetaMessage, BetaMessageParam } from "@anthropic-ai/sdk/resources/
 import { DEFAULT_LIMITS, prepareBatch, type BatchLimits, type Busy, type PreparedBatch, type SourceFile } from "./prepare.ts";
 import { batchContent, buildRequest, callReading, defaultModelCall, messageUsages, retryMessages, READING_MODEL, type CallOptions, type ModelCall, type ReadError } from "./read.ts";
 import { validateReading } from "./validate.ts";
-import { billableWords, countWords, TEXT_PAGE_MIN_WORDS } from "./words.ts";
+import { billableWords, TEXT_PAGE_MIN_WORDS } from "./words.ts";
 import { addUsage, costOf, ZERO_USAGE, DEFAULT_EUR_PER_USD, type Cost, type ModelUsage, type TokenUsage } from "./cost.ts";
 import type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
 import type { ReadingContext } from "./prompt.ts";
@@ -48,10 +48,8 @@ function exactWords(batch: PreparedBatch, doc: ReadDocumentRaw): number | null {
   let total = 0;
   for (const p of parts) {
     const f = batch.files.find((x) => x.index === p.fileIndex);
-    const text = f?.textLayer ? f.pageTexts?.[p.page - 1] : undefined;
-    if (text === undefined) return null;
-    const n = countWords(text);
-    if (n < TEXT_PAGE_MIN_WORDS) return null;
+    const n = f?.textLayer ? f.pageWords?.[p.page - 1] : undefined;
+    if (n === undefined || n < TEXT_PAGE_MIN_WORDS) return null;
     total += n;
   }
   return billableWords(total, doc.isBilingualDuplicate);

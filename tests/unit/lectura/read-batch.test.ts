@@ -123,8 +123,8 @@ test("exact words replace the estimate only when every page has a reliable text 
   const page = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join(" ");
   const batch = {
     files: [
-      { index: 1, pageCount: 2, textLayer: true, pageTexts: [page(120), page(80)] },
-      { index: 2, pageCount: 1, textLayer: false, pageTexts: null },
+      { index: 1, pageCount: 2, textLayer: true, pageTexts: [page(120), page(80)], pageWords: [120, 80] },
+      { index: 2, pageCount: 1, textLayer: false, pageTexts: null, pageWords: null },
     ],
   } as never;
   const r = reading([doc("D1", [[1, 1], [1, 2]]), doc("D2", [[1, 1]], { isBilingualDuplicate: true }), doc("D3", [[2, 1]], { estimatedWords: 90 })]);
