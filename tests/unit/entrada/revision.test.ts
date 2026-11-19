@@ -27,7 +27,8 @@ function apiDeps(w: World, read: (fs: SourceFile[], attempt: number) => Reading)
       hits.set(key, n);
       return { ok: n <= limit, retryAfterSec: 60, remaining: limit - n };
     },
-    alertStaff: async () => {}, clientIp: () => "1.2.3.4", ipHash: () => "iph", isOwnBlobUrl: (u) => u.startsWith(B),
+    alertStaff: async () => {},
+    conserje: async () => null, clientIp: () => "1.2.3.4", ipHash: () => "iph", isOwnBlobUrl: (u) => u.startsWith(B),
   };
   return { deps, hits };
 }

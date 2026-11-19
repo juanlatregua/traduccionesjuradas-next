@@ -140,6 +140,7 @@ function api(w: World) {
       return { ok: n <= limit, retryAfterSec: 60, remaining: Math.max(0, limit - n) };
     },
     alertStaff: async (s) => void alerts.push(s),
+    conserje: async () => null,
     clientIp: () => "1.2.3.4",
     ipHash: () => "iph",
     isOwnBlobUrl: (u) => u.startsWith(BLOB),

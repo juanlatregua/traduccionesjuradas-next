@@ -3,12 +3,15 @@ import { emailReal, telefono9 } from "../caso/identidad.ts";
 import { parseDeadline } from "../needed-by.ts";
 import { abrirEntrada, confirmarEntrada, currentFingerprint, editarEntrada, enviarCodigo, readingInProgress, leerEntrada, quitarArchivo, registrarArchivo, tokenHashOf, verificarCodigo, vistaEntrada, type FlowDeps, type Outcome } from "./flow.ts";
 import type { EntradaRow } from "./store.ts";
+import { answerQuestion, type ConserjeCall } from "./conserje.ts";
+import type { EntradaLang } from "./i18n.ts";
 
 export type ApiResponse = { status: number; body: unknown; headers?: Record<string, string> };
 export type EntradaApiDeps = FlowDeps & {
   enabled(): boolean;
   rateLimit(key: string, limit: number, windowMs: number): Promise<{ ok: boolean; retryAfterSec: number; remaining?: number }>;
   alertStaff(subject: string, text: string): Promise<void>;
+  conserje: ConserjeCall;
   clientIp(req: Request): string;
   ipHash(ip: string): string;
   isOwnBlobUrl(url: string): boolean;
@@ -25,6 +28,11 @@ export const READS_GLOBAL_DAY = 400;
 export const CODES_PER_EMAIL_HOUR = 5;
 export const CODES_PER_EMAIL_DAY = 10;
 export const CODES_PER_IP_DAY = 30;
+/** Doubts answered by the model: per verified entrada, per email, per IP and a global ceiling. */
+export const DOUBTS_PER_ENTRADA_DAY = 15;
+export const DOUBTS_PER_EMAIL_DAY = 30;
+export const DOUBTS_PER_IP_DAY = 40;
+export const DOUBTS_GLOBAL_DAY = 1500;
 
 /** Same attribution presets as /presupuesto-instantaneo (?p=) and /api/documents/register. */
 export const ENTRADA_SOURCES = ["regularizacion-2026", "uge-ce", "lavori", "precios", "whatsapp"] as const;
@@ -58,6 +66,8 @@ export const EditBody = z.discriminatedUnion("op", [
   z.strictObject({ op: z.literal("setTargetLang"), targetLang: Lang }),
   z.strictObject({ op: z.literal("setLangs"), sourceLang: Lang.nullable(), targetLangs: z.array(Lang).min(1).max(5) }),
 ]);
+
+export const QuestionBody = z.strictObject({ question: Text(500).min(2), paso: z.string().trim().max(40) });
 
 export const CodeBody = z.strictObject({ code: z.string().trim().regex(/^\d{6}$/, "6 cifras") });
 
@@ -218,4 +228,25 @@ export async function handleConfirm(req: Request, token: string, deps: EntradaAp
   return fromOutcome(await confirmarEntrada(deps, g.entrada, {
     urgency: deadline.urgency, neededBy: deadline.neededBy, organismo: b.organismo || null, notas: b.notas || null, loteUpdatedAt: b.loteUpdatedAt ?? null, pais: b.pais ?? null, respuestas: b.respuestas,
   }));
+}
+
+export async function handleQuestion(req: Request, token: string, deps: EntradaApiDeps): Promise<ApiResponse> {
+  const g = await gated(req, token, deps, "doubt", 120, HOUR);
+  if ("status" in g) return g;
+  const e = g.entrada;
+  if (!e.emailVerifiedAt) return json(403, { ok: false, error: "Confirma tu email con el código para que podamos contestarte." });
+  const parsed = QuestionBody.safeParse(await body(req));
+  if (!parsed.success) return invalid(parsed.error);
+  const rl = await limits(deps, [
+    [`doubt:entrada:${e.id}`, DOUBTS_PER_ENTRADA_DAY, DAY], [`doubt:email:${e.email ?? e.phone9 ?? e.id}`, DOUBTS_PER_EMAIL_DAY, DAY],
+    [`doubt:ip:${g.ip}`, DOUBTS_PER_IP_DAY, DAY], ["doubt:global", DOUBTS_GLOBAL_DAY, DAY],
+  ]);
+  if (rl) return rl;
+  const view = await vistaEntrada(deps, e);
+  const lang = (["es", "fr", "en", "de", "pt"].includes(e.lang ?? "") ? e.lang : "es") as EntradaLang;
+  const r = await answerQuestion(deps.conserje, lang, parsed.data.question, {
+    paso: parsed.data.paso, documentos: view.lectura?.documentos.map((d) => d.titulo) ?? [], origen: view.idiomas.origen, destinos: view.idiomas.destinos,
+    organismo: view.organismo, pais: view.pais,
+  });
+  return json(200, { ok: true, answer: r.answer });
 }

@@ -17,16 +17,21 @@ export type HiloLocal = {
   pais: string | null;
   organismo: string | null;
   respuestas: Record<number, string>;
+  /** Doubts asked along the way: they stay right after the message that was last when asked. */
+  dudas: { q: string; a: string | null; after: string }[];
+  /** «¿Algo más?»: what the client added before asking for the quote. */
+  notas: string[];
 };
 
-export const LOCAL_VACIO: HiloLocal = { origenDado: false, origen: null, terminado: false, leyendo: false, urgency: null, neededBy: null, lugarHecho: false, pais: null, organismo: null, respuestas: {} };
+export const LOCAL_VACIO: HiloLocal = { origenDado: false, origen: null, terminado: false, leyendo: false, urgency: null, neededBy: null, lugarHecho: false, pais: null, organismo: null, respuestas: {}, dudas: [], notas: [] };
 
 export type HiloState = { email: string | null; view: ClientView | null; local: HiloLocal; editing: EditKey | null };
 
 export type Msg =
   | { id: string; from: "casa"; kind: "hola" | "pide_codigo" | "codigo_ok" | "pide_origen" | "pide_destino" | "pide_archivos" | "pregunta_terminado" | "leyendo" | "resultado" | "solo_lectura" | "manual" | "pide_plazo" | "pide_lugar" | "resumen" | "enviado" | "sin_jurado"; text?: string }
   | { id: string; from: "casa"; kind: "pregunta"; index: number; text: string; idioma: boolean }
-  | { id: string; from: "cliente"; kind: "email" | "origen" | "destino" | "archivos" | "terminado" | "respuesta" | "plazo" | "lugar"; editKey?: EditKey; index?: number };
+  | { id: string; from: "cliente"; kind: "email" | "origen" | "destino" | "archivos" | "terminado" | "respuesta" | "plazo" | "lugar" | "nota" | "duda"; editKey?: EditKey; index?: number }
+  | { id: string; from: "casa"; kind: "respuesta_duda"; index: number; pending: boolean };
 
 export type Ask =
   | { kind: "contacto" }
@@ -46,6 +51,25 @@ const LANG_QUESTION = /idioma|lengua|language|langue|sprache|traduc/i;
 export const isLangQuestion = (text: string) => LANG_QUESTION.test(text) && /\?|¿/.test(text);
 
 export function buildHilo(s: HiloState): { messages: Msg[]; ask: Ask | null } {
+  const r = buildSteps(s);
+  return { messages: withDudas(r.messages, s.local.dudas), ask: r.ask };
+}
+
+/** Each doubt sits after the message that was last when it was asked; after answering, the thread is back where it was. */
+export function withDudas(messages: Msg[], dudas: HiloLocal["dudas"]): Msg[] {
+  if (dudas.length === 0) return messages;
+  const out = [...messages];
+  dudas.forEach((d, i) => {
+    const pair: Msg[] = [{ id: `duda:${i}`, from: "cliente", kind: "duda", index: i }, { id: `respuesta_duda:${i}`, from: "casa", kind: "respuesta_duda", index: i, pending: d.a === null }];
+    let at = out.findIndex((m) => m.id === d.after);
+    if (at < 0) at = out.length - 1;
+    while (at + 1 < out.length && (out[at + 1].kind === "duda" || out[at + 1].kind === "respuesta_duda")) at++;
+    out.splice(at + 1, 0, ...pair);
+  });
+  return out;
+}
+
+function buildSteps(s: HiloState): { messages: Msg[]; ask: Ask | null } {
   const m: Msg[] = [{ id: "hola", from: "casa", kind: "hola" }];
   const done = (ask: Ask | null) => ({ messages: m, ask: s.editing ? askFor(s.editing, s) : ask });
   const v = s.view;
@@ -105,6 +129,7 @@ export function buildHilo(s: HiloState): { messages: Msg[]; ask: Ask | null } {
   m.push({ id: "lugar", from: "cliente", kind: "lugar", editKey: "lugar" });
 
   m.push({ id: "resumen", from: "casa", kind: "resumen" });
+  s.local.notas.forEach((_, i) => m.push({ id: `nota:${i}`, from: "cliente", kind: "nota", index: i }));
   if (!confirmada) return done({ kind: "enviar" });
   m.push({ id: "enviado", from: "casa", kind: "enviado" });
   return { messages: m, ask: null };
@@ -130,3 +155,13 @@ export function progressSteps(archivos: { name: string; pages: number | null }[]
     { kind: "casi" },
   ];
 }
+
+/** Where the thread scrolls when a message arrives: to the START of the new message (never past it), only if the client was at the bottom. */
+export function scrollPlan(i: { scrollTop: number; clientHeight: number; scrollHeight: number; lastTop: number; wasAtBottom: boolean }): { to: number | null; showNew: boolean } {
+  if (!i.wasAtBottom) return { to: null, showNew: true };
+  const bottom = Math.max(0, i.scrollHeight - i.clientHeight);
+  return { to: Math.max(0, Math.min(bottom, i.lastTop - 8)), showNew: false };
+}
+
+export const AT_BOTTOM_PX = 80;
+export const atBottom = (scrollTop: number, clientHeight: number, scrollHeight: number) => scrollHeight - scrollTop - clientHeight < AT_BOTTOM_PX;

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { puertaT } from "@/lib/i18n/puerta";
 import type { EntradaLang } from "@/lib/entrada/i18n";
 import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
-import { buildHilo, LOCAL_VACIO, progressSteps, type Ask, type EditKey, type HiloLocal, type Msg, type Urgency } from "@/lib/entrada/hilo";
+import { atBottom, buildHilo, LOCAL_VACIO, progressSteps, scrollPlan, type Ask, type EditKey, type HiloLocal, type Msg, type Urgency } from "@/lib/entrada/hilo";
+import { isQuestion } from "@/lib/entrada/conserje";
 import type { ClientView } from "@/lib/entrada/view";
 
 const TOKEN_KEY = "tj-entrada";
@@ -15,7 +16,7 @@ const btn = "rounded-full bg-bleu px-4 py-2 text-sm font-semibold text-white dis
 const chip = (on: boolean) => `rounded-full border px-3 py-1.5 text-sm ${on ? "border-bleu bg-bleu text-white" : "border-bleu/30 bg-white text-bleu"}`;
 const field = "w-full rounded-lg border border-graphite/30 bg-white px-3 py-2 text-base";
 
-type Res = { ok: boolean; error?: string; busy?: boolean; view?: ClientView; token?: string };
+type Res = { ok: boolean; error?: string; busy?: boolean; view?: ClientView; token?: string; answer?: string };
 
 function storage<T>(key: string, value?: T | null): T | null {
   try {
@@ -94,6 +95,11 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   const [pais, setPais] = useState("");
   const [organismo, setOrganismo] = useState("");
   const [notas, setNotas] = useState("");
+  const [duda, setDuda] = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
+  const [vh, setVh] = useState<number | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const wasAtBottom = useRef(true);
 
   const emailRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
@@ -126,10 +132,36 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
 
   const { messages, ask } = useMemo(() => buildHilo({ email: view?.email ?? null, view, local, editing }), [view, local, editing]);
 
+  // Chat behaviour: the thread scrolls itself to the START of the new message; if the client scrolled up to reread,
+  // it is not pulled down and a «new messages» chip appears instead.
+  const toLast = useCallback(() => {
+    const box = scroller.current;
+    const last = lastRef.current;
+    if (!box || !last) return;
+    const plan = scrollPlan({ scrollTop: box.scrollTop, clientHeight: box.clientHeight, scrollHeight: box.scrollHeight, lastTop: last.offsetTop, wasAtBottom: true });
+    if (plan.to !== null) box.scrollTo({ top: plan.to, behavior: "smooth" });
+    setShowNew(false);
+  }, []);
+
   useEffect(() => {
-    lastRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-    lastRef.current?.focus({ preventScroll: true });
+    const box = scroller.current;
+    const last = lastRef.current;
+    if (!box || !last) return;
+    const plan = scrollPlan({ scrollTop: box.scrollTop, clientHeight: box.clientHeight, scrollHeight: box.scrollHeight, lastTop: last.offsetTop, wasAtBottom: wasAtBottom.current });
+    if (plan.to !== null) box.scrollTo({ top: plan.to, behavior: "smooth" });
+    setShowNew(plan.showNew);
+    if (!plan.showNew && !(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement)) last.focus({ preventScroll: true });
   }, [messages.length, ask?.kind]);
+
+  // The answer bar stays visible above the mobile keyboard: the thread takes the visual viewport's height.
+  useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!vv) return;
+    const fit = () => setVh(vv.height);
+    fit();
+    vv.addEventListener("resize", fit);
+    return () => vv.removeEventListener("resize", fit);
+  }, []);
 
   // Autofill sometimes fills inputs without firing React events: read the DOM while those asks are open.
   useEffect(() => {
@@ -250,8 +282,25 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
     if (token) apply((await call(`/api/entrada/${token}/documentos`, "POST", body)).data);
   }
 
+  async function preguntar(question: string) {
+    const q = question.trim();
+    if (!token || !q) return;
+    const after = messages[messages.length - 1]?.id ?? "hola";
+    const index = local.dudas.length;
+    setLocal((l) => ({ ...l, dudas: [...l.dudas, { q, a: null, after }] }));
+    setDuda(null);
+    wasAtBottom.current = true;
+    const { data } = await call(`/api/entrada/${token}/pregunta`, "POST", { question: q, paso: ask?.kind ?? "fin" });
+    const a = data.ok && data.answer ? data.answer : data.error ?? t.error;
+    setLocal((l) => ({ ...l, dudas: l.dudas.map((d, i) => (i === index ? { ...d, a } : d)) }));
+  }
+
   async function answerPregunta(index: number, text: string) {
     if (!text.trim()) return;
+    if (isQuestion(text) && !/^(s[ií]|no|yes|oui|non|ja|nein|sim|não)\b/i.test(text.trim())) {
+      setAnswer("");
+      return void preguntar(text);
+    }
     patchLocal({ respuestas: { ...local.respuestas, [index]: text.trim() } });
     setAnswer("");
     setEditing(null);
@@ -281,7 +330,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
     const preguntas = view.lectura?.preguntas ?? [];
     const { data } = await call(`/api/entrada/${token}/confirmar`, "POST", {
       urgency: local.urgency ?? view.plazo.urgency, neededBy: local.urgency === "DATE" ? local.neededBy : null, organismo: local.organismo, pais: local.pais,
-      notas: notas.trim() || null, loteUpdatedAt: view.lectura?.loteUpdatedAt ?? null,
+      notas: local.notas.join("\n") || null, loteUpdatedAt: view.lectura?.loteUpdatedAt ?? null,
       respuestas: Object.entries(local.respuestas).map(([i, r]) => ({ pregunta: (preguntas[Number(i)] ?? "").slice(0, 300), respuesta: r.slice(0, 1000) })),
     });
     setBusy(null);
@@ -394,6 +443,9 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
         return [o, p && countryName(p)].filter(Boolean).join(" · ") || t.noSeAun;
       }
       case "resumen": return t.resumen;
+      case "nota": return local.notas[m.index!];
+      case "duda": return local.dudas[m.index!]?.q;
+      case "respuesta_duda": return local.dudas[m.index]?.a ?? t.pensando;
       case "enviado": return t.enviado;
       case "sin_jurado":
         return (
@@ -550,14 +602,28 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
         return (
           <div className="space-y-2">
             <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} placeholder={t.notasPh} aria-label={t.notas} className={field} />
-            <button type="button" className={btn} disabled={!!busy} onClick={enviar}>{t.enviar}</button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={chip(false)} disabled={!notas.trim()} onClick={() => {
+                const n = notas.trim();
+                setNotas("");
+                if (isQuestion(n)) void preguntar(n);
+                else patchLocal({ notas: [...local.notas, n] });
+              }}>{t.anadir}</button>
+              <button type="button" className={btn} disabled={!!busy} onClick={enviar}>{t.noPedir}</button>
+            </div>
           </div>
         );
     }
   }
 
+  const canAsk = Boolean(token && view?.emailVerificado && view.estado !== "confirmada" && view.estado !== "sin_jurado");
   return (
-    <div className="mx-auto flex max-w-xl flex-col rounded-2xl bg-cream/60 p-3 sm:p-4">
+    <div className="relative mx-auto flex max-w-xl flex-col overflow-hidden rounded-2xl bg-cream/60" style={{ height: vh ? Math.max(420, Math.min(vh - 24, 900)) : "min(85dvh, 900px)" }}>
+      <div ref={scroller} className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4" onScroll={(e) => {
+        const b = e.currentTarget;
+        wasAtBottom.current = atBottom(b.scrollTop, b.clientHeight, b.scrollHeight);
+        if (wasAtBottom.current) setShowNew(false);
+      }}>
       <ol className="flex flex-col gap-2" role="log" aria-live="polite" aria-relevant="additions">
         {messages.map((m, i) => (
           <li key={m.id} ref={i === messages.length - 1 ? lastRef : undefined} tabIndex={-1} className="flex flex-col outline-none">
@@ -567,12 +633,31 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
           </li>
         ))}
       </ol>
-      {busy && <p className="mt-2 self-start text-xs text-graphite" aria-live="polite">{busy}</p>}
+      {busy && <p className="mt-2 text-xs text-graphite" aria-live="polite">{busy}</p>}
       {error && <p className="mt-2 rounded-lg bg-rouge/5 px-3 py-2 text-sm text-rouge" role="alert">{error}</p>}
-      {ask && <div className="mt-3 rounded-2xl bg-white p-3 shadow-sm">{askBox(ask)}</div>}
-      {view?.estado === "confirmada" && (
-        <button type="button" className="mt-3 self-center text-sm text-bleu underline" onClick={restart}>{HILO_T[lang].start}</button>
+      </div>
+      {showNew && (
+        <button type="button" onClick={toLast} className="absolute bottom-28 left-1/2 -translate-x-1/2 rounded-full bg-bleu px-3 py-1 text-xs font-semibold text-white shadow">{t.nuevos}</button>
       )}
+      <div className="max-h-[60%] shrink-0 overflow-y-auto border-t border-bleu/10 bg-white p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        {duda !== null ? (
+          <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void preguntar(duda); }}>
+            <input autoFocus value={duda} onChange={(e) => setDuda(e.target.value)} placeholder={t.dudaPh} aria-label={t.duda} className={field} />
+            <button type="submit" className={btn} disabled={duda.trim().length < 2}>{t.preguntar}</button>
+            <button type="button" className="text-sm text-graphite underline" onClick={() => setDuda(null)}>{t.cancelar}</button>
+          </form>
+        ) : (
+          <>
+            {ask && askBox(ask)}
+            {canAsk && ask && ask.kind !== "leyendo" && (
+              <button type="button" className="mt-2 text-xs text-bleu underline" onClick={() => setDuda("")}>{t.duda}</button>
+            )}
+            {view?.estado === "confirmada" && (
+              <button type="button" className={chip(false)} onClick={restart}>{t.otros}</button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

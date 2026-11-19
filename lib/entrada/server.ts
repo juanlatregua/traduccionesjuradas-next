@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
+import Anthropic from "@anthropic-ai/sdk";
+import { SONNET_MODEL, assertNotRefused } from "@/lib/ai/models";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { isOwnBlobUrl } from "@/lib/q-journey";
@@ -46,6 +48,8 @@ async function hasJurado(sourceLang: string, targetLang: string): Promise<Jurado
 }
 
 const SITE = "https://www.traduccionesjuradas.net";
+let client: Anthropic | null = null;
+const conserjeClient = () => (client ??= new Anthropic({ maxRetries: 2, timeout: 30_000 }));
 
 async function notify(a: Aviso): Promise<void> {
   const to = process.env.PRESUPUESTO_TO;
@@ -120,6 +124,18 @@ export const entradaApiDeps: EntradaApiDeps = {
   ...flowDeps,
   enabled: () => puertaV2On(),
   rateLimit: (key, limit, windowMs) => checkRateLimit({ key, limit, windowMs }),
+  conserje: async (system, user) => {
+    if (!process.env.ANTHROPIC_API_KEY) return null;
+    const resp = await conserjeClient().messages.create({
+      model: SONNET_MODEL,
+      max_tokens: 1500,
+      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: user }],
+      output_config: { effort: "low" },
+    } as Anthropic.MessageCreateParamsNonStreaming);
+    assertNotRefused(resp, "entrada/conserje");
+    return resp.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim() || null;
+  },
   alertStaff: async (subject, text) => {
     const to = process.env.PRESUPUESTO_TO;
     if (to) await sendMail({ to, subject, html: `<p>${escapeHtml(text)}</p>` });
