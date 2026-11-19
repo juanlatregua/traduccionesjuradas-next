@@ -2,6 +2,7 @@
 // el cliente escribe al WhatsApp de empresa del movil y el staff lo trae aqui
 // para tener lectura IA, expediente/presupuesto y borrador de respuesta).
 // Los archivos ya estan en Blob (subida cliente via /api/documents/upload).
+import { cleanSha256 } from "@/lib/vigia-dup-hash";
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
           contentType: String(m.contentType).toLowerCase(),
           name: String(m.name || "adjunto").slice(0, 200),
           size: Number(m.size) || 0,
+          ...(cleanSha256(m.sha256) ? { sha256: cleanSha256(m.sha256)! } : {}),
         }))
     : [];
   if (!text && media.length === 0) {

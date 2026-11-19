@@ -4,6 +4,7 @@
 // (Sarah Quintão, Primeira Remessa / Remessa2 / Remessa3, oct-nov 2026).
 import JSZip from "jszip";
 import { put } from "@vercel/blob";
+import { hashFileBuffer } from "@/lib/document-dedup";
 import { prisma } from "@/lib/prisma";
 import { decodeZipName, isZipDocument, usableZipEntry } from "@/lib/zip-entries";
 
@@ -41,7 +42,7 @@ export async function expandZipDocument(docId: string): Promise<{ created: numbe
   }
   if (entries.length === 0) return { created: 0, ids: [], skipped };
 
-  const rows: { fileName: string; fileUrl: string; fileSize: number; mimeType: string }[] = [];
+  const rows: { fileName: string; fileUrl: string; fileSize: number; mimeType: string; fileHash: string }[] = [];
   for (const e of entries) {
     const buf = await e.file.async("nodebuffer");
     const safe = e.name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.\- ]+/g, "_").slice(0, 120);
@@ -50,7 +51,7 @@ export async function expandZipDocument(docId: string): Promise<{ created: numbe
       addRandomSuffix: true,
       contentType: e.mimeType,
     });
-    rows.push({ fileName: e.name.slice(0, 255), fileUrl: blob.url, fileSize: buf.length, mimeType: e.mimeType });
+    rows.push({ fileName: e.name.slice(0, 255), fileUrl: blob.url, fileSize: buf.length, mimeType: e.mimeType, fileHash: hashFileBuffer(buf) });
   }
 
   const created = await prisma.$transaction(async (tx) => {

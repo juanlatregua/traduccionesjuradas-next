@@ -7,7 +7,8 @@ import { ENTRADA_SESSION_PREFIX } from "@/lib/entrada/leads";
 import { prisma } from "@/lib/prisma";
 import { isCreditOutstanding, creditDaysToDue, isMonthlySecured, isPeriodClosed, periodLabel } from "@/lib/credit-terms";
 import { buildPersonGraph } from "@/lib/vigia-graph";
-import { loadQuoteHashes } from "@/lib/vigia-graph-db";
+import { loadQuoteHashes, loadSolicitudHashes } from "@/lib/vigia-graph-db";
+import { duplicateHashAlerts, dupHashText } from "@/lib/vigia-dup-hash";
 import { chaseState, solicitudChase, consolidate, duplicateOf, primaryKey, normEmail, MAX_TOUCHES, type ActionRow, type ChaseMark, type ContactLog, type RawAction } from "@/lib/vigia-persona";
 import { vigiaMarkUrl } from "@/lib/vigia-mark";
 import { NO_RESPONSE_NOTE, SEND_OVERDUE_HOURS, deduceLostReason, hasHumanOpen, whatsappNudgeText, isPlaceholderAddr } from "@/lib/cierre-math";
@@ -247,6 +248,14 @@ export async function buildVigia(days = 7): Promise<Vigia> {
       jurado: s.miembroNombre || (s.candidatos.length ? `${s.candidatos.length} cand.` : "carril"), coste, quote: q?.quoteNumber || qPersona?.numero || null, pedido: pedido?.reference || null, situacion, accion, builder,
     };
   });
+
+  // Mismo archivo (sha256) en dos solicitudes vivas, aunque cambie email/teléfono/caso. Urgencia 5: por encima de «sin precio» (3).
+  const solHashes = await loadSolicitudHashes(solicitudes).catch(() => new Map<string, { hash: string; name: string }[]>());
+  for (const d of duplicateHashAlerts(solicitudes.map((s) => ({ ref: s.ref, status: s.status, par: s.par, createdAt: s.createdAt, docs: solHashes.get(s.ref) || [] })))) {
+    const rowB = solRows.find((r) => r.ref === d.b);
+    if (rowB) rowB.accion = `${dupHashText(d)}${rowB.accion ? ` · ${rowB.accion}` : ""}`;
+    act(((solicitudes.find((s) => s.ref === d.b)?.words) || 400) * 0.1, 5, dupHashText(d), `${SITE}/zona-traductor/presupuesto?lead=${encodeURIComponent(d.b)}`, { key: `dup:${d.a}|${d.b}` });
+  }
 
   /* ───────── 2. Leads de la puerta (una fila por PERSONA) ───────── */
   const leadMap = new Map<string, any>();

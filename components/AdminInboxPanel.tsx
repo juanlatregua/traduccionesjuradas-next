@@ -428,6 +428,15 @@ function EmailCard({
   );
 }
 
+async function sha256Hex(f: File): Promise<string | null> {
+  try {
+    const d = await crypto.subtle.digest("SHA-256", await f.arrayBuffer());
+    return Array.from(new Uint8Array(d)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return null;
+  }
+}
+
 function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
@@ -444,15 +453,16 @@ function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel
     setBusy(true);
     setErr(null);
     try {
-      const media: { url: string; contentType: string; name: string; size: number }[] = [];
+      const media: { url: string; contentType: string; name: string; size: number; sha256?: string }[] = [];
       for (const f of files.slice(0, 20)) {
         const safeName = f.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
+        const sha256 = await sha256Hex(f);
         const blob = await upload(`inbox/whatsapp/manual/${Date.now()}-${safeName}`, f, {
           access: "public",
           handleUploadUrl: "/api/documents/upload",
           clientPayload: JSON.stringify({ gdprConsent: true }),
         });
-        media.push({ url: blob.url, contentType: f.type || "application/octet-stream", name: f.name, size: f.size });
+        media.push({ url: blob.url, contentType: f.type || "application/octet-stream", name: f.name, size: f.size, ...(sha256 ? { sha256 } : {}) });
       }
       const res = await fetch("/api/admin/inbox/manual", {
         method: "POST",

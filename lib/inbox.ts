@@ -3,6 +3,7 @@
 // best-effort: guía al staff, no bloquea nada.
 
 import { createHash } from "node:crypto";
+import { cleanSha256 } from "@/lib/vigia-dup-hash";
 import { put } from "@vercel/blob";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -418,6 +419,7 @@ export async function buildExpedienteFromInbound(inbound: {
         fileUrl: String(m.url),
         fileSize: Number(m.size) || 0,
         mimeType: String(m.contentType).toLowerCase(),
+        fileHash: cleanSha256(m.sha256),
       }));
     if (rowsWa.length === 0) return { ref: null, docs: 0, skipped: skippedWa, reused: false };
     const casoIdWa = await casoDelExpediente();
@@ -458,6 +460,7 @@ export async function buildExpedienteFromInbound(inbound: {
     fileUrl: string;
     fileSize: number;
     mimeType: string;
+    fileHash: string;
   }[] = [];
   for (const a of usable.slice(0, EXPEDIENTE_MAX_DOCS)) {
     const buf = await getInboxAttachmentBytes(inbound.graphId, a.id);
@@ -467,7 +470,7 @@ export async function buildExpedienteFromInbound(inbound: {
       addRandomSuffix: true,
       contentType: a.contentType,
     });
-    rows.push({ fileName: a.name.slice(0, 255), fileUrl: blob.url, fileSize: buf.length, mimeType: a.contentType });
+    rows.push({ fileName: a.name.slice(0, 255), fileUrl: blob.url, fileSize: buf.length, mimeType: a.contentType, fileHash: createHash("sha256").update(buf).digest("hex") });
   }
 
   const casoId = await casoDelExpediente();

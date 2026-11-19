@@ -6,6 +6,7 @@
 // A PROPÓSITO no se usa TWILIO_WHATSAPP_FROM: esa env desvía TODAS las
 // notificaciones de sendNotification a WhatsApp (incidente 2026-05-28).
 
+import { createHash } from "node:crypto";
 import { put } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { twilioSend } from "@/lib/sms";
@@ -26,7 +27,7 @@ export const WHATSAPP_MEDIA_ALLOWED = new Set([
 ]);
 const MEDIA_MAX_BYTES = 20 * 1024 * 1024;
 
-export type InboundMedia = { url: string; contentType: string; name: string; size: number };
+export type InboundMedia = { url: string; contentType: string; name: string; size: number; sha256?: string };
 
 export function getWhatsAppInboxFrom(): string | null {
   const v = (process.env.WHATSAPP_INBOX_FROM || "").trim();
@@ -88,7 +89,7 @@ export async function ingestWhatsAppMessage(form: TwilioInboundForm): Promise<In
       if (buf.length === 0 || buf.length > MEDIA_MAX_BYTES) continue;
       const name = `whatsapp-${sid.slice(-8)}-${i + 1}.${extFor(contentType)}`;
       const blob = await put(`inbox/whatsapp/${Date.now()}-${name}`, buf, { access: "public", addRandomSuffix: true, contentType });
-      media.push({ url: blob.url, contentType, name, size: buf.length });
+      media.push({ url: blob.url, contentType, name, size: buf.length, sha256: createHash("sha256").update(buf).digest("hex") });
     } catch (err) {
       console.error("[whatsapp-inbox] media download failed", sid, i, err);
     }
