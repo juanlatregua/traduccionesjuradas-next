@@ -75,5 +75,7 @@ export const apiDeps: ApiDeps = {
       : !process.env.ANTHROPIC_API_KEY
         ? "Falta ANTHROPIC_API_KEY."
         : null,
+  findQuote: (quoteId) =>
+    prisma.quote.findFirst({ where: { id: quoteId, deletedAt: null }, select: { id: true, casoId: true, sourceLang: true, targetLang: true } }),
   newId: randomUUID,
 };

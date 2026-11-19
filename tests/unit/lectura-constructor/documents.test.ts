@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyEdit, labelOf, workingFromReading } from "../../../lib/lectura-constructor/documents.ts";
+import { applyEdit, apostilleCount, labelOf, workingFromReading } from "../../../lib/lectura-constructor/documents.ts";
+import { buildLines } from "../../../lib/lectura-constructor/lines.ts";
+import { FR_APOSTILLE_EXTRA_CENTS, priceFrToEs } from "../../../lib/dinero/tariff-fr.ts";
 import { ap, doc } from "../lectura/fixtures.ts";
 import { newId, working } from "./fakes.ts";
 
@@ -65,4 +67,35 @@ test("setType can also fix the source language the reading got wrong", () => {
   const d = working("D1", [[1, 1]], { sourceLang: "unknown" });
   const r = applyEdit([d], { op: "setType", id: d.id, type: "birth_certificate", typeLabelEs: "Certificado de nacimiento", sourceLang: "fr" }, "j", newId);
   assert.ok(r.ok && r.documents[0].sourceLang === "fr");
+});
+
+test("merge of an included deed with an excluded annex stays included; all excluded keeps the reasons", () => {
+  const acta = working("D1", [[1, 1], [1, 2]], { type: "other", typeLabelEs: "Acta notarial" }, { position: 0 });
+  const anexo = working("D2", [[1, 3]], { typeLabelEs: "Certificado de defunción" }, { position: 1, included: false, excludedReason: "parecía repetido" });
+  const r = applyEdit([acta, anexo], { op: "merge", ids: [acta.id, anexo.id] }, "j", newId);
+  assert.ok(r.ok && r.documents.length === 1 && r.documents[0].included && r.documents[0].excludedReason === null);
+  const a = { ...acta, included: false, excludedReason: "duplicado" };
+  const both = applyEdit([a, anexo], { op: "merge", ids: [a.id, anexo.id] }, "j", newId);
+  assert.ok(both.ok && !both.documents[0].included && both.documents[0].excludedReason === "duplicado · parecía repetido");
+});
+
+test("merging documents with apostilles counts every apostille and names every number read", () => {
+  const d1 = working("D1", [[1, 1]], { apostille: ap([[2, 1]], { number: "A-1" }) }, { position: 0 });
+  const d2 = working("D2", [[3, 1]], { apostille: ap([[4, 1]], { number: "B-2" }) }, { position: 1 });
+  const d3 = working("D3", [[5, 1]], { apostille: ap([[6, 1]], { number: null }) }, { position: 2 });
+  const r = applyEdit([d1, d2, d3], { op: "merge", ids: [d1.id, d2.id, d3.id] }, "j", newId);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const m = r.documents[0];
+  assert.equal(apostilleCount(m.apostille), 3);
+  assert.equal(labelOf(m), "Certificado de nacimiento — 3 apostillas n.º A-1, B-2 (1 n.º no legible)");
+  const again = applyEdit([m, working("D4", [[7, 1]], { apostille: ap([[8, 1]], { number: "C-3" }) }, { position: 1 })], { op: "merge", ids: [m.id, "w-D4"] }, "j", newId);
+  assert.ok(again.ok && apostilleCount(again.documents[0].apostille) === 4);
+  const lines = buildLines([m], [], "es");
+  const expected = priceFrToEs({ docType: "birth_certificate", category: "civil_registry", pages: 3, words: m.words, apostille: true, apostilles: 3, apostilleOnSeparatePage: false });
+  const base = priceFrToEs({ docType: "birth_certificate", category: "civil_registry", pages: 3, words: m.words, apostille: false, apostilleOnSeparatePage: false });
+  assert.ok(expected.kind === "priced" && base.kind === "priced");
+  if (expected.kind !== "priced" || base.kind !== "priced") return;
+  assert.equal(expected.cents - base.cents, 3 * FR_APOSTILLE_EXTRA_CENTS);
+  assert.equal(lines.lines[0].unitPriceCents, expected.cents);
 });

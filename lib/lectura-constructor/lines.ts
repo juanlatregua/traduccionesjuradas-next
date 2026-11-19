@@ -5,7 +5,7 @@ import { OWN_WORK, UNKNOWN_COST, costFromStoredBase, type SupplierCost } from ".
 import { canIssue } from "../dinero/margin.ts";
 import { formatEuros } from "../dinero/format.ts";
 import { priceFrToEs } from "../dinero/tariff-fr.ts";
-import { labelOf, type WorkingDocument } from "./documents.ts";
+import { apostilleCount, labelOf, type WorkingDocument } from "./documents.ts";
 
 export type LectureFile = { position: number | null; url: string | null; pageCount: number | null; name: string };
 
@@ -55,6 +55,7 @@ export function tariffFor(doc: WorkingDocument, targetLang: string, bankStatemen
     pages: doc.pageCount,
     words: doc.words,
     apostille: doc.apostille !== null,
+    apostilles: apostilleCount(doc.apostille),
     apostilleOnSeparatePage: false,
     bankStatementsInQuote,
   });

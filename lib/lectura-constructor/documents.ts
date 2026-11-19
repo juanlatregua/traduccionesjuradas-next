@@ -2,7 +2,8 @@ import { documentLabel } from "../lectura/label.ts";
 import type { ReviewReason } from "../lectura/assess.ts";
 import type { DocumentType, Part, ReadDocumentRaw } from "../lectura/schema.ts";
 
-type Apostille = ReadDocumentRaw["apostille"];
+/** One apostille as read, or several once documents are joined: `count` apostilles, `numbers` as read (null = not legible). */
+export type Apostille = (NonNullable<ReadDocumentRaw["apostille"]> & { count?: number; numbers?: (string | null)[] }) | null;
 export type DocReason = ReviewReason | { code: "person_edit"; detail: string; documentId?: string };
 
 export type WorkingDocument = {
@@ -34,8 +35,16 @@ export type WorkingDocument = {
 
 export type ReadDocumentLike = ReadDocumentRaw & { pageCount: number; words: number; wordsBasis: "exact" | "estimated" };
 
+export const apostilleCount = (a: Apostille): number => (a ? Math.max(1, a.count ?? 1) : 0);
+const apostilleNumbers = (a: NonNullable<Apostille>): (string | null)[] => a.numbers ?? [a.number];
+
 export function labelOf(d: Pick<WorkingDocument, "typeLabelEs" | "holder" | "apostille">): string {
-  return documentLabel({ typeLabelEs: d.typeLabelEs, holder: d.holder, apostille: d.apostille });
+  const count = apostilleCount(d.apostille);
+  if (count <= 1) return documentLabel({ typeLabelEs: d.typeLabelEs, holder: d.holder, apostille: d.apostille });
+  const base = documentLabel({ typeLabelEs: d.typeLabelEs, holder: d.holder, apostille: null });
+  const read = apostilleNumbers(d.apostille!).filter((n): n is string => Boolean(n && n.trim())).map((n) => n.trim());
+  const unread = count - read.length;
+  return `${base} — ${count} apostillas${read.length ? ` n.º ${read.join(", ")}` : ""}${unread > 0 ? ` (${unread} n.º no legible${unread > 1 ? "s" : ""})` : ""}`;
 }
 
 const bodyPages = (d: Pick<WorkingDocument, "parts" | "annexes">) => d.parts.length + d.annexes.reduce((n, a) => n + a.parts.length, 0);
@@ -85,12 +94,15 @@ function mergeApostilles(list: Apostille[]): Apostille {
   const present = list.filter((a): a is NonNullable<Apostille> => a !== null);
   if (present.length === 0) return null;
   if (present.length === 1) return present[0];
-  const numbers = present.map((a) => a.number).filter((n): n is string => Boolean(n));
+  const numbers = present.flatMap(apostilleNumbers);
+  const read = numbers.filter((n): n is string => Boolean(n));
   return {
     parts: present.flatMap((a) => a.parts),
     onDocumentPage: present.some((a) => a.onDocumentPage),
-    number: numbers.length === present.length ? numbers.join(" / ") : null,
+    number: read.length === numbers.length ? read.join(" / ") : null,
     matchedBy: "weak",
+    count: present.reduce((n, a) => n + apostilleCount(a), 0),
+    numbers,
   };
 }
 
@@ -116,8 +128,8 @@ export function applyEdit(documents: readonly WorkingDocument[], edit: EditOp, b
       estimatedWords: picked.reduce((n, d) => n + d.estimatedWords, 0),
       confidence: Math.min(...picked.map((d) => d.confidence)),
       reasons: [...picked.flatMap((d) => d.reasons), personReason(`unido a mano por ${by} (${picked.length} documentos)`, first.docKey)],
-      included: picked.every((d) => d.included),
-      excludedReason: picked.every((d) => d.included) ? null : first.excludedReason,
+      included: picked.some((d) => d.included),
+      excludedReason: picked.some((d) => d.included) ? null : picked.map((d) => d.excludedReason).filter(Boolean).join(" · ") || null,
       manualPriceCents: null,
       manualCostCents: null,
       editedBy: by,

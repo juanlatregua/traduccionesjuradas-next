@@ -21,6 +21,13 @@ function okReading(docs = [doc("D1", [[1, 1]], { apostille: ap([[2, 1]], { numbe
   } as never;
 }
 
+const QUOTES: Record<string, { id: string; casoId: string | null; sourceLang: string; targetLang: string }> = {
+  q1: { id: "q1", casoId: "c1", sourceLang: "fr", targetLang: "es" },
+  q2: { id: "q2", casoId: "otro", sourceLang: "fr", targetLang: "es" },
+  q3: { id: "q3", casoId: "c1", sourceLang: "fr", targetLang: "de" },
+};
+const seen = async (d: ApiDeps, id: string) => ({ expectedUpdatedAt: (await d.store.get(id))!.lote.updatedAt.toISOString() });
+
 function deps(over: Partial<ApiDeps> = {}, reads: Reading[] = [okReading()]) {
   const mem = memoryStore();
   const starts: StartInput[] = [];
@@ -38,6 +45,7 @@ function deps(over: Partial<ApiDeps> = {}, reads: Reading[] = [okReading()]) {
       );
     },
     readyToRead: () => null,
+    findQuote: async (id) => QUOTES[id] ?? null,
     newId,
     ...over,
   };
@@ -107,7 +115,7 @@ test("full flow: read → correct → confirm → frozen; lines only from lib/di
   assert.equal(pv.lines.lines[0].tariff, "35,00 €");
   assert.equal((await handleEdit(req({ op: "setPrice", id: view.documents[0].id, price: "40.555", cost: null }), id, d)).status, 400);
 
-  const c = await handleConfirm(req({}), id, d);
+  const c = await handleConfirm(req(await seen(d, id)), id, d);
   assert.equal(c.status, 200);
   const cv = (c.body as { view: { lote: { status: string; confirmedBy: string }; payload: { lines: { unitPrice: string }[]; vatRate: number } } }).view;
   assert.equal(cv.lote.status, "confirmed");
@@ -116,17 +124,55 @@ test("full flow: read → correct → confirm → frozen; lines only from lib/di
   assert.equal(cv.payload.vatRate, 0.21);
 
   assert.equal((await handleEdit(req({ op: "include", id: view.documents[1].id }), id, d)).status, 409);
+  assert.equal((await handleEdit(req({ op: "linkQuote", quoteId: "nope" }), id, d)).status, 404);
+  assert.equal((await handleEdit(req({ op: "linkQuote", quoteId: "q2" }), id, d)).status, 409, "otro caso");
+  assert.equal((await handleEdit(req({ op: "linkQuote", quoteId: "q3" }), id, d)).status, 409, "otro par");
   assert.equal((await handleEdit(req({ op: "linkQuote", quoteId: "q1" }), id, d)).status, 200);
-  assert.equal((await handleConfirm(req({}), id, d)).status, 200);
+  assert.equal((await handleEdit(req({ op: "linkQuote", quoteId: "q1" }), id, d)).status, 200, "idempotente");
+  const other = { ...QUOTES.q1, id: "q9" };
+  assert.equal((await handleEdit(req({ op: "linkQuote", quoteId: "q9" }), id, { ...d, findQuote: async () => other })).status, 409, "no sobrescribe");
+  assert.equal((await d.store.get(id))!.lote.quoteId, "q1");
+  assert.equal((await handleConfirm(req(await seen(d, id)), id, d)).status, 200);
 });
 
 test("confirm with unresolved lines → 422 and nothing stored", async () => {
   const { d, mem } = deps({}, [okReading([doc("D1", [[1, 1]], { sourceLang: "de" })])]);
   const started = await handleStart(req({ source, targetLang: "es" }), d);
   const id = (started.body as { view: { lote: { id: string } } }).view.lote.id;
-  const r = await handleConfirm(req({}), id, d);
+  assert.equal((await handleConfirm(req({}), id, d)).status, 400);
+  const r = await handleConfirm(req(await seen(d, id)), id, d);
   assert.equal(r.status, 422);
   assert.equal(mem.rows.get(id)!.lote.status, "ok");
-  assert.equal((await handleConfirm(req({ by: "otro" }), id, d)).status, 400);
+  assert.equal((await handleConfirm(req({ ...(await seen(d, id)), by: "otro" }), id, d)).status, 400);
   assert.equal((await handleEdit(req({ op: "linkQuote", quoteId: "q1" }), id, d)).status, 409);
+});
+
+test("confirm vs edit race: a lote edited after it was seen is never confirmed", async () => {
+  const docs = [doc("D1", [[1, 1]]), doc("D2", [[1, 2]], { typeLabelEs: "Certificado de matrimonio", type: "marriage_certificate" })];
+  const { d, mem } = deps({}, [okReading(docs)]);
+  const started = await handleStart(req({ source, targetLang: "es" }), d);
+  const view = (started.body as { view: { lote: { id: string }; documents: { id: string }[] } }).view;
+  const id = view.lote.id;
+  const before = await seen(d, id);
+  await handleEdit(req({ op: "exclude", id: view.documents[1].id, reason: "no lo pide" }), id, d);
+  const stale = await handleConfirm(req(before), id, d);
+  assert.equal(stale.status, 409);
+  assert.match((stale.body as { error: string }).error, /cambió/);
+  assert.equal(mem.rows.get(id)!.lote.status, "ok");
+
+  const racing: ApiDeps = {
+    ...d,
+    store: {
+      ...d.store,
+      get: async (x) => {
+        const snap = await d.store.get(x);
+        await d.store.replaceDocuments(x, snap!.documents.slice(0, 1));
+        return snap;
+      },
+    },
+  };
+  const raced = await handleConfirm(req(await seen(d, id)), id, racing);
+  assert.equal(raced.status, 409);
+  assert.equal(mem.rows.get(id)!.lote.status, "ok");
+  assert.equal((await handleConfirm(req(await seen(d, id)), id, d)).status, 200);
 });

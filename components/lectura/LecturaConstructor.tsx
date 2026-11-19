@@ -73,7 +73,7 @@ export default function LecturaConstructor({ source, initialView, customer, expe
     if (!lote) return;
     setBusy(true);
     setMessage(null);
-    const { data } = await call(`/api/zona-traductor/lectura/${lote.id}/confirmar`, "POST", {});
+    const { data } = await call(`/api/zona-traductor/lectura/${lote.id}/confirmar`, "POST", { expectedUpdatedAt: lote.updatedAt });
     setBusy(false);
     if (data.view) setView(data.view);
     if (!data.ok) setMessage(data.error);

@@ -15,6 +15,7 @@ export type ApiDeps = {
   start(input: StartInput): Promise<StartResult>;
   /** Null when reading can run here; otherwise why not (e.g. no explicit RSS ceiling). */
   readyToRead(): string | null;
+  findQuote(quoteId: string): Promise<{ id: string; casoId: string | null; sourceLang: string; targetLang: string } | null>;
   newId(): string;
 };
 export type ApiResponse = { status: number; body: unknown; headers?: Record<string, string> };
@@ -46,7 +47,7 @@ export const EditBody = z.discriminatedUnion("op", [
   z.strictObject({ op: z.literal("setTargetLang"), targetLang: Lang }),
 ]);
 
-const ConfirmBody = z.strictObject({});
+const ConfirmBody = z.strictObject({ expectedUpdatedAt: z.iso.datetime() });
 
 const json = (status: number, body: unknown, headers?: Record<string, string>): ApiResponse => ({ status, body, ...(headers ? { headers } : {}) });
 const invalid = (err: z.ZodError) => json(400, { ok: false, error: "Datos no válidos.", issues: err.issues.map((i) => `${i.path.join(".") || "cuerpo"}: ${i.message}`) });
@@ -144,7 +145,17 @@ export async function handleEdit(req: Request, id: string, deps: ApiDeps): Promi
   const e = parsed.data;
   if (e.op === "linkQuote") {
     if (data.lote.status !== "confirmed") return json(409, { ok: false, error: "Primero se confirman las líneas." });
-    await deps.store.linkQuote(id, e.quoteId);
+    if (data.lote.quoteId === e.quoteId) return json(200, { ok: true, view: viewOf(data) });
+    if (data.lote.quoteId) return json(409, { ok: false, error: "Esta lectura ya está enlazada a otro presupuesto." });
+    const quote = await deps.findQuote(e.quoteId);
+    if (!quote) return json(404, { ok: false, error: "Ese presupuesto no existe." });
+    const payload = (data.lote.lines as { payload?: QuotePayload } | null)?.payload;
+    const lang = (s: string | null | undefined) => (s || "").trim().toLowerCase();
+    if (data.lote.casoId && quote.casoId !== data.lote.casoId) return json(409, { ok: false, error: "Ese presupuesto es de otro caso." });
+    if (!payload || lang(quote.sourceLang) !== payload.sourceLang || lang(quote.targetLang) !== payload.targetLang) {
+      return json(409, { ok: false, error: "Ese presupuesto es de otro par de idiomas." });
+    }
+    if (!(await deps.store.linkQuote(id, e.quoteId))) return json(409, { ok: false, error: "Esta lectura ya está enlazada a otro presupuesto." });
     const after = await deps.store.get(id);
     return json(200, { ok: true, view: after ? viewOf(after) : null });
   }
@@ -176,11 +187,13 @@ export async function handleConfirm(req: Request, id: string, deps: ApiDeps): Pr
   if (!data) return json(404, { ok: false, error: "Lectura no encontrada." });
   if (data.lote.status === "confirmed") return json(200, { ok: true, view: viewOf(data) });
   if (data.lote.status !== "ok") return json(409, { ok: false, error: "Solo se confirma una lectura terminada." });
+  const seen = new Date(parsed.data.expectedUpdatedAt);
+  if (seen.getTime() !== data.lote.updatedAt.getTime()) return json(409, { ok: false, error: "El lote cambió desde que lo viste: recarga y revisa antes de confirmar.", view: viewOf(data) });
   const result = buildLines(data.documents, data.files, data.lote.targetLang ?? "");
   const payload = quotePayload(result);
   if (!payload) return json(422, { ok: false, error: "Hay líneas sin resolver.", view: viewOf(data) });
   const snapshot = { payload, documents: result.lines.map((l) => ({ documentId: l.documentId, priceSource: l.priceSource, tariffCents: l.tariffCents, unitPriceCents: l.unitPriceCents })) };
-  if (!(await deps.store.confirm(id, g.email, snapshot))) return json(409, { ok: false, error: "La lectura ha cambiado de estado: recárgala." });
+  if (!(await deps.store.confirm(id, g.email, snapshot, data.lote.updatedAt))) return json(409, { ok: false, error: "El lote cambió mientras confirmabas: recarga y revisa." });
   const after = await deps.store.get(id);
   return json(200, { ok: true, view: after ? viewOf(after) : null });
 }

@@ -55,6 +55,8 @@ export type FrDocInput = {
   pages: number;
   words?: number | null;
   apostille: boolean;
+  /** Apostilles on this one translation (several documents joined into one): each adds its supplement. Default 1. */
+  apostilles?: number;
   /** The analysis says explicitly that the apostille takes its own sheet. */
   apostilleOnSeparatePage?: boolean;
   /** Bank statements in the same quote (bulk price from 5). */
@@ -82,10 +84,17 @@ function rcCents(pages: number): Cents {
   return cents;
 }
 
-function withApostille(cents: Cents, apostille: boolean, why: string[]): Cents {
-  if (!apostille) return cents;
-  why.push(`+ ${formatEuros(FR_APOSTILLE_EXTRA_CENTS)} por la apostilla (no cuenta como página)`);
-  return cents + FR_APOSTILLE_EXTRA_CENTS;
+function apostilleCount(doc: FrDocInput): number {
+  if (!doc.apostille) return 0;
+  const n = Math.floor(Number(doc.apostilles ?? 1));
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
+
+function withApostille(cents: Cents, count: number, why: string[]): Cents {
+  if (count === 0) return cents;
+  if (count === 1) why.push(`+ ${formatEuros(FR_APOSTILLE_EXTRA_CENTS)} por la apostilla (no cuenta como página)`);
+  else why.push(`+ ${count} × ${formatEuros(FR_APOSTILLE_EXTRA_CENTS)} por ${count} apostillas (no cuentan como página)`);
+  return cents + FR_APOSTILLE_EXTRA_CENTS * count;
 }
 
 export function priceFrToEs(doc: FrDocInput): FrPrice {
@@ -95,7 +104,7 @@ export function priceFrToEs(doc: FrDocInput): FrPrice {
 
   if (type === "criminal_record" && rawPages >= FR_CRIMINAL_RECORD_MIN_PAGES) {
     why.push(`Certificado de penales francés de ${rawPages} páginas (formulario UE): ${formatEuros(FR_CRIMINAL_RECORD_CENTS)}`);
-    const cents = withApostille(FR_CRIMINAL_RECORD_CENTS, doc.apostille, why);
+    const cents = withApostille(FR_CRIMINAL_RECORD_CENTS, apostilleCount(doc), why);
     return { kind: "priced", cents, rule: "criminalRecord", pages: rawPages, why };
   }
 
@@ -122,13 +131,13 @@ export function priceFrToEs(doc: FrDocInput): FrPrice {
         ? `Documento de hasta ${FR_DOC_MAX_PAGES} páginas con más de ${FR_DOC_LONG_WORDS} palabras: ${formatEuros(cents)}`
         : `Documento de ${pages} página${pages === 1 ? "" : "s"}: ${formatEuros(cents)}`
     );
-    return { kind: "priced", cents: withApostille(cents, doc.apostille, why), rule: "perDocument", pages, why };
+    return { kind: "priced", cents: withApostille(cents, apostilleCount(doc), why), rule: "perDocument", pages, why };
   }
 
   if (type === "company_registration") {
     const cents = rcCents(pages);
     why.push(`Extracto del registro mercantil de ${pages} páginas por tramos: ${formatEuros(cents)}`);
-    return { kind: "priced", cents: withApostille(cents, doc.apostille, why), rule: "companyRegister", pages, why };
+    return { kind: "priced", cents: withApostille(cents, apostilleCount(doc), why), rule: "companyRegister", pages, why };
   }
 
   if (type === "bank_statement") {
@@ -140,13 +149,13 @@ export function priceFrToEs(doc: FrDocInput): FrPrice {
         ? `Extracto bancario en lote (${inQuote} en el presupuesto), ${pages} páginas: ${formatEuros(cents)}`
         : `Extracto bancario: ${formatEuros(cents)} por documento`
     );
-    return { kind: "priced", cents: withApostille(cents, doc.apostille, why), rule: "bankStatement", pages, why };
+    return { kind: "priced", cents: withApostille(cents, apostilleCount(doc), why), rule: "bankStatement", pages, why };
   }
 
   if (PAGE_PRICED_TYPES.has(type)) {
     const cents = pages * FR_PAGE_CENTS;
     why.push(`${pages} páginas × ${formatEuros(FR_PAGE_CENTS)}`);
-    return { kind: "priced", cents: withApostille(cents, doc.apostille, why), rule: "perPage", pages, why };
+    return { kind: "priced", cents: withApostille(cents, apostilleCount(doc), why), rule: "perPage", pages, why };
   }
 
   if (type === "apostille") return { kind: "noTariff", reason: "apostilla suelta: puede llevar el acta dentro, presupuesto a mano" };
@@ -166,7 +175,7 @@ export function priceFrToEs(doc: FrDocInput): FrPrice {
       : `${words} palabras × ${FR_WORD_CENTS} c${tenths !== 10 ? ` × ${tenths / 10} (complejidad)` : ""}`
   );
   const cents = divRoundHalfUp(Math.max(wordTenthCents, minimum * 10), 10);
-  return { kind: "priced", cents: withApostille(cents, doc.apostille, why), rule: "perWord", pages: rawPages, why };
+  return { kind: "priced", cents: withApostille(cents, apostilleCount(doc), why), rule: "perWord", pages: rawPages, why };
 }
 
 /** Same-day delivery for French: +40 %. */

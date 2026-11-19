@@ -119,9 +119,9 @@ export function prismaLecturaStore(db: Db): LecturaStore {
         return true;
       });
     },
-    async confirm(id, by, lines) {
+    async confirm(id, by, lines, seenUpdatedAt) {
       const r = await db.lecturaLote.updateMany({
-        where: { id, status: "ok" },
+        where: { id, status: "ok", updatedAt: seenUpdatedAt },
         data: { status: "confirmed", confirmedBy: by, confirmedAt: new Date(), linesJson: json(lines) },
       });
       return r.count === 1;
@@ -131,7 +131,8 @@ export function prismaLecturaStore(db: Db): LecturaStore {
       return r.count === 1;
     },
     async linkQuote(id, quoteId) {
-      await db.lecturaLote.update({ where: { id }, data: { quoteId } });
+      const r = await db.lecturaLote.updateMany({ where: { id, status: "confirmed", quoteId: null }, data: { quoteId } });
+      return r.count === 1;
     },
   };
 }

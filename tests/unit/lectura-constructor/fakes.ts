@@ -5,7 +5,10 @@ import type { ReadDocumentRaw } from "../../../lib/lectura/schema.ts";
 
 type Entry = { lote: LoteRow; files: FileRow[]; documents: WorkingDocument[] };
 
-export function memoryStore(clock: () => Date = () => new Date()) {
+let tick = Date.parse("2026-11-19T09:00:00Z");
+const ticking = () => new Date((tick += 1000));
+
+export function memoryStore(clock: () => Date = ticking) {
   const rows = new Map<string, Entry>();
   let seq = 0;
   const calls: string[] = [];
@@ -66,19 +69,23 @@ export function memoryStore(clock: () => Date = () => new Date()) {
       touch(e);
       return true;
     },
-    async confirm(id, by, lines) {
+    async confirm(id, by, lines, seenUpdatedAt) {
       const e = rows.get(id);
-      if (!e || e.lote.status !== "ok") return false;
+      if (!e || e.lote.status !== "ok" || e.lote.updatedAt.getTime() !== seenUpdatedAt.getTime()) return false;
       Object.assign(e.lote, { status: "confirmed", confirmedBy: by, confirmedAt: clock(), lines });
       return true;
     },
     async linkQuote(id, quoteId) {
-      rows.get(id)!.lote.quoteId = quoteId;
+      const e = rows.get(id);
+      if (!e || e.lote.status !== "confirmed" || e.lote.quoteId) return false;
+      e.lote.quoteId = quoteId;
+      return true;
     },
     async setTargetLang(id, targetLang) {
       const e = rows.get(id);
       if (!e || e.lote.status !== "ok") return false;
       e.lote.targetLang = targetLang;
+      touch(e);
       return true;
     },
   };

@@ -69,6 +69,9 @@ test("edits and confirmation only while the lote is «ok»", async () => {
   const store = prismaLecturaStore(db);
   assert.equal(await store.replaceDocuments("L1", [working("D1", [[1, 1]])]), false);
   assert.equal(calls.some((c) => c.model === "documento"), false);
-  assert.equal(await store.confirm("L1", "j", {}), false);
-  assert.deepEqual(calls.at(-1)!.args.where, { id: "L1", status: "ok" });
+  const seen = new Date("2026-11-19T10:00:00.123Z");
+  assert.equal(await store.confirm("L1", "j", {}, seen), false);
+  assert.deepEqual(calls.at(-1)!.args.where, { id: "L1", status: "ok", updatedAt: seen });
+  assert.equal(await store.linkQuote("L1", "q1"), false);
+  assert.deepEqual(calls.at(-1)!.args.where, { id: "L1", status: "confirmed", quoteId: null });
 });

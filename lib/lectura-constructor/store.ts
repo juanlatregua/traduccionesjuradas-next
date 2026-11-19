@@ -56,8 +56,10 @@ export type LecturaStore = {
   get(id: string): Promise<{ lote: LoteRow; files: FileRow[]; documents: WorkingDocument[] } | null>;
   /** Only while the lote is «ok» (not confirmed): false otherwise. */
   replaceDocuments(id: string, documents: WorkingDocument[]): Promise<boolean>;
-  confirm(id: string, by: string, lines: unknown): Promise<boolean>;
-  linkQuote(id: string, quoteId: string): Promise<void>;
+  /** Only if the lote is «ok» and untouched since `seenUpdatedAt`. */
+  confirm(id: string, by: string, lines: unknown, seenUpdatedAt: Date): Promise<boolean>;
+  /** Only when no quote is linked yet. */
+  linkQuote(id: string, quoteId: string): Promise<boolean>;
   /** Only while the lote is «ok». */
   setTargetLang(id: string, targetLang: string): Promise<boolean>;
 };
