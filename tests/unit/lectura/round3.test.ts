@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createDeflateRaw, deflateRawSync } from "node:zlib";
-import { HeavyWorker, WorkerDied, WorkerTimeout } from "../../../lib/lectura/heavy.ts";
+import { HeavyWorker, WorkerDied, WorkerTimeout, workerSource } from "../../../lib/lectura/heavy.ts";
 import { prepareBatch, DEFAULT_LIMITS } from "../../../lib/lectura/prepare.ts";
 import { readBatch } from "../../../lib/lectura/index.ts";
 import { READING_MODEL } from "../../../lib/lectura/read.ts";
@@ -14,6 +14,10 @@ import { toWire, type ModelReading } from "../../../lib/lectura/schema.ts";
 import { ap, doc, files, lorem, makeImage, makePdf, reading } from "./fixtures.ts";
 
 const P = (fileIndex: number, page: number) => ({ fileIndex, page });
+const TEST_SOURCE = workerSource(`
+  spin: async ({ ms }) => { const end = Date.now() + ms; while (Date.now() < end) {} return { done: true }; },
+  allocate: async ({ mb }) => { const keep = []; for (let i = 0; i < mb; i++) keep.push(new Array(131072).fill(i)); return { n: keep.length }; },
+`);
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)));
 
 type Entry = { name: string; data: Uint8Array; method?: number; declaredSize?: number; flags?: number };
@@ -93,7 +97,7 @@ async function peakRss<T>(fn: () => Promise<T>): Promise<{ result: T; peakMb: nu
 }
 
 test("worker: a long synchronous task is really cut at the deadline; running out of memory kills only the worker", async () => {
-  const w = new HeavyWorker({ memoryMb: 128, timeoutMs: 5000 });
+  const w = new HeavyWorker({ memoryMb: 128, rssMb: 2048, timeoutMs: 5000 }, TEST_SOURCE);
   try {
     const t0 = Date.now();
     await assert.rejects(w.run("spin", { ms: 20_000 }, 300), WorkerTimeout);

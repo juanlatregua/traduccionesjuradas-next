@@ -1,9 +1,7 @@
-import { PDFArray, PDFDocument, PDFRawStream, PDFRef, type PDFPage } from "pdf-lib";
+import { DEFAULT_HEAVY, HeavyWorker, WorkerDied, WorkerTimeout } from "./heavy.ts";
 import type { PreparedBatch } from "./prepare.ts";
 import type { Part, ReadDocumentRaw } from "./schema.ts";
 import { documentLabel } from "./label.ts";
-
-const A4 = { w: 595.28, h: 841.89 };
 
 /** File systems reject these; the label is already one clean line of bounded length. */
 const safeName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
@@ -25,72 +23,63 @@ export type AssembledPdf =
   | { ok: true; fileName: string; bytes: Uint8Array; pageCount: number }
   | { ok: false; kind: "cannot_assemble"; reasonEs: string };
 
-/** Bytes of a page's content streams (0 = the page draws nothing). */
-function contentLength(page: PDFPage): number {
-  const contents = page.node.Contents();
-  if (!contents) return 0;
-  const ctx = page.doc.context;
-  const items = contents instanceof PDFArray ? contents.asArray() : [contents];
-  let total = 0;
-  for (const item of items) {
-    const stream = item instanceof PDFRef ? ctx.lookup(item) : item;
-    if (stream instanceof PDFRawStream) total += stream.contents.length;
-    else if (stream && "getContentsSize" in (stream as object)) total += (stream as unknown as { getContentsSize(): number }).getContentsSize();
-  }
-  return total;
-}
+type AssemblyDocument = Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs" | "parts" | "apostille"> & { annexes?: ReadDocumentRaw["annexes"] };
+
+export const ASSEMBLY_TIMEOUT_MS = 60_000;
 
 /**
- * One PDF per document: body pages in reading order, then the annexes in order, then the apostille sheets.
- * Never returns a PDF with missing or blank pages: it fails with a typed reason instead.
+ * One PDF per document (position = place in `documents`, 1-based): body pages in reading order, then the annexes,
+ * then the apostille sheets. The whole batch is assembled in one worker task (each source PDF loaded once), under the
+ * same memory and time bounds as the preparation. Never returns a PDF with missing or blank pages: it fails with a
+ * typed reason instead.
  */
-export async function assembleDocumentPdf(
+export async function assembleDocumentPdfs(
   batch: Pick<PreparedBatch, "files">,
-  document: Pick<ReadDocumentRaw, "id" | "holder" | "typeLabelEs" | "parts" | "apostille"> & { annexes?: ReadDocumentRaw["annexes"] },
-  position: number,
-): Promise<AssembledPdf> {
+  documents: readonly AssemblyDocument[],
+  heavy?: HeavyWorker,
+): Promise<AssembledPdf[]> {
   const fail = (reasonEs: string): AssembledPdf => ({ ok: false, kind: "cannot_assemble", reasonEs });
-  const parts: Part[] = [...document.parts, ...(document.annexes ?? []).flatMap((a) => a.parts), ...(document.apostille?.parts ?? [])];
-  if (parts.length === 0) return fail("el documento no tiene páginas");
-  const out = await PDFDocument.create();
-  const sources = new Map<number, PDFDocument>();
-  const expectContent: boolean[] = [];
-  for (const part of parts) {
-    const file = batch.files.find((f) => f.index === part.fileIndex);
-    if (!file || part.page < 1 || part.page > file.pageCount) return fail(`página inexistente: archivo ${part.fileIndex} pág. ${part.page}`);
-    if (file.kind === "pdf") {
+  const results: (AssembledPdf | null)[] = [];
+  const jobs: Part[][] = [];
+  const needed = new Set<number>();
+  for (const document of documents) {
+    const parts: Part[] = [...document.parts, ...(document.annexes ?? []).flatMap((a) => a.parts), ...(document.apostille?.parts ?? [])];
+    let reason: string | null = parts.length === 0 ? "el documento no tiene páginas" : null;
+    for (const part of parts) {
+      if (reason) break;
+      const file = batch.files.find((f) => f.index === part.fileIndex);
+      if (!file || !Number.isInteger(part.page) || part.page < 1 || part.page > file.pageCount) reason = `página inexistente: archivo ${part.fileIndex} pág. ${part.page}`;
       // Copying pages of an encrypted PDF carries its still-encrypted streams: the result would look blank.
-      // Without a decrypting renderer on the server, refuse instead of handing over empty sheets.
-      if (file.encrypted) return fail(`el archivo ${file.index} es un PDF cifrado: sus páginas no se pueden copiar sin descifrarlo (hay que entregar el original o reimprimirlo)`);
-      let src = sources.get(file.index);
-      if (!src) {
-        try {
-          src = await PDFDocument.load(file.bytes, { updateMetadata: false });
-        } catch {
-          return fail(`el archivo ${file.index} no se puede abrir para montar el documento`);
-        }
-        sources.set(file.index, src);
-      }
-      const srcPage = src.getPage(part.page - 1);
-      const [page] = await out.copyPages(src, [part.page - 1]);
-      out.addPage(page);
-      expectContent.push(contentLength(srcPage) > 0);
+      else if (file.kind === "pdf" && file.encrypted) reason = `el archivo ${file.index} es un PDF cifrado: sus páginas no se pueden copiar sin descifrarlo (hay que entregar el original o reimprimirlo)`;
+    }
+    if (reason) {
+      results.push(fail(reason));
       continue;
     }
-    const image = file.mediaType === "image/png" ? await out.embedPng(file.bytes) : await out.embedJpg(file.bytes);
-    const landscape = image.width > image.height;
-    const page: PDFPage = out.addPage(landscape ? [A4.h, A4.w] : [A4.w, A4.h]);
-    const { width, height } = page.getSize();
-    const scale = Math.min(width / image.width, height / image.height);
-    const w = image.width * scale;
-    const h = image.height * scale;
-    page.drawImage(image, { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h });
-    expectContent.push(true);
+    for (const p of parts) needed.add(p.fileIndex);
+    results.push(null);
+    jobs.push(parts);
   }
-  const bytes = await out.save();
-  const check = await PDFDocument.load(bytes);
-  if (check.getPageCount() !== parts.length) return fail(`se esperaban ${parts.length} páginas y salieron ${check.getPageCount()}`);
-  const blank = check.getPages().findIndex((p, i) => expectContent[i] && contentLength(p) === 0);
-  if (blank >= 0) return fail(`la página ${blank + 1} del montaje ha salido vacía y su original no lo estaba`);
-  return { ok: true, fileName: documentFileName(document, position), bytes, pageCount: parts.length };
+  if (jobs.length > 0) {
+    const files = batch.files
+      .filter((f) => needed.has(f.index))
+      .map((f) => ({ index: f.index, kind: f.kind, mediaType: f.mediaType, pageCount: f.pageCount, bytes: f.bytes }));
+    const worker = heavy ?? new HeavyWorker(DEFAULT_HEAVY);
+    let out: { ok: boolean; bytes?: Uint8Array; pageCount?: number; reasonEs?: string }[];
+    try {
+      out = (await worker.run<{ results: typeof out }>("assemble", { files, documents: jobs }, ASSEMBLY_TIMEOUT_MS)).results;
+    } catch (err) {
+      const why = err instanceof WorkerTimeout ? "el montaje ha tardado demasiado" : err instanceof WorkerDied ? "el montaje se ha quedado sin memoria" : "el montaje ha fallado";
+      out = jobs.map(() => ({ ok: false, reasonEs: why }));
+    } finally {
+      if (!heavy) await worker.close();
+    }
+    let k = 0;
+    for (let i = 0; i < results.length; i++) {
+      if (results[i]) continue;
+      const r = out[k++];
+      results[i] = r?.ok && r.bytes ? { ok: true, fileName: documentFileName(documents[i], i + 1), bytes: r.bytes, pageCount: r.pageCount ?? 0 } : fail(r?.reasonEs ?? "el montaje ha fallado");
+    }
+  }
+  return results as AssembledPdf[];
 }

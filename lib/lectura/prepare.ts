@@ -51,6 +51,8 @@ export type BatchLimits = {
   maxImagePixels: number;
   maxFileMs: number;
   workerMemoryMb: number;
+  /** Growth of the process RSS allowed to one worker task (covers memory outside V8: buffers, wasm, libvips). */
+  workerRssMb: number;
 };
 
 // API (Claude, nov-2026): ≤600 images/PDF pages per request, >20 images ⇒ ≤3000 px per side, ≤10 MB per image
@@ -70,6 +72,7 @@ export const DEFAULT_LIMITS: BatchLimits = {
   maxImagePixels: 60_000_000,
   maxFileMs: 30_000,
   workerMemoryMb: 768,
+  workerRssMb: 1024,
 };
 
 export type TooLarge = { status: "too_large"; limit: "files" | "pages" | "bytes"; max: number; actual: number; reasonEs: string };
@@ -108,16 +111,175 @@ export function sniffType(b: Uint8Array): DetectedType {
   return "unknown";
 }
 
-/** Largest width × height declared by the HEIF `ispe` boxes (read before decoding anything). */
+class Bits {
+  private pos = 0;
+  private b: Uint8Array;
+  constructor(b: Uint8Array) {
+    this.b = b;
+  }
+  u(n: number): number {
+    let v = 0;
+    for (let i = 0; i < n; i++) {
+      const byte = this.b[this.pos >> 3];
+      if (byte === undefined) throw new RangeError("fin de datos");
+      v = v * 2 + ((byte >> (7 - (this.pos & 7))) & 1);
+      this.pos++;
+    }
+    return v;
+  }
+  ue(): number {
+    let zeros = 0;
+    while (this.u(1) === 0) if (++zeros > 31) throw new RangeError("ue demasiado largo");
+    return 2 ** zeros - 1 + this.u(zeros);
+  }
+}
+
+const tag = (b: Uint8Array, i: number, t: string) => b[i] === t.charCodeAt(0) && b[i + 1] === t.charCodeAt(1) && b[i + 2] === t.charCodeAt(2) && b[i + 3] === t.charCodeAt(3);
+
+/** Coded size of an HEVC sequence parameter set (NAL header included). */
+function hevcSpsPixels(nal: Uint8Array): number {
+  const rbsp: number[] = [];
+  for (let i = 2; i < nal.length; i++) {
+    if (i >= 4 && nal[i] === 3 && nal[i - 1] === 0 && nal[i - 2] === 0) continue;
+    rbsp.push(nal[i]);
+  }
+  const r = new Bits(Uint8Array.from(rbsp));
+  r.u(4);
+  const maxSub = r.u(3);
+  r.u(1);
+  r.u(96);
+  const present: [number, number][] = [];
+  for (let i = 0; i < maxSub; i++) present.push([r.u(1), r.u(1)]);
+  if (maxSub > 0) for (let i = maxSub; i < 8; i++) r.u(2);
+  for (const [profile, level] of present) {
+    if (profile) r.u(88);
+    if (level) r.u(8);
+  }
+  r.ue();
+  if (r.ue() === 3) r.u(1);
+  return r.ue() * r.ue();
+}
+
+/** Max frame size of an AV1 sequence header OBU inside av1C (0 when absent or not parseable here). */
+function av1SequencePixels(obus: Uint8Array): number {
+  let i = 0;
+  while (i < obus.length) {
+    const header = obus[i];
+    const type = (header >> 3) & 15;
+    const ext = (header >> 2) & 1;
+    const hasSize = (header >> 1) & 1;
+    i += 1 + ext;
+    let size = obus.length - i;
+    if (hasSize) {
+      size = 0;
+      for (let k = 0; k < 8; k++) {
+        const byte = obus[i++];
+        size += (byte & 127) * 2 ** (7 * k);
+        if (!(byte & 128)) break;
+      }
+    }
+    if (type === 1) {
+      const r = new Bits(obus.subarray(i, i + size));
+      r.u(3);
+      r.u(1);
+      if (r.u(1)) r.u(5);
+      else {
+        if (r.u(1)) return 0;
+        r.u(1);
+        const points = r.u(5) + 1;
+        for (let p = 0; p < points; p++) {
+          r.u(12);
+          if (r.u(5) > 7) r.u(1);
+        }
+      }
+      const wb = r.u(4) + 1;
+      const hb = r.u(4) + 1;
+      return (r.u(wb) + 1) * (r.u(hb) + 1);
+    }
+    i += size;
+  }
+  return 0;
+}
+
+/**
+ * Pixels an HEIF/AVIF will decode to, read before decoding. The `ispe` boxes are only a declaration: the coded size in
+ * the HEVC SPS / AV1 sequence header also counts, and a grid multiplies the tile size by the number of coded items.
+ * The decoder itself is still bounded by the worker memory watch.
+ */
 export function heifPixels(b: Uint8Array): number {
-  let max = 0;
+  let ispe = 0;
+  let coded = 0;
+  let grid = false;
+  const items = new Map<number, string>();
+  const located = new Map<number, [number, number]>();
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const uint = (p: number, n: number) => (n === 0 ? 0 : n === 2 ? v.getUint16(p) : n === 4 ? v.getUint32(p) : Number(v.getBigUint64(p)));
+  const boxEnd = (i: number) => Math.min(b.length, i - 4 + v.getUint32(i - 4));
   for (let i = 4; i + 16 <= b.length; i++) {
-    if (b[i] === 0x69 && b[i + 1] === 0x73 && b[i + 2] === 0x70 && b[i + 3] === 0x65) {
-      max = Math.max(max, v.getUint32(i + 8) * v.getUint32(i + 12));
+    try {
+      if (tag(b, i, "ispe")) ispe = Math.max(ispe, v.getUint32(i + 8) * v.getUint32(i + 12));
+      else if (tag(b, i, "infe") && b[i + 4] >= 2) {
+        const wide = b[i + 4] !== 2;
+        const id = uint(i + 8, wide ? 4 : 2);
+        const t = i + 8 + (wide ? 4 : 2) + 2;
+        const type = String.fromCharCode(b[t], b[t + 1], b[t + 2], b[t + 3]);
+        items.set(id, type);
+        if (type === "grid") grid = true;
+      } else if (tag(b, i, "iloc")) {
+        const version = b[i + 4];
+        const offSize = b[i + 8] >> 4, lenSize = b[i + 8] & 15, baseSize = b[i + 9] >> 4, idxSize = version >= 1 ? b[i + 9] & 15 : 0;
+        let p = i + 10;
+        const count = uint(p, version < 2 ? 2 : 4);
+        p += version < 2 ? 2 : 4;
+        for (let k = 0; k < count; k++) {
+          const id = uint(p, version < 2 ? 2 : 4);
+          p += version < 2 ? 2 : 4;
+          const method = version >= 1 ? v.getUint16(p) & 15 : 0;
+          if (version >= 1) p += 2;
+          p += 2;
+          const base = uint(p, baseSize);
+          p += baseSize;
+          const extents = v.getUint16(p);
+          p += 2;
+          for (let e = 0; e < extents; e++) {
+            p += idxSize;
+            const off = uint(p, offSize);
+            p += offSize;
+            const len = uint(p, lenSize);
+            p += lenSize;
+            if (e === 0 && method === 0) located.set(id, [base + off, len]);
+          }
+        }
+      } else if (tag(b, i, "hvcC")) {
+        const end = boxEnd(i);
+        let p = i + 4 + 22;
+        const arrays = b[p++] ?? 0;
+        for (let a = 0; a < arrays && p + 3 <= end; a++) {
+          const type = b[p] & 63;
+          const n = v.getUint16(p + 1);
+          p += 3;
+          for (let k = 0; k < n && p + 2 <= end; k++) {
+            const len = v.getUint16(p);
+            p += 2;
+            if (type === 33) coded = Math.max(coded, hevcSpsPixels(b.subarray(p, Math.min(end, p + len))));
+            p += len;
+          }
+        }
+      } else if (tag(b, i, "av1C")) coded = Math.max(coded, av1SequencePixels(b.subarray(i + 8, boxEnd(i))));
+    } catch {}
+  }
+  let codedItems = 0;
+  for (const [id, type] of items) {
+    if (type !== "hvc1" && type !== "av01") continue;
+    codedItems++;
+    const at = located.get(id);
+    if (type === "av01" && at && at[0] < b.length) {
+      try {
+        coded = Math.max(coded, av1SequencePixels(b.subarray(at[0], Math.min(b.length, at[0] + (at[1] || b.length)))));
+      } catch {}
     }
   }
-  return max;
+  return Math.max(ispe, grid ? coded * Math.max(1, codedItems) : coded);
 }
 
 const UNSUPPORTED_ES: Partial<Record<DetectedType, string>> = {
@@ -232,10 +394,12 @@ async function probe(u: { name: string; bytes: Uint8Array; type: DetectedType },
   }
   const notes: string[] = [];
   let input = u.bytes;
-  if (u.type === "heic") {
+  if (u.type === "heic" || u.type === "avif") {
     const px = heifPixels(u.bytes);
-    if (px === 0) throw new Unreadable("HEIC sin dimensiones legibles: imagen dañada");
+    if (px === 0) throw new Unreadable(`${u.type.toUpperCase()} sin dimensiones legibles: imagen dañada`);
     if (px > limits.maxImagePixels) throw new Unreadable(`imagen demasiado grande (más de ${limits.maxImagePixels / 1e6} megapíxeles)`);
+  }
+  if (u.type === "heic") {
     input = (await heavy.run<{ bytes: Uint8Array }>("heic", { bytes: u.bytes }, limits.maxFileMs)).bytes;
     notes.push("HEIC → JPEG");
   }
@@ -257,7 +421,7 @@ function heavyReason(err: unknown, what: string): string {
 }
 
 export async function prepareBatch(input: readonly SourceFile[], limits: BatchLimits = DEFAULT_LIMITS): Promise<PrepareResult> {
-  const heavy = new HeavyWorker({ memoryMb: limits.workerMemoryMb, timeoutMs: limits.maxFileMs });
+  const heavy = new HeavyWorker({ memoryMb: limits.workerMemoryMb, rssMb: limits.workerRssMb, timeoutMs: limits.maxFileMs });
   try {
     return await prepareWith(input, limits, heavy);
   } finally {
@@ -339,6 +503,10 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
       let pageTexts: string[] | null = null;
       if (u.bytes.length <= limits.maxPdfjsBytes) {
         const t = await heavy.run<{ texts: string[]; numPages: number }>("pdfText", { bytes: u.bytes }, limits.maxFileMs).catch(() => null);
+        if (t && t.numPages !== p.pageCount) {
+          skipped.push({ name: u.name, reasonEs: `PDF con un recuento de páginas dudoso (${p.pageCount} o ${t.numPages} según cómo se lea): hay que pedirlo de nuevo` });
+          continue;
+        }
         if (t && t.texts.length === p.pageCount) pageTexts = t.texts;
       }
       files.push({

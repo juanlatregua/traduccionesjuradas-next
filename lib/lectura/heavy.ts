@@ -2,10 +2,13 @@ import { Worker } from "node:worker_threads";
 
 // All heavy or synchronous work on client bytes (inflate, pdf.js, pdf-lib, heic-convert, sharp) runs in a worker thread
 // with a V8 memory cap; a deadline is enforced by TERMINATING the worker, which also stops synchronous loops.
-// The worker source is a plain JS string (no bundler can rewrite it) and loads its modules with createRequire(cwd).
-// Native memory used by libvips (sharp) is outside the V8 cap: the pixel limit protects that side.
+// Memory outside V8 (Uint8Array backing stores, wasm, libvips) escapes that cap: the main thread watches the process
+// RSS while a task runs and terminates the worker when it grows past the budget. A process-wide semaphore bounds how
+// many tasks run at once, so the budget holds per process. The worker source is a plain JS string (no bundler can
+// rewrite it) and loads its modules with createRequire(cwd).
 
-const WORKER_SOURCE = String.raw`
+export function workerSource(extraTasks = ""): string {
+  return String.raw`
 const { parentPort } = require("node:worker_threads");
 const zlib = require("node:zlib");
 const req = require("node:module").createRequire(process.cwd() + "/");
@@ -32,9 +35,51 @@ async function pageText(page) {
   }
   return text;
 }
+function contentLength(page) {
+  const { PDFArray, PDFRef, PDFRawStream } = lib.pdfLib();
+  const contents = page.node.Contents();
+  if (!contents) return 0;
+  const items = contents instanceof PDFArray ? contents.asArray() : [contents];
+  let total = 0;
+  for (const item of items) {
+    const stream = item instanceof PDFRef ? page.doc.context.lookup(item) : item;
+    if (stream instanceof PDFRawStream) total += stream.contents.length;
+    else if (stream && typeof stream.getContentsSize === "function") total += stream.getContentsSize();
+  }
+  return total;
+}
+const A4 = { w: 595.28, h: 841.89 };
+async function assembleOne(PDFDocument, files, loaded, parts) {
+  const out = await PDFDocument.create();
+  const expect = [];
+  for (const part of parts) {
+    const file = files.get(part.fileIndex);
+    if (file.kind === "pdf") {
+      const src = loaded.get(file.index);
+      if (!src) return { ok: false, reasonEs: "el archivo " + file.index + " no se puede abrir para montar el documento" };
+      if (src.getPageCount() !== file.pageCount) return { ok: false, reasonEs: "el archivo " + file.index + " no tiene las páginas contadas al prepararlo" };
+      const [page] = await out.copyPages(src, [part.page - 1]);
+      out.addPage(page);
+      expect.push(contentLength(src.getPage(part.page - 1)) > 0);
+      continue;
+    }
+    const image = file.mediaType === "image/png" ? await out.embedPng(file.bytes) : await out.embedJpg(file.bytes);
+    const page = out.addPage(image.width > image.height ? [A4.h, A4.w] : [A4.w, A4.h]);
+    const { width, height } = page.getSize();
+    const scale = Math.min(width / image.width, height / image.height);
+    const w = image.width * scale, h = image.height * scale;
+    page.drawImage(image, { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h });
+    expect.push(true);
+  }
+  const bytes = await out.save();
+  const check = await PDFDocument.load(bytes);
+  if (check.getPageCount() !== parts.length) return { ok: false, reasonEs: "se esperaban " + parts.length + " páginas y salieron " + check.getPageCount() };
+  const blank = check.getPages().findIndex((p, i) => expect[i] && contentLength(p) === 0);
+  if (blank >= 0) return { ok: false, reasonEs: "la página " + (blank + 1) + " del montaje ha salido vacía y su original no lo estaba" };
+  return { ok: true, bytes, pageCount: parts.length };
+}
 const tasks = {
-  spin: async ({ ms }) => { const end = Date.now() + ms; while (Date.now() < end) {} return { done: true }; },
-  allocate: async ({ mb }) => { const keep = []; for (let i = 0; i < mb; i++) keep.push(new Array(131072).fill(i)); return { n: keep.length }; },
+  ${extraTasks}
   inflate: async ({ bytes, max }) => {
     try { const out = zlib.inflateRawSync(bytes, { maxOutputLength: Math.max(1, max) }); return { bytes: new Uint8Array(out) }; }
     catch (e) { if (e && e.code === "ERR_BUFFER_TOO_LARGE") return { tooLarge: true }; return { broken: true }; }
@@ -78,6 +123,21 @@ const tasks = {
     }
     return { bytes: new Uint8Array(out) };
   },
+  assemble: async ({ files, documents }) => {
+    const { PDFDocument } = lib.pdfLib();
+    const byIndex = new Map(files.map((f) => [f.index, f]));
+    const loaded = new Map();
+    for (const f of files) {
+      if (f.kind !== "pdf") continue;
+      try { loaded.set(f.index, await PDFDocument.load(f.bytes, { updateMetadata: false })); } catch { loaded.set(f.index, null); }
+    }
+    const results = [];
+    for (const parts of documents) {
+      try { results.push(await assembleOne(PDFDocument, byIndex, loaded, parts)); }
+      catch { results.push({ ok: false, reasonEs: "el documento no se ha podido montar" }); }
+    }
+    return { results };
+  },
 };
 parentPort.on("message", async ({ id, task, args }) => {
   try {
@@ -88,26 +148,56 @@ parentPort.on("message", async ({ id, task, args }) => {
   }
 });
 `;
+}
+
+const PRODUCTION_SOURCE = workerSource();
 
 export class WorkerTimeout extends Error {}
 export class WorkerDied extends Error {}
+export class WorkerOutOfMemory extends WorkerDied {}
 export class WorkerTaskError extends Error {}
 
-export type HeavyLimits = { memoryMb: number; timeoutMs: number };
-export const DEFAULT_HEAVY: HeavyLimits = { memoryMb: 768, timeoutMs: 30_000 };
+/** memoryMb: V8 heap of the worker. rssMb: growth of the process RSS during one task (V8 + everything outside it). */
+export type HeavyLimits = { memoryMb: number; rssMb: number; timeoutMs: number };
+export const DEFAULT_HEAVY: HeavyLimits = { memoryMb: 768, rssMb: 1024, timeoutMs: 30_000 };
+export const HEAVY_SLOTS = 2;
+const RSS_POLL_MS = 5;
 
-/** One worker, one task at a time; a timed-out or crashed worker is discarded and replaced on the next task. */
+class Semaphore {
+  private free: number;
+  private waiting: (() => void)[] = [];
+  constructor(n: number) {
+    this.free = n;
+  }
+  async acquire(): Promise<() => void> {
+    if (this.free > 0) this.free--;
+    else await new Promise<void>((r) => this.waiting.push(r));
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      const next = this.waiting.shift();
+      if (next) next();
+      else this.free++;
+    };
+  }
+}
+const slots = new Semaphore(HEAVY_SLOTS);
+
+/** One worker, one task at a time; a timed-out, oversized or crashed worker is discarded and replaced on the next task. */
 export class HeavyWorker {
   private worker: Worker | null = null;
   private seq = 0;
   private chain: Promise<unknown> = Promise.resolve();
   private limits: HeavyLimits;
-  constructor(limits: HeavyLimits = DEFAULT_HEAVY) {
+  private source: string;
+  constructor(limits: HeavyLimits = DEFAULT_HEAVY, source = PRODUCTION_SOURCE) {
     this.limits = limits;
+    this.source = source;
   }
 
   private spawn(): Worker {
-    const w = new Worker(WORKER_SOURCE, {
+    const w = new Worker(this.source, {
       eval: true,
       resourceLimits: { maxOldGenerationSizeMb: this.limits.memoryMb, maxYoungGenerationSizeMb: 64 },
     });
@@ -121,12 +211,23 @@ export class HeavyWorker {
     return next;
   }
 
-  private exec<T>(task: string, args: Record<string, unknown>, timeoutMs: number): Promise<T> {
-    const w = (this.worker ??= this.spawn());
+  private async exec<T>(task: string, args: Record<string, unknown>, timeoutMs: number): Promise<T> {
+    const release = await slots.acquire();
+    let w: Worker;
+    try {
+      w = this.worker ??= this.spawn();
+    } catch (err) {
+      release();
+      throw err;
+    }
     const id = ++this.seq;
+    const base = process.memoryUsage.rss();
+    const budget = this.limits.rssMb * 1024 * 1024;
     return new Promise<T>((resolve, reject) => {
       const done = (fn: () => void) => {
         clearTimeout(timer);
+        clearInterval(watch);
+        release();
         w.off("message", onMessage);
         w.off("error", onError);
         w.off("exit", onExit);
@@ -137,6 +238,10 @@ export class HeavyWorker {
         void w.terminate();
       };
       const timer = setTimeout(() => done(() => { kill(); reject(new WorkerTimeout(`${task}: más de ${timeoutMs} ms`)); }), timeoutMs);
+      const watch = setInterval(() => {
+        const grown = process.memoryUsage.rss() - base;
+        if (grown > budget) done(() => { kill(); reject(new WorkerOutOfMemory(`${task}: más de ${this.limits.rssMb} MB de memoria`)); });
+      }, RSS_POLL_MS);
       const onMessage = (m: { id: number; ok: boolean; result?: T; error?: { name: string; message: string } }) => {
         if (m.id !== id) return;
         done(() => (m.ok ? resolve(m.result as T) : reject(new WorkerTaskError(m.error?.message ?? "error"))));

@@ -13,7 +13,7 @@ export type { ReadingContext } from "./prompt.ts";
 export type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
 export { prepareBatch, DEFAULT_LIMITS } from "./prepare.ts";
 export { validateReading } from "./validate.ts";
-export { assembleDocumentPdf, documentFileName, documentFileNames, type AssembledPdf } from "./assemble.ts";
+export { assembleDocumentPdfs, documentFileName, documentFileNames, type AssembledPdf } from "./assemble.ts";
 export { documentLabel } from "./label.ts";
 export { partitionOf, samePartition } from "./invariance.ts";
 export { priceHint, type PriceHint } from "./price-hint.ts";
