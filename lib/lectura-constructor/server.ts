@@ -39,7 +39,7 @@ export async function filesOfSource(source: LoteSource): Promise<SourceRef[]> {
   return rows.filter((r) => isOwnBlobUrl(r.url, token) && !seen.has(r.url) && Boolean(seen.add(r.url))).slice(0, MAX_FILES);
 }
 
-async function download(ref: SourceRef): Promise<Uint8Array> {
+export async function download(ref: SourceRef): Promise<Uint8Array> {
   if (!isOwnBlobUrl(ref.url, process.env.BLOB_READ_WRITE_TOKEN)) throw new Error(`«${ref.name}» no está en nuestro almacén`);
   const res = await fetch(ref.url, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`«${ref.name}»: HTTP ${res.status}`);
@@ -50,7 +50,7 @@ async function download(ref: SourceRef): Promise<Uint8Array> {
   return bytes;
 }
 
-const startDeps: StartDeps = {
+export const startDeps: StartDeps = {
   store: lecturaStore,
   listFiles: filesOfSource,
   download,

@@ -6,6 +6,15 @@ import { lecturaConstructorOn } from "@/lib/lectura-constructor/flag.ts";
 import { lecturaStore } from "@/lib/lectura-constructor/server.ts";
 import { viewOf } from "@/lib/lectura-constructor/api.ts";
 import LecturaConstructor, { type LecturaSource } from "@/components/lectura/LecturaConstructor";
+import { puertaV2On } from "@/lib/entrada/flag.ts";
+import { EntradaResumen, EntradasPendientes } from "@/components/entrada/EntradasGestor";
+
+async function casoRefs(ids: (string | null)[]): Promise<Record<string, string>> {
+  const list = [...new Set(ids.filter((x): x is string => Boolean(x)))];
+  if (list.length === 0) return {};
+  const rows = await prisma.caso.findMany({ where: { id: { in: list } }, select: { id: true, ref: true } });
+  return Object.fromEntries(rows.map((r) => [r.id, r.ref]));
+}
 
 export const metadata: Metadata = {
   title: "Zona traductor — Leer el lote",
@@ -29,7 +38,22 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
       : quoteId
         ? { kind: "quote", quoteId }
         : null;
-  if (!source) notFound();
+  if (!source) {
+    if (!puertaV2On()) notFound();
+    const entradas = await prisma.entrada.findMany({
+      where: { estado: { in: ["confirmada", "leida", "sin_jurado"] }, updatedAt: { gte: new Date(Date.now() - 30 * 864e5) } },
+      orderBy: [{ confirmedAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
+      take: 100,
+    });
+    const refs = await casoRefs(entradas.flatMap((e) => [e.casoId, ...e.posibles]));
+    return (
+      <div className="min-h-screen bg-slate-950">
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+          <EntradasPendientes entradas={entradas} refs={refs} />
+        </div>
+      </div>
+    );
+  }
 
   const where = casoId ? { casoId } : sessionKey ? { sessionKey } : { quoteId };
   const latest = await prisma.lecturaLote.findFirst({ where, orderBy: { createdAt: "desc" }, select: { id: true } });
@@ -49,6 +73,8 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
     phone: contact?.clientPhone || caso?.phone9 || "",
   };
   const expedienteRef = sessionKey.startsWith("exp:") ? sessionKey.slice(4) : null;
+  const entradas = casoId && puertaV2On() ? await prisma.entrada.findMany({ where: { casoId }, orderBy: { createdAt: "asc" } }) : [];
+  const entradaRefs = await casoRefs(entradas.flatMap((e) => e.posibles));
 
   return (
     <div className="min-h-screen bg-slate-950">
@@ -60,6 +86,7 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
             La lectura agrupa los archivos en documentos. Revisa, corrige y confirma: ninguna línea existe sin que una persona la confirme.
           </p>
         </header>
+        <EntradaResumen entradas={entradas} refs={entradaRefs} />
         <LecturaConstructor source={source} initialView={data ? viewOf(data) : null} customer={customer} expedienteRef={expedienteRef} />
       </div>
     </div>

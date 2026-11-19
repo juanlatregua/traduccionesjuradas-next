@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 import Link from "next/link";
 import PuertaClient from "./PuertaClient";
+import PuertaV2 from "@/components/entrada/PuertaV2";
+import { puertaV2On } from "@/lib/entrada/flag";
 import { PUERTA_LANGS, WHATSAPP_HEAD, toPuertaLang } from "@/lib/i18n/whatsapp-arrival";
 
 // Presets de pricing activables por query param (?p=…). Solo regularización
@@ -47,6 +49,20 @@ export default function PresupuestoInstantaneoPage({
   const source = (presetKey && KNOWN_SOURCES.has(presetKey) && presetKey) || null;
   const lang = toPuertaLang(searchParams?.l);
   const resumeToken = searchParams?.r || null;
+
+  if (puertaV2On()) {
+    return (
+      <section className="mx-auto max-w-3xl px-4 py-12">
+        <div className="mb-8 text-center">
+          <h1 className="font-baskerville text-3xl font-bold leading-tight text-bleu sm:text-4xl">Cuéntanos qué necesitas traducir</h1>
+          <p className="mx-auto mt-3 max-w-xl text-lg text-graphite">
+            Sube tus documentos, los revisamos juntos para que no falte nada y Juan te manda el presupuesto cerrado, normalmente en el día.
+          </p>
+        </div>
+        <PuertaV2 />
+      </section>
+    );
+  }
 
   if (source === "whatsapp") {
     const head = WHATSAPP_HEAD[lang];

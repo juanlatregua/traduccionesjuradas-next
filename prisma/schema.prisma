@@ -1338,3 +1338,34 @@ model LecturaDocumento {
 
   @@index([loteId, position])
 }
+
+// Entrada única (R2a): web, constructor y bandeja abren lo mismo. Archivos = DocumentAnalysis con sessionToken "entrada:<id>".
+model Entrada {
+  id                 String    @id @default(cuid())
+  tokenHash          String    @unique
+  canal              String
+  estado             String    @default("abierta")
+  casoId             String?
+  loteId             String?
+  regla              String?
+  posibles           String[]
+  email              String?
+  phone9             String?
+  nombre             String?
+  sourceLang         String?
+  targetLang         String?
+  urgency            String?
+  neededBy           DateTime?
+  organismo          String?
+  notas              String?
+  ipHash             String?
+  gdprConsentAt      DateTime
+  marketingConsentAt DateTime?
+  confirmedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([casoId])
+  @@index([estado, updatedAt])
+  @@index([email])
+}
