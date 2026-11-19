@@ -15,6 +15,8 @@ import type { Aviso, FlowDeps, Jurado } from "./flow.ts";
 import { resolverEntrada, type GateDeps } from "./puerta.ts";
 import { filesWithoutHash, prismaEntradaStore, prismaGateTx, readingExtras, reusableLote } from "./prisma-store.ts";
 import { langName } from "./view.ts";
+import { codeEmail } from "./codigo.ts";
+import { sessionKeyOf } from "./store.ts";
 
 const own = (url: string) => isOwnBlobUrl(url, process.env.BLOB_READ_WRITE_TOKEN);
 const download = (url: string) => lecturaDownload({ name: decodeURIComponent(url.split("?")[0].split("/").pop() || "archivo"), url, mimeType: null });
@@ -80,18 +82,24 @@ export const flowDeps: FlowDeps = {
       await prisma.caso.update({ where: { id: casoId }, data: { urgency, neededBy } });
     },
     cerrarSinJurado: async (casoId, entradaId) => {
-      const [quotes, orders, requests, entradas] = await Promise.all([
+      const [quotes, orders, requests, entradas, files, inbound] = await Promise.all([
         prisma.quote.count({ where: { casoId, deletedAt: null } }),
         prisma.order.count({ where: { casoId } }),
         prisma.lavoriPriceRequest.count({ where: { casoId } }),
         prisma.entrada.count({ where: { casoId, id: { not: entradaId } } }),
+        prisma.documentAnalysis.count({ where: { casoId, OR: [{ sessionToken: null }, { sessionToken: { not: sessionKeyOf(entradaId) } }] } }),
+        prisma.inboundEmail.count({ where: { casoId } }),
       ]);
-      if (quotes + orders + requests + entradas > 0) return false;
+      if (quotes + orders + requests + entradas + files + inbound > 0) return false;
       const r = await prisma.caso.updateMany({ where: { id: casoId, estado: "ABIERTO" }, data: { estado: "SIN_JURADO", closedAt: new Date() } });
       return r.count === 1;
     },
   },
   notify,
+  sendCode: async (to, code, lang) => {
+    const { subject, html } = codeEmail(lang, code);
+    await sendMail({ to, subject, html });
+  },
   now: () => new Date(),
   newId: randomUUID,
 };
@@ -100,6 +108,10 @@ export const entradaApiDeps: EntradaApiDeps = {
   ...flowDeps,
   enabled: () => puertaV2On(),
   rateLimit: (key, limit, windowMs) => checkRateLimit({ key, limit, windowMs }),
+  alertStaff: async (subject, text) => {
+    const to = process.env.PRESUPUESTO_TO;
+    if (to) await sendMail({ to, subject, html: `<p>${escapeHtml(text)}</p>` });
+  },
   clientIp: getClientIp,
   ipHash: (ip) => createHash("sha256").update(ip).digest("hex").slice(0, 16),
   isOwnBlobUrl: own,

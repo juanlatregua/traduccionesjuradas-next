@@ -67,6 +67,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   const [neededBy, setNeededBy] = useState("");
   const [organismo, setOrganismo] = useState("");
   const [notas, setNotas] = useState("");
+  const [code, setCode] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const reading = useRef(false);
 
@@ -125,6 +126,20 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
     }
     setBusy(null);
     if (fileInput.current) fileInput.current.value = "";
+  }
+
+  async function verify() {
+    if (!token) return;
+    setBusy(t.oneMoment);
+    const { data } = await call(`/api/entrada/${token}/verificar`, "POST", { code: code.trim() });
+    setBusy(null);
+    apply(data);
+  }
+
+  async function resend() {
+    if (!token) return;
+    const { data } = await call(`/api/entrada/${token}/codigo`, "POST");
+    apply(data);
   }
 
   async function remove(id: string) {
@@ -282,8 +297,19 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
           </ul>
           <input ref={fileInput} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.tif,.tiff,.webp" className="hidden" onChange={(e) => addFiles(e.target.files)} />
         </div>
+        {!view.emailVerificado && (
+          <div className={`${card} space-y-3`}>
+            <p className="text-sm text-encre">{t.codeTitle(view.email ?? "")}</p>
+            <div className="flex flex-wrap gap-3">
+              <input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ""))} className="w-32 rounded-lg border border-graphite/30 px-3 py-2 text-center text-lg tracking-widest" />
+              <button className={btn} disabled={code.length !== 6 || !!busy} onClick={verify}>{t.codeBtn}</button>
+              <button className="text-sm text-bleu underline" onClick={resend}>{t.codeResend}</button>
+            </div>
+          </div>
+        )}
         {busyBox}
         {errorBox}
+        {!view.emailVerificado && view.archivos.length > 0 && <p className="text-sm text-graphite">{t.codeNeeded}</p>}
         {asking ? (
           <div className={`${card} space-y-3`}>
             <p className="font-semibold text-encre">{t.askTitle}</p>
@@ -294,7 +320,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
             </div>
           </div>
         ) : (
-          <button className={btn} disabled={view.archivos.length === 0 || !!busy} onClick={() => setAsking(true)}>{t.finished}</button>
+          <button className={btn} disabled={view.archivos.length === 0 || !view.emailVerificado || !!busy} onClick={() => setAsking(true)}>{t.finished}</button>
         )}
       </div>
     );

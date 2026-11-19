@@ -15,6 +15,7 @@ function api(opts: { on?: boolean; limit?: number } = {}) {
       hits.set(key, n);
       return { ok: n <= Math.min(limit, opts.limit ?? Infinity), retryAfterSec: 60 };
     },
+    alertStaff: async () => {},
     clientIp: () => "1.2.3.4",
     ipHash: () => "iph",
     isOwnBlobUrl: (u) => u.startsWith("https://abc.public.blob.vercel-storage.com/"),

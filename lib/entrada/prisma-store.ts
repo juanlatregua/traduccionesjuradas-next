@@ -10,7 +10,8 @@ type EntradaRecord = Prisma.EntradaGetPayload<{}>;
 const toEntrada = (r: EntradaRecord): EntradaRow => ({
   id: r.id, canal: r.canal as Canal, estado: r.estado as EntradaEstado, casoId: r.casoId, loteId: r.loteId, regla: r.regla, posibles: r.posibles, relacionados: r.relacionados, source: r.source, lang: r.lang,
   email: r.email, phone9: r.phone9, nombre: r.nombre, sourceLang: r.sourceLang, targetLang: r.targetLang, urgency: r.urgency, neededBy: r.neededBy,
-  organismo: r.organismo, notas: r.notas, confirmedAt: r.confirmedAt, createdAt: r.createdAt, updatedAt: r.updatedAt,
+  organismo: r.organismo, notas: r.notas, confirmedAt: r.confirmedAt,
+  emailVerifiedAt: r.emailVerifiedAt, codeHash: r.codeHash, codeExpiresAt: r.codeExpiresAt, codeAttempts: r.codeAttempts, createdAt: r.createdAt, updatedAt: r.updatedAt,
 });
 
 export function prismaEntradaStore(db: PrismaClient): EntradaStore {
@@ -56,6 +57,10 @@ export function prismaEntradaStore(db: PrismaClient): EntradaStore {
       const r = await db.entrada.updateMany({ where: { id, estado: { in: [...onlyIn] } }, data: patch });
       return r.count === 1;
     },
+    async takeAttempt(id, max) {
+      const r = await db.entrada.updateMany({ where: { id, codeAttempts: { lt: max } }, data: { codeAttempts: { increment: 1 } } });
+      return r.count === 1;
+    },
     async linkFilesToCaso(entradaId, casoId) {
       await db.documentAnalysis.updateMany({ where: { sessionToken: sessionKeyOf(entradaId), casoId: null }, data: { casoId } });
     },
@@ -76,7 +81,7 @@ export function prismaGateTx(tx: Prisma.TransactionClient): GateTx {
         where: {
           OR: [
             { id: { in: [...porHuella] } },
-            { estado: "ABIERTO", lastActivityAt: { gte: q.vivosDesde }, OR: [{ email: { in: q.emails } }, { phone9: { in: q.phones } }, { nombre: { not: null } }] },
+            { estado: { in: ["ABIERTO", "PERDIDO"] }, lastActivityAt: { gte: q.vivosDesde }, OR: [{ email: { in: q.emails } }, { phone9: { in: q.phones } }, { nombre: { not: null } }] },
           ],
         },
         orderBy: { lastActivityAt: "desc" },
@@ -108,7 +113,7 @@ export function prismaGateTx(tx: Prisma.TransactionClient): GateTx {
     async unir(id, p) {
       await tx.caso.update({
         where: { id },
-        data: { lastActivityAt: p.ahora, ...(p.email ? { email: p.email } : {}), ...(p.phone9 ? { phone9: p.phone9 } : {}), ...(p.reabrir ? { estado: "ABIERTO", closedAt: null } : {}) },
+        data: { lastActivityAt: p.ahora, ...(p.reabrir ? { estado: "ABIERTO", closedAt: null } : {}) },
       });
     },
     async evento(casoId, tipo, actor, payload) {

@@ -24,6 +24,10 @@ export type EntradaRow = {
   organismo: string | null;
   notas: string | null;
   confirmedAt: Date | null;
+  emailVerifiedAt: Date | null;
+  codeHash: string | null;
+  codeExpiresAt: Date | null;
+  codeAttempts: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -31,13 +35,14 @@ export type EntradaRow = {
 export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nombre" | "sourceLang" | "targetLang" | "source" | "lang"> & {
   tokenHash: string;
   ipHash: string | null;
+  emailVerifiedAt: Date | null;
   gdprConsentAt: Date;
   marketingConsentAt: Date | null;
 };
 
 export type ArchivoRow = { id: string; name: string; url: string; mimeType: string; size: number; sha256: string };
 
-export type EntradaPatch = Partial<Pick<EntradaRow, "estado" | "casoId" | "loteId" | "regla" | "posibles" | "relacionados" | "targetLang" | "urgency" | "neededBy" | "organismo" | "notas" | "confirmedAt">>;
+export type EntradaPatch = Partial<Pick<EntradaRow, "estado" | "casoId" | "loteId" | "regla" | "posibles" | "relacionados" | "targetLang" | "urgency" | "neededBy" | "organismo" | "notas" | "confirmedAt" | "emailVerifiedAt" | "codeHash" | "codeExpiresAt" | "codeAttempts">>;
 
 export type EntradaStore = {
   create(data: NuevaEntrada): Promise<EntradaRow>;
@@ -50,6 +55,8 @@ export type EntradaStore = {
   /** Applies only while the entrada is in one of `onlyIn`. */
   update(id: string, patch: EntradaPatch, onlyIn: readonly EntradaEstado[]): Promise<boolean>;
   linkFilesToCaso(entradaId: string, casoId: string): Promise<void>;
+  /** Consumes one verification attempt while fewer than `max` were used; false when none are left. */
+  takeAttempt(id: string, max: number): Promise<boolean>;
 };
 
 export const sessionKeyOf = (entradaId: string) => `entrada:${entradaId}`;

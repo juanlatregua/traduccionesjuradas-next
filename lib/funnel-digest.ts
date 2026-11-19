@@ -9,6 +9,8 @@ import { escapeHtml, sanitizeUrl } from "@/lib/collaborator-emails";
 import { effectiveLostReasonLabel } from "@/lib/quote-lost-reasons";
 import { findCostGapOrders } from "@/lib/cierre";
 import { PersonIndex, personKeys } from "@/lib/vigia-persona";
+import { loadEntradaFunnel, loadEntradaLeads } from "@/lib/entrada/leads-db";
+import { ENTRADA_SESSION_PREFIX } from "@/lib/entrada/leads";
 
 export const FUNNEL_STAGES = [
   { key: "analizado", label: "Documento analizado" },
@@ -32,10 +34,10 @@ export async function funnelForWindow(days: number, source?: string): Promise<Fu
     ...(source ? { source } : {}),
     OR: [
       { sessionToken: null },
-      { NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }] },
+      { NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }, { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } }] },
     ],
   };
-  const [analizado, presupuesto, lead, pedido, pagado, expGroups] = await Promise.all([
+  const [analizadoDocs, presupuesto, leadDocs, pedido, pagado, expGroups, entradas] = await Promise.all([
     prisma.documentAnalysis.count({ where: base }),
     prisma.documentAnalysis.count({ where: { ...base, quoteAmount: { not: null } } }),
     prisma.documentAnalysis.count({ where: { ...base, clientEmail: { not: null }, AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }] } }),
@@ -45,8 +47,9 @@ export async function funnelForWindow(days: number, source?: string): Promise<Fu
       by: ["sessionToken"],
       where: { createdAt: { gte: since }, ...(source ? { source } : {}), sessionToken: { startsWith: "exp:" } },
     }),
+    loadEntradaFunnel(since, source),
   ]);
-  return { analizado, presupuesto, lead, pedido, pagado, expedientes: expGroups.length };
+  return { analizado: analizadoDocs + entradas.analizado, presupuesto, lead: leadDocs + entradas.lead, pedido, pagado, expedientes: expGroups.length };
 }
 
 export type StaffDigest = {
@@ -98,7 +101,7 @@ export type LostQuoteEntry = {
 export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
   const since = new Date(Date.now() - windowHours * 60 * 60 * 1000);
 
-  const [day, week, paid, recentAnalyses, failed, lost, leadDocs, windowQuotes, costGaps] = await Promise.all([
+  const [day, week, paid, recentAnalyses, failed, lost, docLeads, windowQuotes, costGaps, entradaLeadDocs] = await Promise.all([
     funnelForWindow(windowHours / 24),
     funnelForWindow(7),
     prisma.order.findMany({
@@ -152,6 +155,7 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
         NOT: [
           { sessionToken: { startsWith: "exp:" } },
           { sessionToken: { startsWith: "staff:" } },
+          { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } },
         ],
         AND: [{ OR: [{ source: null }, { source: { not: "lector" } }] }],
       },
@@ -180,7 +184,9 @@ export async function buildStaffDigest(windowHours = 24): Promise<StaffDigest> {
       console.error("[funnel-digest] costGaps", err);
       return [];
     }),
+    loadEntradaLeads(since),
   ]);
+  const leadDocs = [...docLeads, ...entradaLeadDocs];
 
   // Quien ya pagó en la ventana no es un lead (26-ago: Joaquim salía en "pagados"
   // y a la vez en "leads sin pedido").

@@ -61,3 +61,9 @@ export function entradaLeads(entradas: EntradaParaLead[]): EntradaLead[] {
       link: e.casoId ? `${SITE}/zona-traductor/lectura?caso=${encodeURIComponent(e.casoId)}` : `${SITE}/zona-traductor/lectura?session=${encodeURIComponent(sessionKeyOf(e.id))}`,
     }));
 }
+
+/** Funnel: one entrada counts once whatever its number of files. analizado = it was read; lead = it left a contact. */
+export function entradaFunnel(entradas: { loteId: string | null; email: string | null; phone9: string | null; files: number }[]): { analizado: number; lead: number } {
+  const withFiles = entradas.filter((e) => e.files > 0);
+  return { analizado: withFiles.filter((e) => e.loteId).length, lead: withFiles.filter((e) => e.email || e.phone9).length };
+}

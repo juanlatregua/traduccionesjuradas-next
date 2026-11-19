@@ -1,6 +1,6 @@
 // Puerta de identidad única (lógica PURA): antes de crear nada, ¿esta entrada es de un caso vivo?
 //  1. huella  — comparte un archivo (sha256) con un caso → ese caso.
-//  2. contacto — email o teléfono conocido (lib/client-identity + alias + veto de intermediarios) con caso ABIERTO en 14 días.
+//  2. contacto — email (verificado) o alias declarado, con caso ABIERTO o PERDIDO sin pedido en 14 días.
 //  3. dudoso  — nombre parecido, o mismo teléfono con otro email: caso NUEVO marcado «¿mismo cliente que…?». Nunca une.
 import { compararIdentidad, type Identidad } from "../caso/identidad.ts";
 
@@ -72,7 +72,7 @@ export function decidirEntrada(s: SenalEntrada, casos: CasoVisto[]): DecisionEnt
     return { accion: "unir", casoId: elegido.id, regla: "huella", dudoso: false, posibles: porHuella.filter((c) => c !== elegido && unible(c)).map((c) => c.id), relacionados };
   }
 
-  const vivos = casos.filter((c) => c.estado === "ABIERTO" && !c.conPedido && edad(c) <= VENTANA_CONTACTO_DIAS * DAY);
+  const vivos = casos.filter((c) => (c.estado === "ABIERTO" || c.estado === "PERDIDO") && !c.conPedido && edad(c) <= VENTANA_CONTACTO_DIAS * DAY);
   const fuerzas = vivos.map((c) => ({ c, f: s.identidad.keys.length ? compararIdentidad(s.identidad, c.identidad) : "ninguna" }));
   const mismo = fuerzas.filter(({ f }) => f === "fuerte").map(({ c }) => c).sort(reciente);
   if (mismo.length > 0) {

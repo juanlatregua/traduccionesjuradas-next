@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { entradaLeads, type EntradaLead } from "./leads.ts";
+import { entradaFunnel, entradaLeads, type EntradaLead } from "./leads.ts";
 import { sessionKeyOf } from "./store.ts";
 
 /** Fail-open: before the Entrada table exists (or if it fails) the vigía and the SLA keep working without it. */
@@ -28,5 +28,18 @@ export async function loadEntradaLeads(since: Date): Promise<EntradaLead[]> {
   } catch (err) {
     console.error("[entrada] leads", err);
     return [];
+  }
+}
+
+export async function loadEntradaFunnel(since: Date, source?: string): Promise<{ analizado: number; lead: number }> {
+  try {
+    const entradas = await prisma.entrada.findMany({ where: { createdAt: { gte: since }, ...(source ? { source } : {}) }, select: { id: true, loteId: true, email: true, phone9: true } });
+    if (entradas.length === 0) return { analizado: 0, lead: 0 };
+    const groups = await prisma.documentAnalysis.groupBy({ by: ["sessionToken"], where: { sessionToken: { in: entradas.map((e) => sessionKeyOf(e.id)) } }, _count: { _all: true } });
+    const n = new Map(groups.map((g) => [g.sessionToken, g._count._all]));
+    return entradaFunnel(entradas.map((e) => ({ ...e, files: n.get(sessionKeyOf(e.id)) ?? 0 })));
+  } catch (err) {
+    console.error("[entrada] funnel", err);
+    return { analizado: 0, lead: 0 };
   }
 }

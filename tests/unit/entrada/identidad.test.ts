@@ -38,7 +38,8 @@ test("contacto: same email or phone with an open caso in 14 days joins; older do
   const c = caso({ email: "ana@x.com", lastActivityAt: hace(13) });
   assert.deepEqual([decidirEntrada(senal({ email: "ANA@x.com " }), [c]).regla], ["contacto"]);
   assert.equal(decidirEntrada(senal({ email: "ana@x.com" }), [{ ...c, lastActivityAt: hace(15) }]).accion, "crear");
-  assert.equal(decidirEntrada(senal({ email: "ana@x.com" }), [{ ...c, estado: "PERDIDO" }]).accion, "crear");
+  assert.equal(decidirEntrada(senal({ email: "ana@x.com" }), [{ ...c, estado: "PERDIDO" }]).accion, "unir", "a lost caso without order comes back");
+  assert.equal(decidirEntrada(senal({ email: "ana@x.com" }), [{ ...c, estado: "ENTREGADO" }]).accion, "crear");
 });
 
 test("contacto with different documents still joins (one caso per person while it lives)", () => {

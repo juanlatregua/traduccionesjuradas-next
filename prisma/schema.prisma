@@ -1365,6 +1365,10 @@ model Entrada {
   gdprConsentAt      DateTime
   marketingConsentAt DateTime?
   confirmedAt        DateTime?
+  emailVerifiedAt    DateTime?
+  codeHash           String?
+  codeExpiresAt      DateTime?
+  codeAttempts       Int       @default(0)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 

@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { emailReal, telefono9 } from "../caso/identidad.ts";
 import { parseDeadline } from "../needed-by.ts";
-import { abrirEntrada, confirmarEntrada, editarEntrada, leerEntrada, quitarArchivo, registrarArchivo, tokenHashOf, vistaEntrada, type FlowDeps, type Outcome } from "./flow.ts";
+import { abrirEntrada, confirmarEntrada, editarEntrada, enviarCodigo, leerEntrada, quitarArchivo, registrarArchivo, tokenHashOf, verificarCodigo, vistaEntrada, type FlowDeps, type Outcome } from "./flow.ts";
 import type { EntradaRow } from "./store.ts";
 
 export type ApiResponse = { status: number; body: unknown; headers?: Record<string, string> };
 export type EntradaApiDeps = FlowDeps & {
   enabled(): boolean;
-  rateLimit(key: string, limit: number, windowMs: number): Promise<{ ok: boolean; retryAfterSec: number }>;
+  rateLimit(key: string, limit: number, windowMs: number): Promise<{ ok: boolean; retryAfterSec: number; remaining?: number }>;
+  alertStaff(subject: string, text: string): Promise<void>;
   clientIp(req: Request): string;
   ipHash(ip: string): string;
   isOwnBlobUrl(url: string): boolean;
@@ -17,6 +18,13 @@ const HOUR = 36e5;
 const DAY = 24 * HOUR;
 export const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/heic", "image/heif", "image/tiff", "image/webp"] as const;
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** Readings cost money: per verified email, per IP and a global ceiling; staff hears at half of it. */
+export const READS_PER_EMAIL_DAY = 3;
+export const READS_PER_IP_DAY = 10;
+export const READS_GLOBAL_DAY = 400;
+export const CODES_PER_EMAIL_HOUR = 5;
+export const CODES_PER_EMAIL_DAY = 10;
+export const CODES_PER_IP_DAY = 30;
 
 /** Same attribution presets as /presupuesto-instantaneo (?p=) and /api/documents/register. */
 export const ENTRADA_SOURCES = ["regularizacion-2026", "uge-ce", "lavori", "precios", "whatsapp"] as const;
@@ -49,6 +57,8 @@ export const EditBody = z.discriminatedUnion("op", [
   z.strictObject({ op: z.literal("include"), id: z.string().min(1).max(120) }),
   z.strictObject({ op: z.literal("setTargetLang"), targetLang: Lang }),
 ]);
+
+export const CodeBody = z.strictObject({ code: z.string().trim().regex(/^\d{6}$/, "6 cifras") });
 
 export const ConfirmBody = z.strictObject({
   urgency: z.enum(["ASAP", "DATE", "FLEXIBLE"]),
@@ -116,7 +126,32 @@ export async function handleOpen(req: Request, deps: EntradaApiDeps): Promise<Ap
   const { token } = await abrirEntrada(deps, {
     canal: "web", email, phone9, nombre: b.nombre || null, sourceLang: b.sourceLang ?? null, targetLang: b.targetLang ?? null, ipHash: deps.ipHash(ip), marketing: true, source: b.source ?? null, lang: b.lang ?? null,
   });
-  return json(200, { ok: true, token });
+  const entrada = await deps.store.byTokenHash(tokenHashOf(token));
+  const sent = entrada ? await sendCodeLimited(deps, entrada, ip) : null;
+  return json(200, { ok: true, token, codeSent: sent === null });
+}
+
+async function sendCodeLimited(deps: EntradaApiDeps, e: EntradaRow, ip: string): Promise<ApiResponse | null> {
+  const rl = await limits(deps, [[`code:email:${e.email}`, CODES_PER_EMAIL_HOUR, HOUR], [`code:email-day:${e.email}`, CODES_PER_EMAIL_DAY, DAY], [`code:ip:${ip}`, CODES_PER_IP_DAY, DAY]]);
+  if (rl) return rl;
+  const o = await enviarCodigo(deps, e);
+  return o.ok ? null : fromOutcome(o);
+}
+
+export async function handleSendCode(req: Request, token: string, deps: EntradaApiDeps): Promise<ApiResponse> {
+  const g = await gated(req, token, deps, "code", 60, HOUR);
+  if ("status" in g) return g;
+  if (g.entrada.emailVerifiedAt) return json(200, { ok: true, view: await vistaEntrada(deps, g.entrada) });
+  const err = await sendCodeLimited(deps, g.entrada, g.ip);
+  return err ?? json(200, { ok: true, view: await vistaEntrada(deps, (await deps.store.get(g.entrada.id)) ?? g.entrada) });
+}
+
+export async function handleVerify(req: Request, token: string, deps: EntradaApiDeps): Promise<ApiResponse> {
+  const g = await gated(req, token, deps, "verify", 60, HOUR);
+  if ("status" in g) return g;
+  const parsed = CodeBody.safeParse(await body(req));
+  if (!parsed.success) return invalid(parsed.error);
+  return fromOutcome(await verificarCodigo(deps, g.entrada, parsed.data.code));
 }
 
 export async function handleGet(req: Request, token: string, deps: EntradaApiDeps): Promise<ApiResponse> {
@@ -145,8 +180,19 @@ export async function handleRead(req: Request, token: string, deps: EntradaApiDe
   const g = await gated(req, token, deps, "read", 30, HOUR);
   if ("status" in g) return g;
   const e = g.entrada;
-  const rl = await limits(deps, [[`read:entrada:${e.id}`, 12, DAY], [`read:email:${e.email ?? e.phone9 ?? e.id}`, 20, DAY], ["read:global", 400, DAY]]);
-  if (rl) return rl;
+  if (!e.emailVerifiedAt || e.estado === "confirmada" || e.estado === "sin_jurado") return fromOutcome(await leerEntrada(deps, e));
+  const lote = e.loteId ? await deps.lectura.store.get(e.loteId) : null;
+  const continuing = lote?.lote.status === "running" || lote?.lote.status === "busy";
+  if (!continuing) {
+    const who = e.email ?? e.phone9 ?? e.id;
+    const rl = await limits(deps, [[`read:entrada:${e.id}`, 12, DAY], [`read:email:${who}`, READS_PER_EMAIL_DAY, DAY], [`read:ip:${g.ip}`, READS_PER_IP_DAY, DAY]]);
+    if (rl) return rl;
+    const global = await deps.rateLimit("entrada:read:global", READS_GLOBAL_DAY, DAY);
+    if ((global.remaining ?? READS_GLOBAL_DAY) <= READS_GLOBAL_DAY / 2 && (await deps.rateLimit("entrada:read:global-alert", 1, DAY)).ok) {
+      deps.alertStaff("Entrada web: la mitad del tope diario de lecturas", `Se han usado ${READS_GLOBAL_DAY - (global.remaining ?? 0)} de ${READS_GLOBAL_DAY} lecturas de hoy. Si sigue subiendo, revisa si es abuso.`).catch(console.error);
+    }
+    if (!global.ok) return json(503, { ok: false, error: "Hoy estamos revisando muchos documentos. Juan verá los tuyos personalmente: déjalos subidos y te escribimos." }, { "Retry-After": String(global.retryAfterSec) });
+  }
   return fromOutcome(await leerEntrada(deps, e));
 }
 

@@ -29,6 +29,8 @@ export type ClientDocument = {
 
 export type ClientView = {
   estado: EntradaRow["estado"];
+  email: string | null;
+  emailVerificado: boolean;
   archivos: Pick<ArchivoRow, "id" | "name" | "url" | "mimeType" | "size">[];
   lectura:
     | null
@@ -76,6 +78,8 @@ function where(files: FileRow[], parts: PartRef[]): string {
 export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: LoteData | null, extras: ReadingExtras | null, sinJurado: string | null): ClientView {
   const base: ClientView = {
     estado: entrada.estado,
+    email: entrada.email,
+    emailVerificado: Boolean(entrada.emailVerifiedAt),
     archivos: archivos.map(({ id, name, url, mimeType, size }) => ({ id, name, url, mimeType, size })),
     lectura: null,
     sinJurado: sinJurado ? { idioma: langName(sinJurado), codigo: sinJurado, maecUrl: MAEC_URL } : null,

@@ -10,6 +10,7 @@ type Strings = {
   deadline: string; asap: string; date: string; flexible: string; organismo: string; organismoPh: string; notes: string; notesPh: string; confirm: string; sending: string;
   doneTitle: string; doneBody: string; again: string; noJuradoTitle: (l: string) => string; noJuradoBody: string; maecBtn: string; noJuradoFoot: string;
   oneMoment: string; startError: string; genericError: string;
+  codeTitle: (email: string) => string; codeBtn: string; codeResend: string; codeNeeded: string; codeOk: string;
 };
 
 const es: Strings = {
@@ -31,6 +32,7 @@ const es: Strings = {
   noJuradoTitle: (l) => `Ahora mismo no tenemos traductor jurado de ${l}`, noJuradoBody: "Preferimos decírtelo ya a hacerte esperar. El Ministerio de Asuntos Exteriores publica la lista oficial de traductores jurados por idioma y provincia:",
   maecBtn: "Buscar en la lista oficial del MAEC", noJuradoFoot: "Juan ha recibido tu solicitud; si encontramos a alguien, te escribimos.",
   oneMoment: "Un momento…", startError: "No hemos podido empezar.", genericError: "Algo ha fallado.",
+  codeTitle: (e) => `Te hemos enviado un código de 6 cifras a ${e}. Escríbelo aquí para que revisemos tus archivos.`, codeBtn: "Confirmar", codeResend: "Enviar otro código", codeNeeded: "Confirma tu email con el código para continuar.", codeOk: "Email confirmado.",
 };
 
 const fr: Strings = {
@@ -52,6 +54,7 @@ const fr: Strings = {
   noJuradoTitle: (l) => `Nous n'avons pas de traducteur assermenté de ${l} pour le moment`, noJuradoBody: "Nous préférons vous le dire tout de suite. Le ministère espagnol des Affaires étrangères publie la liste officielle des traducteurs assermentés par langue et province :",
   maecBtn: "Chercher dans la liste officielle du MAEC", noJuradoFoot: "Juan a reçu votre demande ; si nous trouvons quelqu'un, nous vous écrivons.",
   oneMoment: "Un instant…", startError: "Impossible de commencer.", genericError: "Une erreur s'est produite.",
+  codeTitle: (e) => `Nous vous avons envoyé un code à 6 chiffres à ${e}. Saisissez-le ici pour que nous examinions vos fichiers.`, codeBtn: "Valider", codeResend: "Renvoyer un code", codeNeeded: "Confirmez votre e-mail avec le code pour continuer.", codeOk: "E-mail confirmé.",
 };
 
 const en: Strings = {
@@ -73,6 +76,7 @@ const en: Strings = {
   noJuradoTitle: (l) => `We don't have a sworn translator for ${l} right now`, noJuradoBody: "We'd rather tell you now than keep you waiting. The Spanish Ministry of Foreign Affairs publishes the official list of sworn translators by language and province:",
   maecBtn: "Search the official MAEC list", noJuradoFoot: "Juan has received your request; if we find someone, we'll write to you.",
   oneMoment: "One moment…", startError: "We couldn't start.", genericError: "Something went wrong.",
+  codeTitle: (e) => `We've sent a 6-digit code to ${e}. Enter it here so we can review your files.`, codeBtn: "Confirm", codeResend: "Send another code", codeNeeded: "Confirm your email with the code to continue.", codeOk: "Email confirmed.",
 };
 
 const de: Strings = {
@@ -94,6 +98,7 @@ const de: Strings = {
   noJuradoTitle: (l) => `Derzeit haben wir keinen vereidigten Übersetzer für ${l}`, noJuradoBody: "Wir sagen es Ihnen lieber gleich. Das spanische Außenministerium veröffentlicht die offizielle Liste vereidigter Übersetzer nach Sprache und Provinz:",
   maecBtn: "In der offiziellen MAEC-Liste suchen", noJuradoFoot: "Juan hat Ihre Anfrage erhalten; wenn wir jemanden finden, schreiben wir Ihnen.",
   oneMoment: "Einen Moment…", startError: "Wir konnten nicht beginnen.", genericError: "Etwas ist schiefgelaufen.",
+  codeTitle: (e) => `Wir haben einen 6-stelligen Code an ${e} gesendet. Geben Sie ihn hier ein, damit wir Ihre Dateien prüfen.`, codeBtn: "Bestätigen", codeResend: "Neuen Code senden", codeNeeded: "Bestätigen Sie Ihre E-Mail mit dem Code, um fortzufahren.", codeOk: "E-Mail bestätigt.",
 };
 
 const pt: Strings = {
@@ -115,6 +120,7 @@ const pt: Strings = {
   noJuradoTitle: (l) => `No momento não temos tradutor juramentado de ${l}`, noJuradoBody: "Preferimos dizer já a fazer você esperar. O Ministério de Assuntos Exteriores da Espanha publica a lista oficial de tradutores juramentados por idioma e província:",
   maecBtn: "Buscar na lista oficial do MAEC", noJuradoFoot: "Juan recebeu seu pedido; se encontrarmos alguém, escrevemos.",
   oneMoment: "Um momento…", startError: "Não conseguimos começar.", genericError: "Algo deu errado.",
+  codeTitle: (e) => `Enviamos um código de 6 dígitos para ${e}. Digite-o aqui para revisarmos seus arquivos.`, codeBtn: "Confirmar", codeResend: "Enviar outro código", codeNeeded: "Confirme seu e-mail com o código para continuar.", codeOk: "E-mail confirmado.",
 };
 
 export const ENTRADA_T: Record<EntradaLang, Strings> = { es, fr, en, de, pt };

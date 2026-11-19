@@ -34,7 +34,8 @@ export type GateTx = {
   /** Casos que comparten huella + casos ABIERTOS desde `vivosDesde` (por contacto o con nombre) + `ids`. */
   candidatos(q: Busqueda): Promise<CasoFila[]>;
   crear(data: { identityKey: string; email: string | null; phone9: string | null; nombre: string | null; origen: string; dudoso: boolean; actor: string; ahora: Date }): Promise<{ id: string; ref: string }>;
-  unir(id: string, patch: { email?: string; phone9?: string; reabrir: boolean; ahora: Date }): Promise<void>;
+  /** Only activity (and reopening a lost caso): an existing caso is never overwritten. */
+  unir(id: string, patch: { reabrir: boolean; ahora: Date }): Promise<void>;
   evento(casoId: string, tipo: string, actor: string, payload: Record<string, unknown>): Promise<void>;
 };
 
@@ -119,13 +120,8 @@ export async function resolverEntrada(deps: GateDeps, input: GateInput): Promise
 
     if (decision.accion === "unir" && decision.casoId) {
       const caso = casos.find((c) => c.id === decision.casoId)!;
-      await tx.unir(caso.id, {
-        ...(!caso.email && identidad.email ? { email: identidad.email } : {}),
-        ...(!caso.phone9 && identidad.phone9 ? { phone9: identidad.phone9 } : {}),
-        reabrir: caso.estado === "PERDIDO",
-        ahora: input.ahora,
-      });
-      await tx.evento(caso.id, "adjuntado", input.actor, payload);
+      await tx.unir(caso.id, { reabrir: caso.estado === "PERDIDO", ahora: input.ahora });
+      await tx.evento(caso.id, "adjuntado", input.actor, { ...payload, contacto: { email: identidad.email, phone9: identidad.phone9, nombre } });
       await marcas(tx, caso.id, decision, input.actor);
       return { casoId: caso.id, ref: caso.ref, creado: false, decision };
     }

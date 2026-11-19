@@ -27,6 +27,9 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
   const reads: string[][] = [];
   const avisos: Aviso[] = [];
   const quotesCreated: string[] = [];
+  const codes: { to: string; code: string; lang: string | null }[] = [];
+  /** Casos with something else alive (old puerta files, inbound messages, quotes): never closed as SIN_JURADO. */
+  const otrosVivos = new Set<string>();
   let seq = 0;
 
   const loteHashes = (casoId: string) =>
@@ -47,7 +50,7 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
           (c) =>
             q.ids.includes(c.id) ||
             hashesOf(c.id).some((h) => hs.has(h)) ||
-            (c.estado === "ABIERTO" && c.lastActivityAt >= q.vivosDesde && ((c.email && q.emails.includes(c.email)) || (c.phone9 && q.phones.includes(c.phone9)) || c.nombre)),
+            ((c.estado === "ABIERTO" || c.estado === "PERDIDO") && c.lastActivityAt >= q.vivosDesde && ((c.email && q.emails.includes(c.email)) || (c.phone9 && q.phones.includes(c.phone9)) || c.nombre)),
         )
         .map((c) => ({ ...c, hashes: hashesOf(c.id) }));
     },
@@ -59,8 +62,6 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
     async unir(id, p) {
       const c = casos.find((x) => x.id === id)!;
       c.lastActivityAt = p.ahora;
-      if (p.email) c.email = p.email;
-      if (p.phone9) c.phone9 = p.phone9;
       if (p.reabrir) c.estado = "ABIERTO";
     },
     async evento(casoId, tipo, _actor, payload) {
@@ -85,7 +86,7 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
 
   const store: EntradaStore = {
     async create(data) {
-      const e = { ...data, id: `ent-${++seq}`, estado: "abierta" as const, casoId: null, loteId: null, regla: null, posibles: [], relacionados: [], urgency: null, neededBy: null, organismo: null, notas: null, confirmedAt: null, createdAt: AHORA, updatedAt: AHORA };
+      const e = { ...data, id: `ent-${++seq}`, estado: "abierta" as const, casoId: null, loteId: null, regla: null, posibles: [], relacionados: [], codeHash: null, codeExpiresAt: null, codeAttempts: 0, urgency: null, neededBy: null, organismo: null, notas: null, confirmedAt: null, createdAt: AHORA, updatedAt: AHORA };
       entradas.push(e);
       return { ...e };
     },
@@ -117,12 +118,18 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
       Object.assign(e, patch);
       return true;
     },
+    async takeAttempt(id, max) {
+      const e = entradas.find((x) => x.id === id)!;
+      if (e.codeAttempts >= max) return false;
+      e.codeAttempts += 1;
+      return true;
+    },
     async linkFilesToCaso(id, casoId) {
       for (const d of docs) if (d.session === sessionKeyOf(id) && !d.casoId) d.casoId = casoId;
     },
   };
 
-  return { casos, eventos, docs, entradas, lectura, locks, downloads, reads, avisos, quotesCreated, gateDeps, store, download };
+  return { casos, eventos, docs, entradas, lectura, locks, downloads, reads, avisos, quotesCreated, codes, otrosVivos, gateDeps, store, download };
 }
 
 export type World = ReturnType<typeof world>;
@@ -169,7 +176,9 @@ export function flowDeps(w: World, opts: { read?: (files: SourceFile[], attempt:
         w.eventos.push({ casoId, tipo, payload });
       },
       plazo: async () => {},
-      cerrarSinJurado: async (casoId) => {
+      cerrarSinJurado: async (casoId, entradaId) => {
+        const alive = w.otrosVivos.has(casoId) || w.docs.some((d) => d.casoId === casoId && d.session !== `entrada:${entradaId}`) || w.entradas.some((e) => e.casoId === casoId && e.id !== entradaId);
+        if (alive) return false;
         const c = w.casos.find((x) => x.id === casoId)!;
         c.estado = "SIN_JURADO";
         return true;
@@ -177,6 +186,9 @@ export function flowDeps(w: World, opts: { read?: (files: SourceFile[], attempt:
     },
     notify: async (a) => {
       w.avisos.push(a);
+    },
+    sendCode: async (to, code, lang) => {
+      w.codes.push({ to, code, lang });
     },
     now: () => AHORA,
     newId: () => `n${++ids}`,

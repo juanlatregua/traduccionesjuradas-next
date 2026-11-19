@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { abrirEntrada, confirmarEntrada, editarEntrada, leerEntrada, registrarArchivo, vistaEntrada, EXCLUDED_BY_CLIENT, type FlowDeps } from "../../../lib/entrada/flow.ts";
+import { abrirEntrada, confirmarEntrada, editarEntrada, enviarCodigo, leerEntrada, registrarArchivo, verificarCodigo, vistaEntrada, EXCLUDED_BY_CLIENT, type FlowDeps } from "../../../lib/entrada/flow.ts";
 import type { Canal } from "../../../lib/entrada/identidad.ts";
 import { fingerprintOf } from "../../../lib/lectura-constructor/run.ts";
 import type { Reading, SourceFile } from "../../../lib/lectura/index.ts";
@@ -29,8 +29,15 @@ function okReading(files: SourceFile[], sourceLang = "fr"): Reading {
   } as never;
 }
 
-async function entrar(deps: FlowDeps, canal: Canal, contacto: { email?: string; phone9?: string; nombre?: string }, urls: string[], langs: { s?: string; t?: string } = {}) {
+export async function verificar(deps: FlowDeps, w: World, id: string) {
+  await enviarCodigo(deps, (await deps.store.get(id))!);
+  const r = await verificarCodigo(deps, (await deps.store.get(id))!, w.codes[w.codes.length - 1].code);
+  assert.equal(r.ok, true);
+}
+
+async function entrar(deps: FlowDeps, canal: Canal, contacto: { email?: string; phone9?: string; nombre?: string }, urls: string[], langs: { s?: string; t?: string } = {}, w?: World) {
   const { entrada } = await abrirEntrada(deps, { canal, email: contacto.email ?? null, phone9: contacto.phone9 ?? null, nombre: contacto.nombre ?? null, sourceLang: langs.s ?? null, targetLang: langs.t ?? "es", ipHash: null, marketing: true });
+  if (canal === "web") await verificar(deps, w ?? CURRENT!, entrada.id);
   for (const url of urls) {
     const r = await registrarArchivo(deps, (await deps.store.get(entrada.id))!, { url, name: url.split("/").pop()!, size: 1, mimeType: "application/pdf" });
     assert.equal(r.ok, true);
@@ -40,9 +47,11 @@ async function entrar(deps: FlowDeps, canal: Canal, contacto: { email?: string; 
 }
 
 const casoCount = (w: World) => w.casos.length;
+let CURRENT: World | null = null;
+const mundo = () => (CURRENT = world(blobs));
 
 test("Jeniffer: same PDF by web and by WhatsApp → 1 caso, 1 reading, no quote and no request", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const deps = flowDeps(w, { read: (fs) => okReading(fs) });
   const web = await entrar(deps, "web", { email: "jenifferdeschamps@icloud.com", nombre: "Jeniffer Deschamps" }, [`${BLOB}/web/acta-x1.pdf`]);
   const wa = await entrar(deps, "whatsapp", { phone9: "791365173" }, [`${BLOB}/wa/acta-y2.pdf`]);
@@ -56,7 +65,7 @@ test("Jeniffer: same PDF by web and by WhatsApp → 1 caso, 1 reading, no quote 
 
 test("Diego: same Facturas.pdf by email and WhatsApp, in either order → 1 caso", async () => {
   for (const order of [["email", "whatsapp"], ["whatsapp", "email"]] as const) {
-    const w = world(blobs);
+    const w = mundo();
     const deps = flowDeps(w, { read: (fs) => okReading(fs, "pt") });
     for (const canal of order) {
       if (canal === "email") await entrar(deps, "email", { email: "diegoarndt@outlook.com" }, [`${BLOB}/web/Facturas-a.pdf`]);
@@ -68,7 +77,7 @@ test("Diego: same Facturas.pdf by email and WhatsApp, in either order → 1 caso
 });
 
 test("legacy WhatsApp file without stored hash (fileHash NULL) is hashed on demand and joins", async () => {
-  const w = world(blobs);
+  const w = mundo();
   w.casos.push({ id: "old", ref: "CASO-OLD", estado: "ABIERTO", email: null, phone9: "997504962", nombre: null, esAgencia: false, lastActivityAt: new Date(AHORA.getTime() - 3 * 864e5), hashes: [], conPedido: false, origen: "whatsapp", dudoso: false });
   w.docs.push({ id: "legacy", casoId: "old", session: "exp:X", url: `${BLOB}/wa/Facturas-b.pdf`, name: "Facturas.pdf", size: DIEGO_PDF.length, hash: null, mimeType: "application/pdf" });
   const deps = flowDeps(w, { read: (fs) => okReading(fs, "pt") });
@@ -83,7 +92,7 @@ test("invariance: same files and contact give the same caso and fingerprint what
   const urls = [`${BLOB}/web/pasaporte.jpg`, `${BLOB}/web/hoja2.jpg`];
   const fps = new Set<string>();
   for (const [canal, list] of [["web", urls], ["email", [...urls].reverse()], ["constructor", urls]] as const) {
-    const w = world(blobs);
+    const w = mundo();
     const deps = flowDeps(w, { read: (fs) => okReading(fs) });
     const r = await entrar(deps, canal, { email: "ana@x.com" }, [...list]);
     assert.equal(casoCount(w), 1);
@@ -98,7 +107,7 @@ test("invariance: same files and contact give the same caso and fingerprint what
 });
 
 test("client view: documents and what is not included, never prices", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const deps = flowDeps(w, {
     read: (fs) => okReading(fs),
     extras: { notToTranslate: [{ parts: [{ fileIndex: 2, page: 1 }], reason: "es el pasaporte del cliente, no se traduce" }], duplicates: [], questions: [{ textEs: "¿Dónde vas a presentarlo?" }], missing: { D1: [2] } },
@@ -115,7 +124,7 @@ test("client view: documents and what is not included, never prices", async () =
 });
 
 test("client corrects (excludes a document) and confirms with deadline → Juan is told, lote stays for him to price", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const deps = flowDeps(w, { read: (fs) => okReading(fs) });
   const r = await entrar(deps, "web", { email: "ana@x.com" }, [`${BLOB}/web/pasaporte.jpg`, `${BLOB}/web/hoja2.jpg`]);
   const view = r.read.ok ? r.read.view : null;
@@ -137,7 +146,7 @@ test("client corrects (excludes a document) and confirms with deadline → Juan 
 });
 
 test("language without sworn translator: declared pair closes without spending a reading", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const deps = flowDeps(w, { read: (fs) => okReading(fs, "el"), jurado: (s, t) => (s === "el" || t === "el" ? "no" : "si") });
   const r = await entrar(deps, "web", { email: "ana@x.com" }, [`${BLOB}/web/pasaporte.jpg`], { s: "el", t: "es" });
   assert.equal(w.reads.length, 0);
@@ -149,17 +158,17 @@ test("language without sworn translator: declared pair closes without spending a
 });
 
 test("language without sworn translator found by the reading closes too; unknown availability does not", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const deps = flowDeps(w, { read: (fs) => okReading(fs, "el"), jurado: () => "no" });
   const r = await entrar(deps, "web", { email: "ana@x.com" }, [`${BLOB}/web/pasaporte.jpg`]);
   assert.equal(r.entrada.estado, "sin_jurado");
-  const w2 = world(blobs);
+  const w2 = mundo();
   const r2 = await entrar(flowDeps(w2, { read: (fs) => okReading(fs, "el"), jurado: () => "desconocido" }), "web", { email: "ana@x.com" }, [`${BLOB}/web/pasaporte.jpg`]);
   assert.equal(r2.entrada.estado, "leida");
 });
 
 test("busy: attempts are counted by the lote on the server and the client is told to come back", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const seen: number[] = [];
   const deps = flowDeps(w, {
     read: (fs, attempt) => {
@@ -177,7 +186,7 @@ test("busy: attempts are counted by the lote on the server and the client is tol
 });
 
 test("a file uploaded twice in one entrada is one file", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const deps = flowDeps(w);
   const { entrada } = await abrirEntrada(deps, { canal: "web", email: "ana@x.com", phone9: null, nombre: null, sourceLang: null, targetLang: null, ipHash: null, marketing: true });
   await registrarArchivo(deps, entrada, { url: `${BLOB}/web/acta-x1.pdf`, name: "acta.pdf", size: 1, mimeType: "application/pdf" });
@@ -187,7 +196,7 @@ test("a file uploaded twice in one entrada is one file", async () => {
 });
 
 test("Juan 1: the same file after the first caso was ordered opens a new caso, related both ways", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const deps = flowDeps(w, { read: (fs) => okReading(fs) });
   const first = await entrar(deps, "web", { email: "ana@x.com" }, [`${BLOB}/web/acta-x1.pdf`]);
   w.casos[0].conPedido = true;
@@ -201,7 +210,7 @@ test("Juan 1: the same file after the first caso was ordered opens a new caso, r
 });
 
 test("attribution and language travel with the entrada and onto its files", async () => {
-  const w = world(blobs);
+  const w = mundo();
   const deps = flowDeps(w);
   const { entrada } = await abrirEntrada(deps, { canal: "web", email: "ana@x.com", phone9: null, nombre: null, sourceLang: null, targetLang: null, ipHash: null, marketing: true, source: "uge-ce", lang: "fr" });
   assert.deepEqual([entrada.source, entrada.lang], ["uge-ce", "fr"]);
