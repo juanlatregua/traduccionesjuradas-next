@@ -14,22 +14,27 @@ const file = { id: "f", name: "testamento p1.png", url: "u", mimeType: "image/pn
 const next = (v: ClientView | null, local: Partial<HiloLocal> = {}, editing: null | Parameters<typeof buildHilo>[0]["editing"] = null) =>
   buildHilo({ email: v?.email ?? null, view: v, local: { ...LOCAL_VACIO, ...local }, editing });
 
-test("order of the thread: email → code → document language → target → files", () => {
-  assert.equal(next(null).ask?.kind, "contacto");
-  assert.equal(next(view({ emailVerificado: false })).ask?.kind, "codigo");
-  assert.equal(next(view({ idiomas: { origen: null, destinos: [] } })).ask?.kind, "origen", "document language first, no default");
-  assert.equal(next(view({ idiomas: { origen: null, destinos: [] } }), { origenDado: true }).ask?.kind, "destino");
-  assert.equal(next(view()).ask?.kind, "archivos");
-  const ids = next(view()).messages.map((m) => m.id);
-  assert.ok(ids.indexOf("pide_origen") < ids.indexOf("pide_destino") && ids.indexOf("pide_destino") < ids.indexOf("pide_archivos"));
+test("the thread starts with what the client wants: languages → files, no email until «he terminado → sí»", () => {
+  assert.equal(next(null).ask?.kind, "origen", "document language first, no default");
+  assert.equal(next(null, { origenDado: true }).ask?.kind, "destino");
+  assert.equal(next(null, { origenDado: true, destinos: ["es"] }).ask?.kind, "archivos", "upload before any email");
+  const anon = view({ email: null, emailVerificado: false, archivos: [file] });
+  assert.equal(next(anon).ask?.kind, "archivos");
+  assert.ok(!next(anon).messages.some((m) => m.kind === "pide_email"));
+  assert.equal(next(anon, { terminado: true }).ask?.kind, "terminado");
+  const sí = next(anon, { terminado: true, quiereLeer: true });
+  assert.equal(sí.ask?.kind, "email");
+  assert.ok(sí.messages.some((m) => m.kind === "pide_email"));
+  const ids = next(view({ archivos: [file] }), { terminado: true, quiereLeer: true }).messages.map((m) => m.id);
+  assert.ok(ids.indexOf("pide_origen") < ids.indexOf("pide_destino") && ids.indexOf("pide_destino") < ids.indexOf("pide_archivos") && ids.indexOf("pide_archivos") < ids.indexOf("pide_email"));
 });
 
-test("«he terminado» asks with quick replies, «sí» shows the reading in progress", () => {
-  const v = view({ archivos: [file] });
-  assert.equal(next(v).ask?.kind, "archivos");
-  assert.equal(next(v, { terminado: true }).ask?.kind, "terminado");
-  assert.equal(next(v, { terminado: true, leyendo: true }).ask?.kind, "leyendo");
+test("email given → code; the verification noticed by polling moves the thread on to the reading without a touch", () => {
+  const sent = view({ emailVerificado: false, archivos: [file] });
+  assert.equal(next(sent, { terminado: true, quiereLeer: true }).ask?.kind, "codigo");
+  assert.equal(next({ ...sent, emailVerificado: true }, { terminado: true, quiereLeer: true }).ask?.kind, "leyendo");
   assert.equal(next(view({ archivos: [], estado: "abierta" }), { terminado: true }).ask?.kind, "archivos", "no files, nothing to finish");
+  assert.equal(next(view({ archivos: [file], lectura: lectura({ fase: "leyendo" }) })).ask?.kind, "leyendo", "a reading already running (reload) continues");
 });
 
 test("after the reading: result, then each question in the thread, then date, place, summary", () => {

@@ -9,6 +9,10 @@ export type HiloLocal = {
   /** Answered in the thread before the targets exist (the server stores both together). */
   origenDado: boolean;
   origen: string | null;
+  /** Targets chosen before the entrada exists (the first upload creates it with them). */
+  destinos: string[];
+  /** «¿Has terminado? → Sí»: the email is asked now, and the reading starts once it is verified. */
+  quiereLeer: boolean;
   terminado: boolean;
   leyendo: boolean;
   urgency: Urgency | null;
@@ -23,18 +27,18 @@ export type HiloLocal = {
   notas: string[];
 };
 
-export const LOCAL_VACIO: HiloLocal = { origenDado: false, origen: null, terminado: false, leyendo: false, urgency: null, neededBy: null, lugarHecho: false, pais: null, organismo: null, respuestas: {}, dudas: [], notas: [] };
+export const LOCAL_VACIO: HiloLocal = { origenDado: false, origen: null, destinos: [], quiereLeer: false, terminado: false, leyendo: false, urgency: null, neededBy: null, lugarHecho: false, pais: null, organismo: null, respuestas: {}, dudas: [], notas: [] };
 
 export type HiloState = { email: string | null; view: ClientView | null; local: HiloLocal; editing: EditKey | null };
 
 export type Msg =
-  | { id: string; from: "casa"; kind: "hola" | "pide_codigo" | "codigo_ok" | "pide_origen" | "pide_destino" | "pide_archivos" | "pregunta_terminado" | "leyendo" | "resultado" | "solo_lectura" | "manual" | "pide_plazo" | "pide_lugar" | "resumen" | "enviado" | "sin_jurado"; text?: string }
+  | { id: string; from: "casa"; kind: "hola" | "pide_email" | "pide_codigo" | "codigo_ok" | "pide_origen" | "pide_destino" | "pide_archivos" | "pregunta_terminado" | "leyendo" | "resultado" | "solo_lectura" | "manual" | "pide_plazo" | "pide_lugar" | "resumen" | "enviado" | "sin_jurado"; text?: string }
   | { id: string; from: "casa"; kind: "pregunta"; index: number; text: string; idioma: boolean }
-  | { id: string; from: "cliente"; kind: "email" | "origen" | "destino" | "archivos" | "terminado" | "respuesta" | "plazo" | "lugar" | "nota" | "duda"; editKey?: EditKey; index?: number }
+  | { id: string; from: "cliente"; kind: "email" | "origen" | "destino" | "archivos" | "terminado" | "si_terminado" | "respuesta" | "plazo" | "lugar" | "nota" | "duda"; editKey?: EditKey; index?: number }
   | { id: string; from: "casa"; kind: "respuesta_duda"; index: number; pending: boolean };
 
 export type Ask =
-  | { kind: "contacto" }
+  | { kind: "email" }
   | { kind: "codigo" }
   | { kind: "origen" }
   | { kind: "destino" }
@@ -73,40 +77,45 @@ function buildSteps(s: HiloState): { messages: Msg[]; ask: Ask | null } {
   const m: Msg[] = [{ id: "hola", from: "casa", kind: "hola" }];
   const done = (ask: Ask | null) => ({ messages: m, ask: s.editing ? askFor(s.editing, s) : ask });
   const v = s.view;
-  if (!v) return { messages: m, ask: { kind: "contacto" } };
 
-  m.push({ id: "email", from: "cliente", kind: "email" }, { id: "pide_codigo", from: "casa", kind: "pide_codigo" });
-  if (!v.emailVerificado) return done({ kind: "codigo" });
-  m.push({ id: "codigo_ok", from: "casa", kind: "codigo_ok" });
+  m.push({ id: "pide_origen", from: "casa", kind: "pide_origen" });
+  if (!v?.idiomas.origen && !s.local.origenDado) return done({ kind: "origen" });
+  m.push({ id: "origen", from: "cliente", kind: "origen", editKey: "origen" });
 
-  if (v.estado === "sin_jurado") {
+  m.push({ id: "pide_destino", from: "casa", kind: "pide_destino" });
+  const destinos = v?.idiomas.destinos.length ? v.idiomas.destinos : s.local.destinos;
+  if (destinos.length === 0) return done({ kind: "destino" });
+  m.push({ id: "destino", from: "cliente", kind: "destino", editKey: "destino" });
+
+  m.push({ id: "pide_archivos", from: "casa", kind: "pide_archivos" });
+  if (v?.archivos.length) m.push({ id: "archivos", from: "cliente", kind: "archivos" });
+  if (v?.estado === "sin_jurado") {
     m.push({ id: "sin_jurado", from: "casa", kind: "sin_jurado" });
     return { messages: m, ask: null };
   }
 
-  m.push({ id: "pide_origen", from: "casa", kind: "pide_origen" });
-  if (!v.idiomas.origen && !s.local.origenDado) return done({ kind: "origen" });
-  m.push({ id: "origen", from: "cliente", kind: "origen", editKey: "origen" });
-
-  m.push({ id: "pide_destino", from: "casa", kind: "pide_destino" });
-  if (v.idiomas.destinos.length === 0) return done({ kind: "destino" });
-  m.push({ id: "destino", from: "cliente", kind: "destino", editKey: "destino" });
-
-  m.push({ id: "pide_archivos", from: "casa", kind: "pide_archivos" });
-  if (v.archivos.length > 0) m.push({ id: "archivos", from: "cliente", kind: "archivos" });
-  const lectura = v.lectura;
-  const leida = v.estado !== "abierta" && lectura && lectura.fase !== "leyendo";
-  if (!leida) {
-    if (s.local.leyendo || lectura?.fase === "leyendo") {
-      m.push({ id: "terminado", from: "cliente", kind: "terminado" }, { id: "leyendo", from: "casa", kind: "leyendo" });
-      return done({ kind: "leyendo" });
-    }
-    if (!s.local.terminado || v.archivos.length === 0) return done({ kind: "archivos" });
+  const lectura = v?.lectura;
+  const leida = Boolean(v && v.estado !== "abierta" && lectura && lectura.fase !== "leyendo");
+  const enCurso = lectura?.fase === "leyendo" && v?.estado === "abierta";
+  const pidio = s.local.quiereLeer || leida || enCurso;
+  if (!pidio) {
+    if (!s.local.terminado || !v?.archivos.length) return done({ kind: "archivos" });
     m.push({ id: "terminado", from: "cliente", kind: "terminado" }, { id: "pregunta_terminado", from: "casa", kind: "pregunta_terminado" });
     return done({ kind: "terminado" });
   }
+  m.push({ id: "terminado", from: "cliente", kind: "terminado" }, { id: "pregunta_terminado", from: "casa", kind: "pregunta_terminado" }, { id: "si_terminado", from: "cliente", kind: "si_terminado" });
 
-  m.push({ id: "terminado", from: "cliente", kind: "terminado" });
+  m.push({ id: "pide_email", from: "casa", kind: "pide_email" });
+  if (!v?.email) return done({ kind: "email" });
+  m.push({ id: "email", from: "cliente", kind: "email" }, { id: "pide_codigo", from: "casa", kind: "pide_codigo" });
+  if (!v.emailVerificado) return done({ kind: "codigo" });
+  m.push({ id: "codigo_ok", from: "casa", kind: "codigo_ok" });
+
+  if (!leida) {
+    m.push({ id: "leyendo", from: "casa", kind: "leyendo" });
+    return done({ kind: "leyendo" });
+  }
+
   m.push({ id: "resultado", from: "casa", kind: lectura!.fase === "revision_manual" ? "manual" : "resultado" });
   if (v.soloLectura) m.push({ id: "solo_lectura", from: "casa", kind: "solo_lectura" });
 

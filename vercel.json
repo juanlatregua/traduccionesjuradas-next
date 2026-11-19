@@ -4,6 +4,14 @@
     "app/api/zona-traductor/lectura/route.ts": {
       "memory": 2048,
       "maxDuration": 300
+    },
+    "app/api/entrada/[token]/leer/route.ts": {
+      "memory": 2048,
+      "maxDuration": 300
+    },
+    "app/api/entrada/[token]/archivos/route.ts": {
+      "memory": 2048,
+      "maxDuration": 60
     }
   },
   "redirects": [],
@@ -27,6 +35,10 @@
     {
       "path": "/api/cron/document-cleanup",
       "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/entrada-caducar",
+      "schedule": "30 4 * * *"
     },
     {
       "path": "/api/cron/lead-reminders",

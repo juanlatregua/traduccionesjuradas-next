@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { emailReal, telefono9 } from "../caso/identidad.ts";
 import { parseDeadline } from "../needed-by.ts";
-import { abrirEntrada, confirmarEntrada, currentFingerprint, editarEntrada, enviarCodigo, readingInProgress, leerEntrada, quitarArchivo, registrarArchivo, tokenHashOf, verificarCodigo, vistaEntrada, type FlowDeps, type Outcome } from "./flow.ts";
+import { abrirEntrada, confirmarEnlace, ponerEmail, confirmarEntrada, currentFingerprint, editarEntrada, enviarCodigo, readingInProgress, leerEntrada, quitarArchivo, registrarArchivo, tokenHashOf, verificarCodigo, vistaEntrada, type FlowDeps, type Outcome } from "./flow.ts";
 import type { EntradaRow } from "./store.ts";
 import { answerQuestion, type ConserjeCall } from "./conserje.ts";
 import type { EntradaLang } from "./i18n.ts";
@@ -12,6 +12,8 @@ export type EntradaApiDeps = FlowDeps & {
   rateLimit(key: string, limit: number, windowMs: number): Promise<{ ok: boolean; retryAfterSec: number; remaining?: number }>;
   alertStaff(subject: string, text: string): Promise<void>;
   conserje: ConserjeCall;
+  /** Adds `amount` to a per-window budget; false (and nothing added) when it would pass `limit`. */
+  budget(key: string, amount: number, limit: number, windowMs: number): Promise<boolean>;
   clientIp(req: Request): string;
   ipHash(ip: string): string;
   isOwnBlobUrl(url: string): boolean;
@@ -28,6 +30,9 @@ export const READS_GLOBAL_DAY = 400;
 export const CODES_PER_EMAIL_HOUR = 5;
 export const CODES_PER_EMAIL_DAY = 10;
 export const CODES_PER_IP_DAY = 30;
+/** Before the email is verified the entrada is anonymous: what one IP may upload per day. */
+export const ANON_FILES_PER_IP_DAY = 60;
+export const ANON_MB_PER_IP_DAY = 300;
 /** Doubts answered by the model: per verified entrada, per email, per IP and a global ceiling. */
 export const DOUBTS_PER_ENTRADA_DAY = 15;
 export const DOUBTS_PER_EMAIL_DAY = 30;
@@ -42,16 +47,26 @@ const Lang = z.string().trim().toLowerCase().regex(/^[a-z]{2,3}$/);
 const Text = (max: number) => z.string().trim().max(max);
 
 export const OpenBody = z.strictObject({
-  email: z.string().trim().toLowerCase().max(254).email(),
+  email: z.string().trim().toLowerCase().max(254).email().optional(),
   nombre: Text(120).nullable().optional(),
   telefono: Text(40).nullable().optional(),
   sourceLang: Lang.nullable().optional(),
   targetLang: Lang.nullable().optional(),
+  targetLangs: z.array(Lang).max(5).optional(),
   source: z.enum(ENTRADA_SOURCES).nullable().optional(),
   lang: z.enum(ENTRADA_LANGS).nullable().optional(),
   gdprConsent: z.literal(true),
+  marketingConsent: z.boolean().optional(),
+});
+
+export const EmailBody = z.strictObject({
+  email: z.string().trim().toLowerCase().max(254).email(),
+  nombre: Text(120).nullable().optional(),
+  telefono: Text(40).nullable().optional(),
   marketingConsent: z.literal(true),
 });
+
+export const LinkBody = z.strictObject({ k: z.string().regex(/^[A-Za-z0-9_-]{20,64}$/) });
 
 export const FileBody = z.strictObject({
   url: z.string().url().max(1000),
@@ -132,16 +147,45 @@ export async function handleOpen(req: Request, deps: EntradaApiDeps): Promise<Ap
   const parsed = OpenBody.safeParse(await body(req));
   if (!parsed.success) return invalid(parsed.error);
   const b = parsed.data;
-  const email = emailReal(b.email);
-  if (!email) return json(400, { ok: false, error: "Ese email no parece válido." });
+  const email = b.email ? emailReal(b.email) : null;
+  if (b.email && !email) return json(400, { ok: false, error: "Ese email no parece válido." });
+  if (email && b.marketingConsent !== true) return json(400, { ok: false, error: "Falta el consentimiento para enviarte el presupuesto." });
   const phone9 = b.telefono ? telefono9(b.telefono) : null;
   if (b.telefono && !phone9) return json(400, { ok: false, error: "Ese teléfono no parece válido." });
   const { token } = await abrirEntrada(deps, {
-    canal: "web", email, phone9, nombre: b.nombre || null, sourceLang: b.sourceLang ?? null, targetLang: b.targetLang ?? null, ipHash: deps.ipHash(ip), marketing: true, source: b.source ?? null, lang: b.lang ?? null,
+    canal: "web", email, phone9, nombre: b.nombre || null, sourceLang: b.sourceLang ?? null, targetLang: b.targetLang ?? null, targetLangs: b.targetLangs,
+    ipHash: deps.ipHash(ip), marketing: Boolean(email), source: b.source ?? null, lang: b.lang ?? null,
   });
+  if (!email) return json(200, { ok: true, token, codeSent: false });
   const entrada = await deps.store.byTokenHash(tokenHashOf(token));
   const sent = entrada ? await sendCodeLimited(deps, entrada, ip) : null;
   return json(200, { ok: true, token, codeSent: sent === null });
+}
+
+export async function handleEmail(req: Request, token: string, deps: EntradaApiDeps): Promise<ApiResponse> {
+  const g = await gated(req, token, deps, "email", 30, HOUR);
+  if ("status" in g) return g;
+  const parsed = EmailBody.safeParse(await body(req));
+  if (!parsed.success) return invalid(parsed.error);
+  const email = emailReal(parsed.data.email);
+  if (!email) return json(400, { ok: false, error: "Ese email no parece válido." });
+  const phone9 = parsed.data.telefono ? telefono9(parsed.data.telefono) : null;
+  if (parsed.data.telefono && !phone9) return json(400, { ok: false, error: "Ese teléfono no parece válido." });
+  const rl = await limits(deps, [[`code:email:${email}`, CODES_PER_EMAIL_HOUR, HOUR], [`code:email-day:${email}`, CODES_PER_EMAIL_DAY, DAY], [`code:ip:${g.ip}`, CODES_PER_IP_DAY, DAY]]);
+  if (rl) return rl;
+  return fromOutcome(await ponerEmail(deps, g.entrada, { email, phone9, nombre: parsed.data.nombre || null }));
+}
+
+/** The «Confirmar mi email» button: no entrada token travels, only the one-time link; the answer reveals nothing else. */
+export async function handleConfirmLink(req: Request, deps: EntradaApiDeps): Promise<ApiResponse> {
+  if (!deps.enabled()) return off();
+  const ip = deps.clientIp(req);
+  const rl = await limits(deps, [[`link:ip:${ip}`, 30, HOUR]]);
+  if (rl) return rl;
+  const parsed = LinkBody.safeParse(await body(req));
+  if (!parsed.success) return json(400, { ok: false });
+  const r = await confirmarEnlace(deps, parsed.data.k);
+  return json(r.status, { ok: r.ok });
 }
 
 async function sendCodeLimited(deps: EntradaApiDeps, e: EntradaRow, ip: string): Promise<ApiResponse | null> {
@@ -179,6 +223,13 @@ export async function handleAddFile(req: Request, token: string, deps: EntradaAp
   const parsed = FileBody.safeParse(await body(req));
   if (!parsed.success) return invalid(parsed.error);
   if (!deps.isOwnBlobUrl(parsed.data.url)) return json(400, { ok: false, error: "Archivo no válido." });
+  if (!g.entrada.emailVerifiedAt) {
+    const rl = await limits(deps, [[`anon-files:ip:${g.ip}`, ANON_FILES_PER_IP_DAY, DAY]]);
+    if (rl) return rl;
+    if (!(await deps.budget(`entrada:anon-mb:ip:${g.ip}`, Math.ceil(parsed.data.size / (1024 * 1024)), ANON_MB_PER_IP_DAY, DAY))) {
+      return json(429, { ok: false, error: "Hoy ya has subido muchos archivos desde aquí. Déjanos tu email y seguimos, o inténtalo mañana." });
+    }
+  }
   return fromOutcome(await registrarArchivo(deps, g.entrada, parsed.data));
 }
 

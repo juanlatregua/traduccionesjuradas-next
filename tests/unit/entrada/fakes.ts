@@ -27,7 +27,7 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
   const reads: string[][] = [];
   const avisos: Aviso[] = [];
   const quotesCreated: string[] = [];
-  const codes: { to: string; code: string; lang: string | null }[] = [];
+  const codes: { to: string; code: string; lang: string | null; link: string }[] = [];
   /** Casos with something else alive (old puerta files, inbound messages, quotes): never closed as SIN_JURADO. */
   const otrosVivos = new Set<string>();
   let seq = 0;
@@ -86,7 +86,7 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
 
   const store: EntradaStore = {
     async create(data) {
-      const e = { ...data, id: `ent-${++seq}`, estado: "abierta" as const, casoId: null, loteId: null, regla: null, posibles: [], relacionados: [], pais: null, respuestas: null, codeHash: null, codeExpiresAt: null, codeAttempts: 0, urgency: null, neededBy: null, organismo: null, notas: null, confirmedAt: null, createdAt: AHORA, updatedAt: AHORA };
+      const e = { ...data, id: `ent-${++seq}`, estado: "abierta" as const, casoId: null, loteId: null, regla: null, posibles: [], relacionados: [], pais: null, respuestas: null, codeHash: null, linkHash: null, codeExpiresAt: null, codeAttempts: 0, urgency: null, neededBy: null, organismo: null, notas: null, confirmedAt: null, createdAt: AHORA, updatedAt: AHORA };
       entradas.push(e);
       return { ...e };
     },
@@ -94,6 +94,11 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
       const e = entradas.find((x) => x.tokenHash === h);
       return e ? { ...e } : null;
     },
+    async byLinkHash(h) {
+      const e = entradas.find((x) => x.linkHash === h);
+      return e ? { ...e } : null;
+    },
+    async linkContactToFiles() {},
     async get(id) {
       const e = entradas.find((x) => x.id === id);
       return e ? { ...e } : null;
@@ -187,8 +192,8 @@ export function flowDeps(w: World, opts: { read?: (files: SourceFile[], attempt:
     notify: async (a) => {
       w.avisos.push(a);
     },
-    sendCode: async (to, code, lang) => {
-      w.codes.push({ to, code, lang });
+    sendCode: async (to, code, lang, link) => {
+      w.codes.push({ to, code, lang, link });
     },
     now: () => AHORA,
     newId: () => `n${++ids}`,

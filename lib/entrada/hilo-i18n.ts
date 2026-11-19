@@ -16,13 +16,14 @@ export type HiloStrings = {
   resumen: string; notas: string; notasPh: string; enviar: string; enviado: string;
   sinJurado: (l: string) => string; maec: string; tocar: string; cancelar: string; uploading: (n: string) => string; badType: (n: string) => string; tooBig: (n: string) => string; error: string;
   duda: string; dudaPh: string; preguntar: string; pensando: string; anadir: string; noPedir: string; nuevos: string; otros: string;
+  pideEmail: string; enviarCodigo: string; esperandoBoton: string; faltaGdpr: string;
 };
 
 const es: HiloStrings = {
-  hola: "Hola. Así funciona: me dejas tu email, te mando un código para confirmarlo, subes tus documentos, los revisamos todos juntos y te enviamos el presupuesto cerrado, normalmente en el día.",
+  hola: "Hola. Cuéntame qué necesitas traducir: dime los idiomas y sube tus documentos. Los revisamos todos juntos y te enviamos el presupuesto cerrado, normalmente en el día.",
   email: "Email", name: "Nombre (opcional)", whatsapp: "WhatsApp (opcional)", start: "Empezar",
   faltaEmail: "un email válido", faltaConsent: "marcar las dos casillas", falta: (i) => `Para seguir falta: ${i.join(" y ")}.`,
-  pideCodigo: (e) => `Te he mandado un código de 6 cifras a ${e}. Escríbelo o pégalo aquí.`, codigoLabel: "Código de 6 cifras", reenviar: "Enviar otro código", codigoOk: "Email confirmado, gracias.", faltaCodigo: "Faltan cifras: el código tiene 6.",
+  pideCodigo: (e) => `Te he mandado un email a ${e}. Pulsa «Confirmar mi email» en el mensaje y aquí seguimos solos, o escribe el código de 6 cifras.`, codigoLabel: "Código de 6 cifras", reenviar: "Enviar otro código", codigoOk: "Email confirmado, gracias.", faltaCodigo: "Faltan cifras: el código tiene 6.",
   pideOrigen: "¿En qué idioma está el documento?", noSe: "No lo sé", pideDestino: "¿A qué idioma lo necesitas? Puedes elegir más de uno.", mismoIdioma: "Es el mismo idioma que el del documento: elige otro.", listo: "Listo", choose: "Elige…",
   pideArchivos: "Sube tus documentos: cada página, el reverso si tiene algo y la apostilla si la lleva. Varias fotos de un mismo documento valen; las junto yo.",
   add: "Añadir archivos", terminado: "He terminado", faltaArchivo: "Sube al menos un archivo.", preguntaTerminado: "¿Están todos? Comprueba las páginas, el reverso y la apostilla.", si: "Sí, ya están todos", mas: "Añadir más",
@@ -51,13 +52,17 @@ const es: HiloStrings = {
   noPedir: "No, pedir mi presupuesto",
   nuevos: "Mensajes nuevos ↓",
   otros: "Enviar otros documentos",
+  pideEmail: "Para enviarte el presupuesto cerrado y que nadie más vea tus documentos, ¿a qué email te escribimos?",
+  enviarCodigo: "Enviarme el código",
+  esperandoBoton: "Esperando a que confirmes en tu email…",
+  faltaGdpr: "marca la casilla de privacidad para subir archivos",
 };
 
 const fr: HiloStrings = {
-  hola: "Bonjour. Voici comment ça marche : vous me laissez votre e-mail, je vous envoie un code pour le confirmer, vous envoyez vos documents, nous les examinons ensemble et vous recevez le devis définitif, en général dans la journée.",
+  hola: "Bonjour. Dites-moi ce que vous devez faire traduire : les langues et vos documents. Nous les examinons ensemble et vous envoyons le devis définitif, en général dans la journée.",
   email: "E-mail", name: "Nom (facultatif)", whatsapp: "WhatsApp (facultatif)", start: "Commencer",
   faltaEmail: "un e-mail valide", faltaConsent: "cocher les deux cases", falta: (i) => `Pour continuer, il manque : ${i.join(" et ")}.`,
-  pideCodigo: (e) => `Je vous ai envoyé un code à 6 chiffres à ${e}. Saisissez-le ou collez-le ici.`, codigoLabel: "Code à 6 chiffres", reenviar: "Renvoyer un code", codigoOk: "E-mail confirmé, merci.", faltaCodigo: "Il manque des chiffres : le code en a 6.",
+  pideCodigo: (e) => `Je vous ai envoyé un e-mail à ${e}. Appuyez sur « Confirmer mon e-mail » dans le message et ici tout continue seul, ou saisissez le code à 6 chiffres.`, codigoLabel: "Code à 6 chiffres", reenviar: "Renvoyer un code", codigoOk: "E-mail confirmé, merci.", faltaCodigo: "Il manque des chiffres : le code en a 6.",
   pideOrigen: "Dans quelle langue est le document ?", noSe: "Je ne sais pas", pideDestino: "Vers quelle langue ? Vous pouvez en choisir plusieurs.", mismoIdioma: "C'est la même langue que celle du document : choisissez-en une autre.", listo: "Valider", choose: "Choisissez…",
   pideArchivos: "Envoyez vos documents : chaque page, le verso s'il est écrit et l'apostille s'il y en a une. Plusieurs photos d'un même document conviennent ; je les regroupe.",
   add: "Ajouter des fichiers", terminado: "J'ai terminé", faltaArchivo: "Envoyez au moins un fichier.", preguntaTerminado: "Tout y est ? Vérifiez les pages, le verso et l'apostille.", si: "Oui, tout y est", mas: "Ajouter d'autres",
@@ -86,13 +91,17 @@ const fr: HiloStrings = {
   noPedir: "Non, demander mon devis",
   nuevos: "Nouveaux messages ↓",
   otros: "Envoyer d'autres documents",
+  pideEmail: "Pour vous envoyer le devis définitif et que personne d'autre ne voie vos documents, à quel e-mail vous écrivons-nous ?",
+  enviarCodigo: "M'envoyer le code",
+  esperandoBoton: "En attente de votre confirmation par e-mail…",
+  faltaGdpr: "cochez la case de confidentialité pour envoyer des fichiers",
 };
 
 const en: HiloStrings = {
-  hola: "Hello. Here's how it works: you leave your email, I send you a code to confirm it, you upload your documents, we review them all together and send you the final quote, usually the same day.",
+  hola: "Hello. Tell me what you need translated: the languages and your documents. We review them all together and send you the final quote, usually the same day.",
   email: "Email", name: "Name (optional)", whatsapp: "WhatsApp (optional)", start: "Start",
   faltaEmail: "a valid email", faltaConsent: "tick both boxes", falta: (i) => `To continue we still need: ${i.join(" and ")}.`,
-  pideCodigo: (e) => `I've sent a 6-digit code to ${e}. Type or paste it here.`, codigoLabel: "6-digit code", reenviar: "Send another code", codigoOk: "Email confirmed, thanks.", faltaCodigo: "Digits missing: the code has 6.",
+  pideCodigo: (e) => `I've emailed ${e}. Press «Confirm my email» in the message and this carries on by itself, or type the 6-digit code.`, codigoLabel: "6-digit code", reenviar: "Send another code", codigoOk: "Email confirmed, thanks.", faltaCodigo: "Digits missing: the code has 6.",
   pideOrigen: "Which language is the document in?", noSe: "I don't know", pideDestino: "Which language do you need it in? You can choose more than one.", mismoIdioma: "That's the document's own language: choose another.", listo: "Done", choose: "Choose…",
   pideArchivos: "Upload your documents: every page, the back if anything is on it and the apostille if there is one. Several photos of one document are fine; I put them together.",
   add: "Add files", terminado: "I'm done", faltaArchivo: "Upload at least one file.", preguntaTerminado: "Is that everything? Check the pages, the back and the apostille.", si: "Yes, that's all", mas: "Add more",
@@ -121,13 +130,17 @@ const en: HiloStrings = {
   noPedir: "No, request my quote",
   nuevos: "New messages ↓",
   otros: "Send other documents",
+  pideEmail: "So we can send you the final quote and nobody else sees your documents, which email should we write to?",
+  enviarCodigo: "Send me the code",
+  esperandoBoton: "Waiting for you to confirm in your email…",
+  faltaGdpr: "tick the privacy box to upload files",
 };
 
 const de: HiloStrings = {
-  hola: "Hallo. So geht's: Sie hinterlassen Ihre E-Mail, ich schicke Ihnen einen Code zur Bestätigung, Sie laden Ihre Dokumente hoch, wir prüfen alle zusammen und schicken Ihnen das verbindliche Angebot, meist am selben Tag.",
+  hola: "Hallo. Sagen Sie mir, was übersetzt werden soll: die Sprachen und Ihre Dokumente. Wir prüfen alle zusammen und schicken Ihnen das verbindliche Angebot, meist am selben Tag.",
   email: "E-Mail", name: "Name (optional)", whatsapp: "WhatsApp (optional)", start: "Los geht's",
   faltaEmail: "eine gültige E-Mail", faltaConsent: "beide Kästchen ankreuzen", falta: (i) => `Zum Weitermachen fehlt: ${i.join(" und ")}.`,
-  pideCodigo: (e) => `Ich habe Ihnen einen 6-stelligen Code an ${e} geschickt. Tippen oder fügen Sie ihn hier ein.`, codigoLabel: "6-stelliger Code", reenviar: "Neuen Code senden", codigoOk: "E-Mail bestätigt, danke.", faltaCodigo: "Es fehlen Ziffern: der Code hat 6.",
+  pideCodigo: (e) => `Ich habe Ihnen an ${e} geschrieben. Drücken Sie in der Nachricht auf «E-Mail bestätigen» und hier geht es von selbst weiter, oder geben Sie den 6-stelligen Code ein.`, codigoLabel: "6-stelliger Code", reenviar: "Neuen Code senden", codigoOk: "E-Mail bestätigt, danke.", faltaCodigo: "Es fehlen Ziffern: der Code hat 6.",
   pideOrigen: "In welcher Sprache ist das Dokument?", noSe: "Weiß ich nicht", pideDestino: "In welche Sprache brauchen Sie es? Sie können mehrere wählen.", mismoIdioma: "Das ist die Sprache des Dokuments: wählen Sie eine andere.", listo: "Fertig", choose: "Auswählen…",
   pideArchivos: "Laden Sie Ihre Dokumente hoch: jede Seite, die Rückseite, falls beschrieben, und die Apostille, falls vorhanden. Mehrere Fotos eines Dokuments sind in Ordnung; ich füge sie zusammen.",
   add: "Dateien hinzufügen", terminado: "Fertig", faltaArchivo: "Laden Sie mindestens eine Datei hoch.", preguntaTerminado: "Ist alles dabei? Prüfen Sie Seiten, Rückseite und Apostille.", si: "Ja, das ist alles", mas: "Mehr hinzufügen",
@@ -156,13 +169,17 @@ const de: HiloStrings = {
   noPedir: "Nein, Angebot anfordern",
   nuevos: "Neue Nachrichten ↓",
   otros: "Weitere Dokumente senden",
+  pideEmail: "Damit wir Ihnen das verbindliche Angebot schicken können und niemand sonst Ihre Dokumente sieht: an welche E-Mail schreiben wir?",
+  enviarCodigo: "Code senden",
+  esperandoBoton: "Warten auf Ihre Bestätigung per E-Mail…",
+  faltaGdpr: "das Datenschutz-Kästchen ankreuzen, um Dateien hochzuladen",
 };
 
 const pt: HiloStrings = {
-  hola: "Olá. Funciona assim: você me deixa seu e-mail, eu envio um código para confirmá-lo, você envia seus documentos, nós revisamos todos juntos e enviamos o orçamento fechado, normalmente no mesmo dia.",
+  hola: "Olá. Conte o que precisa traduzir: os idiomas e seus documentos. Revisamos todos juntos e enviamos o orçamento fechado, normalmente no mesmo dia.",
   email: "E-mail", name: "Nome (opcional)", whatsapp: "WhatsApp (opcional)", start: "Começar",
   faltaEmail: "um e-mail válido", faltaConsent: "marcar as duas caixas", falta: (i) => `Para continuar falta: ${i.join(" e ")}.`,
-  pideCodigo: (e) => `Enviei um código de 6 dígitos para ${e}. Digite ou cole aqui.`, codigoLabel: "Código de 6 dígitos", reenviar: "Enviar outro código", codigoOk: "E-mail confirmado, obrigado.", faltaCodigo: "Faltam dígitos: o código tem 6.",
+  pideCodigo: (e) => `Enviei um e-mail para ${e}. Toque em «Confirmar meu e-mail» na mensagem e aqui continua sozinho, ou digite o código de 6 dígitos.`, codigoLabel: "Código de 6 dígitos", reenviar: "Enviar outro código", codigoOk: "E-mail confirmado, obrigado.", faltaCodigo: "Faltam dígitos: o código tem 6.",
   pideOrigen: "Em que idioma está o documento?", noSe: "Não sei", pideDestino: "Para que idioma precisa? Pode escolher mais de um.", mismoIdioma: "É o mesmo idioma do documento: escolha outro.", listo: "Pronto", choose: "Escolha…",
   pideArchivos: "Envie seus documentos: cada página, o verso se tiver algo e a apostila, se houver. Várias fotos do mesmo documento servem; eu as junto.",
   add: "Adicionar arquivos", terminado: "Terminei", faltaArchivo: "Envie pelo menos um arquivo.", preguntaTerminado: "Está tudo? Confira as páginas, o verso e a apostila.", si: "Sim, está tudo", mas: "Adicionar mais",
@@ -191,6 +208,10 @@ const pt: HiloStrings = {
   noPedir: "Não, pedir meu orçamento",
   nuevos: "Mensagens novas ↓",
   otros: "Enviar outros documentos",
+  pideEmail: "Para enviarmos o orçamento fechado e ninguém mais ver seus documentos, para qual e-mail escrevemos?",
+  enviarCodigo: "Enviar-me o código",
+  esperandoBoton: "Aguardando sua confirmação no e-mail…",
+  faltaGdpr: "marque a caixa de privacidade para enviar arquivos",
 };
 
 export const HILO_T: Record<EntradaLang, HiloStrings> = { es, fr, en, de, pt };

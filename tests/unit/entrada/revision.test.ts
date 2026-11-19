@@ -28,7 +28,7 @@ function apiDeps(w: World, read: (fs: SourceFile[], attempt: number) => Reading)
       return { ok: n <= limit, retryAfterSec: 60, remaining: limit - n };
     },
     alertStaff: async () => {},
-    conserje: async () => null, clientIp: () => "1.2.3.4", ipHash: () => "iph", isOwnBlobUrl: (u) => u.startsWith(B),
+    conserje: async () => null, budget: async () => true, clientIp: () => "1.2.3.4", ipHash: () => "iph", isOwnBlobUrl: (u) => u.startsWith(B),
   };
   return { deps, hits };
 }
@@ -111,7 +111,7 @@ test("A1: an entrada joined to an existing caso cannot edit even its own lote", 
 
 test("the code never reaches the mail log", async () => {
   const { redactCodes } = await import("../../../lib/azure-mail.ts");
-  const subject = codeEmail("es", "482913").subject;
+  const subject = codeEmail("es", "482913", "https://x/entrada/confirmar?k=abc").subject;
   assert.doesNotMatch(redactCodes(subject), /482913/);
   assert.match(redactCodes(subject), /\[código oculto\]/);
 });

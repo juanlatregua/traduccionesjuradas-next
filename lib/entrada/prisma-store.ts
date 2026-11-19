@@ -12,7 +12,8 @@ const toEntrada = (r: EntradaRecord): EntradaRow => ({
   email: r.email, phone9: r.phone9, nombre: r.nombre, sourceLang: r.sourceLang, targetLang: r.targetLang, targetLangs: r.targetLangs, pais: r.pais,
   respuestas: Array.isArray(r.respuestasJson) ? (r.respuestasJson as EntradaRow["respuestas"]) : null, urgency: r.urgency, neededBy: r.neededBy,
   organismo: r.organismo, notas: r.notas, confirmedAt: r.confirmedAt,
-  emailVerifiedAt: r.emailVerifiedAt, codeHash: r.codeHash, codeExpiresAt: r.codeExpiresAt, codeAttempts: r.codeAttempts, createdAt: r.createdAt, updatedAt: r.updatedAt,
+  emailVerifiedAt: r.emailVerifiedAt, codeHash: r.codeHash, linkHash: r.linkHash, codeExpiresAt: r.codeExpiresAt, codeAttempts: r.codeAttempts,
+  marketingConsentAt: r.marketingConsentAt, createdAt: r.createdAt, updatedAt: r.updatedAt,
 });
 
 export function prismaEntradaStore(db: PrismaClient): EntradaStore {
@@ -23,6 +24,16 @@ export function prismaEntradaStore(db: PrismaClient): EntradaStore {
     async byTokenHash(tokenHash) {
       const r = await db.entrada.findUnique({ where: { tokenHash } });
       return r ? toEntrada(r) : null;
+    },
+    async byLinkHash(linkHash) {
+      const r = await db.entrada.findUnique({ where: { linkHash } });
+      return r ? toEntrada(r) : null;
+    },
+    async linkContactToFiles(entradaId, c) {
+      await db.documentAnalysis.updateMany({
+        where: { sessionToken: sessionKeyOf(entradaId) },
+        data: { clientEmail: c.email, clientName: c.nombre, clientPhone: c.phone9, ...(c.email ? { marketingConsent: true, marketingConsentAt: new Date() } : {}) },
+      });
     },
     async get(id) {
       const r = await db.entrada.findUnique({ where: { id } });

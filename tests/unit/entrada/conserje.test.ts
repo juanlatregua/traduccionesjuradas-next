@@ -81,7 +81,7 @@ test("cost: doubts need a verified email and have their own caps per entrada", a
   const deps: EntradaApiDeps = {
     ...flowDeps(w), enabled: () => true,
     rateLimit: async (key, limit) => { const n = (hits.get(key) ?? 0) + 1; hits.set(key, n); return { ok: n <= limit, retryAfterSec: 60 }; },
-    alertStaff: async () => {}, conserje: async () => { calls++; return "Sí."; }, clientIp: () => "1.2.3.4", ipHash: () => "iph", isOwnBlobUrl: () => true,
+    alertStaff: async () => {}, conserje: async () => { calls++; return "Sí."; }, budget: async () => true, clientIp: () => "1.2.3.4", ipHash: () => "iph", isOwnBlobUrl: () => true,
   };
   const p = (b: unknown) => new Request("http://x", { method: "POST", body: JSON.stringify(b) });
   const tok = ((await handleOpen(p({ email: "a@x.com", gdprConsent: true, marketingConsent: true }), deps)).body as { token: string }).token;

@@ -21,11 +21,11 @@ type Res = { ok: boolean; error?: string; busy?: boolean; view?: ClientView; tok
 function storage<T>(key: string, value?: T | null): T | null {
   try {
     if (value === undefined) {
-      const raw = sessionStorage.getItem(key);
+      const raw = localStorage.getItem(key);
       return raw ? (JSON.parse(raw) as T) : null;
     }
-    if (value === null) sessionStorage.removeItem(key);
-    else sessionStorage.setItem(key, JSON.stringify(value));
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(value));
   } catch {}
   return null;
 }
@@ -165,7 +165,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
 
   // Autofill sometimes fills inputs without firing React events: read the DOM while those asks are open.
   useEffect(() => {
-    if (ask?.kind !== "codigo" && ask?.kind !== "contacto") return;
+    if (ask?.kind !== "codigo" && ask?.kind !== "email") return;
     const id = setInterval(() => {
       if (codeRef.current && digits(codeRef.current.value) !== code) setCode(digits(codeRef.current.value));
       if (emailRef.current && emailRef.current.value !== email) setEmail(emailRef.current.value);
@@ -185,6 +185,20 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
     if (ask?.kind === "codigo" && code.length === 6) void verify(code);
   }, [ask?.kind, code, verify]);
 
+  // The email button may be pressed in another tab or on the phone: this tab notices it by itself.
+  useEffect(() => {
+    if (ask?.kind !== "codigo" || !token) return;
+    const id = setInterval(async () => {
+      const { data } = await call(`/api/entrada/${token}`);
+      if (data.view?.emailVerificado) setView(data.view);
+    }, 2500);
+    return () => clearInterval(id);
+  }, [ask?.kind, token]);
+
+  useEffect(() => {
+    if (ask?.kind === "leyendo" && !reading.current) void read();
+  });
+
   useEffect(() => {
     if (ask?.kind !== "leyendo") return setStep(0);
     const id = setInterval(() => setStep((s) => s + 1), 5000);
@@ -192,20 +206,28 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   }, [ask?.kind]);
 
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const contactoFalta = [!emailOk && t.faltaEmail, !(gdpr && marketing) && t.faltaConsent].filter((x): x is string => Boolean(x));
+  const emailFalta = [!emailOk && t.faltaEmail, !marketing && t.faltaConsent].filter((x): x is string => Boolean(x));
   const origen = view?.idiomas.origen ?? local.origen;
+  const destinosActuales = view?.idiomas.destinos.length ? view.idiomas.destinos : local.destinos;
 
-  async function open() {
-    const value = (emailRef.current?.value ?? email).trim();
-    setEmail(value);
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) || !gdpr || !marketing) return;
-    setBusy(t.start);
-    const { data } = await call("/api/entrada", "POST", { email: value, nombre: nombre.trim() || null, telefono: telefono.trim() || null, gdprConsent: true, marketingConsent: true, source, lang });
-    setBusy(null);
-    if (!data.ok || !data.token) return void apply(data);
+  /** The entrada is born anonymous with the first upload (privacy consent given), carrying the languages already chosen. */
+  async function ensureEntrada(): Promise<string | null> {
+    if (token) return token;
+    const { data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: local.origen, targetLangs: local.destinos, source, lang });
+    if (!data.ok || !data.token) return apply(data), null;
     storage(TOKEN_KEY, data.token);
     setToken(data.token);
-    apply((await call(`/api/entrada/${data.token}`)).data);
+    return data.token;
+  }
+
+  async function sendEmail() {
+    const value = (emailRef.current?.value ?? email).trim();
+    setEmail(value);
+    if (!token || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) || !marketing) return;
+    setBusy(t.enviarCodigo);
+    const { data } = await call(`/api/entrada/${token}/email`, "POST", { email: value, nombre: nombre.trim() || null, telefono: telefono.trim() || null, marketingConsent: true });
+    setBusy(null);
+    apply(data);
   }
 
   async function setLangs(source: string | null, targets: string[]) {
@@ -216,16 +238,22 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
 
   async function answerOrigen(code: string | null) {
     patchLocal({ origenDado: true, origen: code });
-    if (view?.idiomas.destinos.length) await setLangs(code, view.idiomas.destinos);
+    if (view && view.idiomas.destinos.length) await setLangs(code, view.idiomas.destinos);
     setEditing(null);
   }
 
   async function answerDestinos() {
+    if (!view) {
+      patchLocal({ destinos });
+      return setEditing(null);
+    }
     if (await setLangs(origen, destinos)) setEditing(null);
   }
 
   async function addFiles(list: FileList | null) {
-    if (!token || !list) return;
+    if (!list || !gdpr) return;
+    const tk = await ensureEntrada();
+    if (!tk) return;
     const { upload } = await import("@vercel/blob/client");
     for (const file of Array.from(list)) {
       const mimeType = mimeOf(file);
@@ -241,7 +269,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
       try {
         const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
         const blob = await upload(`entrada/${Date.now()}-${safe}`, file, { access: "public", handleUploadUrl: "/api/documents/upload", clientPayload: JSON.stringify({ gdprConsent: true }) });
-        apply((await call(`/api/entrada/${token}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType })).data);
+        apply((await call(`/api/entrada/${tk}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType })).data);
       } catch (e) {
         setError(e instanceof Error ? e.message : t.error);
       }
@@ -274,7 +302,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
       apply(data);
       break;
     }
-    patchLocal({ leyendo: false, terminado: false });
+    patchLocal({ leyendo: false, terminado: false, quiereLeer: false });
     reading.current = false;
   }
 
@@ -347,7 +375,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
 
   const fmtDate = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString(lang, { timeZone: "UTC", day: "numeric", month: "long" });
   const startEdit = (key: EditKey) => () => {
-    if (key === "destino") setDestinos(view?.idiomas.destinos.length ? view.idiomas.destinos : ["es"]);
+    if (key === "destino") setDestinos(destinosActuales.length ? destinosActuales : ["es"]);
     if (key.startsWith("pregunta:")) setAnswer(local.respuestas[Number(key.slice(9))] ?? "");
     setEditing(key);
   };
@@ -357,12 +385,14 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
     switch (m.kind) {
       case "hola": return t.hola;
       case "email": return view?.email;
+      case "pide_email": return t.pideEmail;
+      case "si_terminado": return t.si;
       case "pide_codigo": return t.pideCodigo(view?.email ?? "");
       case "codigo_ok": return t.codigoOk;
       case "pide_origen": return t.pideOrigen;
       case "origen": return origen ? langName(origen) : t.noSe;
       case "pide_destino": return t.pideDestino;
-      case "destino": return (view?.idiomas.destinos ?? []).map(langName).join(", ");
+      case "destino": return destinosActuales.map(langName).join(", ");
       case "pide_archivos": return t.pideArchivos;
       case "archivos":
         return (
@@ -472,7 +502,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
 
   function askBox(a: Ask): ReactNode {
     switch (a.kind) {
-      case "contacto":
+      case "email":
         return (
           <div className="space-y-3">
             <input ref={emailRef} type="email" inputMode="email" autoComplete="email" placeholder={t.email} aria-label={t.email} value={email}
@@ -485,12 +515,8 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
               <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{T.marketingConsent}</span>
             </label>
-            <label className="flex items-start gap-2 text-xs text-graphite">
-              <input type="checkbox" checked={gdpr} onChange={(e) => setGdpr(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{T.gdprConsent} <a href="/privacidad" target="_blank" className="text-bleu underline">{T.gdprPrivacyLink}</a>.</span>
-            </label>
-            <button type="button" className={btn} disabled={!!busy || contactoFalta.length > 0} onClick={open}>{t.start}</button>
-            {contactoFalta.length > 0 && <p className="text-xs text-graphite">{t.falta(contactoFalta)}</p>}
+            <button type="button" className={btn} disabled={!!busy || emailFalta.length > 0} onClick={sendEmail}>{t.enviarCodigo}</button>
+            {emailFalta.length > 0 && <p className="text-xs text-graphite">{t.falta(emailFalta)}</p>}
           </div>
         );
       case "codigo":
@@ -500,7 +526,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
               onChange={(e) => setCode(digits(e.target.value))} onInput={(e) => setCode(digits(e.currentTarget.value))}
               onPaste={(e) => { e.preventDefault(); setCode(digits(e.clipboardData.getData("text"))); }}
               className="w-40 rounded-lg border border-graphite/30 bg-white px-3 py-2 text-center text-xl tracking-[0.4em]" />
-            {code.length > 0 && code.length < 6 && <p className="text-xs text-graphite">{t.faltaCodigo}</p>}
+            {code.length > 0 && code.length < 6 ? <p className="text-xs text-graphite">{t.faltaCodigo}</p> : <p className="text-xs text-graphite">{t.esperandoBoton}</p>}
             <button type="button" className="block text-sm text-bleu underline" onClick={async () => token && apply((await call(`/api/entrada/${token}/codigo`, "POST")).data)}>{t.reenviar}</button>
           </div>
         );
@@ -530,17 +556,23 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
         return (
           <div className="space-y-2">
             <input ref={fileInput} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.tif,.tiff,.webp" className="hidden" onChange={(e) => addFiles(e.target.files)} />
+            {!token && (
+              <label className="flex items-start gap-2 text-xs text-graphite">
+                <input type="checkbox" checked={gdpr} onChange={(e) => setGdpr(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{T.gdprConsent} <a href="/privacidad" target="_blank" className="text-bleu underline">{T.gdprPrivacyLink}</a>.</span>
+              </label>
+            )}
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={chip(false)} disabled={!!busy} onClick={() => fileInput.current?.click()}>{t.add}</button>
+              <button type="button" className={chip(false)} disabled={!!busy || (!token && !gdpr)} onClick={() => fileInput.current?.click()}>{t.add}</button>
               <button type="button" className={btn} disabled={!view?.archivos.length || !!busy} onClick={() => patchLocal({ terminado: true })}>{t.terminado}</button>
             </div>
-            {!view?.archivos.length && <p className="text-xs text-graphite">{t.faltaArchivo}</p>}
+            {!token && !gdpr ? <p className="text-xs text-graphite">{t.falta([t.faltaGdpr])}</p> : !view?.archivos.length && <p className="text-xs text-graphite">{t.faltaArchivo}</p>}
           </div>
         );
       case "terminado":
         return (
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={btn} onClick={read}>{t.si}</button>
+            <button type="button" className={btn} onClick={() => patchLocal({ quiereLeer: true })}>{t.si}</button>
             <button type="button" className={chip(false)} onClick={() => patchLocal({ terminado: false })}>{t.mas}</button>
           </div>
         );

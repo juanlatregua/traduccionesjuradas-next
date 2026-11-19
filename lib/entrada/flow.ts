@@ -6,7 +6,7 @@ import type { StartInput, StartResult } from "../lectura-constructor/run.ts";
 import type { LecturaStore } from "../lectura-constructor/store.ts";
 import type { Canal } from "./identidad.ts";
 import { sha256, type GateInput, type GateResult } from "./puerta.ts";
-import { CODE_MAX_ATTEMPTS, CODE_TTL_MS, codeHashOf, codeMatches, newCode } from "./codigo.ts";
+import { CODE_MAX_ATTEMPTS, CODE_TTL_MS, codeHashOf, codeMatches, linkHashOf, newCode, newLinkToken } from "./codigo.ts";
 import { sessionKeyOf, type ArchivoRow, type EntradaRow, type EntradaStore } from "./store.ts";
 import { clientView, ownLote, type ClientView, type ReadingExtras } from "./view.ts";
 import { fingerprintOf } from "../lectura-constructor/run.ts";
@@ -40,7 +40,8 @@ export type FlowDeps = {
     cerrarSinJurado(casoId: string, entradaId: string): Promise<boolean>;
   };
   notify(aviso: Aviso): Promise<void>;
-  sendCode(to: string, code: string, lang: string | null): Promise<void>;
+  /** linkToken: the one-time «Confirmar mi email» button, bound to this entrada. */
+  sendCode(to: string, code: string, lang: string | null, linkToken: string): Promise<void>;
   /** Pages and openability of one file at upload time (no model call); null when it cannot be told here. */
   inspect?(file: { name: string; mimeType: string; bytes: Uint8Array }): Promise<{ pages: number | null; problem: string | null } | null>;
   now(): Date;
@@ -57,11 +58,11 @@ export const targetsOf = (e: Pick<EntradaRow, "targetLang" | "targetLangs">): st
 export const tokenHashOf = (token: string) => createHash("sha256").update(token).digest("hex");
 const actorOf = (e: EntradaRow) => `cliente:${e.email ?? e.phone9 ?? e.id}`;
 
-export async function abrirEntrada(deps: FlowDeps, input: { canal: Canal; email: string | null; phone9: string | null; nombre: string | null; sourceLang: string | null; targetLang: string | null; ipHash: string | null; marketing: boolean; source?: string | null; lang?: string | null }) {
+export async function abrirEntrada(deps: FlowDeps, input: { canal: Canal; email: string | null; phone9: string | null; nombre: string | null; sourceLang: string | null; targetLang: string | null; targetLangs?: string[]; ipHash: string | null; marketing: boolean; source?: string | null; lang?: string | null }) {
   const token = randomBytes(24).toString("base64url");
   const now = deps.now();
   const entrada = await deps.store.create({
-    canal: input.canal, email: input.email, phone9: input.phone9, nombre: input.nombre, sourceLang: input.sourceLang, targetLang: input.targetLang, targetLangs: input.targetLang ? [input.targetLang] : [], source: input.source ?? null, lang: input.lang ?? null,
+    canal: input.canal, email: input.email, phone9: input.phone9, nombre: input.nombre, sourceLang: input.sourceLang, targetLang: input.targetLangs?.[0] ?? input.targetLang, targetLangs: input.targetLangs?.length ? input.targetLangs : input.targetLang ? [input.targetLang] : [], source: input.source ?? null, lang: input.lang ?? null,
     tokenHash: tokenHashOf(token), ipHash: input.ipHash, gdprConsentAt: now, marketingConsentAt: input.marketing ? now : null,
     emailVerifiedAt: VERIFIED_CANALES.has(input.canal) ? now : null,
   });
@@ -91,10 +92,11 @@ export async function enviarCodigo(deps: FlowDeps, e: EntradaRow): Promise<Outco
   if (e.emailVerifiedAt) return { ok: true, view: await vistaEntrada(deps, e) };
   if (!e.email) return fail(422, "Falta el email.");
   const code = newCode();
-  const patch = { codeHash: codeHashOf(e.id, code), codeExpiresAt: new Date(deps.now().getTime() + CODE_TTL_MS), codeAttempts: 0 };
+  const link = newLinkToken();
+  const patch = { codeHash: codeHashOf(e.id, code), linkHash: linkHashOf(link), codeExpiresAt: new Date(deps.now().getTime() + CODE_TTL_MS), codeAttempts: 0 };
   if (!(await deps.store.update(e.id, patch, ["abierta", "leida"]))) return fail(409, "Esta solicitud ya está enviada.");
   try {
-    await deps.sendCode(e.email, code, e.lang);
+    await deps.sendCode(e.email, code, e.lang, link);
   } catch {
     return fail(502, "No hemos podido enviarte el código. Prueba de nuevo en un minuto.");
   }
@@ -106,9 +108,31 @@ export async function verificarCodigo(deps: FlowDeps, e: EntradaRow, code: strin
   if (!e.codeHash || !e.codeExpiresAt || e.codeExpiresAt.getTime() < deps.now().getTime()) return fail(410, "El código ha caducado. Pide otro.");
   if (!(await deps.store.takeAttempt(e.id, CODE_MAX_ATTEMPTS))) return fail(429, "Demasiados intentos. Pide un código nuevo.");
   if (!codeMatches(e.id, code, e.codeHash)) return fail(400, "El código no es correcto.");
-  const patch = { emailVerifiedAt: deps.now(), codeHash: null, codeExpiresAt: null };
-  await deps.store.update(e.id, patch, ["abierta", "leida"]);
+  return marcarVerificada(deps, e);
+}
+
+async function marcarVerificada(deps: FlowDeps, e: EntradaRow): Promise<Outcome> {
+  const patch = { emailVerifiedAt: deps.now(), codeHash: null, linkHash: null, codeExpiresAt: null };
+  if (!(await deps.store.update(e.id, patch, ["abierta", "leida"]))) return fail(409, "Esta solicitud ya está enviada.");
+  await deps.store.linkContactToFiles(e.id, { email: e.email, nombre: e.nombre, phone9: e.phone9 });
   return { ok: true, view: await vistaEntrada(deps, { ...e, ...patch }) };
+}
+
+/** The email arrives at the end («¿has terminado? → sí»): it can change until it is verified, and each change needs a new code. */
+export async function ponerEmail(deps: FlowDeps, e: EntradaRow, c: { email: string; phone9: string | null; nombre: string | null }): Promise<Outcome> {
+  if (e.emailVerifiedAt) return e.email === c.email ? { ok: true, view: await vistaEntrada(deps, e) } : fail(409, "Tu email ya está confirmado.");
+  const patch = { email: c.email, phone9: c.phone9 ?? e.phone9, nombre: c.nombre ?? e.nombre, marketingConsentAt: deps.now(), codeHash: null, linkHash: null, codeExpiresAt: null, codeAttempts: 0 };
+  if (!(await deps.store.update(e.id, patch, ["abierta", "leida"]))) return fail(409, "Esta solicitud ya está enviada.");
+  return enviarCodigo(deps, { ...e, ...patch });
+}
+
+/** «Confirmar mi email»: one use, ten minutes, only the entrada it was issued for. Says nothing about any caso. */
+export async function confirmarEnlace(deps: FlowDeps, link: string): Promise<{ ok: boolean; status: number }> {
+  const e = await deps.store.byLinkHash(linkHashOf(link));
+  if (!e || !e.codeExpiresAt || e.codeExpiresAt.getTime() < deps.now().getTime()) return { ok: false, status: 410 };
+  if (e.emailVerifiedAt) return { ok: true, status: 200 };
+  const r = await marcarVerificada(deps, e);
+  return { ok: r.ok, status: r.ok ? 200 : 409 };
 }
 
 /** A reading of this entrada is running or waiting to retry. */

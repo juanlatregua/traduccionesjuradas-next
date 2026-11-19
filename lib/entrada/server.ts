@@ -112,9 +112,9 @@ export const flowDeps: FlowDeps = {
     if (r.status === "empty") return { pages: 0, problem: r.skipped[0]?.reasonEs ?? "no se puede abrir" };
     return null;
   },
-  sendCode: async (to, code, lang) => {
-    const { subject, html } = codeEmail(lang, code);
-    await sendMail({ to, subject, html });
+  sendCode: async (to, code, lang, link) => {
+    const { subject, html, text } = codeEmail(lang, code, `${SITE}/entrada/confirmar?k=${encodeURIComponent(link)}`);
+    await sendMail({ to, subject, html, text });
   },
   now: () => new Date(),
   newId: randomUUID,
@@ -135,6 +135,20 @@ export const entradaApiDeps: EntradaApiDeps = {
     } as Anthropic.MessageCreateParamsNonStreaming);
     assertNotRefused(resp, "entrada/conserje");
     return resp.content.map((b) => (b.type === "text" ? b.text : "")).join("").trim() || null;
+  },
+  budget: async (key, amount, limit, windowMs) => {
+    const now = new Date();
+    return prisma.$transaction(async (tx) => {
+      const b = await tx.rateLimitBucket.findUnique({ where: { key }, select: { count: true, resetAt: true } });
+      if (!b || b.resetAt <= now) {
+        if (amount > limit) return false;
+        await tx.rateLimitBucket.upsert({ where: { key }, create: { key, count: amount, resetAt: new Date(now.getTime() + windowMs) }, update: { count: amount, resetAt: new Date(now.getTime() + windowMs) } });
+        return true;
+      }
+      if (b.count + amount > limit) return false;
+      await tx.rateLimitBucket.update({ where: { key }, data: { count: { increment: amount } } });
+      return true;
+    });
   },
   alertStaff: async (subject, text) => {
     const to = process.env.PRESUPUESTO_TO;
