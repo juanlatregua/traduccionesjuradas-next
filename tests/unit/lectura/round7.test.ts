@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { deflateSync } from "node:zlib";
 import { HeavyBusy, HeavyWorker, WorkerOutOfMemory, workerSource } from "../../../lib/lectura/heavy.ts";
-import { prepareBatch, DEFAULT_LIMITS } from "../../../lib/lectura/prepare.ts";
+import { prepareBatch, DEFAULT_LIMITS, MAX_BUSY_RETRIES } from "../../../lib/lectura/prepare.ts";
 import { countWords, isReliableTextLayer } from "../../../lib/lectura/words.ts";
-import { ceilingAbove, lorem, makePdf } from "./fixtures.ts";
+import { ceilingAbove, lorem, makeImage, makePdf } from "./fixtures.ts";
 
 const MB = 1024 * 1024;
 
@@ -90,7 +90,8 @@ test("over the ceiling: a neighbour's memory makes the task busy (retryable), th
   try {
     await w.run("wait", { ms: 1 });
     const pending = w.run("wait", { ms: 3000 });
-    for (let i = 0; i < 40; i++) hold.push(Buffer.alloc(10 * MB, 1));
+    await new Promise((r) => setTimeout(r, 200));
+    for (let i = 0; i < 60; i++) hold.push(Buffer.alloc(10 * MB, 1));
     await assert.rejects(pending, (e) => e instanceof HeavyBusy && !(e instanceof WorkerOutOfMemory));
     hold.length = 0;
     await new Promise((r) => setTimeout(r, 300));
@@ -101,4 +102,16 @@ test("over the ceiling: a neighbour's memory makes the task busy (retryable), th
     hold.length = 0;
     await w.close();
   }
+});
+
+test("busy carries its attempt; after the last retry the file is skipped with a reason instead of busy again", async () => {
+  const full = { ...DEFAULT_LIMITS, rssCeilingMb: 1 };
+  const files = [{ name: "a.jpg", bytes: await makeImage("jpeg") }];
+  const first = await prepareBatch(files, full);
+  assert.equal(first.status, "busy");
+  if (first.status !== "busy") return;
+  assert.deepEqual([first.attempt, first.maxRetries], [1, MAX_BUSY_RETRIES]);
+  const last = await prepareBatch(files, full, MAX_BUSY_RETRIES);
+  assert.equal(last.status, "empty");
+  if (last.status === "empty") assert.match(last.skipped[0].reasonEs, /no tuvo memoria libre para abrirlo tras 3 intentos/);
 });

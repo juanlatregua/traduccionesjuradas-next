@@ -89,10 +89,13 @@ export type PrepareResult =
   | { status: "empty"; reasonEs: string; skipped: { name: string; reasonEs: string }[] }
   | Busy;
 /** The instance had no memory room for the heavy work: nothing about the files is known, retry the whole batch later. */
-export type Busy = { status: "busy"; retryable: true; reasonEs: string };
+export type Busy = { status: "busy"; retryable: true; attempt: number; maxRetries: number; reasonEs: string };
 export const BUSY_ES = "El servidor está ocupado con otros lotes y no ha podido abrir los archivos: vuelve a intentarlo en un minuto.";
-const rethrowBusy = (err: unknown) => {
-  if (err instanceof HeavyBusy) throw err;
+/** Retries after a busy result; on the attempt after the last one, a file that still finds no room is skipped instead. */
+export const MAX_BUSY_RETRIES = 2;
+const BUSY_SKIP_ES = (what: string) => `${what}: el servidor no tuvo memoria libre para abrirlo tras ${MAX_BUSY_RETRIES + 1} intentos`;
+const rethrowBusy = (err: unknown, final: boolean) => {
+  if (err instanceof HeavyBusy && !final) throw err;
 };
 
 export function sha256Hex(bytes: Uint8Array): string {
@@ -141,13 +144,17 @@ type RawEntry = { name: string; bytes: Uint8Array };
 type Budget = { expanded: number };
 type Skip = PreparedBatch["skipped"];
 
-async function expandZip(file: RawEntry, limits: BatchLimits, budget: Budget, heavy: HeavyWorker, skipped: Skip): Promise<RawEntry[] | TooLarge> {
+async function expandZip(file: RawEntry, limits: BatchLimits, budget: Budget, heavy: HeavyWorker, skipped: Skip, final: boolean): Promise<RawEntry[] | TooLarge> {
   type Listed = { name: string; method: number; encrypted: boolean; compressedSize: number; declaredSize: number; start: number };
   let listed: Listed[] | null = null;
   try {
     listed = (await heavy.run<{ entries: Listed[] | null }>("zipList", { bytes: file.bytes }, limits.maxFileMs)).entries;
   } catch (err) {
-    rethrowBusy(err);
+    rethrowBusy(err, final);
+    if (err instanceof HeavyBusy) {
+      skipped.push({ name: file.name, reasonEs: BUSY_SKIP_ES("ZIP") });
+      return [];
+    }
   }
   const entries = listed?.map((e) => ({ ...e, data: file.bytes.subarray(e.start, e.start + e.compressedSize) }));
   if (!entries) {
@@ -194,7 +201,7 @@ async function expandZip(file: RawEntry, limits: BatchLimits, budget: Budget, he
         // The header may lie: the real output is cut at the room left (per entry and per batch), inside the worker.
         r = await heavy.run("inflate", { bytes: e.data, max: room }, limits.maxFileMs);
       } catch (err) {
-        rethrowBusy(err);
+        rethrowBusy(err, final);
         skipped.push({ name, reasonEs: err instanceof WorkerTimeout ? "entrada del ZIP: tiempo de descompresión agotado" : "entrada del ZIP: la descompresión se quedó sin memoria" });
         continue;
       }
@@ -266,24 +273,26 @@ async function probe(u: { name: string; bytes: Uint8Array; type: DetectedType },
 
 function heavyReason(err: unknown, what: string): string {
   if (err instanceof Unreadable) return err.message;
+  if (err instanceof HeavyBusy) return BUSY_SKIP_ES(what);
   if (err instanceof WorkerTimeout) return `${what}: tiempo de lectura agotado`;
   if (err instanceof WorkerDied) return `${what}: se quedó sin memoria al abrirlo`;
   return `${what} dañado: no se puede abrir`;
 }
 
-export async function prepareBatch(input: readonly SourceFile[], limits: BatchLimits = DEFAULT_LIMITS): Promise<PrepareResult> {
+/** attempt: how many busy results this same batch already got (0 the first time). */
+export async function prepareBatch(input: readonly SourceFile[], limits: BatchLimits = DEFAULT_LIMITS, attempt = 0): Promise<PrepareResult> {
   const heavy = new HeavyWorker({ memoryMb: limits.workerMemoryMb, rssCeilingMb: limits.rssCeilingMb, timeoutMs: limits.maxFileMs });
   try {
-    return await prepareWith(input, limits, heavy);
+    return await prepareWith(input, limits, heavy, attempt >= MAX_BUSY_RETRIES);
   } catch (err) {
-    if (err instanceof HeavyBusy) return { status: "busy", retryable: true, reasonEs: BUSY_ES };
+    if (err instanceof HeavyBusy) return { status: "busy", retryable: true, attempt: attempt + 1, maxRetries: MAX_BUSY_RETRIES, reasonEs: BUSY_ES };
     throw err;
   } finally {
     await heavy.close();
   }
 }
 
-async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, heavy: HeavyWorker): Promise<PrepareResult> {
+async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, heavy: HeavyWorker, final: boolean): Promise<PrepareResult> {
   const skipped: Skip = [];
   const raw: RawEntry[] = [];
   const budget: Budget = { expanded: 0 };
@@ -297,7 +306,7 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
       raw.push({ name: f.name, bytes });
       continue;
     }
-    const expanded = await expandZip({ name: f.name, bytes }, limits, budget, heavy, skipped);
+    const expanded = await expandZip({ name: f.name, bytes }, limits, budget, heavy, skipped, final);
     if (!Array.isArray(expanded)) return expanded;
     raw.push(...expanded);
   }
@@ -336,7 +345,7 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
     try {
       p = await probe(u, limits, heavy);
     } catch (err) {
-      rethrowBusy(err);
+      rethrowBusy(err, final);
       skipped.push({ name: u.name, reasonEs: heavyReason(err, u.type === "pdf" ? "PDF" : "imagen") });
       continue;
     }
@@ -361,7 +370,7 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
       if (u.bytes.length <= limits.maxPdfjsBytes) {
         type Text = { numPages: number; over: "page" | "file" | null; texts: string[] | null; words: number[] | null; reliable: boolean; chars: number };
         const t = await heavy.run<Text>("pdfText", { bytes: u.bytes, maxPageChars: limits.maxPageTextChars, maxChars: textLeft }, limits.maxFileMs).catch((err) => {
-          rethrowBusy(err);
+          rethrowBusy(err, final);
           return null;
         });
         if (t && t.numPages !== p.pageCount) {
@@ -393,7 +402,7 @@ async function prepareWith(input: readonly SourceFile[], limits: BatchLimits, he
         images.push(r.bytes);
       }
     } catch (err) {
-      rethrowBusy(err);
+      rethrowBusy(err, final);
       skipped.push({ name: u.name, reasonEs: heavyReason(err, "imagen") });
       continue;
     }

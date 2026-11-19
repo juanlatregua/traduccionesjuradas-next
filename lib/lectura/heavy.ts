@@ -85,7 +85,6 @@ async function assembleOne(PDFDocument, files, loaded, parts) {
   return { ok: true, bytes, pageCount: parts.length };
 }
 const tasks = {
-  ${extraTasks}
   heifPixels: async ({ bytes }) => ({ pixels: heifPixels(bytes) }),
   zipList: async ({ bytes }) => ({ entries: listZip(bytes) }),
   inflate: async ({ bytes, max }) => {
@@ -157,6 +156,7 @@ const tasks = {
     }
     return { results };
   },
+  ${extraTasks}
 };
 parentPort.on("message", async ({ id, task, args }) => {
   try {
@@ -220,6 +220,8 @@ class Semaphore {
 }
 const slots = new Semaphore(HEAVY_SLOTS);
 const OWN_MEMORY_WAIT_MS = 200;
+/** Tasks whose weight is native (libvips): their memory never shows in the worker heap, so an excess is always theirs. */
+const NATIVE_TASKS: ReadonlySet<string> = new Set(["imageMeta", "image"]);
 
 /** Heap + external memory (ArrayBuffers, wasm) of the worker; null when it cannot say in time (then it counts as its own). */
 type HeapStats = { used_heap_size: number; external_memory?: number };
@@ -309,7 +311,7 @@ export class HeavyWorker {
         // the growth since the task started; otherwise the excess belongs to a neighbour and the batch is retryable.
         void ownMemory(w).then((own) => {
           const grown = Math.max(0, rss - startRss);
-          const mine = own === null || own * 2 >= grown;
+          const mine = NATIVE_TASKS.has(task) || own === null || own * 2 >= grown;
           done(() => reject(mine
             ? new WorkerOutOfMemory(`${task}: el proceso pasa de ${this.limits.rssCeilingMb} MB`)
             : new HeavyBusy(`${task}: el proceso pasa de ${this.limits.rssCeilingMb} MB por memoria ajena a esta tarea`)), true);

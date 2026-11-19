@@ -11,7 +11,7 @@ import { assessReading, type Assessment } from "./assess.ts";
 export type { SourceFile, PreparedBatch, BatchLimits, Busy } from "./prepare.ts";
 export type { ReadingContext } from "./prompt.ts";
 export type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
-export { prepareBatch, DEFAULT_LIMITS } from "./prepare.ts";
+export { prepareBatch, DEFAULT_LIMITS, MAX_BUSY_RETRIES } from "./prepare.ts";
 export { validateReading } from "./validate.ts";
 export { assembleDocumentPdfs, documentFileName, documentFileNames, type AssembledPdf } from "./assemble.ts";
 export { documentLabel } from "./label.ts";
@@ -39,6 +39,8 @@ export type Reading =
 export type ReadDeps = CallOptions & {
   callModel?: ModelCall;
   limits?: BatchLimits;
+  /** Busy results this batch already got: pass back `attempt` from the last busy result; at MAX_BUSY_RETRIES files are skipped instead. */
+  attempt?: number;
   eurPerUsd?: number;
   now?: () => number;
 };
@@ -69,7 +71,7 @@ export function withWords(batch: PreparedBatch, reading: ModelReading): ReadDocu
 
 export async function readBatch(files: readonly SourceFile[], context: ReadingContext, deps: ReadDeps = {}): Promise<Reading> {
   const now = deps.now ?? Date.now;
-  const prepared = await prepareBatch(files, deps.limits ?? DEFAULT_LIMITS);
+  const prepared = await prepareBatch(files, deps.limits ?? DEFAULT_LIMITS, deps.attempt ?? 0);
   if (prepared.status !== "ok") return prepared;
   const batch = prepared.batch;
 
