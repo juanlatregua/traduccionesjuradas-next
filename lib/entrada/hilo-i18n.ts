@@ -16,7 +16,7 @@ export type HiloStrings = {
   resumen: string; notas: string; notasPh: string; enviar: string; enviado: string; enviadoPresupuesto: string;
   sinJurado: (l: string) => string; maec: string; tocar: string; cancelar: string; uploading: (n: string) => string; badType: (n: string) => string; tooBig: (n: string) => string; error: string;
   duda: string; dudaPh: string; preguntar: string; pensando: string; anadir: string; noPedir: string; nuevos: string; otros: string;
-  pideEmail: string; enviarCodigo: string; esperandoBoton: string; faltaGdpr: string;
+  pideEmail: string; enviarCodigo: string; esperandoBoton: string; faltaGdpr: string; guardando: string;
 };
 
 const es: HiloStrings = {
@@ -25,7 +25,7 @@ const es: HiloStrings = {
   email: "Email", name: "Nombre (opcional)", whatsapp: "WhatsApp (opcional)", start: "Empezar",
   faltaEmail: "un email válido", consentUnico: "Consiento que tratéis mis documentos para preparar el presupuesto de traducción jurada y que me lo enviéis por email, con un recordatorio si no lo completo. Los documentos se borran solos 30 días después de la entrega.", falta: (i) => `Para seguir falta: ${i.join(" y ")}.`,
   pideCodigo: (e) => `Te he mandado un email a ${e}. Pulsa «Confirmar mi email» en el mensaje y aquí seguimos solos, o escribe el código de 6 cifras.`, codigoLabel: "Código de 6 cifras", reenviar: "Enviar otro código", codigoOk: "Email confirmado, gracias.", faltaCodigo: "Faltan cifras: el código tiene 6.",
-  pideOrigen: "¿En qué idioma está el documento?", noSe: "No lo sé", pideDestino: "¿A qué idioma lo necesitas? Puedes elegir más de uno.", mismoIdioma: "Es el mismo idioma que el del documento: elige otro.", listo: "Listo", choose: "Elige…",
+  pideOrigen: "¿En qué idioma está el documento?", noSe: "No lo sé", pideDestino: "¿A qué idioma lo necesitas? Puedes elegir más de uno.", mismoIdioma: "Es el mismo idioma que el del documento: elige otro.", listo: "Listo", choose: "Elige al menos un idioma para seguir.",
   pideArchivos: "Sube tus documentos: cada página, el reverso si tiene algo y la apostilla si la lleva. Varias fotos de un mismo documento valen; las junto yo.",
   add: "Añadir archivos", terminado: "He terminado", faltaArchivo: "Sube al menos un archivo.", preguntaTerminado: "¿Están todos? Comprueba las páginas, el reverso y la apostilla.", si: "Sí, ya están todos", mas: "Añadir más",
   pages: (n) => `${n} ${n === 1 ? "pág." : "págs."}`, noAbre: "No se abre: vuelve a subirlo", quitar: (n) => `Quitar ${n}`,
@@ -57,7 +57,7 @@ const es: HiloStrings = {
   pideEmail: "Para enviarte el presupuesto cerrado y que nadie más vea tus documentos, ¿a qué email te escribimos?",
   enviarCodigo: "Enviarme el código",
   esperandoBoton: "Esperando a que confirmes en tu email…",
-  faltaGdpr: "marca la casilla de privacidad para subir archivos",
+  faltaGdpr: "marca la casilla de privacidad para subir archivos", guardando: "Guardando…",
 };
 
 const fr: HiloStrings = {
@@ -66,7 +66,7 @@ const fr: HiloStrings = {
   email: "E-mail", name: "Nom (facultatif)", whatsapp: "WhatsApp (facultatif)", start: "Commencer",
   faltaEmail: "un e-mail valide", consentUnico: "J'accepte que vous traitiez mes documents pour préparer le devis de traduction assermentée et que vous me l'envoyiez par e-mail, avec un rappel si je ne le finalise pas. Les documents sont supprimés automatiquement 30 jours après la livraison.", falta: (i) => `Pour continuer, il manque : ${i.join(" et ")}.`,
   pideCodigo: (e) => `Je vous ai envoyé un e-mail à ${e}. Appuyez sur « Confirmer mon e-mail » dans le message et ici tout continue seul, ou saisissez le code à 6 chiffres.`, codigoLabel: "Code à 6 chiffres", reenviar: "Renvoyer un code", codigoOk: "E-mail confirmé, merci.", faltaCodigo: "Il manque des chiffres : le code en a 6.",
-  pideOrigen: "Dans quelle langue est le document ?", noSe: "Je ne sais pas", pideDestino: "Vers quelle langue ? Vous pouvez en choisir plusieurs.", mismoIdioma: "C'est la même langue que celle du document : choisissez-en une autre.", listo: "Valider", choose: "Choisissez…",
+  pideOrigen: "Dans quelle langue est le document ?", noSe: "Je ne sais pas", pideDestino: "Vers quelle langue ? Vous pouvez en choisir plusieurs.", mismoIdioma: "C'est la même langue que celle du document : choisissez-en une autre.", listo: "Valider", choose: "Choisissez au moins une langue pour continuer.",
   pideArchivos: "Envoyez vos documents : chaque page, le verso s'il est écrit et l'apostille s'il y en a une. Plusieurs photos d'un même document conviennent ; je les regroupe.",
   add: "Ajouter des fichiers", terminado: "J'ai terminé", faltaArchivo: "Envoyez au moins un fichier.", preguntaTerminado: "Tout y est ? Vérifiez les pages, le verso et l'apostille.", si: "Oui, tout y est", mas: "Ajouter d'autres",
   pages: (n) => `${n} p.`, noAbre: "Illisible : renvoyez-le", quitar: (n) => `Retirer ${n}`,
@@ -98,7 +98,7 @@ const fr: HiloStrings = {
   pideEmail: "Pour vous envoyer le devis définitif et que personne d'autre ne voie vos documents, à quel e-mail vous écrivons-nous ?",
   enviarCodigo: "M'envoyer le code",
   esperandoBoton: "En attente de votre confirmation par e-mail…",
-  faltaGdpr: "cochez la case de confidentialité pour envoyer des fichiers",
+  faltaGdpr: "cochez la case de confidentialité pour envoyer des fichiers", guardando: "Enregistrement…",
 };
 
 const en: HiloStrings = {
@@ -107,7 +107,7 @@ const en: HiloStrings = {
   email: "Email", name: "Name (optional)", whatsapp: "WhatsApp (optional)", start: "Start",
   faltaEmail: "a valid email", consentUnico: "I agree to you processing my documents to prepare the sworn translation quote and sending it to me by email, with a reminder if I don't complete it. Documents are deleted automatically 30 days after delivery.", falta: (i) => `To continue we still need: ${i.join(" and ")}.`,
   pideCodigo: (e) => `I've emailed ${e}. Press «Confirm my email» in the message and this carries on by itself, or type the 6-digit code.`, codigoLabel: "6-digit code", reenviar: "Send another code", codigoOk: "Email confirmed, thanks.", faltaCodigo: "Digits missing: the code has 6.",
-  pideOrigen: "Which language is the document in?", noSe: "I don't know", pideDestino: "Which language do you need it in? You can choose more than one.", mismoIdioma: "That's the document's own language: choose another.", listo: "Done", choose: "Choose…",
+  pideOrigen: "Which language is the document in?", noSe: "I don't know", pideDestino: "Which language do you need it in? You can choose more than one.", mismoIdioma: "That's the document's own language: choose another.", listo: "Done", choose: "Choose at least one language to continue.",
   pideArchivos: "Upload your documents: every page, the back if anything is on it and the apostille if there is one. Several photos of one document are fine; I put them together.",
   add: "Add files", terminado: "I'm done", faltaArchivo: "Upload at least one file.", preguntaTerminado: "Is that everything? Check the pages, the back and the apostille.", si: "Yes, that's all", mas: "Add more",
   pages: (n) => `${n} p.`, noAbre: "Can't be opened: upload it again", quitar: (n) => `Remove ${n}`,
@@ -139,7 +139,7 @@ const en: HiloStrings = {
   pideEmail: "So we can send you the final quote and nobody else sees your documents, which email should we write to?",
   enviarCodigo: "Send me the code",
   esperandoBoton: "Waiting for you to confirm in your email…",
-  faltaGdpr: "tick the privacy box to upload files",
+  faltaGdpr: "tick the privacy box to upload files", guardando: "Saving…",
 };
 
 const de: HiloStrings = {
@@ -148,7 +148,7 @@ const de: HiloStrings = {
   email: "E-Mail", name: "Name (optional)", whatsapp: "WhatsApp (optional)", start: "Los geht's",
   faltaEmail: "eine gültige E-Mail", consentUnico: "Ich willige ein, dass Sie meine Dokumente zur Erstellung des Angebots für die beglaubigte Übersetzung verarbeiten und es mir per E-Mail senden, mit einer Erinnerung, falls ich es nicht abschließe. Die Dokumente werden 30 Tage nach der Lieferung automatisch gelöscht.", falta: (i) => `Zum Weitermachen fehlt: ${i.join(" und ")}.`,
   pideCodigo: (e) => `Ich habe Ihnen an ${e} geschrieben. Drücken Sie in der Nachricht auf «E-Mail bestätigen» und hier geht es von selbst weiter, oder geben Sie den 6-stelligen Code ein.`, codigoLabel: "6-stelliger Code", reenviar: "Neuen Code senden", codigoOk: "E-Mail bestätigt, danke.", faltaCodigo: "Es fehlen Ziffern: der Code hat 6.",
-  pideOrigen: "In welcher Sprache ist das Dokument?", noSe: "Weiß ich nicht", pideDestino: "In welche Sprache brauchen Sie es? Sie können mehrere wählen.", mismoIdioma: "Das ist die Sprache des Dokuments: wählen Sie eine andere.", listo: "Fertig", choose: "Auswählen…",
+  pideOrigen: "In welcher Sprache ist das Dokument?", noSe: "Weiß ich nicht", pideDestino: "In welche Sprache brauchen Sie es? Sie können mehrere wählen.", mismoIdioma: "Das ist die Sprache des Dokuments: wählen Sie eine andere.", listo: "Fertig", choose: "Wählen Sie mindestens eine Sprache, um fortzufahren.",
   pideArchivos: "Laden Sie Ihre Dokumente hoch: jede Seite, die Rückseite, falls beschrieben, und die Apostille, falls vorhanden. Mehrere Fotos eines Dokuments sind in Ordnung; ich füge sie zusammen.",
   add: "Dateien hinzufügen", terminado: "Fertig", faltaArchivo: "Laden Sie mindestens eine Datei hoch.", preguntaTerminado: "Ist alles dabei? Prüfen Sie Seiten, Rückseite und Apostille.", si: "Ja, das ist alles", mas: "Mehr hinzufügen",
   pages: (n) => `${n} S.`, noAbre: "Lässt sich nicht öffnen: neu hochladen", quitar: (n) => `${n} entfernen`,
@@ -180,7 +180,7 @@ const de: HiloStrings = {
   pideEmail: "Damit wir Ihnen das verbindliche Angebot schicken können und niemand sonst Ihre Dokumente sieht: an welche E-Mail schreiben wir?",
   enviarCodigo: "Code senden",
   esperandoBoton: "Warten auf Ihre Bestätigung per E-Mail…",
-  faltaGdpr: "das Datenschutz-Kästchen ankreuzen, um Dateien hochzuladen",
+  faltaGdpr: "das Datenschutz-Kästchen ankreuzen, um Dateien hochzuladen", guardando: "Wird gespeichert…",
 };
 
 const pt: HiloStrings = {
@@ -189,7 +189,7 @@ const pt: HiloStrings = {
   email: "E-mail", name: "Nome (opcional)", whatsapp: "WhatsApp (opcional)", start: "Começar",
   faltaEmail: "um e-mail válido", consentUnico: "Autorizo o tratamento dos meus documentos para preparar o orçamento de tradução juramentada e o envio por e-mail, com um lembrete se eu não o concluir. Os documentos são apagados automaticamente 30 dias após a entrega.", falta: (i) => `Para continuar falta: ${i.join(" e ")}.`,
   pideCodigo: (e) => `Enviei um e-mail para ${e}. Toque em «Confirmar meu e-mail» na mensagem e aqui continua sozinho, ou digite o código de 6 dígitos.`, codigoLabel: "Código de 6 dígitos", reenviar: "Enviar outro código", codigoOk: "E-mail confirmado, obrigado.", faltaCodigo: "Faltam dígitos: o código tem 6.",
-  pideOrigen: "Em que idioma está o documento?", noSe: "Não sei", pideDestino: "Para que idioma precisa? Pode escolher mais de um.", mismoIdioma: "É o mesmo idioma do documento: escolha outro.", listo: "Pronto", choose: "Escolha…",
+  pideOrigen: "Em que idioma está o documento?", noSe: "Não sei", pideDestino: "Para que idioma precisa? Pode escolher mais de um.", mismoIdioma: "É o mesmo idioma do documento: escolha outro.", listo: "Pronto", choose: "Escolha pelo menos um idioma para continuar.",
   pideArchivos: "Envie seus documentos: cada página, o verso se tiver algo e a apostila, se houver. Várias fotos do mesmo documento servem; eu as junto.",
   add: "Adicionar arquivos", terminado: "Terminei", faltaArchivo: "Envie pelo menos um arquivo.", preguntaTerminado: "Está tudo? Confira as páginas, o verso e a apostila.", si: "Sim, está tudo", mas: "Adicionar mais",
   pages: (n) => `${n} pág.`, noAbre: "Não abre: envie de novo", quitar: (n) => `Remover ${n}`,
@@ -221,7 +221,7 @@ const pt: HiloStrings = {
   pideEmail: "Para enviarmos o orçamento fechado e ninguém mais ver seus documentos, para qual e-mail escrevemos?",
   enviarCodigo: "Enviar-me o código",
   esperandoBoton: "Aguardando sua confirmação no e-mail…",
-  faltaGdpr: "marque a caixa de privacidade para enviar arquivos",
+  faltaGdpr: "marque a caixa de privacidade para enviar arquivos", guardando: "Salvando…",
 };
 
 export const HILO_T: Record<EntradaLang, HiloStrings> = { es, fr, en, de, pt };
