@@ -82,6 +82,9 @@ export type DocumentAnalysisResult = {
     // transcribed_partial = faltaron páginas, rellenadas con la mediana;
     // extrapolated = extrapolado desde las primeras páginas.
     words_basis?: "transcribed_all" | "transcribed_partial" | "extrapolated";
+    // Extrapolación desde las primeras páginas, guardada siempre que se intenta
+    // transcribir, para poder comparar con estimated_words.
+    words_extrapolated?: number;
     words_per_page?: number[];
     low_pages?: number[];
   };

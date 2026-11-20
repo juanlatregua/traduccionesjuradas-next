@@ -142,14 +142,17 @@ test("página suelta truncada por max_tokens -> failedPages", async () => {
   assert.deepEqual(r.failedPages, [1]);
 });
 
-test("marcadores que no cuadran: la tanda cuenta como bloque y se marca", async () => {
-  const r = await transcribeScannedPdf(Buffer.alloc(0), { pageCount: 4 }, {
+test("marcadores que no cuadran con total verosímil: bloque repartido y marcado", async () => {
+  const r = await transcribeScannedPdf(Buffer.alloc(0), { pageCount: 8 }, {
     slicePdf,
-    callModel: async () => ok(`=== PÁGINA 1 ===\n${words(400)}`),
+    callModel: async (i) => {
+      const [s] = rangeOf(i);
+      return s === 4 ? ok(`=== PÁGINA 1 ===\n${words(400)}`) : ok(marked([100, 100, 100, 100]));
+    },
   });
-  assert.equal(r.totalWords, 400);
-  assert.deepEqual(r.blockPages, [1, 2, 3, 4]);
-  assert.deepEqual(r.perPage, [100, 100, 100, 100]);
+  assert.equal(r.totalWords, 800);
+  assert.deepEqual(r.blockPages, [5, 6, 7, 8]);
+  assert.deepEqual(r.perPage.slice(4), [100, 100, 100, 100]);
 });
 
 test("reintenta una vez una llamada que falla", async () => {
@@ -183,4 +186,84 @@ test("interruptor SCAN_FULL_COUNT=off se lee en ejecución", () => {
   assert.equal(scanFullCountEnabled(), false);
   if (prev === undefined) delete process.env.SCAN_FULL_COUNT;
   else process.env.SCAN_FULL_COUNT = prev;
+});
+
+import { decideScanWords, scanModel } from "../../lib/ai/transcribe-scan.ts";
+import { HAIKU_MODEL, SONNET_MODEL } from "../../lib/ai/models.ts";
+
+test("tanda sin marcadores y casi vacía NO se da por buena: failedPages", async () => {
+  const r = await transcribeScannedPdf(Buffer.alloc(0), { pageCount: 8 }, {
+    slicePdf,
+    callModel: async (i) => {
+      const [s, e] = rangeOf(i);
+      if (s === 4) return ok("no puedo leer esto");
+      return ok(marked(Array.from({ length: e - s + 1 }, () => 300)));
+    },
+  });
+  assert.deepEqual(r.failedPages, [5, 6, 7, 8]);
+  assert.deepEqual(r.blockPages, []);
+  assert.equal(r.totalWords, 1200);
+});
+
+test("todo el documento sin marcadores (mediana 0): todo failed", async () => {
+  const r = await transcribeScannedPdf(Buffer.alloc(0), { pageCount: 4 }, {
+    slicePdf,
+    callModel: async () => ok(words(900)),
+  });
+  assert.deepEqual(r.failedPages, [1, 2, 3, 4]);
+  assert.equal(r.totalWords, 0);
+});
+
+test("tanda sin marcadores pero verosímil sigue como bloque", async () => {
+  const r = await transcribeScannedPdf(Buffer.alloc(0), { pageCount: 8 }, {
+    slicePdf,
+    callModel: async (i) => {
+      const [s, e] = rangeOf(i);
+      return s === 4 ? ok(words(1000)) : ok(marked(Array.from({ length: e - s + 1 }, () => 300)));
+    },
+  });
+  assert.deepEqual(r.blockPages, [5, 6, 7, 8]);
+  assert.deepEqual(r.failedPages, []);
+});
+
+test("decideScanWords: limpio sustituye; parcial/bajo toma el máximo con la extrapolación", () => {
+  const base = { perPage: [300, 300], lowPages: [], failedPages: [], blockPages: [], model: "m", ms: 1, usage: { input: 0, output: 0 } };
+  assert.deepEqual(decideScanWords({ ...base, totalWords: 600 }, 700), { words: 600, basis: "transcribed_all" });
+  assert.deepEqual(decideScanWords({ ...base, totalWords: 600 }, 900), { words: 900, basis: "transcribed_partial" });
+  assert.deepEqual(decideScanWords({ ...base, totalWords: 600, lowPages: [2] }, 500), { words: 600, basis: "transcribed_partial" });
+  assert.deepEqual(decideScanWords({ ...base, totalWords: 300, perPage: [300, 0], failedPages: [2] }, 400), { words: 600, basis: "transcribed_partial" });
+  assert.deepEqual(decideScanWords({ ...base, totalWords: 600, blockPages: [1] }, 100), { words: 600, basis: "transcribed_partial" });
+});
+
+test("scanModel: Haiku por defecto, SCAN_MODEL=sonnet lo cambia (en ejecución)", () => {
+  const prev = process.env.SCAN_MODEL;
+  delete process.env.SCAN_MODEL;
+  assert.equal(scanModel(), HAIKU_MODEL);
+  process.env.SCAN_MODEL = "Sonnet";
+  assert.equal(scanModel(), SONNET_MODEL);
+  if (prev === undefined) delete process.env.SCAN_MODEL;
+  else process.env.SCAN_MODEL = prev;
+});
+
+test("señal abortada: no se llama al modelo y todo va a failed", async () => {
+  const ac = new AbortController();
+  ac.abort();
+  let calls = 0;
+  const r = await transcribeScannedPdf(Buffer.alloc(0), { pageCount: 4 }, {
+    slicePdf,
+    signal: ac.signal,
+    callModel: async () => (calls++, ok(marked([10, 10, 10, 10]))),
+  });
+  assert.equal(calls, 0);
+  assert.deepEqual(r.failedPages, [1, 2, 3, 4]);
+});
+
+test("sin presupuesto: no se trocea ni se llama", async () => {
+  let sliced = 0;
+  const r = await transcribeScannedPdf(Buffer.alloc(0), { pageCount: 4, totalBudgetMs: 1000 }, {
+    slicePdf: async (s, e) => (sliced++, `${s}-${e}`),
+    callModel: async () => ok(marked([10, 10, 10, 10])),
+  });
+  assert.equal(sliced, 0);
+  assert.deepEqual(r.failedPages, [1, 2, 3, 4]);
 });

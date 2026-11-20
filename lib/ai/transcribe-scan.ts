@@ -7,10 +7,14 @@
 // billableWordCount por página. Páginas anormalmente bajas se releen solas.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { SONNET_MODEL, assertNotRefused } from "./models.ts";
+import { SONNET_MODEL, HAIKU_MODEL, assertNotRefused } from "./models.ts";
 import { billableWordCount } from "./word-counter.ts";
 
-export const SCAN_MODEL = SONNET_MODEL;
+// Modelo de transcripción: Haiku por defecto (medido en SEREJSKI: -1,2 % vs -2,2 %
+// de Sonnet, ~15x más barato). SCAN_MODEL=sonnet lo vuelve a Sonnet; se lee en ejecución.
+export function scanModel(): string {
+  return (process.env.SCAN_MODEL || "").trim().toLowerCase() === "sonnet" ? SONNET_MODEL : HAIKU_MODEL;
+}
 export const SCAN_BATCH_PAGES = 4;
 export const SCAN_CONCURRENCY = 6;
 export const SCAN_CALL_TIMEOUT_MS = 75_000;
@@ -31,6 +35,7 @@ export type ScanCallInput = {
   pdfBase64: string;
   pageCount: number; // páginas del sub-PDF
   timeoutMs: number;
+  signal?: AbortSignal;
 };
 export type ScanCallOutput = {
   text: string;
@@ -42,6 +47,8 @@ export type ScanDeps = {
   // Trocea el PDF: devuelve el sub-PDF en base64 de las páginas [start,end] (0-based, inclusivo).
   slicePdf?: (start: number, end: number) => Promise<string>;
   now?: () => number;
+  // Aborta toda la transcripción (p. ej. si el análisis paralelo falla).
+  signal?: AbortSignal;
 };
 export type ScanOptions = {
   pageCount: number;
@@ -101,6 +108,9 @@ async function defaultCallModel(input: ScanCallInput): Promise<ScanCallOutput> {
   const client = new Anthropic({ apiKey, maxRetries: 2 });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+  const onAbort = () => controller.abort();
+  if (input.signal?.aborted) controller.abort();
+  else input.signal?.addEventListener("abort", onAbort, { once: true });
   try {
     const resp = await client.messages.create(
       {
@@ -128,6 +138,7 @@ async function defaultCallModel(input: ScanCallInput): Promise<ScanCallOutput> {
     };
   } finally {
     clearTimeout(timer);
+    input.signal?.removeEventListener("abort", onAbort);
   }
 }
 
@@ -149,7 +160,7 @@ export async function transcribeScannedPdf(
 ): Promise<ScanResult> {
   const now = deps.now ?? Date.now;
   const t0 = now();
-  const model = opts.model || SCAN_MODEL;
+  const model = opts.model || scanModel();
   const callModel = deps.callModel ?? defaultCallModel;
   const budget = opts.totalBudgetMs ?? SCAN_TOTAL_BUDGET_MS;
   const n = opts.pageCount;
@@ -171,23 +182,27 @@ export async function transcribeScannedPdf(
   const perPage: number[] = new Array(n).fill(0);
   const failed = new Set<number>(); // 0-based
   const block = new Set<number>();
+  const blockBatches: Array<[number, number]> = [];
   const usage = { input: 0, output: 0 };
 
   const remaining = () => budget - (now() - t0);
 
   // Una llamada con UN reintento (si queda presupuesto). Lanza si ambas fallan.
   async function call(start: number, end: number): Promise<ScanCallOutput> {
+    if (remaining() < 5_000) throw new Error("presupuesto de tiempo agotado");
+    if (deps.signal?.aborted) throw new Error("transcripción abortada");
     const pdfBase64 = await slicePdf(start, end);
     let lastErr: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
       const left = remaining();
-      if (left < 5_000) break;
+      if (left < 5_000 || deps.signal?.aborted) break;
       try {
         const out = await callModel({
           model,
           pdfBase64,
           pageCount: end - start + 1,
           timeoutMs: Math.min(SCAN_CALL_TIMEOUT_MS, left),
+          signal: deps.signal,
         });
         usage.input += out.usage.input;
         usage.output += out.usage.output;
@@ -233,7 +248,10 @@ export async function transcribeScannedPdf(
       r.words.forEach((w, i) => {
         if (!failed.has(s + i)) perPage[s + i] = w;
       });
-      if (r.block) for (let p = s; p <= e; p++) if (!failed.has(p)) block.add(p);
+      if (r.block) {
+        blockBatches.push([s, e]);
+        for (let p = s; p <= e; p++) if (!failed.has(p)) block.add(p);
+      }
     } catch {
       for (let p = s; p <= e; p++) failed.add(p);
     }
@@ -241,6 +259,20 @@ export async function transcribeScannedPdf(
 
   // Control de páginas bajas: relectura sola una vez; se queda el máximo.
   const lowPages: number[] = [];
+  // Tanda sin marcadores: solo se acepta como bloque si su total es verosímil
+  // frente a las páginas bien leídas; vacía o casi vacía = no leída (failed).
+  const medOk = median(perPage.filter((w, p) => !failed.has(p) && !block.has(p) && w > 0));
+  for (const [s, e] of blockBatches) {
+    let sum = 0;
+    for (let p = s; p <= e; p++) sum += perPage[p];
+    if (medOk === 0 || sum < LOW_RATIO * (e - s + 1) * medOk) {
+      for (let p = s; p <= e; p++) {
+        failed.add(p);
+        block.delete(p);
+        perPage[p] = 0;
+      }
+    }
+  }
   const reliable = (p: number) => !failed.has(p);
   const med = median(perPage.filter((w, p) => reliable(p) && w > 0));
   if (med >= LOW_MEDIAN_MIN) {
@@ -281,4 +313,20 @@ export function totalWithFailedFilled(r: ScanResult): number {
   const failed = new Set(r.failedPages.map((p) => p - 1));
   const med = median(r.perPage.filter((w, p) => !failed.has(p) && w > 0));
   return r.totalWords + Math.round(med * r.failedPages.length);
+}
+
+// Decide qué cifra y qué base se guardan: solo una lectura limpia sustituye a la
+// extrapolación; con bloques, fallidas, páginas bajas o un total < 80 % de lo
+// extrapolado, manda el máximo (transcrito + fallidas a la mediana, extrapolado).
+export function decideScanWords(
+  scan: ScanResult,
+  extrapolated: number
+): { words: number; basis: "transcribed_all" | "transcribed_partial" } {
+  const clean =
+    scan.failedPages.length === 0 &&
+    scan.blockPages.length === 0 &&
+    scan.lowPages.length === 0 &&
+    scan.totalWords >= 0.8 * extrapolated;
+  if (clean) return { words: scan.totalWords, basis: "transcribed_all" };
+  return { words: Math.max(totalWithFailedFilled(scan), extrapolated), basis: "transcribed_partial" };
 }

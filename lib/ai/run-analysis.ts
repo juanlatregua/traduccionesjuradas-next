@@ -17,10 +17,11 @@ import { absorbUnreadPages } from "./unread-pages";
 import { billableWordCount } from "./word-counter";
 import { assessAutoPriceRisk } from "./price-risk";
 import {
+  SCAN_TOTAL_BUDGET_MS,
   transcribeScannedPdf,
   scanFullCountEnabled,
   halveScan,
-  totalWithFailedFilled,
+  decideScanWords,
   type ScanResult,
 } from "./transcribe-scan";
 
@@ -55,12 +56,20 @@ export type AnalysisRun = {
   pageCount?: number;
 };
 
+// Tope de páginas a transcribir por defecto (ruta pública); el staff pasa más.
+export const DEFAULT_MAX_SCAN_PAGES = 60;
+const SCAN_DEADLINE_MARGIN_MS = 20_000;
+const SCAN_MIN_BUDGET_MS = 10_000;
+
 export async function runDocumentAnalysis(input: {
   buffer: Buffer;
   mimeType: string;
   fileName: string;
+  maxScanPages?: number; // por defecto 60; no transcribir por encima (queda extrapolado)
+  deadlineAt?: number; // hora límite (ms epoch) de quien llama; la transcripción se ajusta
 }): Promise<AnalysisRun> {
   const { buffer, mimeType, fileName } = input;
+  const maxScanPages = input.maxScanPages ?? DEFAULT_MAX_SCAN_PAGES;
 
   if (mimeType !== "application/pdf") {
     // Imágenes: siempre visión.
@@ -141,19 +150,32 @@ export async function runDocumentAnalysis(input: {
   }
 
   const largeScan = !!pageCount && pageCount > LARGE_DOC_THRESHOLD;
+  const scanAbort = new AbortController();
   const analyzePromise = analyzeDocument({
     fileBase64: analyzeBuffer.toString("base64"),
     mimeType,
     fileName,
     pageCount,
+  }).catch((err) => {
+    scanAbort.abort(); // sin análisis no hay resultado: no gastar más en transcribir
+    throw err;
   });
 
   // Escaneado extenso: transcribir TODAS las páginas en paralelo con la
   // clasificación (que sigue usando las primeras), para contar en vez de extrapolar.
-  const scanPromise: Promise<ScanResult> | null =
-    largeScan && scanFullCountEnabled()
-      ? transcribeScannedPdf(buffer, { pageCount: pageCount!, fileName })
-      : null;
+  let scanBudgetMs = SCAN_TOTAL_BUDGET_MS;
+  if (input.deadlineAt) {
+    scanBudgetMs = Math.min(scanBudgetMs, input.deadlineAt - Date.now() - SCAN_DEADLINE_MARGIN_MS);
+  }
+  const scanWanted =
+    largeScan && scanFullCountEnabled() && pageCount! <= maxScanPages && scanBudgetMs >= SCAN_MIN_BUDGET_MS;
+  const scanPromise: Promise<ScanResult> | null = scanWanted
+    ? transcribeScannedPdf(
+        buffer,
+        { pageCount: pageCount!, fileName, totalBudgetMs: scanBudgetMs },
+        { signal: scanAbort.signal }
+      )
+    : null;
 
   const [analysisSettled, scanSettled] = await Promise.allSettled([
     analyzePromise,
@@ -162,28 +184,27 @@ export async function runDocumentAnalysis(input: {
   if (analysisSettled.status === "rejected") throw analysisSettled.reason;
   const analysis = analysisSettled.value;
 
-  if (largeScan) {
+  // words_basis solo cuando se pretendía transcribir (o se descartó por tope/plazo
+  // estando el interruptor activo); con SCAN_FULL_COUNT=off el resultado es el de siempre.
+  if (largeScan && scanFullCountEnabled()) {
     const m = analysis.document_metrics;
     const extrapolated = m.estimated_words || 0;
+    m.words_extrapolated = extrapolated;
     let scan = scanSettled.status === "fulfilled" ? scanSettled.value : null;
     if (scanSettled.status === "rejected") {
       console.error("[transcribe-scan] falló entera, se queda la extrapolación:", scanSettled.reason);
     }
     if (scan) {
       if (m.is_bilingual_duplicate === true) scan = halveScan(scan);
-      if (scan.failedPages.length === 0) {
-        m.estimated_words = scan.totalWords;
-        m.words_basis = "transcribed_all";
-      } else {
-        m.estimated_words = Math.max(totalWithFailedFilled(scan), extrapolated);
-        m.words_basis = "transcribed_partial";
-      }
+      const decided = decideScanWords(scan, extrapolated);
+      m.estimated_words = decided.words;
+      m.words_basis = decided.basis;
       m.words_per_page = scan.perPage;
       m.low_pages = scan.lowPages;
       console.log(
         `[transcribe-scan] ${fileName}: ${pageCount} págs, ${scan.totalWords} palabras (antes extrapolado ${extrapolated}), ` +
-          `lowPages=[${scan.lowPages}], failed=[${scan.failedPages}], block=[${scan.blockPages}], ${scan.ms} ms, ` +
-          `tokens ${scan.usage.input}/${scan.usage.output}`
+          `basis=${m.words_basis}, lowPages=[${scan.lowPages}], failed=[${scan.failedPages}], block=[${scan.blockPages}], ` +
+          `${scan.model}, ${scan.ms} ms, tokens ${scan.usage.input}/${scan.usage.output}`
       );
     } else {
       m.words_basis = "extrapolated";
@@ -234,6 +255,8 @@ export async function runDocumentSegmentation(input: {
   mimeType: string;
   fileName: string;
   targetLang?: string; // destino fijado por el staff (p. ej. "en")
+  maxScanPages?: number;
+  deadlineAt?: number;
 }): Promise<SegmentedRun> {
   const { buffer, mimeType, fileName, targetLang } = input;
 

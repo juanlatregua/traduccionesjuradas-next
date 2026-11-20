@@ -264,7 +264,7 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
   const segments: (Segment & { fileUrl: string })[] = [];
   let split = false;
   for (const d of docs) {
-    const r = await analyzeExpedienteDocument(d.id);
+    const r = await analyzeExpedienteDocument(d.id, { deadlineAt });
     if (!r.ok) return manual(`no se pudo leer ${d.fileName}: ${r.error}`);
     if (r.run.degraded) return manual(`segmentación dudosa en ${d.fileName}`);
     if (r.split) split = true;
