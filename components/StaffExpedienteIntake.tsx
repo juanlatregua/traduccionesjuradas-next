@@ -15,6 +15,7 @@ import { suggestClientLang } from "@/lib/client-lang";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 import { UNREAD_PAGES_TYPE_ES } from "@/lib/ai/unread-pages";
 import { aplicarCosteJurado } from "@/lib/caso/coste-lead";
+import ContadorProgreso from "@/components/ContadorProgreso";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -73,6 +74,7 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     pageStart: d.pageStart,
     pageEnd: d.pageEnd,
     absorbedPages: d.absorbedPages || undefined,
+    analysisId: !isSplit && typeof d.id === "string" ? d.id : undefined,
   };
 }
 
@@ -126,6 +128,7 @@ type DocRow = {
   pageEnd?: number;
   absorbedPages?: number[]; // páginas sin texto que el análisis unió a este documento
   priorFrom?: string; // nº del presupuesto anterior cuyo precio y coste lleva la línea
+  analysisId?: string; // DocumentAnalysis.id (estado del contador de TraduCAT en escaneados)
 };
 
 // URL del endpoint que extrae el rango de páginas de un documento para
@@ -1833,6 +1836,7 @@ export default function StaffExpedienteIntake({
                     {/* Editable también tras el análisis: el recuento de la IA puede
                         salir inflado (Juan, 6-oct: 3.300 contadas vs 1.100 reales). */}
                     {d.status === "done" || d.status === "error" || d.status === "manual" || d.status === "split" ? (
+                      <>
                       <input
                         type="number"
                         min={0}
@@ -1849,6 +1853,21 @@ export default function StaffExpedienteIntake({
                         placeholder="palabras"
                         className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
                       />
+                      {d.mode === "vision" && d.analysisId && (
+                        <ContadorProgreso
+                          documentId={d.analysisId}
+                          currentWords={d.words}
+                          onUse={(w) =>
+                            patch(
+                              d.localId,
+                              d.basis === "word"
+                                ? { words: w, unitPrice: Math.round(w * (d.wordRate ?? wordRate) * 100) / 100, autoPriced: false, priceNote: undefined }
+                                : { words: w }
+                            )
+                          }
+                        />
+                      )}
+                      </>
                     ) : (
                       "—"
                     )}

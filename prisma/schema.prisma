@@ -948,6 +948,8 @@ model DocumentAnalysis {
   casoId           String?
   caso             Caso?                  @relation(fields: [casoId], references: [id], onDelete: SetNull)
 
+  contadorTrabajo  ContadorTrabajo?
+
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
@@ -957,6 +959,35 @@ model DocumentAnalysis {
   @@index([clientEmail])
   @@index([orderReference])
   @@index([casoId])
+}
+
+// Conteo de palabras de un escaneado por el contador de TraduCAT (lib/contador).
+// Haiku da la cifra provisional al momento; esta fila sigue el trabajo externo
+// y, cuando termina, su cifra pasa a mandar en el análisis (words_basis).
+model ContadorTrabajo {
+  id                 String           @id @default(cuid())
+  documentAnalysisId String           @unique
+  documentAnalysis   DocumentAnalysis @relation(fields: [documentAnalysisId], references: [id], onDelete: Cascade)
+  jobId              String?          @unique
+  estado             String           @default("pendiente_envio") // pendiente_envio | en_cola | contando | hecho | error | abandonado
+  intentos           Int              @default(0)
+  ultimoError        String?
+  paginasHechas      Int?
+  paginasTotal       Int?
+  palabrasTotal      Int?
+  palabrasPorPagina  Int[]
+  paginasSinTexto    Int[]
+  idiomaDetectado    String?
+  motivoError        String?
+  palabrasHaiku      Int?
+  aplicadoAt         DateTime?
+  abandonadoAt       DateTime?
+  avisoJson          Json?
+  avisoQuoteIds      String[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([estado, createdAt])
 }
 
 model FailedEmail {

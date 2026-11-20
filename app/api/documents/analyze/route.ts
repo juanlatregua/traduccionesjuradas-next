@@ -7,6 +7,7 @@ import { checkRateLimit, getClientIp, checkGlobalAnalysisCap } from "@/lib/rate-
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import { runDocumentAnalysis } from "@/lib/ai/run-analysis";
+import { submitContadorAfterAnalysis } from "@/lib/contador/server";
 import { hashFileBuffer, pickReusableTwin } from "@/lib/document-dedup";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
@@ -193,6 +194,7 @@ export async function POST(req: Request) {
     // escaneo/imagen → Sonnet visión. Trunca PDFs largos internamente.
     const analysisStart = Date.now();
     let analysis;
+    let runMode: string | undefined;
     try {
       const run = gemelo
         ? { analysis: gemelo.analysisJson as DocumentAnalysisResult }
@@ -207,6 +209,7 @@ export async function POST(req: Request) {
               setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 115s")), 115000)
             ),
           ]);
+      if (!gemelo) runMode = (run as { mode?: string }).mode;
       if (gemelo) {
         console.log(
           `[documents/analyze] REUTILIZADO el análisis de ${gemelo.id} (mismo sha256, mismo cliente): sin llamada a Claude`
@@ -297,6 +300,16 @@ export async function POST(req: Request) {
         quoteBreakdown: quote.breakdown as any,
         pageCount: analysis.document_metrics.pages,
       },
+    });
+
+    // Escaneado: el contador de TraduCAT cuenta en segundo plano (Haiku ya está guardado).
+    await submitContadorAfterAnalysis({
+      id: documentId,
+      fileUrl: doc.fileUrl,
+      mimeType: doc.mimeType,
+      mode: runMode,
+      pageCount: analysis.document_metrics.pages,
+      analysisJson: analysis,
     });
 
     // Envío del presupuesto por email (fire-and-forget). El gate exigía además

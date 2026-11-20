@@ -10,6 +10,7 @@ import { calculatePrice } from "@/lib/pricing-engine/calculator";
 import { PAGE_PRICED_LANGS } from "@/lib/pricing-engine/page-pricing";
 import { expandZipDocument, isZipDocument } from "@/lib/expediente-unzip";
 import { getLanguageName, isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
+import { submitContadorAfterAnalysis } from "@/lib/contador/server";
 
 // Análisis ya hecho por este endpoint (marca builderRun): se reconstruye sin volver
 // a llamar a la IA. Antes cada apertura del builder con ?exp/?session/?lead volvía a
@@ -184,6 +185,18 @@ export async function analyzeDocumentRow(doc: AnalyzableDoc, targetLang?: string
         pageCount: run.pageCount || primary.document_metrics.pages,
       },
     });
+
+    // Escaneado: el contador de TraduCAT cuenta en segundo plano (Haiku ya está guardado).
+    if (!run.split) {
+      await submitContadorAfterAnalysis({
+        id: doc.id,
+        fileUrl: blobUrl,
+        mimeType,
+        mode: run.mode,
+        pageCount: run.pageCount,
+        analysisJson: primary,
+      });
+    }
 
     return { ok: true, mode: run.mode, analysisMs, cached: false, split: run.split, documents, run };
   } catch (err: any) {
