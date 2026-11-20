@@ -2,7 +2,7 @@
 // Puro: configuración, firma del callback, cliente HTTP con fetch inyectable y
 // las decisiones (aplicar la cifra al análisis, a quién avisar, cuándo rendirse).
 // La cifra de Haiku (lib/ai/transcribe-scan.ts) es la provisional y el respaldo;
-// la del contador, cuando llega completa, pasa a mandar.
+// la del contador se anota aparte (words_contador) y el staff la aplica con «Usar N».
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 
@@ -81,7 +81,7 @@ export function verifyCallback(input: {
   const tsMs = raw * 1000;
   if (Math.abs(input.now - tsMs) > SIGNATURE_MAX_SKEW_MS) return { ok: false, reason: "caducada" };
   const expected = Buffer.from(signCallback(input.secret, input.timestamp, input.rawBody));
-  const given = Buffer.from(input.signature.trim());
+  const given = Buffer.from(input.signature.trim().toLowerCase());
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return { ok: false, reason: "firma_invalida" };
   return { ok: true };
 }
@@ -191,15 +191,18 @@ export function contadorClient(cfg: ContadorConfig, fetchImpl: FetchLike = fetch
 
 export type ContadorClient = ReturnType<typeof contadorClient>;
 
-/* ---------------- Aplicar la cifra al análisis ---------------- */
+/* ---------------- Anotar la cifra en el análisis ---------------- */
 
 export type ApplyOutcome =
   | { applied: true; json: any; counterWords: number; haikuWords: number }
   | { applied: false; reason: "analisis_no_aplicable" | "conteo_incompleto" | "paginas_no_cuadran" };
 
 /**
- * Escribe la cifra del contador en el analysisJson (solo si contó TODAS las páginas):
- * words_basis="contador_traducat", la cifra de Haiku queda en words_haiku para auditoría.
+ * Anota la cifra del contador en el analysisJson (solo si contó TODAS las páginas)
+ * en claves propias de primer nivel: words_contador, words_basis_contador,
+ * words_contador_por_pagina, contador_paginas_sin_texto. NUNCA toca
+ * document_metrics ni price_risk: el checkout público recalcula el precio desde
+ * ahí al pagar y cobraría otra cifra que la mostrada. El staff la usa con «Usar N».
  * Mitad bilingüe igual que transcribe-scan (round(w/2) por página).
  */
 export function applyCounterToAnalysis(json: any, job: ContadorJob, opts: { image?: boolean } = {}): ApplyOutcome {
@@ -217,23 +220,18 @@ export function applyCounterToAnalysis(json: any, job: ContadorJob, opts: { imag
   const bil = m.is_bilingual_duplicate === true;
   const perPage = job.palabras_por_pagina.map((w) => (bil ? Math.round(w / 2) : w));
   const counterWords = perPage.reduce((a, b) => a + b, 0);
-  const haikuWords = m.words_basis === "contador_traducat" ? m.words_haiku ?? 0 : m.estimated_words || 0;
-
-  const metrics = {
-    ...m,
-    estimated_words: counterWords,
-    words_basis: "contador_traducat",
-    words_haiku: haikuWords,
-    words_haiku_basis: m.words_basis === "contador_traducat" ? m.words_haiku_basis ?? null : m.words_basis ?? null,
-    words_per_page: perPage,
-    low_pages: job.paginas_sin_texto,
+  return {
+    applied: true,
+    json: {
+      ...json,
+      words_contador: counterWords,
+      words_basis_contador: "contador_traducat",
+      words_contador_por_pagina: perPage,
+      contador_paginas_sin_texto: job.paginas_sin_texto,
+    },
+    counterWords,
+    haikuWords: m.estimated_words || 0,
   };
-  const out: any = { ...json, document_metrics: metrics };
-  if (json.price_risk && Array.isArray(json.price_risk.reasons)) {
-    const reasons = json.price_risk.reasons.filter((r: string) => r !== "scan_not_fully_counted");
-    out.price_risk = { ...json.price_risk, reasons, risky: reasons.length > 0 };
-  }
-  return { applied: true, json: out, counterWords, haikuWords };
 }
 
 /* ---------------- Presupuestos que ya usaron la cifra de Haiku ---------------- */

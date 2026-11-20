@@ -41,8 +41,7 @@ export async function POST(req: Request) {
     // El envío pudo caducar a los 5 s con el trabajo ya creado allí: se reconoce por la referencia.
     if (!trabajo && job.referencia) {
       const porRef = await deps.repo.findTrabajoByDoc(job.referencia);
-      if (porRef && !porRef.jobId) {
-        await deps.repo.updateTrabajo(porRef.id, { jobId: job.id });
+      if (porRef && !porRef.jobId && (await deps.repo.updateTrabajo(porRef.id, { jobId: job.id }))) {
         trabajo = { ...porRef, jobId: job.id };
       }
     }
@@ -52,6 +51,8 @@ export async function POST(req: Request) {
     const result = await processJobUpdate(deps, trabajo, job);
     return NextResponse.json({ ok: true, result });
   } catch (err: any) {
+    // Dos entregas a la vez del mismo trabajo (jobId único): la otra ya lo registró.
+    if (err?.code === "P2002") return NextResponse.json({ ok: true, result: "ya_aplicado" });
     console.error("[contador/resultado]", err?.message || err);
     return NextResponse.json({ ok: false, error: "Error interno." }, { status: 500 });
   }

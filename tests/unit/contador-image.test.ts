@@ -88,13 +88,13 @@ function deps(fetches: { n: number }): ContadorDeps {
       findTrabajoByDoc: async () => null,
       findTrabajoByJobId: async () => null,
       createTrabajo: async (d) => ({ id: "t1", documentAnalysisId: d.documentAnalysisId, jobId: null, estado: "pendiente_envio", intentos: 0, paginasHechas: null, paginasTotal: null, palabrasTotal: null, palabrasPorPagina: [], paginasSinTexto: [], palabrasHaiku: null, aplicadoAt: null, abandonadoAt: null, avisoJson: null, createdAt: new Date(), updatedAt: new Date() }),
-      updateTrabajo: async () => {},
+      updateTrabajo: async () => true,
       listPending: async () => [],
       countForEmailSince: async () => 0,
       loadDoc: async () => null,
       quotesForFile: async () => [],
-      orderRef: async () => null,
-      applyAtomically: async () => true,
+      salesForDoc: async () => [],
+      claim: async () => true,
       saveDocAnalysis: async () => {},
     },
   };
@@ -115,5 +115,6 @@ test("TIFF multipágina: la cifra se aplica aunque el análisis viera 1 página"
   const job = { id: "j", estado: "hecho" as const, paginas_hechas: 3, paginas_total: 3, palabras_total: 900, palabras_por_pagina: [300, 300, 300], paginas_sin_texto: [], idioma_detectado: null, motivo_error: null, referencia: "d" };
   assert.equal(applyCounterToAnalysis(json, job).applied, false);
   const out = applyCounterToAnalysis(json, job, { image: true });
-  assert.ok(out.applied && out.counterWords === 900);
+  assert.ok(out.applied && out.counterWords === 900 && out.json.words_contador === 900);
+  assert.equal(out.json.document_metrics.estimated_words, 300);
 });

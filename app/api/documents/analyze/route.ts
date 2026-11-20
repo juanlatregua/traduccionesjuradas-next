@@ -7,7 +7,7 @@ import { checkRateLimit, getClientIp, checkGlobalAnalysisCap } from "@/lib/rate-
 import { censorExtractedNames } from "@/lib/ai/analyze-document";
 import type { DocumentAnalysisResult } from "@/lib/ai/analyze-document";
 import { runDocumentAnalysis } from "@/lib/ai/run-analysis";
-import { submitContadorAfterAnalysis } from "@/lib/contador/server";
+import { queueContadorFromPublic } from "@/lib/contador/server";
 import { hashFileBuffer, pickReusableTwin } from "@/lib/document-dedup";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { calculatePrice, VAT_RATE } from "@/lib/pricing-engine/calculator";
@@ -302,12 +302,10 @@ export async function POST(req: Request) {
       },
     });
 
-    // Escaneado: el contador de TraduCAT cuenta en segundo plano (Haiku ya está guardado).
-    // Pública: solo con email del cliente (releído: llega durante el spinner) y cupo diario por email.
-    const contadorEmail = await prisma.documentAnalysis
-      .findUnique({ where: { id: documentId }, select: { clientEmail: true } })
-      .then((r) => r?.clientEmail ?? null, () => null);
-    await submitContadorAfterAnalysis(
+    // Escaneado: se ENCOLA para el contador de TraduCAT (lo manda el cron; aquí no se
+    // espera nada de él). Solo con email del cliente (releído: llega durante el
+    // spinner) y cupo diario por email. Flag apagado = ninguna consulta más.
+    await queueContadorFromPublic(
       {
         id: documentId,
         fileUrl: doc.fileUrl,
@@ -317,7 +315,10 @@ export async function POST(req: Request) {
         analysisJson: analysis,
         bytes: fileBuffer,
       },
-      { kind: "public", clientEmail: contadorEmail }
+      () =>
+        prisma.documentAnalysis
+          .findUnique({ where: { id: documentId }, select: { clientEmail: true } })
+          .then((r) => r?.clientEmail ?? null)
     );
 
     // Envío del presupuesto por email (fire-and-forget). El gate exigía además

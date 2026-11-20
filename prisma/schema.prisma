@@ -963,7 +963,7 @@ model DocumentAnalysis {
 
 // Conteo de palabras de un escaneado por el contador de TraduCAT (lib/contador).
 // Haiku da la cifra provisional al momento; esta fila sigue el trabajo externo
-// y, cuando termina, su cifra pasa a mandar en el análisis (words_basis).
+// y, cuando termina, anota su cifra aparte (analysisJson.words_contador); el precio no cambia.
 model ContadorTrabajo {
   id                 String           @id @default(cuid())
   documentAnalysisId String           @unique

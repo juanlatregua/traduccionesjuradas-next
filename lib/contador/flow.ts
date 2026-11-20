@@ -37,21 +37,33 @@ export type TrabajoRow = {
   updatedAt: Date;
 };
 
-export type DocRow = { id: string; fileUrl: string; mimeType: string; analysisJson: any; orderId: string | null };
+export type DocRow = {
+  id: string;
+  fileUrl: string;
+  mimeType: string;
+  analysisJson: any;
+  orderId: string | null;
+  orderReference: string | null;
+};
+
+// Pedido u OrderSession de la puerta que ya muestran/cobran un precio calculado con Haiku.
+export type SaleRef = { kind: "pedido" | "sesion"; reference: string; status: string };
 
 export type ContadorRepo = {
   findTrabajoByDoc(documentAnalysisId: string): Promise<TrabajoRow | null>;
   findTrabajoByJobId(jobId: string): Promise<TrabajoRow | null>;
   createTrabajo(data: { documentAnalysisId: string; palabrasHaiku: number | null }): Promise<TrabajoRow | null>;
-  updateTrabajo(id: string, data: Record<string, unknown>): Promise<void>;
-  listPending(limit: number): Promise<TrabajoRow[]>;
+  // Solo si el trabajo sigue vivo (aplicadoAt null y estado no terminal): el estado nunca retrocede.
+  updateTrabajo(id: string, data: Record<string, unknown>): Promise<boolean>;
+  // Vivos + sin_confirmar ya caducados (solo para abandonarlos).
+  listPending(limit: number, now: Date): Promise<TrabajoRow[]>;
   countForEmailSince(email: string, since: Date): Promise<number>;
   loadDoc(documentAnalysisId: string): Promise<DocRow | null>;
   quotesForFile(fileUrl: string): Promise<QuoteRef[]>;
-  orderRef(orderId: string): Promise<{ reference: string; status: string } | null>;
-  // Marca aplicadoAt (solo si sigue null) y escribe el análisis en la misma transacción. false = ya aplicado.
-  applyAtomically(trabajoId: string, trabajoData: Record<string, unknown>, docId: string, analysisJson: any, estimatedWords: number): Promise<boolean>;
-  saveDocAnalysis(docId: string, analysisJson: any, estimatedWords: number): Promise<void>;
+  salesForDoc(doc: DocRow): Promise<SaleRef[]>;
+  // Marca aplicadoAt (solo si sigue null) y, si se da, anota el analysisJson en la misma transacción. false = ya hecho.
+  claim(trabajoId: string, trabajoData: Record<string, unknown>, doc: { id: string; analysisJson: any } | null): Promise<boolean>;
+  saveDocAnalysis(docId: string, analysisJson: any): Promise<void>;
 };
 
 export type ContadorDeps = {
@@ -64,6 +76,7 @@ export type ContadorDeps = {
 
 const SITE = "https://www.traduccionesjuradas.net";
 const TERMINAL = new Set(["hecho", "error", "abandonado"]);
+export const CRON_BUDGET_MS = 90_000;
 
 async function sendJob(deps: ContadorDeps, t: TrabajoRow, fileUrl: string): Promise<void> {
   const r = await deps.client!.submit({ url: fileUrl, referencia: t.documentAnalysisId, callbackUrl: CONTADOR_CALLBACK_URL });
@@ -79,14 +92,15 @@ async function sendJob(deps: ContadorDeps, t: TrabajoRow, fileUrl: string): Prom
 }
 
 /**
- * Tras guardar la cifra de Haiku: encarga el conteo al contador. Nunca lanza ni
- * tarda más que el timeout del cliente (~5 s): el análisis ya está guardado.
+ * Tras guardar la cifra de Haiku: encarga el conteo. Staff: envía ya (≤5 s de
+ * timeout). Pública: solo encola (pendiente_envio) y el cron lo manda; la ruta
+ * pública no espera nada del contador. Nunca lanza.
  */
 export async function submitForDocument(
   deps: ContadorDeps,
   doc: { id: string; fileUrl: string; mimeType: string; mode?: string; pageCount?: number | null; analysisJson: any; bytes?: Buffer },
   origin: { kind: "staff" } | { kind: "public"; clientEmail: string | null } = { kind: "staff" }
-): Promise<{ submitted: boolean; reason?: string }> {
+): Promise<{ submitted: boolean; queued?: boolean; reason?: string }> {
   try {
     if (!deps.client) return { submitted: false, reason: "inactivo" };
     if (!shouldCount(doc)) return { submitted: false, reason: "no_escaneado" };
@@ -97,11 +111,11 @@ export async function submitForDocument(
     if (!isPublicHttpsUrl(doc.fileUrl)) return { submitted: false, reason: "url_no_publica" };
     const existing = await deps.repo.findTrabajoByDoc(doc.id);
     if (existing) {
-      // Se volvió a analizar (cifra nueva de Haiku): el conteo ya hecho se reaplica, sin avisos.
+      // Se volvió a analizar: la cifra ya contada se vuelve a anotar (mismas claves, sin avisos).
       if (existing.estado === "hecho" && existing.aplicadoAt) await reapplyStored(deps, existing);
       return { submitted: false, reason: "existente" };
     }
-    if (doc.analysisJson?.document_metrics?.words_basis === "contador_traducat") return { submitted: false, reason: "ya_contado" };
+    if (doc.analysisJson?.words_contador != null) return { submitted: false, reason: "ya_contado" };
     if (origin.kind === "public") {
       const email = (origin.clientEmail || "").trim().toLowerCase();
       if (!email) return { submitted: false, reason: "sin_email" };
@@ -113,6 +127,7 @@ export async function submitForDocument(
       palabrasHaiku: doc.analysisJson?.document_metrics?.estimated_words ?? null,
     });
     if (!created) return { submitted: false, reason: "existente" };
+    if (origin.kind === "public") return { submitted: false, queued: true };
     await sendJob(deps, created, doc.fileUrl);
     return { submitted: true };
   } catch (err: any) {
@@ -140,14 +155,18 @@ async function reapplyStored(deps: ContadorDeps, t: TrabajoRow): Promise<void> {
   const doc = await deps.repo.loadDoc(t.documentAnalysisId);
   if (!doc) return;
   const out = applyCounterToAnalysis(doc.analysisJson, jobFromRow(t), { image: doc.mimeType !== "application/pdf" });
-  if (out.applied) await deps.repo.saveDocAnalysis(t.documentAnalysisId, out.json, out.counterWords);
+  if (out.applied) await deps.repo.saveDocAnalysis(t.documentAnalysisId, out.json);
 }
 
-export type ProcessResult = "actualizado" | "aplicado" | "ya_aplicado" | "no_aplicable" | "error_registrado";
+export type ProcessResult = "actualizado" | "aplicado" | "anotado_tardio" | "ya_aplicado" | "ya_cerrado" | "no_aplicable" | "error_registrado";
 
-/** Estado nuevo del contador (callback, cron o pantalla). Idempotente: aplicar la cifra pasa una sola vez. */
+/**
+ * Estado nuevo del contador (callback o cron). Idempotente: la cifra se anota una sola vez.
+ * Tardío (llega tras abandono/error): solo se guarda en ContadorTrabajo y se avisa; el análisis no se toca.
+ */
 export async function processJobUpdate(deps: ContadorDeps, t: TrabajoRow, job: ContadorJob): Promise<ProcessResult> {
   if (t.aplicadoAt) return "ya_aplicado";
+  const late = TERMINAL.has(t.estado);
   const progress = {
     estado: job.estado,
     paginasHechas: job.paginas_hechas,
@@ -158,12 +177,12 @@ export async function processJobUpdate(deps: ContadorDeps, t: TrabajoRow, job: C
     idiomaDetectado: job.idioma_detectado,
     motivoError: job.motivo_error,
   };
-  if (job.estado === "error") {
-    // Se queda la cifra de Haiku (words_basis no cambia): sigue siendo una estimación.
-    await deps.repo.updateTrabajo(t.id, { ...progress, abandonadoAt: t.abandonadoAt ?? new Date((deps.now ?? Date.now)()) });
-    return "error_registrado";
-  }
   if (job.estado !== "hecho") {
+    if (late) return "ya_cerrado";
+    if (job.estado === "error") {
+      await deps.repo.updateTrabajo(t.id, { ...progress, abandonadoAt: new Date((deps.now ?? Date.now)()) });
+      return "error_registrado";
+    }
     await deps.repo.updateTrabajo(t.id, progress);
     return "actualizado";
   }
@@ -174,66 +193,79 @@ export async function processJobUpdate(deps: ContadorDeps, t: TrabajoRow, job: C
     : ({ applied: false, reason: "analisis_no_aplicable" } as const);
   if (!doc || !out.applied) {
     const reason = out.applied ? "" : out.reason;
-    await deps.repo.updateTrabajo(t.id, { ...progress, motivoError: `no aplicado: ${reason}` });
+    if (!late) await deps.repo.updateTrabajo(t.id, { ...progress, motivoError: `no aplicado: ${reason}` });
     return "no_aplicable";
   }
 
   const quotes = await deps.repo.quotesForFile(doc.fileUrl);
   const impact = quoteImpact(out.haikuWords, out.counterWords, quotes);
-  const order = impact.differs && doc.orderId ? await deps.repo.orderRef(doc.orderId) : null;
+  const sales = impact.differs ? await deps.repo.salesForDoc(doc) : [];
   const aviso = {
     haiku: out.haikuWords,
     contador: out.counterWords,
     diffPct: impact.diffPct,
     differs: impact.differs,
+    tardio: late,
     enviados: impact.alertQuotes,
     borradores: impact.draftQuotes,
-    pedido: order,
+    ventas: sales,
   };
   const affectedIds = [...impact.alertQuotes, ...impact.draftQuotes].map((q) => q.id);
 
-  // El rastro (avisoJson) se guarda ANTES de enviar el aviso, en la misma transacción que la cifra.
-  const claimed = await deps.repo.applyAtomically(
+  // El rastro (avisoJson) se guarda ANTES de enviar el aviso, en la misma transacción que la anotación.
+  const claimed = await deps.repo.claim(
     t.id,
-    { ...progress, palabrasHaiku: out.haikuWords, aplicadoAt: new Date((deps.now ?? Date.now)()), avisoJson: aviso, avisoQuoteIds: affectedIds },
-    doc.id,
-    out.json,
-    out.counterWords
+    {
+      ...progress,
+      ...(late ? { estado: t.estado } : {}),
+      palabrasHaiku: out.haikuWords,
+      aplicadoAt: new Date((deps.now ?? Date.now)()),
+      avisoJson: aviso,
+      avisoQuoteIds: affectedIds,
+    },
+    late ? null : { id: doc.id, analysisJson: out.json }
   );
   if (!claimed) return "ya_aplicado";
 
-  if (impact.differs && (impact.alertQuotes.length > 0 || order)) {
+  if (impact.differs && (impact.alertQuotes.length > 0 || sales.length > 0)) {
     const lines = [
-      `El contador de TraduCAT ha contado ${out.counterWords} palabras en un escaneado; el presupuesto se hizo con la cifra provisional de Haiku: ${out.haikuWords} (${impact.diffPct} % de diferencia).`,
+      `El contador de TraduCAT ha contado ${out.counterWords} palabras en un escaneado; el precio se calculó con la cifra provisional de Haiku: ${out.haikuWords} (${impact.diffPct} % de diferencia).`,
+      ...(late ? ["El resultado llegó después de abandonar el trabajo: solo queda anotado, no se ha aplicado."] : []),
       "",
       "El precio NO se ha cambiado. Decide tú si se corrige o se mantiene.",
       "",
       ...impact.alertQuotes.map((q) => `Presupuesto ${q.quoteNumber} (${q.status}): ${SITE}/zona-traductor/presupuestos/${q.id}`),
-      ...(order ? [`Pedido ${order.reference} (${order.status}): ${SITE}/zona-traductor/pedido/${order.reference}`] : []),
+      ...sales.map((v) =>
+        v.kind === "pedido"
+          ? `Pedido ${v.reference} (${v.status}): ${SITE}/zona-traductor/pedido/${v.reference}`
+          : `Sesión de la puerta ${v.reference} (${v.status}): el cliente ve o paga el precio de Haiku`
+      ),
       ...(impact.draftQuotes.length ? ["", `Borradores con el mismo documento: ${impact.draftQuotes.map((q) => q.quoteNumber).join(", ")}`] : []),
       "",
       `Documento: ${doc.id}`,
     ];
-    const first = impact.alertQuotes[0]?.quoteNumber || order?.reference || doc.id;
+    const first = impact.alertQuotes[0]?.quoteNumber || sales[0]?.reference || doc.id;
     await deps
       .alertStaff({
         subject: `⚠ Palabras: contador ${out.counterWords} vs Haiku ${out.haikuWords} en ${first}`,
         text: lines.join("\n"),
         sms: `TraduccionesJuradas: ${first} contador ${out.counterWords} palabras vs ${out.haikuWords} presupuestadas (${impact.diffPct}%). Precio sin tocar. Mira el email.`,
-        context: `contador_palabras ${order?.reference || first}`,
+        context: `contador_palabras ${sales.find((v) => v.kind === "pedido")?.reference || first}`,
       })
       .catch((err) => (deps.log ?? console.error)("[contador] aviso a staff falló:", err));
   }
-  return "aplicado";
+  return late ? "anotado_tardio" : "aplicado";
 }
 
 /** Cron de respaldo (cada 2 min): reenvía, consulta o se rinde. Con tope por pasada. */
-export async function runContadorCron(deps: ContadorDeps, opts: { limit?: number } = {}) {
+export async function runContadorCron(deps: ContadorDeps, opts: { limit?: number; budgetMs?: number } = {}) {
   const res = { revisados: 0, enviados: 0, consultados: 0, aplicados: 0, abandonados: 0 };
   if (!deps.client) return res;
-  const now = (deps.now ?? Date.now)();
-  const pending = await deps.repo.listPending(opts.limit ?? 20);
+  const clock = deps.now ?? Date.now;
+  const now = clock();
+  const pending = await deps.repo.listPending(opts.limit ?? 20, new Date(now));
   for (const t of pending) {
+    if (clock() - now > (opts.budgetMs ?? CRON_BUDGET_MS)) break;
     res.revisados++;
     try {
       const action = cronAction(t, now);
@@ -272,17 +304,9 @@ export type ContadorStatus = {
   aviso: any;
 };
 
-/** Estado para la pantalla de staff; si el trabajo sigue vivo, consulta al contador (como mucho cada 5 s). */
+/** Estado para la pantalla de staff: solo lee la BD (lo actualizan el callback y el cron). */
 export async function statusForDocument(deps: ContadorDeps, documentAnalysisId: string): Promise<ContadorStatus> {
-  let t = await deps.repo.findTrabajoByDoc(documentAnalysisId);
-  const now = (deps.now ?? Date.now)();
-  if (t && deps.client && t.jobId && !TERMINAL.has(t.estado) && now - t.updatedAt.getTime() > 5_000) {
-    const job = await deps.client.getJob(t.jobId);
-    if (job) {
-      await processJobUpdate(deps, t, job);
-      t = (await deps.repo.findTrabajoByDoc(documentAnalysisId)) ?? t;
-    }
-  }
+  const t = await deps.repo.findTrabajoByDoc(documentAnalysisId);
   if (!t) return { activo: !!deps.client, estado: null, paginasHechas: null, paginasTotal: null, palabrasContador: null, palabrasHaiku: null, aplicado: false, aviso: null };
   return {
     activo: !!deps.client,

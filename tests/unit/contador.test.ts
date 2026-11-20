@@ -17,7 +17,8 @@ import {
   type FetchLike,
   type QuoteRef,
 } from "../../lib/contador/core.ts";
-import { processJobUpdate, runContadorCron, submitForDocument, type ContadorDeps, type ContadorRepo, type TrabajoRow } from "../../lib/contador/flow.ts";
+import { processJobUpdate, runContadorCron, statusForDocument, submitForDocument, type ContadorDeps, type ContadorRepo, type SaleRef, type TrabajoRow } from "../../lib/contador/flow.ts";
+import { calculatePrice } from "../../lib/pricing-engine/calculator.ts";
 
 const ENV = { CONTADOR_TRADUCAT: "on", CONTADOR_URL: "https://contador.test/v1/", CONTADOR_TOKEN: "tok", CONTADOR_HMAC_SECRET: "sec" };
 const NOW = Date.UTC(2026, 10, 20, 12, 0, 0);
@@ -68,9 +69,9 @@ function trabajo(over: Partial<TrabajoRow> = {}): TrabajoRow {
   };
 }
 
-function fakeDeps(opts: { quotes?: QuoteRef[]; analysisJson?: any; client?: ContadorDeps["client"]; trabajos?: TrabajoRow[] } = {}) {
+function fakeDeps(opts: { quotes?: QuoteRef[]; sales?: SaleRef[]; analysisJson?: any; client?: ContadorDeps["client"]; trabajos?: TrabajoRow[] } = {}) {
   const trabajos = new Map<string, TrabajoRow>((opts.trabajos || []).map((t) => [t.id, { ...t }]));
-  const doc = { id: "doc1", fileUrl: "https://blob.test/a.pdf", mimeType: "application/pdf", analysisJson: opts.analysisJson ?? analysis(), orderId: null as string | null, estimatedWords: 1000 };
+  const doc = { id: "doc1", fileUrl: "https://blob.test/a.pdf", mimeType: "application/pdf", analysisJson: opts.analysisJson ?? analysis(), orderId: null as string | null, orderReference: null as string | null, estimatedWords: 1000 };
   const calls: string[] = [];
   const alerts: any[] = [];
   const repo: ContadorRepo = {
@@ -82,21 +83,33 @@ function fakeDeps(opts: { quotes?: QuoteRef[]; analysisJson?: any; client?: Cont
       trabajos.set(t.id, t);
       return t;
     },
-    async updateTrabajo(id, data) { calls.push("updateTrabajo"); Object.assign(trabajos.get(id)!, data); },
-    async listPending() { return [...trabajos.values()].filter((t) => !t.aplicadoAt && ["pendiente_envio", "sin_confirmar", "en_cola", "contando"].includes(t.estado)); },
+    async updateTrabajo(id, data) {
+      calls.push("updateTrabajo");
+      const t = trabajos.get(id)!;
+      if (t.aplicadoAt || ["hecho", "error", "abandonado"].includes(t.estado)) return false;
+      Object.assign(t, data);
+      return true;
+    },
+    async listPending(_limit, now) {
+      return [...trabajos.values()].filter(
+        (t) =>
+          !t.aplicadoAt &&
+          (["pendiente_envio", "en_cola", "contando"].includes(t.estado) ||
+            (t.estado === "sin_confirmar" && t.createdAt.getTime() < now.getTime() - GIVE_UP_MS))
+      );
+    },
     async countForEmailSince() { return 0; },
     async loadDoc() { return doc; },
     async quotesForFile() { return opts.quotes ?? []; },
-    async orderRef() { return null; },
-    async applyAtomically(tid, data, _docId, json, words) {
+    async salesForDoc() { return opts.sales ?? []; },
+    async claim(tid, data, d) {
       const t = trabajos.get(tid)!;
       if (t.aplicadoAt) return false;
       Object.assign(t, data);
-      doc.analysisJson = json;
-      doc.estimatedWords = words;
+      if (d) doc.analysisJson = d.analysisJson;
       return true;
     },
-    async saveDocAnalysis(_id, json, words) { doc.analysisJson = json; doc.estimatedWords = words; },
+    async saveDocAnalysis(_id, json) { doc.analysisJson = json; },
   };
   const deps: ContadorDeps = {
     client: opts.client === undefined ? null : opts.client,
@@ -143,12 +156,13 @@ test("shouldCount: todo PDF escaneado, sea cual sea su tamaño; imágenes solo c
 
 /* ---------- firma ---------- */
 
-test("firma: buena, mala, caducada, futura y ausente", () => {
+test("firma: buena, mala, caducada, futura, ausente y hex en mayúsculas", () => {
   const body = JSON.stringify(job());
   const ts = String(Math.floor(NOW / 1000));
   const sig = signCallback("sec", ts, body);
   assert.match(sig, /^sha256=[0-9a-f]{64}$/);
   assert.deepEqual(verifyCallback({ secret: "sec", timestamp: ts, signature: sig, rawBody: body, now: NOW }), { ok: true });
+  assert.deepEqual(verifyCallback({ secret: "sec", timestamp: ts, signature: "sha256=" + sig.slice(7).toUpperCase(), rawBody: body, now: NOW }), { ok: true });
   assert.equal(verifyCallback({ secret: "otro", timestamp: ts, signature: sig, rawBody: body, now: NOW }).ok, false);
   assert.equal(verifyCallback({ secret: "sec", timestamp: ts, signature: sig, rawBody: body + " ", now: NOW }).ok, false);
   const old = String(Math.floor((NOW - 6 * 60_000) / 1000));
@@ -263,20 +277,18 @@ test("cron: consulta, aplica la cifra y respeta el tope por pasada", async () =>
 
 /* ---------- aplicar ---------- */
 
-test("applyCounterToAnalysis: cifra del contador manda, Haiku queda para auditoría y se quita scan_not_fully_counted", () => {
-  const out = applyCounterToAnalysis(analysis(1000), job());
+test("applyCounterToAnalysis: la cifra va a claves propias; document_metrics y price_risk intactos", () => {
+  const before = analysis(1000);
+  const out = applyCounterToAnalysis(before, job());
   assert.ok(out.applied);
   if (!out.applied) return;
-  const m = out.json.document_metrics;
-  assert.equal(m.estimated_words, 1200);
-  assert.equal(m.words_basis, "contador_traducat");
-  assert.equal(m.words_haiku, 1000);
-  assert.equal(m.words_haiku_basis, "transcribed_partial");
-  assert.deepEqual(out.json.price_risk.reasons, ["oversized_estimate"]);
+  assert.equal(out.json.words_contador, 1200);
+  assert.equal(out.json.words_basis_contador, "contador_traducat");
+  assert.deepEqual(out.json.words_contador_por_pagina, [200, 200, 200, 200, 200, 200]);
+  assert.deepEqual(out.json.document_metrics, before.document_metrics);
+  assert.deepEqual(out.json.price_risk, before.price_risk);
   assert.deepEqual(out.json.builderRun, { mode: "vision" });
-  // segunda aplicación sobre lo ya aplicado conserva la cifra original de Haiku
-  const again = applyCounterToAnalysis(out.json, job());
-  assert.ok(again.applied && again.haikuWords === 1000);
+  assert.equal(out.haikuWords, 1000);
 });
 
 test("applyCounterToAnalysis: bilingüe a la mitad; incompleto o segmentado no se aplica", () => {
@@ -297,7 +309,7 @@ test("quoteImpact: umbral del 5 %", () => {
   assert.deepEqual(i.draftQuotes.map((q) => q.id), ["q2"]);
 });
 
-test(">5 % sobre presupuesto ENVIADO: aviso con las dos cifras, el presupuesto no se toca", async () => {
+test(">5 % sobre presupuesto ENVIADO: aviso con las dos cifras, ni precio ni palabras del análisis cambian", async () => {
   const quotes: QuoteRef[] = [{ id: "q1", quoteNumber: "2026-00400", status: "SENT" }];
   const f = fakeDeps({ quotes, trabajos: [trabajo()] });
   const r = await processJobUpdate(f.deps, f.trabajos.get("t1")!, job());
@@ -307,9 +319,73 @@ test(">5 % sobre presupuesto ENVIADO: aviso con las dos cifras, el presupuesto n
   assert.match(f.alerts[0].text, /1000/);
   assert.match(f.alerts[0].text, /NO se ha cambiado/);
   assert.match(f.alerts[0].sms, /2026-00400/);
-  assert.ok(!("updateQuote" in f.deps.repo));
   assert.deepEqual((f.trabajos.get("t1") as any).avisoQuoteIds, ["q1"]);
-  assert.equal(f.doc.estimatedWords, 1200);
+  assert.equal(f.doc.analysisJson.words_contador, 1200);
+  assert.equal(f.doc.analysisJson.document_metrics.estimated_words, 1000);
+  assert.equal(f.doc.estimatedWords, 1000);
+});
+
+test(">5 % con pedido u OrderSession de la puerta: aviso aunque no haya presupuesto", async () => {
+  const f = fakeDeps({ sales: [{ kind: "sesion", reference: "TJ-20261121-AB12", status: "CHECKOUT" }], trabajos: [trabajo()] });
+  await processJobUpdate(f.deps, f.trabajos.get("t1")!, job());
+  assert.equal(f.alerts.length, 1);
+  assert.match(f.alerts[0].text, /TJ-20261121-AB12/);
+  const g = fakeDeps({ analysisJson: analysis(1180), sales: [{ kind: "pedido", reference: "TJ-1", status: "PAID" }], trabajos: [trabajo()] });
+  await processJobUpdate(g.deps, g.trabajos.get("t1")!, job());
+  assert.equal(g.alerts.length, 0);
+});
+
+function puertaAnalysis(words: number) {
+  return {
+    language: { source: "fr", source_name: "Francés", target: "es", target_name: "Español" },
+    document_type: { specific_type: "contract", specific_type_es: "Contrato", category: "legal", confidence: 0.9 },
+    country: { origin: "FR", origin_name: "Francia" },
+    complexity: { level: "standard", reasons: [] },
+    requirements: { has_apostille: false },
+    document_metrics: { pages: 6, estimated_words: words, words_basis: "transcribed_partial" },
+    extracted_data: { names: [], dates: [], reference_numbers: [], institutions: [], notes: "" },
+    price_risk: { risky: true, reasons: ["oversized_estimate", "scan_not_fully_counted"] },
+    warnings: [],
+  };
+}
+
+test("el checkout cobra lo mismo antes y después del callback (calculatePrice sobre el analysisJson)", async () => {
+  const f = fakeDeps({ analysisJson: puertaAnalysis(1000), sales: [{ kind: "sesion", reference: "TJ-X", status: "CHECKOUT" }], trabajos: [trabajo()] });
+  const antes = calculatePrice(f.doc.analysisJson as any);
+  assert.equal(await processJobUpdate(f.deps, f.trabajos.get("t1")!, job({ palabras_por_pagina: [600, 600, 600, 600, 600, 600] })), "aplicado");
+  const despues = calculatePrice(f.doc.analysisJson as any);
+  assert.equal(f.doc.analysisJson.words_contador, 3600);
+  assert.equal(despues.totalPrice, antes.totalPrice);
+  assert.equal(despues.basePrice, antes.basePrice);
+  assert.deepEqual(f.doc.analysisJson.price_risk, puertaAnalysis(1000).price_risk);
+  assert.equal(f.alerts.length, 1);
+});
+
+test("callback tardío tras abandono: se anota y avisa, el análisis no se toca", async () => {
+  const f = fakeDeps({ quotes: [{ id: "q1", quoteNumber: "2026-00400", status: "SENT" }], trabajos: [trabajo({ estado: "abandonado", abandonadoAt: new Date(NOW - 1000) })] });
+  const json0 = f.doc.analysisJson;
+  assert.equal(await processJobUpdate(f.deps, f.trabajos.get("t1")!, job()), "anotado_tardio");
+  assert.equal(f.doc.analysisJson, json0);
+  assert.equal(f.doc.analysisJson.words_contador, undefined);
+  const t = f.trabajos.get("t1")!;
+  assert.equal(t.estado, "abandonado");
+  assert.equal(t.avisoJson.tardio, true);
+  assert.equal(t.avisoJson.contador, 1200);
+  assert.equal(f.alerts.length, 1);
+  assert.match(f.alerts[0].text, /no se ha aplicado/);
+  // progreso tardío no resucita el trabajo
+  const g = fakeDeps({ trabajos: [trabajo({ estado: "abandonado" })] });
+  assert.equal(await processJobUpdate(g.deps, g.trabajos.get("t1")!, job({ estado: "contando", paginas_hechas: 2 })), "ya_cerrado");
+  assert.equal(g.trabajos.get("t1")!.estado, "abandonado");
+});
+
+test("el estado no retrocede: un progreso viejo no pisa un trabajo ya cerrado", async () => {
+  const f = fakeDeps({ trabajos: [trabajo()] });
+  const stale = { ...f.trabajos.get("t1")! };
+  await processJobUpdate(f.deps, f.trabajos.get("t1")!, job({ estado: "error", motivo_error: "x" }));
+  assert.equal(f.trabajos.get("t1")!.estado, "error");
+  assert.equal(await processJobUpdate(f.deps, stale, job({ estado: "contando", paginas_hechas: 3 })), "actualizado");
+  assert.equal(f.trabajos.get("t1")!.estado, "error");
 });
 
 test(">5 % solo en BORRADOR: se anota sin aviso; ≤5 % ni aviso ni anotación", async () => {
@@ -332,7 +408,27 @@ test("callback idempotente: dos entregas iguales aplican y avisan una sola vez",
   assert.equal(await processJobUpdate(f.deps, stale, job()), "ya_aplicado");
   assert.equal(await processJobUpdate(f.deps, f.trabajos.get("t1")!, job()), "ya_aplicado");
   assert.equal(f.alerts.length, 1);
-  assert.equal(f.doc.analysisJson.document_metrics.words_haiku, 1000);
+  assert.equal(f.doc.analysisJson.words_contador, 1200);
+});
+
+test("estado para la pantalla: solo BD, nunca llama al contador", async () => {
+  let gets = 0;
+  const client = { submit: async () => ({ ok: true as const, id: "x", estado: "en_cola" as const }), getJob: async () => { gets++; return job(); } };
+  const f = fakeDeps({ client, trabajos: [trabajo({ updatedAt: new Date(NOW - 3600_000), paginasHechas: 2 })] });
+  const st = await statusForDocument(f.deps, "doc1");
+  assert.equal(gets, 0);
+  assert.equal(st.estado, "contando");
+  assert.equal(st.paginasHechas, 2);
+});
+
+test("cron: tope de tiempo por pasada", async () => {
+  let t = NOW;
+  const client = { submit: async () => ({ ok: true as const, id: "x", estado: "en_cola" as const }), getJob: async () => { t += 60_000; return null; } };
+  const ts = Array.from({ length: 5 }, (_, i) => trabajo({ id: `t${i}`, documentAnalysisId: `d${i}`, jobId: `j${i}` }));
+  const f = fakeDeps({ client, trabajos: ts });
+  f.deps.now = () => t;
+  const r = await runContadorCron(f.deps);
+  assert.equal(r.consultados, 2);
 });
 
 test("progreso intermedio solo actualiza la fila", async () => {
@@ -378,7 +474,10 @@ test("ruta pública: sin email no se manda; cupo de 5 por email al día; staff s
   assert.deepEqual(await submitForDocument(f.deps, scanDoc, { kind: "public", clientEmail: "a@b.es" }), { submitted: false, reason: "cupo_email" });
   assert.equal(fetches, 0);
   hoy = 4;
-  assert.deepEqual(await submitForDocument(f.deps, scanDoc, { kind: "public", clientEmail: "a@b.es" }), { submitted: true });
+  // pública: solo encola (pendiente_envio), no llama al contador
+  assert.deepEqual(await submitForDocument(f.deps, scanDoc, { kind: "public", clientEmail: "a@b.es" }), { submitted: false, queued: true });
+  assert.equal(fetches, 0);
+  assert.equal([...f.trabajos.values()][0].estado, "pendiente_envio");
   const g = fakeDeps({ client: contadorClient(cfg, ok) });
   g.deps.repo.countForEmailSince = async () => 999;
   assert.deepEqual(await submitForDocument(g.deps, scanDoc), { submitted: true });

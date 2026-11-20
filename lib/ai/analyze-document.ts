@@ -81,11 +81,7 @@ export type DocumentAnalysisResult = {
     // transcribed_all = se transcribieron TODAS las páginas (lib/ai/transcribe-scan.ts);
     // transcribed_partial = faltaron páginas, rellenadas con la mediana;
     // extrapolated = extrapolado desde las primeras páginas.
-    // contador_traducat = cifra del contador de TraduCAT (lib/contador), que manda
-    // sobre la de Haiku; la de Haiku queda en words_haiku (+ words_haiku_basis).
-    words_basis?: "transcribed_all" | "transcribed_partial" | "extrapolated" | "contador_traducat";
-    words_haiku?: number;
-    words_haiku_basis?: "transcribed_all" | "transcribed_partial" | "extrapolated" | null;
+    words_basis?: "transcribed_all" | "transcribed_partial" | "extrapolated";
     // Extrapolación desde las primeras páginas, guardada siempre que se intenta
     // transcribir, para poder comparar con estimated_words.
     words_extrapolated?: number;
