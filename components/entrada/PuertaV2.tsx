@@ -382,7 +382,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   function content(m: Msg): ReactNode {
     const l = view?.lectura;
     switch (m.kind) {
-      case "hola": return t.hola;
+      case "hola": return <>{t.hola}<span className="mt-2 block text-sm font-medium">{t.desde}</span></>;
       case "email": return view?.email;
       case "pide_email": return t.pideEmail;
       case "si_terminado": return t.si;
