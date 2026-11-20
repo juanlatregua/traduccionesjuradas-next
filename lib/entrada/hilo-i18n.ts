@@ -2,7 +2,7 @@ import type { EntradaLang } from "./i18n.ts";
 
 export type HiloStrings = {
   hola: string; email: string; name: string; whatsapp: string; start: string;
-  faltaEmail: string; faltaConsent: string; falta: (items: string[]) => string;
+  faltaEmail: string; consentUnico: string; falta: (items: string[]) => string;
   pideCodigo: (email: string) => string; codigoLabel: string; reenviar: string; codigoOk: string; faltaCodigo: string;
   pideOrigen: string; noSe: string; pideDestino: string; mismoIdioma: string; listo: string; choose: string;
   pideArchivos: string; add: string; terminado: string; faltaArchivo: string; preguntaTerminado: string; si: string; mas: string;
@@ -22,7 +22,7 @@ export type HiloStrings = {
 const es: HiloStrings = {
   hola: "Hola. Cuéntame qué necesitas traducir: dime los idiomas y sube tus documentos. Los revisamos todos juntos y te enviamos el presupuesto cerrado, normalmente en el día.",
   email: "Email", name: "Nombre (opcional)", whatsapp: "WhatsApp (opcional)", start: "Empezar",
-  faltaEmail: "un email válido", faltaConsent: "marcar las dos casillas", falta: (i) => `Para seguir falta: ${i.join(" y ")}.`,
+  faltaEmail: "un email válido", consentUnico: "Consiento que tratéis mis documentos para preparar el presupuesto de traducción jurada y que me lo enviéis por email, con un recordatorio si no lo completo. Los documentos se borran solos 30 días después de la entrega.", falta: (i) => `Para seguir falta: ${i.join(" y ")}.`,
   pideCodigo: (e) => `Te he mandado un email a ${e}. Pulsa «Confirmar mi email» en el mensaje y aquí seguimos solos, o escribe el código de 6 cifras.`, codigoLabel: "Código de 6 cifras", reenviar: "Enviar otro código", codigoOk: "Email confirmado, gracias.", faltaCodigo: "Faltan cifras: el código tiene 6.",
   pideOrigen: "¿En qué idioma está el documento?", noSe: "No lo sé", pideDestino: "¿A qué idioma lo necesitas? Puedes elegir más de uno.", mismoIdioma: "Es el mismo idioma que el del documento: elige otro.", listo: "Listo", choose: "Elige…",
   pideArchivos: "Sube tus documentos: cada página, el reverso si tiene algo y la apostilla si la lleva. Varias fotos de un mismo documento valen; las junto yo.",
@@ -61,7 +61,7 @@ const es: HiloStrings = {
 const fr: HiloStrings = {
   hola: "Bonjour. Dites-moi ce que vous devez faire traduire : les langues et vos documents. Nous les examinons ensemble et vous envoyons le devis définitif, en général dans la journée.",
   email: "E-mail", name: "Nom (facultatif)", whatsapp: "WhatsApp (facultatif)", start: "Commencer",
-  faltaEmail: "un e-mail valide", faltaConsent: "cocher les deux cases", falta: (i) => `Pour continuer, il manque : ${i.join(" et ")}.`,
+  faltaEmail: "un e-mail valide", consentUnico: "J'accepte que vous traitiez mes documents pour préparer le devis de traduction assermentée et que vous me l'envoyiez par e-mail, avec un rappel si je ne le finalise pas. Les documents sont supprimés automatiquement 30 jours après la livraison.", falta: (i) => `Pour continuer, il manque : ${i.join(" et ")}.`,
   pideCodigo: (e) => `Je vous ai envoyé un e-mail à ${e}. Appuyez sur « Confirmer mon e-mail » dans le message et ici tout continue seul, ou saisissez le code à 6 chiffres.`, codigoLabel: "Code à 6 chiffres", reenviar: "Renvoyer un code", codigoOk: "E-mail confirmé, merci.", faltaCodigo: "Il manque des chiffres : le code en a 6.",
   pideOrigen: "Dans quelle langue est le document ?", noSe: "Je ne sais pas", pideDestino: "Vers quelle langue ? Vous pouvez en choisir plusieurs.", mismoIdioma: "C'est la même langue que celle du document : choisissez-en une autre.", listo: "Valider", choose: "Choisissez…",
   pideArchivos: "Envoyez vos documents : chaque page, le verso s'il est écrit et l'apostille s'il y en a une. Plusieurs photos d'un même document conviennent ; je les regroupe.",
@@ -100,7 +100,7 @@ const fr: HiloStrings = {
 const en: HiloStrings = {
   hola: "Hello. Tell me what you need translated: the languages and your documents. We review them all together and send you the final quote, usually the same day.",
   email: "Email", name: "Name (optional)", whatsapp: "WhatsApp (optional)", start: "Start",
-  faltaEmail: "a valid email", faltaConsent: "tick both boxes", falta: (i) => `To continue we still need: ${i.join(" and ")}.`,
+  faltaEmail: "a valid email", consentUnico: "I agree to you processing my documents to prepare the sworn translation quote and sending it to me by email, with a reminder if I don't complete it. Documents are deleted automatically 30 days after delivery.", falta: (i) => `To continue we still need: ${i.join(" and ")}.`,
   pideCodigo: (e) => `I've emailed ${e}. Press «Confirm my email» in the message and this carries on by itself, or type the 6-digit code.`, codigoLabel: "6-digit code", reenviar: "Send another code", codigoOk: "Email confirmed, thanks.", faltaCodigo: "Digits missing: the code has 6.",
   pideOrigen: "Which language is the document in?", noSe: "I don't know", pideDestino: "Which language do you need it in? You can choose more than one.", mismoIdioma: "That's the document's own language: choose another.", listo: "Done", choose: "Choose…",
   pideArchivos: "Upload your documents: every page, the back if anything is on it and the apostille if there is one. Several photos of one document are fine; I put them together.",
@@ -139,7 +139,7 @@ const en: HiloStrings = {
 const de: HiloStrings = {
   hola: "Hallo. Sagen Sie mir, was übersetzt werden soll: die Sprachen und Ihre Dokumente. Wir prüfen alle zusammen und schicken Ihnen das verbindliche Angebot, meist am selben Tag.",
   email: "E-Mail", name: "Name (optional)", whatsapp: "WhatsApp (optional)", start: "Los geht's",
-  faltaEmail: "eine gültige E-Mail", faltaConsent: "beide Kästchen ankreuzen", falta: (i) => `Zum Weitermachen fehlt: ${i.join(" und ")}.`,
+  faltaEmail: "eine gültige E-Mail", consentUnico: "Ich willige ein, dass Sie meine Dokumente zur Erstellung des Angebots für die beglaubigte Übersetzung verarbeiten und es mir per E-Mail senden, mit einer Erinnerung, falls ich es nicht abschließe. Die Dokumente werden 30 Tage nach der Lieferung automatisch gelöscht.", falta: (i) => `Zum Weitermachen fehlt: ${i.join(" und ")}.`,
   pideCodigo: (e) => `Ich habe Ihnen an ${e} geschrieben. Drücken Sie in der Nachricht auf «E-Mail bestätigen» und hier geht es von selbst weiter, oder geben Sie den 6-stelligen Code ein.`, codigoLabel: "6-stelliger Code", reenviar: "Neuen Code senden", codigoOk: "E-Mail bestätigt, danke.", faltaCodigo: "Es fehlen Ziffern: der Code hat 6.",
   pideOrigen: "In welcher Sprache ist das Dokument?", noSe: "Weiß ich nicht", pideDestino: "In welche Sprache brauchen Sie es? Sie können mehrere wählen.", mismoIdioma: "Das ist die Sprache des Dokuments: wählen Sie eine andere.", listo: "Fertig", choose: "Auswählen…",
   pideArchivos: "Laden Sie Ihre Dokumente hoch: jede Seite, die Rückseite, falls beschrieben, und die Apostille, falls vorhanden. Mehrere Fotos eines Dokuments sind in Ordnung; ich füge sie zusammen.",
@@ -178,7 +178,7 @@ const de: HiloStrings = {
 const pt: HiloStrings = {
   hola: "Olá. Conte o que precisa traduzir: os idiomas e seus documentos. Revisamos todos juntos e enviamos o orçamento fechado, normalmente no mesmo dia.",
   email: "E-mail", name: "Nome (opcional)", whatsapp: "WhatsApp (opcional)", start: "Começar",
-  faltaEmail: "um e-mail válido", faltaConsent: "marcar as duas caixas", falta: (i) => `Para continuar falta: ${i.join(" e ")}.`,
+  faltaEmail: "um e-mail válido", consentUnico: "Autorizo o tratamento dos meus documentos para preparar o orçamento de tradução juramentada e o envio por e-mail, com um lembrete se eu não o concluir. Os documentos são apagados automaticamente 30 dias após a entrega.", falta: (i) => `Para continuar falta: ${i.join(" e ")}.`,
   pideCodigo: (e) => `Enviei um e-mail para ${e}. Toque em «Confirmar meu e-mail» na mensagem e aqui continua sozinho, ou digite o código de 6 dígitos.`, codigoLabel: "Código de 6 dígitos", reenviar: "Enviar outro código", codigoOk: "E-mail confirmado, obrigado.", faltaCodigo: "Faltam dígitos: o código tem 6.",
   pideOrigen: "Em que idioma está o documento?", noSe: "Não sei", pideDestino: "Para que idioma precisa? Pode escolher mais de um.", mismoIdioma: "É o mesmo idioma do documento: escolha outro.", listo: "Pronto", choose: "Escolha…",
   pideArchivos: "Envie seus documentos: cada página, o verso se tiver algo e a apostila, se houver. Várias fotos do mesmo documento servem; eu as junto.",

@@ -87,7 +87,6 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [gdpr, setGdpr] = useState(false);
-  const [marketing, setMarketing] = useState(false);
   const [code, setCode] = useState("");
   const [destinos, setDestinos] = useState<string[]>(["es"]);
   const [answer, setAnswer] = useState("");
@@ -206,7 +205,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   }, [ask?.kind]);
 
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
-  const emailFalta = [!emailOk && t.faltaEmail, !marketing && t.faltaConsent].filter((x): x is string => Boolean(x));
+  const emailFalta = [!emailOk && t.faltaEmail].filter((x): x is string => Boolean(x));
   const origen = view?.idiomas.origen ?? local.origen;
   const destinosActuales = view?.idiomas.destinos.length ? view.idiomas.destinos : local.destinos;
 
@@ -223,7 +222,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   async function sendEmail() {
     const value = (emailRef.current?.value ?? email).trim();
     setEmail(value);
-    if (!token || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value) || !marketing) return;
+    if (!token || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) return;
     setBusy(t.enviarCodigo);
     const { data } = await call(`/api/entrada/${token}/email`, "POST", { email: value, nombre: nombre.trim() || null, telefono: telefono.trim() || null, marketingConsent: true });
     setBusy(null);
@@ -511,10 +510,6 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
               <input autoComplete="name" placeholder={t.name} aria-label={t.name} value={nombre} onChange={(e) => setNombre(e.target.value)} className={field} />
               <input type="tel" autoComplete="tel" placeholder={t.whatsapp} aria-label={t.whatsapp} value={telefono} onChange={(e) => setTelefono(e.target.value)} className={field} />
             </div>
-            <label className="flex items-start gap-2 text-xs text-graphite">
-              <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{T.marketingConsent}</span>
-            </label>
             <button type="button" className={btn} disabled={!!busy || emailFalta.length > 0} onClick={sendEmail}>{t.enviarCodigo}</button>
             {emailFalta.length > 0 && <p className="text-xs text-graphite">{t.falta(emailFalta)}</p>}
           </div>
@@ -559,7 +554,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
             {!token && (
               <label className="flex items-start gap-2 text-xs text-graphite">
                 <input type="checkbox" checked={gdpr} onChange={(e) => setGdpr(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{T.gdprConsent} <a href="/privacidad" target="_blank" className="text-bleu underline">{T.gdprPrivacyLink}</a>.</span>
+                <span>{t.consentUnico} <a href="/privacidad" target="_blank" className="text-bleu underline">{T.gdprPrivacyLink}</a>.</span>
               </label>
             )}
             <div className="flex flex-wrap gap-2">
