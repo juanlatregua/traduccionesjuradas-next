@@ -77,6 +77,16 @@ export type DocumentAnalysisResult = {
     // modelo muestrea y este es el divisor REAL de la extrapolación (antes se
     // dividía siempre entre 3, aunque hubiera transcrito 2 → −33 % de palabras).
     transcribed_pages?: number;
+    // Cómo se obtuvo estimated_words en un escaneado extenso (>5 págs):
+    // transcribed_all = se transcribieron TODAS las páginas (lib/ai/transcribe-scan.ts);
+    // transcribed_partial = faltaron páginas, rellenadas con la mediana;
+    // extrapolated = extrapolado desde las primeras páginas.
+    words_basis?: "transcribed_all" | "transcribed_partial" | "extrapolated";
+    // Extrapolación desde las primeras páginas, guardada siempre que se intenta
+    // transcribir, para poder comparar con estimated_words.
+    words_extrapolated?: number;
+    words_per_page?: number[];
+    low_pages?: number[];
   };
   extracted_data: {
     names: string[];

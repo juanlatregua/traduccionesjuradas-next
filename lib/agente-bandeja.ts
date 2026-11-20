@@ -48,6 +48,7 @@ import {
   MAX_EMAILS_PER_RUN,
   type AgenteBandejaMode,
   type Segment,
+  unreadAttachmentsReason,
 } from "@/lib/agente-bandeja-math";
 
 const SITE = "https://www.traduccionesjuradas.net";
@@ -241,6 +242,10 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
     return out("drafted", reason);
   };
 
+  // Caso Paulette 2026-00406: un ZIP descartado en silencio dio un presupuesto de 1 de 14 documentos.
+  const unread = unreadAttachmentsReason(exp.skipped);
+  if (unread) return manual(unread);
+
   // 2. Presupuesto ya existente para este expediente (builder o pasada anterior): no se crea otro.
   const previo = await prisma.quote.findFirst({
     where: { deletedAt: null, expedienteRef: { in: [ref, `puerta:exp:${ref}`] } },
@@ -259,7 +264,7 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
   const segments: (Segment & { fileUrl: string })[] = [];
   let split = false;
   for (const d of docs) {
-    const r = await analyzeExpedienteDocument(d.id);
+    const r = await analyzeExpedienteDocument(d.id, { deadlineAt });
     if (!r.ok) return manual(`no se pudo leer ${d.fileName}: ${r.error}`);
     if (r.run.degraded) return manual(`segmentación dudosa en ${d.fileName}`);
     if (r.split) split = true;

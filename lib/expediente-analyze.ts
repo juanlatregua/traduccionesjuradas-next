@@ -108,7 +108,9 @@ export type ExpedienteAnalyzeResult =
 type AnalyzableDoc = { id: string; fileName: string; mimeType: string; fileUrl: string };
 
 /** Analiza una fila DocumentAnalysis ya marcada ANALYZING y guarda el resultado. */
-export async function analyzeDocumentRow(doc: AnalyzableDoc, targetLang?: string): Promise<ExpedienteAnalyzeResult> {
+export type ScanLimits = { maxScanPages?: number; deadlineAt?: number };
+
+export async function analyzeDocumentRow(doc: AnalyzableDoc, targetLang?: string, scan: ScanLimits = {}): Promise<ExpedienteAnalyzeResult> {
   const fileName = doc.fileName;
   const mimeType = doc.mimeType;
   const blobUrl = doc.fileUrl;
@@ -126,7 +128,7 @@ export async function analyzeDocumentRow(doc: AnalyzableDoc, targetLang?: string
     const buffer = Buffer.from(await fileResponse.arrayBuffer());
 
     const started = Date.now();
-    const run = await runDocumentSegmentation({ buffer, mimeType, fileName, targetLang });
+    const run = await runDocumentSegmentation({ buffer, mimeType, fileName, targetLang, maxScanPages: scan.maxScanPages ?? 200, deadlineAt: scan.deadlineAt });
     const analysisMs = Date.now() - started;
 
     const documents = toBuilderDocuments(run, { id: doc.id, fileName, fileUrl: blobUrl, targetLang });
@@ -194,7 +196,7 @@ export async function analyzeDocumentRow(doc: AnalyzableDoc, targetLang?: string
 }
 
 /** Documento de expediente YA registrado (por id): reutiliza el análisis guardado o lo analiza. */
-export async function analyzeExpedienteDocument(documentId: string, opts: { targetLang?: string } = {}): Promise<ExpedienteAnalyzeResult> {
+export async function analyzeExpedienteDocument(documentId: string, opts: { targetLang?: string; deadlineAt?: number } = {}): Promise<ExpedienteAnalyzeResult> {
   const existing = await prisma.documentAnalysis.findUnique({ where: { id: documentId } });
   if (!existing) return { ok: false, status: 404, error: "Documento no encontrado." };
   // ZIP: se abre y se analiza cada archivo de dentro como documento propio.
@@ -240,5 +242,5 @@ export async function analyzeExpedienteDocument(documentId: string, opts: { targ
     where: { id: documentId },
     data: { status: "ANALYZING" },
   });
-  return analyzeDocumentRow(doc, opts.targetLang);
+  return analyzeDocumentRow(doc, opts.targetLang, { deadlineAt: opts.deadlineAt });
 }

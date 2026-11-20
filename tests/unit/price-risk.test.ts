@@ -162,6 +162,16 @@ test("justo en el límite (5 págs, 3000 palabras) SIGUE autotarificando", () =>
   assert.equal(risk.reasons.includes("oversized_estimate"), false);
 });
 
+test("escaneado extenso extrapolado o parcial añade scan_not_fully_counted; transcrito entero no", () => {
+  const mk = (basis: "transcribed_all" | "transcribed_partial" | "extrapolated") =>
+    assessAutoPriceRisk({
+      analysis: fakeAnalysis({ document_metrics: { estimated_words: 2000, pages: 24, words_basis: basis } }),
+    });
+  assert.ok(mk("extrapolated").reasons.includes("scan_not_fully_counted"));
+  assert.ok(mk("transcribed_partial").reasons.includes("scan_not_fully_counted"));
+  assert.equal(mk("transcribed_all").reasons.includes("scan_not_fully_counted"), false);
+});
+
 test("el certificado normal de 1-2 páginas no se ve afectado", () => {
   for (const [pages, words] of [[1, 280], [2, 620], [4, 1500]] as const) {
     const risk = assessAutoPriceRisk({

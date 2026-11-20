@@ -55,8 +55,9 @@ export async function POST(req: Request) {
 
   // Dos modos: analizar un documento YA registrado (expediente entrante,
   // por documentId) o uno recién subido a Blob por el staff (por blobUrl).
+  const deadlineAt = Date.now() + maxDuration * 1000;
   if (documentId) {
-    return toResponse(await analyzeExpedienteDocument(documentId, { targetLang }));
+    return toResponse(await analyzeExpedienteDocument(documentId, { targetLang, deadlineAt }));
   }
 
   const blobUrl = String(body?.blobUrl || "");
@@ -81,6 +82,6 @@ export async function POST(req: Request) {
       status: "ANALYZING",
     },
   });
-  if (isZipDocument(doc)) return toResponse(await analyzeExpedienteDocument(doc.id, { targetLang }));
-  return toResponse(await analyzeDocumentRow(doc, targetLang));
+  if (isZipDocument(doc)) return toResponse(await analyzeExpedienteDocument(doc.id, { targetLang, deadlineAt }));
+  return toResponse(await analyzeDocumentRow(doc, targetLang, { deadlineAt }));
 }

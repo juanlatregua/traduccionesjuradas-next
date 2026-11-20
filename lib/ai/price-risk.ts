@@ -21,6 +21,7 @@ export type PriceRiskReason =
   | "suspicious_text" // capa de texto pegada/concatenada → conteo poco fiable
   | "bilingual_duplicate" // co-oficial ca/es: el conteo se divide /2 por una señal del modelo → revisar antes de cobrar
   | "oversized_estimate" // documento extenso: el conteo es una EXTRAPOLACIÓN sobre una muestra, no una cuenta
+  | "scan_not_fully_counted" // escaneado extenso cuyo conteo NO sale de transcribir todas las páginas (extrapolado o con páginas sin leer)
   | "apostille_only"; // el archivo es SOLO la apostilla, sin el documento que certifica
 
 export type PriceRisk = { risky: boolean; reasons: PriceRiskReason[] };
@@ -159,6 +160,15 @@ export function assessAutoPriceRisk(input: {
   const words = analysis.document_metrics?.estimated_words || 0;
   if (pages > EXTRAPOLATION_PAGES || words > MAX_AUTO_WORDS) {
     reasons.push("oversized_estimate");
+  }
+
+  // 6. Escaneado extenso sin transcripción completa: el conteo es extrapolado o
+  //    tiene páginas sin leer (ver lib/ai/transcribe-scan.ts). Hoy ya lo frena
+  //    oversized_estimate (>5 págs); la razón explícita deja el motivo a la vista
+  //    por si ese umbral se relaja para los transcritos al 100 %.
+  const basis = analysis.document_metrics?.words_basis;
+  if (pages > EXTRAPOLATION_PAGES && (basis === "extrapolated" || basis === "transcribed_partial")) {
+    reasons.push("scan_not_fully_counted");
   }
 
   return { risky: reasons.length > 0, reasons };
