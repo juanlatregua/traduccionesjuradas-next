@@ -71,19 +71,18 @@ const ANALYZING_MESSAGES = [
   "Identificando tipo de documento...",
   "Detectando idioma de origen...",
   "Extrayendo datos clave...",
-  "Estimando complejidad...",
+  "Contando palabras de cada página...",
   "Calculando presupuesto...",
 ];
 
 const ANALYZING_MESSAGES_LARGE = [
   "Documento extenso detectado...",
-  "Analizando primeras páginas...",
+  "Transcribiendo y contando todas las páginas...",
   "Identificando tipo de documento...",
   "Detectando idioma de origen...",
   "Extrayendo datos clave...",
-  "Estimando palabras por página...",
-  "Extrapolando al total de páginas...",
-  "Calculando presupuesto orientativo...",
+  "Contando palabras página a página...",
+  "Calculando presupuesto...",
 ];
 
 export default function DocumentAnalysis({
@@ -165,7 +164,7 @@ export default function DocumentAnalysis({
           </p>
           {isLikelyLarge && (
             <p className="text-xs text-graphite">
-              Documento extenso — el análisis puede tardar hasta 1 minuto
+              Documento extenso — contamos todas las páginas, puede tardar hasta 2 minutos
             </p>
           )}
           <div className="w-full max-w-xs">

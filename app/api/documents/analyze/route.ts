@@ -21,6 +21,7 @@ export const runtime = "nodejs";
 export const maxDuration = 120; // Allow up to 120s for IA analysis (PDFs pesados)
 
 export async function POST(req: Request) {
+  const requestStart = Date.now();
   const ip = getClientIp(req);
 
   // El staff autenticado (zona-traductor / admin) procesa expedientes enteros
@@ -200,6 +201,7 @@ export async function POST(req: Request) {
               buffer: fileBuffer,
               mimeType: doc.mimeType,
               fileName: doc.fileName,
+              deadlineAt: requestStart + 115_000,
             }),
             new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error("TIMEOUT: análisis excedió 115s")), 115000)

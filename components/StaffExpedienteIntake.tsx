@@ -1732,7 +1732,7 @@ export default function StaffExpedienteIntake({
                       <span className="flex items-center gap-1 text-slate-400"><Loader2 className="h-3 w-3 animate-spin" /> Subiendo…</span>
                     )}
                     {d.status === "analyzing" && (
-                      <span className="flex items-center gap-1 text-cyan-400"><Loader2 className="h-3 w-3 animate-spin" /> Analizando…</span>
+                      <span className="flex items-center gap-1 text-cyan-400"><Loader2 className="h-3 w-3 animate-spin" /> Analizando y contando palabras…</span>
                     )}
                     {d.status === "error" && (
                       <span className="flex items-center gap-1 text-amber-400" title={d.error}><AlertTriangle className="h-3 w-3" /> Error · precio a mano</span>
