@@ -66,7 +66,7 @@ async function notify(a: Aviso): Promise<void> {
   const respuestas = (e.respuestas ?? []).map((r) => `<li>${escapeHtml(r.pregunta)}: <strong>${escapeHtml(r.respuesta)}</strong></li>`).join("");
   const plazo = e.urgency === "DATE" && e.neededBy ? `para el ${fmtNeededBy(e.neededBy)}` : e.urgency === "ASAP" ? "lo antes posible" : e.urgency === "FLEXIBLE" ? "sin prisa" : "sin indicar";
   const html = a.kind === "confirmada"
-    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p><p>${a.documentos} documento(s) · ${escapeHtml(idiomas)} · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}${e.pais ? ` (${escapeHtml(e.pais)})` : ""}</p>${respuestas ? `<ul>${respuestas}</ul>` : ""}${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir la lectura y presupuestar</a></p>`
+    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p>${a.presupuesto ? `<p><strong>Presupuesto automático ${escapeHtml(a.presupuesto)}</strong> (PUERTA_FR): revísalo en el caso.</p>` : ""}<p>${a.documentos} documento(s) · ${escapeHtml(idiomas)} · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}${e.pais ? ` (${escapeHtml(e.pais)})` : ""}</p>${respuestas ? `<ul>${respuestas}</ul>` : ""}${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir la lectura y presupuestar</a></p>`
     : `<h2>Idioma sin jurado: ${escapeHtml(langName(a.idioma))}</h2><p>${who}</p><p>Al cliente se le ha dado el buscador del MAEC y el caso queda en «Sin jurado» (no cuenta como perdido) si no tenía nada más.</p><p><a href="${link}">Ver el caso</a></p>`;
   await sendMail({ to, subject, html });
 }
@@ -81,33 +81,53 @@ const frAutoIO: FrAutoIO = {
       return false;
     }
   },
+  liveBlock: async (e) => {
+    const { findLiveBlock } = await import("@/lib/respuesta-guard-db");
+    return (await findLiveBlock({ email: e.email, phone: e.phone9 }, { leadAt: e.createdAt })) ? "ya lo lleva alguien (bloqueo vivo)" : null;
+  },
   createDraft: async (e, payload) => {
     const { createAutoQuote } = await import("@/lib/learned-rates");
     const { FR_DELIVERY_TERM, FR_TRANSLATOR } = await import("@/lib/agente-bandeja-math");
     const { evaluateCapped } = await import("@/lib/quote-fr");
-    const q = await createAutoQuote({
-      lines: payload.lines.map((l) => ({ description: l.description, quantity: 1, unitPrice: Number(l.unitPrice), supplierUnitCost: 0, sourceFileUrl: l.sourceFileUrl })),
-      deliveryTerm: FR_DELIVERY_TERM,
-      sourceLang: payload.sourceLang,
-      targetLang: payload.targetLang,
-      marginPct: 0,
-      autoPricedBy: "puerta-fr-entrada",
-      adminCreatedBy: "system:puerta-fr",
-      channelPriceSource: "fr-tarifa",
-      miembro: { id: null, nombre: null },
-      translator: FR_TRANSLATOR,
-      expedienteRef: `entrada:${e.id}`,
-      contacto: { email: e.email, phone: e.phone9, name: e.nombre },
-      locale: e.lang === "fr" || e.lang === "en" ? e.lang : "es",
-      send: false,
-      casoId: e.casoId,
-    });
-    if (!q.ok) return { error: q.reason };
-    const ev = await evaluateCapped(q.quoteId, true);
-    if (!ev.quote) return { error: "presupuesto no disponible tras crearlo" };
-    return { quoteId: q.quoteId, quoteNumber: ev.quote.quoteNumber, netEur: ev.netEur, totalEur: ev.totalEur };
+    const { presupuestoVivoDelCaso } = await import("@/lib/caso/hilo-db");
+    // Mismo candado que app/api/quotes/route.ts: un presupuesto vivo por caso y par. La transacción solo sostiene el candado.
+    return prisma.$transaction(async (tx) => {
+      if (e.casoId) {
+        const [candado] = await tx.$queryRaw<{ ok: boolean }[]>`SELECT pg_try_advisory_xact_lock(hashtext('hilo'), hashtext(${`${e.casoId}|FR>ES`})) AS ok`;
+        if (!candado?.ok) return { skip: "otro presupuesto se está creando en este caso" };
+        const vivo = await presupuestoVivoDelCaso(e.casoId, "FR>ES", tx);
+        if (vivo) return { skip: `el caso ya tiene el presupuesto ${vivo.quoteNumber}` };
+      }
+      const q = await createAutoQuote({
+        lines: payload.lines.map((l) => ({
+          description: l.description, quantity: l.quantity, unitPrice: Number(l.unitPrice), supplierUnitCost: Number(l.supplierUnitCost ?? 0),
+          sourceFileUrl: l.sourceFileUrl, pageStart: l.pageStart, pageEnd: l.pageEnd, docKind: l.docKind,
+        })),
+        deliveryTerm: FR_DELIVERY_TERM,
+        sourceLang: payload.sourceLang,
+        targetLang: payload.targetLang,
+        marginPct: 0,
+        autoPricedBy: "puerta-fr-entrada",
+        adminCreatedBy: "system:puerta-fr",
+        channelPriceSource: "fr-tarifa",
+        miembro: { id: null, nombre: null },
+        translator: FR_TRANSLATOR,
+        expedienteRef: `entrada:${e.id}`,
+        contacto: { email: e.email, phone: e.phone9, name: e.nombre },
+        locale: e.lang === "fr" || e.lang === "en" ? e.lang : "es",
+        send: false,
+        casoId: e.casoId,
+      });
+      if (!q.ok) return { error: q.reason };
+      const ev = await evaluateCapped(q.quoteId, true);
+      if (!ev.quote) return { error: "presupuesto no disponible tras crearlo" };
+      return { quoteId: q.quoteId, quoteNumber: ev.quote.quoteNumber, netEur: ev.netEur, totalEur: ev.totalEur, decision: ev.decision };
+    }, { timeout: 30_000, maxWait: 5_000 });
   },
-  decide: async (quoteId) => (await (await import("@/lib/quote-fr")).evaluateCapped(quoteId, true)).decision,
+  link: async (e, data, draft, payload) => {
+    const ok = await lecturaStore.confirm(data.lote.id, "system:puerta-fr", { payload, quoteId: draft.quoteId }, data.lote.updatedAt);
+    if (ok) await lecturaStore.linkQuote(data.lote.id, draft.quoteId);
+  },
   send: async (e, draft, payload) => {
     const { buildQuoteReply, greetingName, FR_DELIVERY_TERM } = await import("@/lib/agente-bandeja-math");
     const { finalizeAndSendQuote } = await import("@/lib/quote-send");

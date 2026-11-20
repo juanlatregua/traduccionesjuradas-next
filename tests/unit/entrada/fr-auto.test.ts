@@ -5,6 +5,7 @@ import type { EntradaRow } from "../../../lib/entrada/store.ts";
 import { buildLines } from "../../../lib/lectura-constructor/lines.ts";
 import { computePagePricing } from "../../../lib/pricing-engine/page-pricing.ts";
 import { priceFrSegments, type Segment } from "../../../lib/agente-bandeja-math.ts";
+import { sessionKeyOf } from "../../../lib/entrada/store.ts";
 import { ap } from "../lectura/fixtures.ts";
 import { working } from "../lectura-constructor/fakes.ts";
 
@@ -15,15 +16,16 @@ const files = [
 const entrada = (o: Partial<EntradaRow> = {}) =>
   ({ id: "e1", casoId: "c1", email: "a@b.es", nombre: "Ana", phone9: null, lang: "es", urgency: "ASAP", emailVerifiedAt: new Date(), marketingConsentAt: new Date(), sourceLang: "fr", targetLang: "es", targetLangs: ["es"], ...o }) as EntradaRow;
 const data = (docs = [working("D1", [[1, 1]])], lote: Record<string, unknown> = {}): FrAutoData =>
-  ({ lote: { status: "ok", clean: true, reasons: [], targetLang: "es", ...lote } as never, files: files as never, documents: docs });
+  ({ lote: { id: "L1", status: "ok", clean: true, reasons: [], targetLang: "es", sessionKey: sessionKeyOf("e1"), quoteId: null, updatedAt: new Date(), ...lote } as never, files: files as never, documents: docs });
 
 function fakeIO(mode: "off" | "draft" | "fr", decision: { action: "send" } | { action: "alert"; reasons: string[] } = { action: "send" }) {
   const calls: string[] = [];
   const io: FrAutoIO = {
     mode: () => mode,
+    liveBlock: async () => null,
     claim: async () => (calls.push("claim"), true),
-    createDraft: async () => (calls.push("draft"), { quoteId: "q1", quoteNumber: "2026-0001", netEur: 30, totalEur: 36.3 }),
-    decide: async () => (calls.push("decide"), decision),
+    createDraft: async () => (calls.push("draft"), { quoteId: "q1", quoteNumber: "2026-0001", netEur: 30, totalEur: 36.3, decision }),
+    link: async () => void calls.push("link"),
     send: async () => void calls.push("send"),
     staff: async (t) => void calls.push(`staff:${t.slice(0, 14)}`),
   };
@@ -52,7 +54,7 @@ test("fr: lectura con motivos de revisión → borrador, no decide ni envía", a
   const { io, calls } = fakeIO("fr");
   const r = await runFrAuto(io, entrada(), data(undefined, { clean: false, reasons: [{ code: "long_document", detail: "x" }] }));
   assert.equal(r.action, "drafted");
-  assert.ok(!calls.includes("send") && !calls.includes("decide"));
+  assert.ok(!calls.includes("send"));
 });
 
 test("fr: decisión de cierre en alerta (tope, duplicado…) → borrador", async () => {
@@ -117,4 +119,42 @@ test("coherencia de totales dinero vs page-pricing (informe)", () => {
     assert.ok(computePagePricing !== undefined);
   }
   console.log("\n" + rows.join("\n"));
+});
+
+test("1: segunda entrada del mismo caso con presupuesto vivo → no crea ni enlaza", async () => {
+  const { io, calls } = fakeIO("fr");
+  io.createDraft = async () => ({ skip: "el caso ya tiene el presupuesto 2026-0001" });
+  assert.equal((await runFrAuto(io, entrada({ id: "e2" }), data(undefined, { sessionKey: sessionKeyOf("e2") }))).action, "none");
+  assert.ok(!calls.includes("send") && !calls.includes("link"));
+});
+
+test("1: lote ajeno, lote ya con presupuesto o entrada que se une a caso existente → ni reclama", async () => {
+  const { io, calls } = fakeIO("fr");
+  assert.equal((await runFrAuto(io, entrada(), data(undefined, { sessionKey: sessionKeyOf("otra") }))).action, "none");
+  assert.equal((await runFrAuto(io, entrada(), data(undefined, { quoteId: "q0" }))).action, "none");
+  assert.equal((await runFrAuto(io, entrada({ regla: "huella" }), data())).action, "none");
+  assert.deepEqual(calls, []);
+});
+
+test("1: bloqueo vivo (jurado, cliente dijo no) → no reclama", async () => {
+  const { io, calls } = fakeIO("fr");
+  io.liveBlock = async () => "ya lo lleva alguien";
+  assert.equal((await runFrAuto(io, entrada(), data())).action, "none");
+  assert.ok(!calls.includes("claim") && !calls.includes("draft"));
+});
+
+test("2: el borrador enlaza el lote y devuelve su número para el aviso", async () => {
+  const { io, calls } = fakeIO("draft");
+  const r = await runFrAuto(io, entrada(), data());
+  assert.equal(r.quoteNumber, "2026-0001");
+  assert.ok(calls.indexOf("link") > calls.indexOf("draft"));
+});
+
+test("3: si el envío lanza, avisa por SMS con el número y queda en borrador", async () => {
+  const { io, calls } = fakeIO("fr");
+  io.send = async () => { throw new Error("graph caído"); };
+  const r = await runFrAuto(io, entrada(), data());
+  assert.equal(r.action, "drafted");
+  assert.equal(r.quoteNumber, "2026-0001");
+  assert.ok(calls.some((c) => c.startsWith("staff")));
 });

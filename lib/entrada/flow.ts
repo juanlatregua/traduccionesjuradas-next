@@ -17,7 +17,7 @@ export const EXCLUDED_BY_CLIENT = "el cliente indica que no hace falta traducirl
 
 export type Jurado = "si" | "no" | "desconocido";
 export type Aviso =
-  | { kind: "confirmada"; entrada: EntradaRow; casoRef: string | null; documentos: number }
+  | { kind: "confirmada"; entrada: EntradaRow; casoRef: string | null; documentos: number; presupuesto?: string | null }
   | { kind: "sin_jurado"; entrada: EntradaRow; casoRef: string | null; idioma: string };
 
 export type FlowDeps = {
@@ -331,15 +331,18 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
     entradaId: e.id, loteId: e.loteId, documentos, excluidos, urgency: c.urgency, neededBy: c.neededBy?.toISOString() ?? null, organismo: c.organismo, pais: c.pais ?? null,
     notas: c.notas, respuestas, sourceLang: e.sourceLang, targetLangs: targetsOf(e),
   });
-  deps.notify({ kind: "confirmada", entrada: done, casoRef: await deps.caso.ref(e.casoId), documentos }).catch(console.error);
   let presupuestoEnviado = false;
+  let presupuesto: string | null = null;
   if (deps.frAuto) {
     try {
-      presupuestoEnviado = (await deps.frAuto(done, data)).action === "sent";
+      const r = await deps.frAuto(done, data);
+      presupuestoEnviado = r.action === "sent";
+      presupuesto = r.quoteNumber ?? null;
     } catch (err) {
       console.error("[entrada] frAuto falló", e.id, err);
     }
   }
+  deps.notify({ kind: "confirmada", entrada: done, casoRef: await deps.caso.ref(e.casoId), documentos, presupuesto }).catch(console.error);
   const view = await vistaEntrada(deps, done);
   return { ok: true, view: presupuestoEnviado ? { ...view, presupuestoEnviado: true } : view };
 }

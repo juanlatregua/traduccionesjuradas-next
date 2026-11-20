@@ -468,6 +468,9 @@ export type AutoQuoteLineInput = {
   unitPrice: number; // euros
   supplierUnitCost: number; // euros
   sourceFileUrl?: string;
+  pageStart?: number;
+  pageEnd?: number;
+  docKind?: string;
 };
 
 export type CreateAutoQuoteOpts = {
@@ -584,7 +587,10 @@ export async function createAutoQuote(opts: CreateAutoQuoteOpts): Promise<Create
         lavoriMiembroNombre: opts.miembro.nombre,
         ...(opts.translator ? { translatorName: opts.translator.name, translatorMaec: opts.translator.maec } : {}),
         lines: {
-          create: totals.lines.map((line) => ({
+          create: totals.lines.map((line, i) => ({
+            pageStart: opts.lines[i]?.pageStart,
+            pageEnd: opts.lines[i]?.pageEnd,
+            docKind: opts.lines[i]?.docKind,
             description: line.description,
             quantity: line.quantity,
             unitPrice: line.unitPrice,

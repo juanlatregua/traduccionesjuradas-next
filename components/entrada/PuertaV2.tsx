@@ -278,7 +278,13 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   }
 
   async function remove(id: string) {
-    if (token) apply((await call(`/api/entrada/${token}/archivos?id=${encodeURIComponent(id)}`, "DELETE")).data);
+    if (!token || busy) return;
+    setBusy("…");
+    try {
+      apply((await call(`/api/entrada/${token}/archivos?id=${encodeURIComponent(id)}`, "DELETE")).data);
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function read() {
@@ -306,7 +312,13 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   }
 
   async function edit(body: unknown) {
-    if (token) apply((await call(`/api/entrada/${token}/documentos`, "POST", body)).data);
+    if (!token || busy) return;
+    setBusy("…");
+    try {
+      apply((await call(`/api/entrada/${token}/documentos`, "POST", body)).data);
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function preguntar(question: string) {
@@ -407,7 +419,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
                 <p className="truncate px-1.5 pt-1 text-[11px]" title={f.name}>{f.name}</p>
                 <p className={`px-1.5 pb-1 text-[11px] ${f.pages === 0 ? "text-rouge" : "text-graphite"}`}>{f.pages === 0 ? t.noAbre : f.pages ? t.pages(f.pages) : " "}</p>
                 {ask?.kind === "archivos" && (
-                  <button type="button" onClick={() => remove(f.id)} className="absolute right-1 top-1 rounded-full bg-white/90 px-2 text-sm text-rouge" aria-label={t.quitar(f.name)}>×</button>
+                  <button type="button" disabled={!!busy} onClick={() => remove(f.id)} className="absolute right-1 top-1 rounded-full bg-white/90 px-2 text-sm text-rouge" aria-label={t.quitar(f.name)}>×</button>
                 )}
               </li>
             ))}
@@ -441,7 +453,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
                   {d.ilegible && <p className="mt-1 text-sm text-rouge">{t.ilegible}</p>}
                   {!d.incluido && d.motivo && <p className="mt-1 text-xs">{t.noIncluido}: {d.motivo}</p>}
                   {l!.editable && view!.estado === "leida" && (
-                    <button type="button" className="mt-1 text-xs text-bleu underline" onClick={() => edit(d.incluido ? { op: "exclude", id: d.id } : { op: "include", id: d.id })}>
+                    <button type="button" disabled={!!busy} className="mt-1 text-xs text-bleu underline disabled:opacity-50" onClick={() => edit(d.incluido ? { op: "exclude", id: d.id } : { op: "include", id: d.id })}>
                       {d.incluido ? t.noNecesito : t.siNecesito}
                     </button>
                   )}
@@ -522,7 +534,15 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
               onPaste={(e) => { e.preventDefault(); setCode(digits(e.clipboardData.getData("text"))); }}
               className="w-40 rounded-lg border border-graphite/30 bg-white px-3 py-2 text-center text-xl tracking-[0.4em]" />
             {code.length > 0 && code.length < 6 ? <p className="text-xs text-graphite">{t.faltaCodigo}</p> : <p className="text-xs text-graphite">{t.esperandoBoton}</p>}
-            <button type="button" className="block text-sm text-bleu underline" onClick={async () => token && apply((await call(`/api/entrada/${token}/codigo`, "POST")).data)}>{t.reenviar}</button>
+            <button type="button" disabled={!!busy} className="block text-sm text-bleu underline disabled:opacity-50" onClick={async () => {
+              if (!token || busy) return;
+              setBusy(t.enviarCodigo);
+              try {
+                apply((await call(`/api/entrada/${token}/codigo`, "POST")).data);
+              } finally {
+                setBusy(null);
+              }
+            }}>{t.reenviar}</button>
           </div>
         );
       case "origen":

@@ -8,22 +8,26 @@ import type { WorkingDocument } from "../lectura-constructor/documents.ts";
 import { puertaFrAction, puertaFrMode, type PuertaFrMode } from "../puerta-fr-math.ts";
 import type { SendDecisionLike } from "../agente-bandeja-math.ts";
 import type { EntradaRow } from "./store.ts";
+import { ownLote } from "./view.ts";
 
 export type FrAutoData = { lote: LoteRow; files: FileRow[]; documents: WorkingDocument[] };
-export type FrAutoDraft = { quoteId: string; quoteNumber: string; netEur: number; totalEur: number };
+export type FrAutoDraft = { quoteId: string; quoteNumber: string; netEur: number; totalEur: number; decision: SendDecisionLike };
 
 export type FrAutoIO = {
   mode(): PuertaFrMode;
   /** Un solo reclamo por entrada (`puerta-fr:entrada:{id}`); false = otra ejecución ya la llevó. */
   claim(entradaId: string): Promise<boolean>;
-  createDraft(e: EntradaRow, payload: QuotePayload): Promise<FrAutoDraft | { error: string }>;
-  /** evaluateDraftAutoSend + tope de importe con IVA. */
-  decide(quoteId: string): Promise<SendDecisionLike>;
+  /** Alguien (jurado, cliente que dijo no, presupuesto vivo) ya lleva a esta persona: motivo, o null. */
+  liveBlock(e: EntradaRow): Promise<string | null>;
+  /** Bajo advisory lock del hilo (caso|FR>ES): si el caso ya tiene presupuesto vivo, `{skip}`; si no, crea el borrador y evalúa UNA vez. */
+  createDraft(e: EntradaRow, payload: QuotePayload): Promise<FrAutoDraft | { error: string } | { skip: string }>;
+  /** Confirma el lote y lo enlaza al presupuesto (lote.quoteId). */
+  link(e: EntradaRow, data: FrAutoData, draft: FrAutoDraft, payload: QuotePayload): Promise<void>;
   send(e: EntradaRow, draft: FrAutoDraft, payload: QuotePayload): Promise<void>;
   staff(text: string): Promise<void>;
 };
 
-export type FrAutoResult = { action: "none" | "drafted" | "sent"; detail: string };
+export type FrAutoResult = { action: "none" | "drafted" | "sent"; detail: string; quoteNumber?: string };
 const none = (detail: string): FrAutoResult => ({ action: "none", detail });
 
 /** Motivos por los que NO sale solo aunque haya líneas. Vacío = en verde. */
@@ -50,22 +54,33 @@ export async function runFrAuto(io: FrAutoIO, e: EntradaRow, data: FrAutoData | 
   const lines = buildLines(data.documents, data.files, target);
   const payload = quotePayload(lines);
   if (!payload) return none(`líneas sin resolver: ${lines.blockers.map((b) => b.detail).join("; ").slice(0, 160)}`);
+  if (!ownLote(e, data.lote) || data.lote.quoteId) return none("lote ajeno o ya con presupuesto");
+  const blocked = await io.liveBlock(e);
+  if (blocked) return none(blocked);
   if (!(await io.claim(e.id))) return none("ya reclamada");
 
   const draft = await io.createDraft(e, payload);
+  if ("skip" in draft) return none(draft.skip);
   if ("error" in draft) {
     await io.staff(`Puerta FR (entrada ${e.id}): no se pudo crear el borrador (${draft.error}). Revisar a mano.`);
     return none(draft.error);
   }
+  await io.link(e, data, draft, payload).catch((err) => console.error("[entrada] frAuto: lote no enlazado", e.id, err));
   const review = frAutoReviewReasons(data, lines.warnings.length);
-  const decision: SendDecisionLike = review.length > 0 ? { action: "alert", reasons: review } : await io.decide(draft.quoteId);
+  const decision: SendDecisionLike = review.length > 0 ? { action: "alert", reasons: review } : draft.decision;
   const action = puertaFrAction({ mode, allTariffed: true, decision, marketingConsent: e.marketingConsentAt !== null });
   if (action.action !== "send") {
     const why = action.action === "draft" ? action.reasons.join("; ") : "apagado";
     await io.staff(`Puerta FR (borrador): ${draft.quoteNumber} (${draft.totalEur.toFixed(2)} €) para ${e.nombre || e.email} — ${why.slice(0, 120)}.`);
-    return { action: "drafted", detail: `${draft.quoteNumber}: ${why}` };
+    return { action: "drafted", detail: `${draft.quoteNumber}: ${why}`, quoteNumber: draft.quoteNumber };
   }
-  await io.send(e, draft, payload);
+  try {
+    await io.send(e, draft, payload);
+  } catch (err) {
+    console.error("[entrada] frAuto: envío falló", e.id, err);
+    await io.staff(`Puerta FR: el envío de ${draft.quoteNumber} a ${e.email} FALLÓ (${String((err as Error)?.message || err).slice(0, 80)}). Queda en borrador: revisar.`);
+    return { action: "drafted", detail: `${draft.quoteNumber}: envío fallido`, quoteNumber: draft.quoteNumber };
+  }
   await io.staff(`Puerta FR: presupuesto ${draft.quoteNumber} (${draft.totalEur.toFixed(2)} €) enviado a ${e.email}.`);
-  return { action: "sent", detail: draft.quoteNumber };
+  return { action: "sent", detail: draft.quoteNumber, quoteNumber: draft.quoteNumber };
 }
