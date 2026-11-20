@@ -23,10 +23,14 @@ const repo: ContadorRepo = {
   },
   listPending: (limit) =>
     prisma.contadorTrabajo.findMany({
-      where: { estado: { in: ["pendiente_envio", "en_cola", "contando"] }, aplicadoAt: null },
+      where: { estado: { in: ["pendiente_envio", "sin_confirmar", "en_cola", "contando"] }, aplicadoAt: null },
       orderBy: { createdAt: "asc" },
       take: limit,
     }) as Promise<TrabajoRow[]>,
+  countForEmailSince: (email, since) =>
+    prisma.contadorTrabajo.count({
+      where: { createdAt: { gte: since }, documentAnalysis: { clientEmail: { equals: email, mode: "insensitive" } } },
+    }),
   loadDoc: (id) => prisma.documentAnalysis.findUnique({ where: { id }, select: { id: true, fileUrl: true, analysisJson: true, orderId: true } }),
   async quotesForFile(fileUrl) {
     const quotes = await prisma.quote.findMany({
@@ -78,11 +82,11 @@ export async function submitContadorAfterAnalysis(doc: {
   mode?: string;
   pageCount?: number | null;
   analysisJson: any;
-}): Promise<void> {
+}, origin: Parameters<typeof submitForDocument>[2] = { kind: "staff" }): Promise<void> {
   try {
     const deps = contadorDeps();
     if (!deps.client) return;
-    await submitForDocument(deps, doc);
+    await submitForDocument(deps, doc, origin);
   } catch (err) {
     console.error("[contador] gancho de análisis:", err);
   }

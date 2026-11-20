@@ -11,11 +11,19 @@ export const SUBMIT_TIMEOUT_MS = 5_000;
 export const GIVE_UP_MS = 10 * 60_000;
 export const SIGNATURE_MAX_SKEW_MS = 5 * 60_000;
 export const QUOTE_DIFF_PCT = 5;
-// Mismo umbral que LARGE_DOC_THRESHOLD de lib/ai/run-analysis.ts: por encima se transcribe con Haiku.
-export const SCAN_PAGES_THRESHOLD = 5;
+// Imágenes sueltas (JPG/PNG/HEIC): el contrato habla de páginas y PDF; hasta que
+// TraduCAT confirme que las acepta, fuera.
+export const CONTADOR_IMAGES = false;
+// Ruta pública: solo con email de cliente y como mucho 5 trabajos por email al día.
+export const PUBLIC_DAILY_PER_EMAIL = 5;
+// 429/5xx: reintentos del cron con espera creciente (1, 2, 4 min), como mucho 3.
+export const MAX_SUBMIT_RETRIES = 3;
+export const RETRY_BASE_MS = 60_000;
 
 export type ContadorEstado = "en_cola" | "contando" | "hecho" | "error";
-export type TrabajoEstado = "pendiente_envio" | ContadorEstado | "abandonado";
+// sin_confirmar = el envío caducó o se cortó sin respuesta: el trabajo pudo crearse allí.
+// No se reenvía (el contrato no busca por referencia): lo resuelve el callback o el abandono.
+export type TrabajoEstado = "pendiente_envio" | "sin_confirmar" | ContadorEstado | "abandonado";
 
 export type ContadorConfig = { url: string; token: string; secret: string };
 
@@ -38,9 +46,10 @@ export function contadorConfig(env: Record<string, string | undefined> = process
   return { url, token, secret };
 }
 
-/** El mismo escaneado que dispara transcribe-scan: PDF por el camino de visión con más de 5 páginas. */
-export function shouldCount(doc: { mimeType: string; mode?: string; pageCount?: number | null }): boolean {
-  return doc.mimeType === "application/pdf" && doc.mode === "vision" && (doc.pageCount || 0) > SCAN_PAGES_THRESHOLD;
+/** Todo escaneado: PDF sin capa de texto (camino de visión), tenga las páginas que tenga; imágenes tras CONTADOR_IMAGES. */
+export function shouldCount(doc: { mimeType: string; mode?: string; pageCount?: number | null }, images = CONTADOR_IMAGES): boolean {
+  if (doc.mimeType === "application/pdf") return doc.mode === "vision";
+  return images && doc.mimeType.startsWith("image/") && doc.mode === "vision";
 }
 
 export function isPublicHttpsUrl(url: string): boolean {
@@ -121,7 +130,7 @@ export type FetchLike = (url: string, init?: any) => Promise<{ status: number; j
 
 export type SubmitResult =
   | { ok: true; id: string; estado: ContadorEstado }
-  | { ok: false; retry: boolean; error: string };
+  | { ok: false; retry: boolean; ambiguous?: boolean; error: string };
 
 async function withTimeout<T>(fetchImpl: FetchLike, url: string, init: any, ms: number): Promise<{ status: number; json: () => Promise<any> }> {
   const controller = new AbortController();
@@ -158,13 +167,14 @@ export function contadorClient(cfg: ContadorConfig, fetchImpl: FetchLike = fetch
           if (body && typeof body.id === "string" && body.id) {
             return { ok: true, id: body.id.slice(0, 100), estado: ESTADOS.includes(body.estado) ? body.estado : "en_cola" };
           }
-          return { ok: false, retry: true, error: `respuesta ${res.status} sin id` };
+          return { ok: false, retry: false, ambiguous: true, error: `respuesta ${res.status} sin id` };
         }
         // 429 cola llena y 5xx: se reintenta desde el cron. 401/411/413 y demás 4xx: no tiene arreglo solo.
         const retry = res.status === 429 || res.status >= 500;
         return { ok: false, retry, error: `HTTP ${res.status}` };
       } catch (err: any) {
-        return { ok: false, retry: true, error: err?.name === "AbortError" ? "timeout" : String(err?.message || err).slice(0, 200) };
+        // Sin respuesta: la petición pudo llegar y crear el trabajo → no se reenvía.
+        return { ok: false, retry: false, ambiguous: true, error: err?.name === "AbortError" ? "timeout" : String(err?.message || err).slice(0, 200) };
       }
     },
     async getJob(id: string): Promise<ContadorJob | null> {
@@ -251,11 +261,19 @@ export function quoteImpact(haikuWords: number, counterWords: number, quotes: Qu
 
 /* ---------------- Cron de respaldo ---------------- */
 
-export type CronTrabajo = { estado: string; jobId: string | null; createdAt: Date; aplicadoAt: Date | null };
+export type CronTrabajo = { estado: string; jobId: string | null; intentos: number; createdAt: Date; updatedAt: Date; aplicadoAt: Date | null };
+
+export function retryDelayMs(intentos: number): number {
+  return intentos <= 0 ? 0 : RETRY_BASE_MS * 2 ** (intentos - 1);
+}
 
 export function cronAction(t: CronTrabajo, now: number): "nada" | "abandonar" | "enviar" | "consultar" {
   if (t.aplicadoAt || t.estado === "hecho" || t.estado === "error" || t.estado === "abandonado") return "nada";
   if (now - t.createdAt.getTime() > GIVE_UP_MS) return "abandonar";
-  if (t.estado === "pendiente_envio" || !t.jobId) return "enviar";
+  if (t.estado === "sin_confirmar") return "nada";
+  if (t.estado === "pendiente_envio" || !t.jobId) {
+    if (t.intentos > MAX_SUBMIT_RETRIES) return "abandonar";
+    return now - t.updatedAt.getTime() >= retryDelayMs(t.intentos) ? "enviar" : "nada";
+  }
   return "consultar";
 }

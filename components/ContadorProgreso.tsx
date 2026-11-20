@@ -16,7 +16,7 @@ type Status = {
   aviso: { differs?: boolean; diffPct?: number } | null;
 };
 
-const VIVOS = new Set(["pendiente_envio", "en_cola", "contando"]);
+const VIVOS = new Set(["pendiente_envio", "sin_confirmar", "en_cola", "contando"]);
 const POLL_MS = 7_000;
 
 export default function ContadorProgreso({

@@ -303,14 +303,21 @@ export async function POST(req: Request) {
     });
 
     // Escaneado: el contador de TraduCAT cuenta en segundo plano (Haiku ya está guardado).
-    await submitContadorAfterAnalysis({
-      id: documentId,
-      fileUrl: doc.fileUrl,
-      mimeType: doc.mimeType,
-      mode: runMode,
-      pageCount: analysis.document_metrics.pages,
-      analysisJson: analysis,
-    });
+    // Pública: solo con email del cliente (releído: llega durante el spinner) y cupo diario por email.
+    const contadorEmail = await prisma.documentAnalysis
+      .findUnique({ where: { id: documentId }, select: { clientEmail: true } })
+      .then((r) => r?.clientEmail ?? null, () => null);
+    await submitContadorAfterAnalysis(
+      {
+        id: documentId,
+        fileUrl: doc.fileUrl,
+        mimeType: doc.mimeType,
+        mode: runMode,
+        pageCount: analysis.document_metrics.pages,
+        analysisJson: analysis,
+      },
+      { kind: "public", clientEmail: contadorEmail }
+    );
 
     // Envío del presupuesto por email (fire-and-forget). El gate exigía además
     // clientName, que la puerta NUNCA escribe → este email jamás salía para sus

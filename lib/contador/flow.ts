@@ -5,9 +5,11 @@
 
 import {
   CONTADOR_CALLBACK_URL,
+  GIVE_UP_MS,
   applyCounterToAnalysis,
   cronAction,
   isPublicHttpsUrl,
+  PUBLIC_DAILY_PER_EMAIL,
   quoteImpact,
   shouldCount,
   type ContadorClient,
@@ -42,6 +44,7 @@ export type ContadorRepo = {
   createTrabajo(data: { documentAnalysisId: string; palabrasHaiku: number | null }): Promise<TrabajoRow | null>;
   updateTrabajo(id: string, data: Record<string, unknown>): Promise<void>;
   listPending(limit: number): Promise<TrabajoRow[]>;
+  countForEmailSince(email: string, since: Date): Promise<number>;
   loadDoc(documentAnalysisId: string): Promise<DocRow | null>;
   quotesForFile(fileUrl: string): Promise<QuoteRef[]>;
   orderRef(orderId: string): Promise<{ reference: string; status: string } | null>;
@@ -65,6 +68,8 @@ async function sendJob(deps: ContadorDeps, t: TrabajoRow, fileUrl: string): Prom
   const r = await deps.client!.submit({ url: fileUrl, referencia: t.documentAnalysisId, callbackUrl: CONTADOR_CALLBACK_URL });
   if (r.ok) {
     await deps.repo.updateTrabajo(t.id, { jobId: r.id, estado: r.estado, intentos: t.intentos + 1, ultimoError: null });
+  } else if (r.ambiguous) {
+    await deps.repo.updateTrabajo(t.id, { estado: "sin_confirmar", intentos: t.intentos + 1, ultimoError: r.error });
   } else if (r.retry) {
     await deps.repo.updateTrabajo(t.id, { intentos: t.intentos + 1, ultimoError: r.error });
   } else {
@@ -78,7 +83,8 @@ async function sendJob(deps: ContadorDeps, t: TrabajoRow, fileUrl: string): Prom
  */
 export async function submitForDocument(
   deps: ContadorDeps,
-  doc: { id: string; fileUrl: string; mimeType: string; mode?: string; pageCount?: number | null; analysisJson: any }
+  doc: { id: string; fileUrl: string; mimeType: string; mode?: string; pageCount?: number | null; analysisJson: any },
+  origin: { kind: "staff" } | { kind: "public"; clientEmail: string | null } = { kind: "staff" }
 ): Promise<{ submitted: boolean; reason?: string }> {
   try {
     if (!deps.client) return { submitted: false, reason: "inactivo" };
@@ -91,6 +97,12 @@ export async function submitForDocument(
       return { submitted: false, reason: "existente" };
     }
     if (doc.analysisJson?.document_metrics?.words_basis === "contador_traducat") return { submitted: false, reason: "ya_contado" };
+    if (origin.kind === "public") {
+      const email = (origin.clientEmail || "").trim().toLowerCase();
+      if (!email) return { submitted: false, reason: "sin_email" };
+      const since = new Date((deps.now ?? Date.now)() - 24 * 3600_000);
+      if ((await deps.repo.countForEmailSince(email, since)) >= PUBLIC_DAILY_PER_EMAIL) return { submitted: false, reason: "cupo_email" };
+    }
     const created = await deps.repo.createTrabajo({
       documentAnalysisId: doc.id,
       palabrasHaiku: doc.analysisJson?.document_metrics?.estimated_words ?? null,
@@ -219,7 +231,12 @@ export async function runContadorCron(deps: ContadorDeps, opts: { limit?: number
     try {
       const action = cronAction(t, now);
       if (action === "abandonar") {
-        await deps.repo.updateTrabajo(t.id, { estado: "abandonado", abandonadoAt: new Date(now), ultimoError: "sin resultado en 10 min: se queda la cifra de Haiku" });
+        const agotado = now - t.createdAt.getTime() <= GIVE_UP_MS;
+        await deps.repo.updateTrabajo(t.id, {
+          estado: "abandonado",
+          abandonadoAt: new Date(now),
+          ultimoError: agotado ? `${t.intentos} envíos sin éxito: se queda la cifra de Haiku` : "sin resultado en 10 min: se queda la cifra de Haiku",
+        });
         res.abandonados++;
       } else if (action === "enviar") {
         const doc = await deps.repo.loadDoc(t.documentAnalysisId);

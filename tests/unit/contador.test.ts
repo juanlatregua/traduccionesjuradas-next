@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   GIVE_UP_MS,
+  MAX_SUBMIT_RETRIES,
+  retryDelayMs,
   applyCounterToAnalysis,
   contadorClient,
   contadorConfig,
@@ -81,7 +83,8 @@ function fakeDeps(opts: { quotes?: QuoteRef[]; analysisJson?: any; client?: Cont
       return t;
     },
     async updateTrabajo(id, data) { calls.push("updateTrabajo"); Object.assign(trabajos.get(id)!, data); },
-    async listPending() { return [...trabajos.values()].filter((t) => !t.aplicadoAt && ["pendiente_envio", "en_cola", "contando"].includes(t.estado)); },
+    async listPending() { return [...trabajos.values()].filter((t) => !t.aplicadoAt && ["pendiente_envio", "sin_confirmar", "en_cola", "contando"].includes(t.estado)); },
+    async countForEmailSince() { return 0; },
     async loadDoc() { return doc; },
     async quotesForFile() { return opts.quotes ?? []; },
     async orderRef() { return null; },
@@ -130,11 +133,12 @@ test("flag apagado: ninguna llamada al contador ni a la BD", async () => {
   assert.equal(cron.revisados, 0);
 });
 
-test("shouldCount: solo PDF por visión con más de 5 páginas", () => {
+test("shouldCount: todo PDF escaneado, sea cual sea su tamaño; imágenes solo con la constante", () => {
   assert.equal(shouldCount({ mimeType: "application/pdf", mode: "vision", pageCount: 6 }), true);
-  assert.equal(shouldCount({ mimeType: "application/pdf", mode: "vision", pageCount: 5 }), false);
+  assert.equal(shouldCount({ mimeType: "application/pdf", mode: "vision", pageCount: 1 }), true);
   assert.equal(shouldCount({ mimeType: "application/pdf", mode: "text", pageCount: 20 }), false);
-  assert.equal(shouldCount({ mimeType: "image/jpeg", mode: "vision", pageCount: 20 }), false);
+  assert.equal(shouldCount({ mimeType: "image/jpeg", mode: "vision", pageCount: 1 }), false);
+  assert.equal(shouldCount({ mimeType: "image/jpeg", mode: "vision", pageCount: 1 }, true), true);
 });
 
 /* ---------- firma ---------- */
@@ -174,10 +178,10 @@ test("errores al enviar no rompen el análisis", async () => {
   const t = [...f429.trabajos.values()][0];
   assert.equal(t.estado, "pendiente_envio");
   assert.equal((t as any).ultimoError, "HTTP 429");
-  // red caída
-  const fNet = fakeDeps({ client: contadorClient(cfg, async () => { throw new Error("ECONNREFUSED"); }) });
+  // red caída sin respuesta: pudo crearse allí → sin_confirmar, no se reenvía
+  const fNet = fakeDeps({ client: contadorClient(cfg, async () => { throw new Error("ECONNRESET"); }) });
   assert.equal((await submitForDocument(fNet.deps, scanDoc)).submitted, true);
-  assert.equal([...fNet.trabajos.values()][0].estado, "pendiente_envio");
+  assert.equal([...fNet.trabajos.values()][0].estado, "sin_confirmar");
   // 413 → error definitivo, sin reintento
   const f413 = fakeDeps({ client: contadorClient(cfg, async () => ({ status: 413, json: async () => ({}) })) });
   await submitForDocument(f413.deps, scanDoc);
@@ -194,7 +198,7 @@ test("timeout del envío: el cliente corta y devuelve reintento", async () => {
     new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Object.assign(new Error("abort"), { name: "AbortError" }))));
   const t0 = Date.now();
   const r = await contadorClient(cfg, hang, 50).submit({ url: "https://blob.test/a.pdf", referencia: "doc1" });
-  assert.deepEqual(r, { ok: false, retry: true, error: "timeout" });
+  assert.deepEqual(r, { ok: false, retry: false, ambiguous: true, error: "timeout" });
   assert.ok(Date.now() - t0 < 1000);
 });
 
@@ -221,10 +225,10 @@ test("envío correcto: guarda el id del trabajo y manda referencia + callback", 
 /* ---------- cron ---------- */
 
 test("cron: se rinde a los 10 min y deja la cifra de Haiku", async () => {
-  assert.equal(cronAction({ estado: "contando", jobId: "j", createdAt: new Date(NOW - GIVE_UP_MS - 1), aplicadoAt: null }, NOW), "abandonar");
-  assert.equal(cronAction({ estado: "contando", jobId: "j", createdAt: new Date(NOW - 60_000), aplicadoAt: null }, NOW), "consultar");
-  assert.equal(cronAction({ estado: "pendiente_envio", jobId: null, createdAt: new Date(NOW - 60_000), aplicadoAt: null }, NOW), "enviar");
-  assert.equal(cronAction({ estado: "hecho", jobId: "j", createdAt: new Date(NOW - 60_000), aplicadoAt: new Date() }, NOW), "nada");
+  assert.equal(cronAction(trabajo({ createdAt: new Date(NOW - GIVE_UP_MS - 1) }), NOW), "abandonar");
+  assert.equal(cronAction(trabajo(), NOW), "consultar");
+  assert.equal(cronAction(trabajo({ estado: "pendiente_envio", jobId: null, intentos: 0 }), NOW), "enviar");
+  assert.equal(cronAction(trabajo({ estado: "hecho", aplicadoAt: new Date() }), NOW), "nada");
 
   const getJobCalls: string[] = [];
   const client = { submit: async () => ({ ok: true as const, id: "x", estado: "en_cola" as const }), getJob: async (id: string) => { getJobCalls.push(id); return null; } };
@@ -336,4 +340,46 @@ test("progreso intermedio solo actualiza la fila", async () => {
   assert.equal(await processJobUpdate(f.deps, f.trabajos.get("t1")!, job({ estado: "contando", paginas_hechas: 4 })), "actualizado");
   assert.equal(f.trabajos.get("t1")!.paginasHechas, 4);
   assert.equal(f.doc.analysisJson.document_metrics.estimated_words, 1000);
+});
+
+test("cron: 429 se reintenta con espera creciente y como mucho 3 veces", () => {
+  assert.deepEqual([1, 2, 3].map(retryDelayMs), [60_000, 120_000, 240_000]);
+  const base = { estado: "pendiente_envio", jobId: null, createdAt: new Date(NOW - 30_000) };
+  assert.equal(cronAction(trabajo({ ...base, intentos: 1, updatedAt: new Date(NOW - 30_000) }), NOW), "nada");
+  assert.equal(cronAction(trabajo({ ...base, intentos: 1, updatedAt: new Date(NOW - 60_000) }), NOW), "enviar");
+  assert.equal(cronAction(trabajo({ ...base, intentos: 3, updatedAt: new Date(NOW - 200_000) }), NOW), "nada");
+  assert.equal(cronAction(trabajo({ ...base, intentos: 3, updatedAt: new Date(NOW - 240_000) }), NOW), "enviar");
+  assert.equal(cronAction(trabajo({ ...base, intentos: MAX_SUBMIT_RETRIES + 1, updatedAt: new Date(NOW - 600_000) }), NOW), "abandonar");
+});
+
+test("cron: un envío sin confirmar no se reenvía (sin búsqueda por referencia); a los 10 min se abandona", async () => {
+  let submits = 0;
+  const client = { submit: async () => { submits++; return { ok: true as const, id: "x", estado: "en_cola" as const }; }, getJob: async () => null };
+  const f = fakeDeps({ client, trabajos: [trabajo({ estado: "sin_confirmar", jobId: null })] });
+  await runContadorCron(f.deps);
+  assert.equal(submits, 0);
+  assert.equal(f.trabajos.get("t1")!.estado, "sin_confirmar");
+  f.trabajos.get("t1")!.createdAt = new Date(NOW - GIVE_UP_MS - 1);
+  await runContadorCron(f.deps);
+  assert.equal(submits, 0);
+  assert.equal(f.trabajos.get("t1")!.estado, "abandonado");
+});
+
+test("ruta pública: sin email no se manda; cupo de 5 por email al día; staff sin límite", async () => {
+  const cfg = contadorConfig(ENV)!;
+  let fetches = 0;
+  const ok: FetchLike = async () => { fetches++; return { status: 202, json: async () => ({ id: `j${fetches}`, estado: "en_cola" }) }; };
+  const f = fakeDeps({ client: contadorClient(cfg, ok) });
+  let hoy = 0;
+  f.deps.repo.countForEmailSince = async () => hoy;
+  assert.deepEqual(await submitForDocument(f.deps, scanDoc, { kind: "public", clientEmail: null }), { submitted: false, reason: "sin_email" });
+  assert.deepEqual(await submitForDocument(f.deps, scanDoc, { kind: "public", clientEmail: "  " }), { submitted: false, reason: "sin_email" });
+  hoy = 5;
+  assert.deepEqual(await submitForDocument(f.deps, scanDoc, { kind: "public", clientEmail: "a@b.es" }), { submitted: false, reason: "cupo_email" });
+  assert.equal(fetches, 0);
+  hoy = 4;
+  assert.deepEqual(await submitForDocument(f.deps, scanDoc, { kind: "public", clientEmail: "a@b.es" }), { submitted: true });
+  const g = fakeDeps({ client: contadorClient(cfg, ok) });
+  g.deps.repo.countForEmailSince = async () => 999;
+  assert.deepEqual(await submitForDocument(g.deps, scanDoc), { submitted: true });
 });
