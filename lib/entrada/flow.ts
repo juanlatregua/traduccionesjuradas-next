@@ -9,6 +9,7 @@ import { sha256, type GateInput, type GateResult } from "./puerta.ts";
 import { CODE_MAX_ATTEMPTS, CODE_TTL_MS, codeHashOf, codeMatches, linkHashOf, newCode, newLinkToken } from "./codigo.ts";
 import { sessionKeyOf, type ArchivoRow, type EntradaRow, type EntradaStore } from "./store.ts";
 import { clientView, ownLote, type ClientView, type ReadingExtras } from "./view.ts";
+import type { FrAutoData, FrAutoResult } from "./fr-auto.ts";
 import { fingerprintOf } from "../lectura-constructor/run.ts";
 
 export const MAX_ARCHIVOS = 40;
@@ -40,6 +41,8 @@ export type FlowDeps = {
     cerrarSinJurado(casoId: string, entradaId: string): Promise<boolean>;
   };
   notify(aviso: Aviso): Promise<void>;
+  /** PUERTA_FR: presupuesto automático fr>es por lib/dinero. Opcional; un fallo nunca rompe la confirmación. */
+  frAuto?(e: EntradaRow, data: FrAutoData | null): Promise<FrAutoResult>;
   /** linkToken: the one-time «Confirmar mi email» button, bound to this entrada. */
   sendCode(to: string, code: string, lang: string | null, linkToken: string): Promise<void>;
   /** Pages and openability of one file at upload time (no model call); null when it cannot be told here. */
@@ -329,5 +332,14 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
     notas: c.notas, respuestas, sourceLang: e.sourceLang, targetLangs: targetsOf(e),
   });
   deps.notify({ kind: "confirmada", entrada: done, casoRef: await deps.caso.ref(e.casoId), documentos }).catch(console.error);
-  return { ok: true, view: await vistaEntrada(deps, done) };
+  let presupuestoEnviado = false;
+  if (deps.frAuto) {
+    try {
+      presupuestoEnviado = (await deps.frAuto(done, data)).action === "sent";
+    } catch (err) {
+      console.error("[entrada] frAuto falló", e.id, err);
+    }
+  }
+  const view = await vistaEntrada(deps, done);
+  return { ok: true, view: presupuestoEnviado ? { ...view, presupuestoEnviado: true } : view };
 }

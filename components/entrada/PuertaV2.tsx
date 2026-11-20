@@ -475,7 +475,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
       case "nota": return local.notas[m.index!];
       case "duda": return local.dudas[m.index!]?.q;
       case "respuesta_duda": return local.dudas[m.index]?.a ?? t.pensando;
-      case "enviado": return t.enviado;
+      case "enviado": return view?.presupuestoEnviado ? t.enviadoPresupuesto : t.enviado;
       case "sin_jurado":
         return (
           <div className="space-y-2">

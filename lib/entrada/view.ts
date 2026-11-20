@@ -51,6 +51,8 @@ export type ClientView = {
   idiomas: { origen: string | null; destinos: string[] };
   /** Why the client cannot change the documents (languages and messages still can). */
   soloLectura: null | "otra_entrada" | "caso_existente";
+  /** Solo en la respuesta de la confirmación: el presupuesto ya salió por email (PUERTA_FR=fr). */
+  presupuestoEnviado?: boolean;
 };
 
 const FASE: Record<string, "leyendo" | "lista" | "revision_manual"> = {

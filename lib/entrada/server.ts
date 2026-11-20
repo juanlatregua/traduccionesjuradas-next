@@ -21,6 +21,8 @@ import { codeEmail } from "./codigo.ts";
 import { DEFAULT_LIMITS, prepareBatch } from "@/lib/lectura/index.ts";
 import { explicitRssCeilingMb } from "@/lib/lectura-constructor/flag.ts";
 import { sessionKeyOf } from "./store.ts";
+import { runFrAuto, type FrAutoIO } from "./fr-auto.ts";
+import { puertaFrMode } from "../puerta-fr-math.ts";
 
 const own = (url: string) => isOwnBlobUrl(url, process.env.BLOB_READ_WRITE_TOKEN);
 const download = (url: string) => lecturaDownload({ name: decodeURIComponent(url.split("?")[0].split("/").pop() || "archivo"), url, mimeType: null });
@@ -69,6 +71,74 @@ async function notify(a: Aviso): Promise<void> {
   await sendMail({ to, subject, html });
 }
 
+const frAutoIO: FrAutoIO = {
+  mode: () => puertaFrMode(process.env.PUERTA_FR),
+  claim: async (entradaId) => {
+    try {
+      await prisma.funnelEvent.create({ data: { sessionId: `puerta-fr:entrada:${entradaId}`, reference: "puerta-fr", step: "puerta_fr", metadata: { result: "claimed" } } });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  createDraft: async (e, payload) => {
+    const { createAutoQuote } = await import("@/lib/learned-rates");
+    const { FR_DELIVERY_TERM, FR_TRANSLATOR } = await import("@/lib/agente-bandeja-math");
+    const { evaluateCapped } = await import("@/lib/quote-fr");
+    const q = await createAutoQuote({
+      lines: payload.lines.map((l) => ({ description: l.description, quantity: 1, unitPrice: Number(l.unitPrice), supplierUnitCost: 0, sourceFileUrl: l.sourceFileUrl })),
+      deliveryTerm: FR_DELIVERY_TERM,
+      sourceLang: payload.sourceLang,
+      targetLang: payload.targetLang,
+      marginPct: 0,
+      autoPricedBy: "puerta-fr-entrada",
+      adminCreatedBy: "system:puerta-fr",
+      channelPriceSource: "fr-tarifa",
+      miembro: { id: null, nombre: null },
+      translator: FR_TRANSLATOR,
+      expedienteRef: `entrada:${e.id}`,
+      contacto: { email: e.email, phone: e.phone9, name: e.nombre },
+      locale: e.lang === "fr" || e.lang === "en" ? e.lang : "es",
+      send: false,
+      casoId: e.casoId,
+    });
+    if (!q.ok) return { error: q.reason };
+    const ev = await evaluateCapped(q.quoteId, true);
+    if (!ev.quote) return { error: "presupuesto no disponible tras crearlo" };
+    return { quoteId: q.quoteId, quoteNumber: ev.quote.quoteNumber, netEur: ev.netEur, totalEur: ev.totalEur };
+  },
+  decide: async (quoteId) => (await (await import("@/lib/quote-fr")).evaluateCapped(quoteId, true)).decision,
+  send: async (e, draft, payload) => {
+    const { buildQuoteReply, greetingName, FR_DELIVERY_TERM } = await import("@/lib/agente-bandeja-math");
+    const { finalizeAndSendQuote } = await import("@/lib/quote-send");
+    const quote = await prisma.quote.findUniqueOrThrow({ where: { id: draft.quoteId }, select: { publicToken: true, quoteNumber: true, deliveryTerm: true } });
+    const lang = e.lang === "fr" || e.lang === "en" ? e.lang : "es";
+    const body = buildQuoteReply({
+      lang,
+      name: greetingName(e.nombre),
+      items: payload.lines.map((l) => ({ label: l.description, labelFr: null, pages: null })),
+      netEur: draft.netEur,
+      totalEur: draft.totalEur,
+      deliveryTerm: quote.deliveryTerm || FR_DELIVERY_TERM,
+      isFr: true,
+      payUrl: `${SITE}/q/${quote.publicToken}`,
+      askDeadline: !e.urgency,
+    });
+    await finalizeAndSendQuote({
+      quoteId: draft.quoteId,
+      actorEmail: "system:puerta-fr",
+      skipEmail: false,
+      requireDraft: true,
+      customSubject: lang === "fr" ? `Devis ${quote.quoteNumber} · traduction assermentée` : lang === "en" ? `Quote ${quote.quoteNumber} · sworn translation` : `Presupuesto ${quote.quoteNumber} · traducción jurada`,
+      customBody: body,
+    });
+  },
+  staff: async (text) => {
+    const { sendStaffAlertSMS } = await import("@/lib/sms");
+    await sendStaffAlertSMS(text.slice(0, 300), "puerta_fr_entrada").catch((err) => console.error("[puerta-fr] SMS staff falló", err));
+  },
+};
+
 export const flowDeps: FlowDeps = {
   store: prismaEntradaStore(prisma),
   gate: (input) => resolverEntrada(gateDeps, input),
@@ -104,6 +174,7 @@ export const flowDeps: FlowDeps = {
     },
   },
   notify,
+  frAuto: (e, data) => runFrAuto(frAutoIO, e, data),
   inspect: async (file) => {
     const ceiling = explicitRssCeilingMb();
     if (ceiling === null) return null;

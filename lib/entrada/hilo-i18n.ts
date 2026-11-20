@@ -13,7 +13,7 @@ export type HiloStrings = {
   soloLecturaOtra: string; soloLecturaCaso: string; responder: string; enviarRespuesta: string;
   pidePlazo: string; asap: string; fecha: string; sinPrisa: string; para: (d: string) => string;
   pideLugar: string; pais: string; organismo: string; organismoPh: string; continuar: string; noSeAun: string;
-  resumen: string; notas: string; notasPh: string; enviar: string; enviado: string;
+  resumen: string; notas: string; notasPh: string; enviar: string; enviado: string; enviadoPresupuesto: string;
   sinJurado: (l: string) => string; maec: string; tocar: string; cancelar: string; uploading: (n: string) => string; badType: (n: string) => string; tooBig: (n: string) => string; error: string;
   duda: string; dudaPh: string; preguntar: string; pensando: string; anadir: string; noPedir: string; nuevos: string; otros: string;
   pideEmail: string; enviarCodigo: string; esperandoBoton: string; faltaGdpr: string;
@@ -42,6 +42,7 @@ const es: HiloStrings = {
   pideLugar: "¿Dónde lo vas a presentar? Elige el país y, si lo sabes, el organismo.", pais: "País", organismo: "Organismo", organismoPh: "Ej.: Registro Civil, consulado, universidad…", continuar: "Continuar", noSeAun: "Aún no lo sé",
   resumen: "¿Algo más que debamos saber? (si lo necesitas en papel, a nombre de quién va…)", notas: "Algo más (opcional)", notasPh: "Escribe aquí…", enviar: "Pedir mi presupuesto",
   enviado: "Recibido. Revisamos tus documentos y te enviamos el presupuesto cerrado por email, normalmente en el día. Si falta algo, te lo pedimos.",
+  enviadoPresupuesto: "Recibido. Te hemos enviado el presupuesto a tu email. Si falta algo, te lo pedimos.",
   sinJurado: (l) => `Ahora mismo no tenemos traductor jurado de ${l}. Preferimos decírtelo ya: el Ministerio de Asuntos Exteriores publica la lista oficial de traductores jurados por idioma y provincia.`,
   maec: "Buscar en la lista oficial del MAEC", tocar: "Toca para cambiar", cancelar: "Cancelar",
   uploading: (n) => `Subiendo «${n}»…`, badType: (n) => `«${n}»: sube PDF o fotos (JPG, PNG, HEIC).`, tooBig: (n) => `«${n}» pasa de 20 MB.`, error: "Algo ha fallado. Inténtalo de nuevo.",
@@ -82,6 +83,7 @@ const fr: HiloStrings = {
   pideLugar: "Où allez-vous le présenter ? Choisissez le pays et, si vous le savez, l'organisme.", pais: "Pays", organismo: "Organisme", organismoPh: "Ex. : état civil, consulat, université…", continuar: "Continuer", noSeAun: "Je ne sais pas encore",
   resumen: "Autre chose que nous devrions savoir ? (sur papier, au nom de qui…)", notas: "Autre chose (facultatif)", notasPh: "Écrivez ici…", enviar: "Demander mon devis",
   enviado: "Bien reçu. Nous examinons vos documents et vous envoyons le devis définitif par e-mail, en général dans la journée. S'il manque quelque chose, nous vous le demanderons.",
+  enviadoPresupuesto: "Bien reçu. Nous vous avons envoyé le devis par e-mail. S'il manque quelque chose, nous vous le demanderons.",
   sinJurado: (l) => `Nous n'avons pas de traducteur assermenté de ${l} pour le moment. Le ministère espagnol des Affaires étrangères publie la liste officielle par langue et province.`,
   maec: "Chercher dans la liste officielle du MAEC", tocar: "Touchez pour modifier", cancelar: "Annuler",
   uploading: (n) => `Envoi de « ${n} »…`, badType: (n) => `« ${n} » : envoyez un PDF ou des photos (JPG, PNG, HEIC).`, tooBig: (n) => `« ${n} » dépasse 20 Mo.`, error: "Une erreur s'est produite. Réessayez.",
@@ -122,6 +124,7 @@ const en: HiloStrings = {
   pideLugar: "Where will you submit it? Choose the country and, if you know it, the authority.", pais: "Country", organismo: "Authority", organismoPh: "E.g. civil registry, consulate, university…", continuar: "Continue", noSeAun: "I don't know yet",
   resumen: "Anything else we should know? (on paper, whose name it goes under…)", notas: "Anything else (optional)", notasPh: "Type here…", enviar: "Request my quote",
   enviado: "Received. We'll review your documents and email you the final quote, usually the same day. If anything is missing, we'll ask you.",
+  enviadoPresupuesto: "Received. We've emailed you the quote. If anything is missing, we'll ask you.",
   sinJurado: (l) => `We don't have a sworn translator for ${l} right now. The Spanish Ministry of Foreign Affairs publishes the official list by language and province.`,
   maec: "Search the official MAEC list", tocar: "Tap to change", cancelar: "Cancel",
   uploading: (n) => `Uploading “${n}”…`, badType: (n) => `“${n}”: upload a PDF or photos (JPG, PNG, HEIC).`, tooBig: (n) => `“${n}” is over 20 MB.`, error: "Something went wrong. Try again.",
@@ -162,6 +165,7 @@ const de: HiloStrings = {
   pideLugar: "Wo reichen Sie es ein? Wählen Sie das Land und, falls bekannt, die Behörde.", pais: "Land", organismo: "Behörde", organismoPh: "z. B. Standesamt, Konsulat, Universität…", continuar: "Weiter", noSeAun: "Weiß ich noch nicht",
   resumen: "Sollten wir sonst noch etwas wissen? (auf Papier, auf wessen Namen…)", notas: "Sonstiges (optional)", notasPh: "Hier schreiben…", enviar: "Mein Angebot anfordern",
   enviado: "Erhalten. Wir prüfen Ihre Dokumente und schicken Ihnen das verbindliche Angebot per E-Mail, meist am selben Tag. Falls etwas fehlt, fragen wir nach.",
+  enviadoPresupuesto: "Erhalten. Wir haben Ihnen das Angebot per E-Mail geschickt. Falls etwas fehlt, fragen wir nach.",
   sinJurado: (l) => `Derzeit haben wir keinen vereidigten Übersetzer für ${l}. Das spanische Außenministerium veröffentlicht die offizielle Liste nach Sprache und Provinz.`,
   maec: "In der offiziellen MAEC-Liste suchen", tocar: "Zum Ändern tippen", cancelar: "Abbrechen",
   uploading: (n) => `„${n}“ wird hochgeladen…`, badType: (n) => `„${n}“: bitte PDF oder Fotos (JPG, PNG, HEIC).`, tooBig: (n) => `„${n}“ ist größer als 20 MB.`, error: "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
@@ -202,6 +206,7 @@ const pt: HiloStrings = {
   pideLugar: "Onde vai apresentar? Escolha o país e, se souber, o órgão.", pais: "País", organismo: "Órgão", organismoPh: "Ex.: cartório, consulado, universidade…", continuar: "Continuar", noSeAun: "Ainda não sei",
   resumen: "Algo mais que devamos saber? (em papel, em nome de quem…)", notas: "Algo mais (opcional)", notasPh: "Escreva aqui…", enviar: "Pedir meu orçamento",
   enviado: "Recebido. Revisamos seus documentos e enviamos o orçamento fechado por e-mail, normalmente no mesmo dia. Se faltar algo, pedimos.",
+  enviadoPresupuesto: "Recebido. Enviamos o orçamento para o seu e-mail. Se faltar algo, pedimos.",
   sinJurado: (l) => `No momento não temos tradutor juramentado de ${l}. O Ministério de Assuntos Exteriores da Espanha publica a lista oficial por idioma e província.`,
   maec: "Buscar na lista oficial do MAEC", tocar: "Toque para mudar", cancelar: "Cancelar",
   uploading: (n) => `Enviando «${n}»…`, badType: (n) => `«${n}»: envie PDF ou fotos (JPG, PNG, HEIC).`, tooBig: (n) => `«${n}» passa de 20 MB.`, error: "Algo deu errado. Tente de novo.",
