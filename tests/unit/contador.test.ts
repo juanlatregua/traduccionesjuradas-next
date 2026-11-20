@@ -70,7 +70,7 @@ function trabajo(over: Partial<TrabajoRow> = {}): TrabajoRow {
 
 function fakeDeps(opts: { quotes?: QuoteRef[]; analysisJson?: any; client?: ContadorDeps["client"]; trabajos?: TrabajoRow[] } = {}) {
   const trabajos = new Map<string, TrabajoRow>((opts.trabajos || []).map((t) => [t.id, { ...t }]));
-  const doc = { id: "doc1", fileUrl: "https://blob.test/a.pdf", analysisJson: opts.analysisJson ?? analysis(), orderId: null as string | null, estimatedWords: 1000 };
+  const doc = { id: "doc1", fileUrl: "https://blob.test/a.pdf", mimeType: "application/pdf", analysisJson: opts.analysisJson ?? analysis(), orderId: null as string | null, estimatedWords: 1000 };
   const calls: string[] = [];
   const alerts: any[] = [];
   const repo: ContadorRepo = {
@@ -137,8 +137,8 @@ test("shouldCount: todo PDF escaneado, sea cual sea su tamaño; imágenes solo c
   assert.equal(shouldCount({ mimeType: "application/pdf", mode: "vision", pageCount: 6 }), true);
   assert.equal(shouldCount({ mimeType: "application/pdf", mode: "vision", pageCount: 1 }), true);
   assert.equal(shouldCount({ mimeType: "application/pdf", mode: "text", pageCount: 20 }), false);
-  assert.equal(shouldCount({ mimeType: "image/jpeg", mode: "vision", pageCount: 1 }), false);
-  assert.equal(shouldCount({ mimeType: "image/jpeg", mode: "vision", pageCount: 1 }, true), true);
+  assert.equal(shouldCount({ mimeType: "image/jpeg", mode: "vision", pageCount: 1 }), true);
+  assert.equal(shouldCount({ mimeType: "image/jpeg", mode: "vision", pageCount: 1 }, false), false);
 });
 
 /* ---------- firma ---------- */
@@ -157,8 +157,8 @@ test("firma: buena, mala, caducada, futura y ausente", () => {
   assert.deepEqual(verifyCallback({ secret: "sec", timestamp: fut, signature: signCallback("sec", fut, body), rawBody: body, now: NOW }), { ok: false, reason: "caducada" });
   assert.deepEqual(verifyCallback({ secret: "sec", timestamp: null, signature: sig, rawBody: body, now: NOW }), { ok: false, reason: "sin_firma" });
   assert.deepEqual(verifyCallback({ secret: "sec", timestamp: "abc", signature: sig, rawBody: body, now: NOW }), { ok: false, reason: "marca_invalida" });
-  const tsMs = String(NOW);
-  assert.deepEqual(verifyCallback({ secret: "sec", timestamp: tsMs, signature: signCallback("sec", tsMs, body), rawBody: body, now: NOW }), { ok: true });
+  const tsMs = String(NOW); // el contrato manda segundos: un timestamp en milisegundos se rechaza
+  assert.deepEqual(verifyCallback({ secret: "sec", timestamp: tsMs, signature: signCallback("sec", tsMs, body), rawBody: body, now: NOW }), { ok: false, reason: "marca_invalida" });
 });
 
 test("sanitizeJob: solo cifras, nunca texto", () => {

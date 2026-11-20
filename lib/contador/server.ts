@@ -31,7 +31,7 @@ const repo: ContadorRepo = {
     prisma.contadorTrabajo.count({
       where: { createdAt: { gte: since }, documentAnalysis: { clientEmail: { equals: email, mode: "insensitive" } } },
     }),
-  loadDoc: (id) => prisma.documentAnalysis.findUnique({ where: { id }, select: { id: true, fileUrl: true, analysisJson: true, orderId: true } }),
+  loadDoc: (id) => prisma.documentAnalysis.findUnique({ where: { id }, select: { id: true, fileUrl: true, mimeType: true, analysisJson: true, orderId: true } }),
   async quotesForFile(fileUrl) {
     const quotes = await prisma.quote.findMany({
       where: { deletedAt: null, supersededAt: null, lines: { some: { sourceFileUrl: fileUrl } } },
@@ -82,6 +82,7 @@ export async function submitContadorAfterAnalysis(doc: {
   mode?: string;
   pageCount?: number | null;
   analysisJson: any;
+  bytes?: Buffer;
 }, origin: Parameters<typeof submitForDocument>[2] = { kind: "staff" }): Promise<void> {
   try {
     const deps = contadorDeps();

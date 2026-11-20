@@ -11,9 +11,8 @@ export const SUBMIT_TIMEOUT_MS = 5_000;
 export const GIVE_UP_MS = 10 * 60_000;
 export const SIGNATURE_MAX_SKEW_MS = 5 * 60_000;
 export const QUOTE_DIFF_PCT = 5;
-// Imágenes sueltas (JPG/PNG/HEIC): el contrato habla de páginas y PDF; hasta que
-// TraduCAT confirme que las acepta, fuera.
-export const CONTADOR_IMAGES = false;
+// Imágenes sueltas: TraduCAT acepta JPG/PNG/WEBP/TIFF ≤ 20 Mpx (lib/contador/image.ts decide por los bytes).
+export const CONTADOR_IMAGES = true;
 // Ruta pública: solo con email de cliente y como mucho 5 trabajos por email al día.
 export const PUBLIC_DAILY_PER_EMAIL = 5;
 // 429/5xx: reintentos del cron con espera creciente (1, 2, 4 min), como mucho 3.
@@ -49,7 +48,8 @@ export function contadorConfig(env: Record<string, string | undefined> = process
 /** Todo escaneado: PDF sin capa de texto (camino de visión), tenga las páginas que tenga; imágenes tras CONTADOR_IMAGES. */
 export function shouldCount(doc: { mimeType: string; mode?: string; pageCount?: number | null }, images = CONTADOR_IMAGES): boolean {
   if (doc.mimeType === "application/pdf") return doc.mode === "vision";
-  return images && doc.mimeType.startsWith("image/") && doc.mode === "vision";
+  // No-PDF: el tipo real lo deciden los bytes (imageEligibility), no el mimeType declarado.
+  return images && doc.mode === "vision";
 }
 
 export function isPublicHttpsUrl(url: string): boolean {
@@ -75,10 +75,10 @@ export function verifyCallback(input: {
   now: number;
 }): { ok: true } | { ok: false; reason: "sin_firma" | "marca_invalida" | "caducada" | "firma_invalida" } {
   if (!input.timestamp || !input.signature) return { ok: false, reason: "sin_firma" };
-  if (!/^\d{1,13}$/.test(input.timestamp)) return { ok: false, reason: "marca_invalida" };
+  // Segundos Unix (contrato): 10 cifras como mucho; un valor en milisegundos se rechaza.
+  if (!/^\d{1,10}$/.test(input.timestamp)) return { ok: false, reason: "marca_invalida" };
   const raw = Number(input.timestamp);
-  // Segundos o milisegundos: por debajo de 1e11 son segundos Unix.
-  const tsMs = raw < 1e11 ? raw * 1000 : raw;
+  const tsMs = raw * 1000;
   if (Math.abs(input.now - tsMs) > SIGNATURE_MAX_SKEW_MS) return { ok: false, reason: "caducada" };
   const expected = Buffer.from(signCallback(input.secret, input.timestamp, input.rawBody));
   const given = Buffer.from(input.signature.trim());
@@ -202,7 +202,7 @@ export type ApplyOutcome =
  * words_basis="contador_traducat", la cifra de Haiku queda en words_haiku para auditoría.
  * Mitad bilingüe igual que transcribe-scan (round(w/2) por página).
  */
-export function applyCounterToAnalysis(json: any, job: ContadorJob): ApplyOutcome {
+export function applyCounterToAnalysis(json: any, job: ContadorJob, opts: { image?: boolean } = {}): ApplyOutcome {
   if (!json || typeof json !== "object" || json.segmented || !json.document_metrics) {
     return { applied: false, reason: "analisis_no_aplicable" };
   }
@@ -211,7 +211,8 @@ export function applyCounterToAnalysis(json: any, job: ContadorJob): ApplyOutcom
     job.estado === "hecho" && total > 0 && job.paginas_hechas >= total && job.palabras_por_pagina.length === total;
   if (!complete) return { applied: false, reason: "conteo_incompleto" };
   const m = json.document_metrics;
-  if (m.pages && m.pages !== total) return { applied: false, reason: "paginas_no_cuadran" };
+  // Imagen: las páginas las da el contador (TIFF multipágina = un frame por página).
+  if (!opts.image && m.pages && m.pages !== total) return { applied: false, reason: "paginas_no_cuadran" };
 
   const bil = m.is_bilingual_duplicate === true;
   const perPage = job.palabras_por_pagina.map((w) => (bil ? Math.round(w / 2) : w));

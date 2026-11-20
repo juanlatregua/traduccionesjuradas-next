@@ -16,6 +16,7 @@ import {
   type ContadorJob,
   type QuoteRef,
 } from "./core.ts";
+import { imageEligibility } from "./image.ts";
 
 export type TrabajoRow = {
   id: string;
@@ -36,7 +37,7 @@ export type TrabajoRow = {
   updatedAt: Date;
 };
 
-export type DocRow = { id: string; fileUrl: string; analysisJson: any; orderId: string | null };
+export type DocRow = { id: string; fileUrl: string; mimeType: string; analysisJson: any; orderId: string | null };
 
 export type ContadorRepo = {
   findTrabajoByDoc(documentAnalysisId: string): Promise<TrabajoRow | null>;
@@ -83,12 +84,16 @@ async function sendJob(deps: ContadorDeps, t: TrabajoRow, fileUrl: string): Prom
  */
 export async function submitForDocument(
   deps: ContadorDeps,
-  doc: { id: string; fileUrl: string; mimeType: string; mode?: string; pageCount?: number | null; analysisJson: any },
+  doc: { id: string; fileUrl: string; mimeType: string; mode?: string; pageCount?: number | null; analysisJson: any; bytes?: Buffer },
   origin: { kind: "staff" } | { kind: "public"; clientEmail: string | null } = { kind: "staff" }
 ): Promise<{ submitted: boolean; reason?: string }> {
   try {
     if (!deps.client) return { submitted: false, reason: "inactivo" };
     if (!shouldCount(doc)) return { submitted: false, reason: "no_escaneado" };
+    if (doc.mimeType !== "application/pdf") {
+      const img = imageEligibility(doc.bytes);
+      if (!img.ok) return { submitted: false, reason: img.reason }; // HEIC, >20 Mpx o desconocido: se queda Haiku
+    }
     if (!isPublicHttpsUrl(doc.fileUrl)) return { submitted: false, reason: "url_no_publica" };
     const existing = await deps.repo.findTrabajoByDoc(doc.id);
     if (existing) {
@@ -134,7 +139,7 @@ function jobFromRow(t: TrabajoRow): ContadorJob {
 async function reapplyStored(deps: ContadorDeps, t: TrabajoRow): Promise<void> {
   const doc = await deps.repo.loadDoc(t.documentAnalysisId);
   if (!doc) return;
-  const out = applyCounterToAnalysis(doc.analysisJson, jobFromRow(t));
+  const out = applyCounterToAnalysis(doc.analysisJson, jobFromRow(t), { image: doc.mimeType !== "application/pdf" });
   if (out.applied) await deps.repo.saveDocAnalysis(t.documentAnalysisId, out.json, out.counterWords);
 }
 
@@ -164,7 +169,9 @@ export async function processJobUpdate(deps: ContadorDeps, t: TrabajoRow, job: C
   }
 
   const doc = await deps.repo.loadDoc(t.documentAnalysisId);
-  const out = doc ? applyCounterToAnalysis(doc.analysisJson, job) : ({ applied: false, reason: "analisis_no_aplicable" } as const);
+  const out = doc
+    ? applyCounterToAnalysis(doc.analysisJson, job, { image: doc.mimeType !== "application/pdf" })
+    : ({ applied: false, reason: "analisis_no_aplicable" } as const);
   if (!doc || !out.applied) {
     const reason = out.applied ? "" : out.reason;
     await deps.repo.updateTrabajo(t.id, { ...progress, motivoError: `no aplicado: ${reason}` });

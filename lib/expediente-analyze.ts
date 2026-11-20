@@ -195,6 +195,7 @@ export async function analyzeDocumentRow(doc: AnalyzableDoc, targetLang?: string
         mode: run.mode,
         pageCount: run.pageCount,
         analysisJson: primary,
+        bytes: buffer,
       });
     }
 

@@ -315,6 +315,7 @@ export async function POST(req: Request) {
         mode: runMode,
         pageCount: analysis.document_metrics.pages,
         analysisJson: analysis,
+        bytes: fileBuffer,
       },
       { kind: "public", clientEmail: contadorEmail }
     );
