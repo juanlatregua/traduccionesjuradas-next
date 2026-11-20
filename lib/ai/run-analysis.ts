@@ -16,6 +16,13 @@ import { segmentDocumentText, makePlaceholderSegment } from "./segment-document"
 import { absorbUnreadPages } from "./unread-pages";
 import { billableWordCount } from "./word-counter";
 import { assessAutoPriceRisk } from "./price-risk";
+import {
+  transcribeScannedPdf,
+  scanFullCountEnabled,
+  halveScan,
+  totalWithFailedFilled,
+  type ScanResult,
+} from "./transcribe-scan";
 
 // Suelo determinista: el conteo nunca debe quedar por debajo de las palabras
 // que la capa de texto del PDF sí extrae (la visión de Claude infracuenta
@@ -133,12 +140,56 @@ export async function runDocumentAnalysis(input: {
     console.log(`[run-analysis] ${fileName}: VISION path (${pageCount} págs)`);
   }
 
-  const analysis = await analyzeDocument({
+  const largeScan = !!pageCount && pageCount > LARGE_DOC_THRESHOLD;
+  const analyzePromise = analyzeDocument({
     fileBase64: analyzeBuffer.toString("base64"),
     mimeType,
     fileName,
     pageCount,
   });
+
+  // Escaneado extenso: transcribir TODAS las páginas en paralelo con la
+  // clasificación (que sigue usando las primeras), para contar en vez de extrapolar.
+  const scanPromise: Promise<ScanResult> | null =
+    largeScan && scanFullCountEnabled()
+      ? transcribeScannedPdf(buffer, { pageCount: pageCount!, fileName })
+      : null;
+
+  const [analysisSettled, scanSettled] = await Promise.allSettled([
+    analyzePromise,
+    scanPromise ?? Promise.resolve(null),
+  ]);
+  if (analysisSettled.status === "rejected") throw analysisSettled.reason;
+  const analysis = analysisSettled.value;
+
+  if (largeScan) {
+    const m = analysis.document_metrics;
+    const extrapolated = m.estimated_words || 0;
+    let scan = scanSettled.status === "fulfilled" ? scanSettled.value : null;
+    if (scanSettled.status === "rejected") {
+      console.error("[transcribe-scan] falló entera, se queda la extrapolación:", scanSettled.reason);
+    }
+    if (scan) {
+      if (m.is_bilingual_duplicate === true) scan = halveScan(scan);
+      if (scan.failedPages.length === 0) {
+        m.estimated_words = scan.totalWords;
+        m.words_basis = "transcribed_all";
+      } else {
+        m.estimated_words = Math.max(totalWithFailedFilled(scan), extrapolated);
+        m.words_basis = "transcribed_partial";
+      }
+      m.words_per_page = scan.perPage;
+      m.low_pages = scan.lowPages;
+      console.log(
+        `[transcribe-scan] ${fileName}: ${pageCount} págs, ${scan.totalWords} palabras (antes extrapolado ${extrapolated}), ` +
+          `lowPages=[${scan.lowPages}], failed=[${scan.failedPages}], block=[${scan.blockPages}], ${scan.ms} ms, ` +
+          `tokens ${scan.usage.input}/${scan.usage.output}`
+      );
+    } else {
+      m.words_basis = "extrapolated";
+    }
+  }
+
   return {
     analysis: finalizeAnalysis(analysis, { extractedText: extraction.text, fileName }),
     mode: "vision",
