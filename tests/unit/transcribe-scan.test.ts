@@ -8,6 +8,7 @@ import {
   halveScan,
   totalWithFailedFilled,
   scanFullCountEnabled,
+  SCAN_PROMPT,
   type ScanCallInput,
   type ScanCallOutput,
 } from "../../lib/ai/transcribe-scan.ts";
@@ -266,4 +267,11 @@ test("sin presupuesto: no se trocea ni se llama", async () => {
   });
   assert.equal(sliced, 0);
   assert.deepEqual(r.failedPages, [1, 2, 3, 4]);
+});
+
+test("el prompt prohíbe traducir, resumir, completar e inventar cabeceras", () => {
+  const p = SCAN_PROMPT(4);
+  for (const frag of ["No traduzcas", "no resumas", "No completes", "no reconstruyas", "no repitas encabezados", "=== PÁGINA 1 ==="]) {
+    assert.ok(p.includes(frag), `falta «${frag}»`);
+  }
 });

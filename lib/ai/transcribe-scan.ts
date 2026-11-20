@@ -95,10 +95,11 @@ export function median(values: number[]): number {
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
 
-const SCAN_PROMPT = (k: number) =>
+export const SCAN_PROMPT = (k: number) =>
   `Este PDF tiene ${k} página${k === 1 ? "" : "s"} escaneada${k === 1 ? "" : "s"}. Transcribe LITERALMENTE todo el texto legible de cada página, ` +
   `en su idioma original: incluye encabezados y sellos con texto impreso, notas al margen, números y texto manuscrito legible. ` +
-  `No traduzcas, no resumas, no comentes y NO añadas anotaciones como [sello], [firma] o [ilegible]: si algo no se lee, omítelo.\n\n` +
+  `No traduzcas, no resumas, no comentes y NO añadas anotaciones como [sello], [firma] o [ilegible]: si algo no se lee, omítelo. ` +
+  `No completes palabras ni frases cortadas, no reconstruyas texto que falte y no repitas encabezados o pies que no estén impresos en esa página.\n\n` +
   `Cada página debe empezar con una línea exacta con este formato (numeración 1..${k} dentro de este PDF):\n=== PÁGINA 1 ===\n` +
   `y a continuación el texto de esa página. Devuelve solo las transcripciones, nada más.`;
 
