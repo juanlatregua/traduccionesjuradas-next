@@ -11,7 +11,8 @@ import type { EntradaLang } from "@/lib/entrada/i18n";
 import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
 import { progressSteps, isLangQuestion } from "@/lib/entrada/hilo";
 import { isQuestion } from "@/lib/entrada/conserje";
-import { ETAPA, PORTADA_VACIA, conAviso, hojasDe, normalizarLocal, paginasDe, pasoDe, respuestasDe, type Paso, type PortadaLocal, type Urgency } from "@/lib/entrada/portada";
+import { ETAPA, PORTADA_VACIA, conAviso, esFalloDeRed, fmtEspera, hojasDe, nombreCorto, normalizarLocal, paginasDe, pasoAtras, pasoDe, respuestasDe, type Paso, type PortadaLocal, type Urgency } from "@/lib/entrada/portada";
+import { ACUSE_BOTONES, acuseRespuesta, conSeguimiento } from "@/lib/entrada/acuse";
 import { enIdioma } from "@/lib/entrada/errores-i18n";
 import { PORTADA_T } from "@/lib/entrada/portada-i18n";
 import type { ClientView } from "@/lib/entrada/view";
@@ -26,8 +27,10 @@ const ACCEPT = ".pdf,.jpg,.jpeg,.png,.heic,.heif,.tif,.tiff,.webp,image/*,applic
 const CARD = "rounded-2xl border border-cream bg-white p-5 shadow-paper sm:p-7";
 const primary = "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-encre px-5 text-base font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50 [@media(hover:hover)]:hover:bg-bleu";
 const secondary = "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-bleu/30 bg-white px-5 text-base font-bold text-encre transition disabled:cursor-not-allowed disabled:opacity-50 [@media(hover:hover)]:hover:border-bleu";
-const linkBtn = "text-sm font-semibold text-bleu underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
-const field = "w-full rounded-xl border border-graphite/30 bg-white px-3 py-2.5 text-base text-encre";
+const linkBtn = "inline-flex min-h-11 items-center text-sm font-semibold text-bleu underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+// scroll-margin: with the keyboard open, the focused field never ends under the sticky header or a bottom bar.
+const field = "w-full scroll-mb-28 scroll-mt-28 rounded-xl border border-graphite/30 bg-white px-3 py-2.5 text-base text-encre";
+const wrap = "break-words [overflow-wrap:anywhere]";
 const chip = (on: boolean) => `inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${on ? "border-encre bg-encre text-white" : "border-graphite/25 bg-parchment text-encre [@media(hover:hover)]:hover:border-bleu"}`;
 const Spinner = () => <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />;
 
@@ -69,6 +72,16 @@ function names(ui: string, type: "language" | "region"): (code: string) => strin
     const n = dn?.of(type === "region" ? c.toUpperCase() : c) ?? c.toUpperCase();
     return n.charAt(0).toUpperCase() + n.slice(1);
   };
+}
+
+/** Text that only appears once a wait has gone on longer than expected (`after` ms): no wait looks frozen. */
+function Tarda({ after, children }: { after: number; children: ReactNode }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setShow(true), after);
+    return () => clearTimeout(id);
+  }, [after]);
+  return show ? <>{children}</> : null;
 }
 
 function Burbuja({ children }: { children: ReactNode }) {
@@ -114,6 +127,15 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   const [visor, setVisor] = useState<{ hojas: Hoja[]; index: number } | null>(null);
   const [needWhy, setNeedWhy] = useState<string | null>(null);
   const [verDuda, setVerDuda] = useState(false);
+  /** Saved request being fetched again after a reload ("fallo" = it could not be fetched). */
+  const [restaurando, setRestaurando] = useState<"cargando" | "fallo" | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [fallidos, setFallidos] = useState<File[]>([]);
+  const [lenta, setLenta] = useState(false);
+  const [readFail, setReadFail] = useState<string | null>(null);
+  const [leyendoDesde, setLeyendoDesde] = useState<number | null>(null);
+  const [ahora, setAhora] = useState(0);
 
   const fileInput = useRef<HTMLInputElement>(null);
   const gdprRef = useRef<HTMLInputElement>(null);
@@ -127,27 +149,44 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   const dudasEnVuelo = useRef(new Set<number>());
 
   const patch = useCallback((x: Partial<PortadaLocal>) => setLocal((l) => ({ ...l, ...x })), []);
-  const apply = useCallback((d: Res) => {
+  /** The message for a failed call: the server's own words, or «no connection» when nothing answered. */
+  const mensaje = useCallback((status: number, d: Res) => (d.error ? enIdioma(lang, d.error) : esFalloDeRed(status) ? (typeof navigator !== "undefined" && !navigator.onLine ? p.sinConexion : p.errorRed) : t.error), [lang, p.sinConexion, p.errorRed, t.error]);
+  const apply = useCallback((d: Res, status = 200) => {
     if (d.view) setView(d.view);
-    setError(d.ok ? null : d.error ? enIdioma(lang, d.error) : t.error);
+    setError(d.ok ? null : mensaje(status, d));
     return d.ok;
-  }, [t.error, lang]);
+  }, [mensaje]);
 
-  useEffect(() => {
+  const restaurar = useCallback(() => {
     const saved = storage<string>(TOKEN_KEY);
-    if (!saved) return;
+    if (!saved) return setRestaurando(null);
+    setRestaurando("cargando");
     call(`/api/entrada/${saved}`).then(({ status, data }) => {
       if (status === 404 || (data.view && (data.view.estado === "confirmada" || data.view.estado === "sin_jurado"))) {
         storage(LOCAL_KEY(saved), null);
-        return void storage(TOKEN_KEY, null);
+        storage(TOKEN_KEY, null);
+        return setRestaurando(null);
       }
-      if (!data.view) return;
+      if (!data.view) return setRestaurando("fallo");
       setToken(saved);
       setLocal(normalizarLocal(storage<Partial<PortadaLocal>>(LOCAL_KEY(saved))));
       if (data.view.idiomas.destinos.length) setDestinos(data.view.idiomas.destinos);
       setOrigen(data.view.idiomas.origen ?? "");
       setView(data.view);
+      setRestaurando(null);
     });
+  }, []);
+  useEffect(restaurar, [restaurar]);
+
+  useEffect(() => {
+    const sync = () => setOffline(!navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
   }, []);
 
   useEffect(() => {
@@ -170,6 +209,28 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     headRef.current?.focus({ preventScroll: true });
   }, [paso]);
 
+  // The phone's back button goes one step back inside the card instead of leaving the page.
+  const pasoRef = useRef({ paso, view });
+  pasoRef.current = { paso, view };
+  const enHistoria = useRef(false);
+  useEffect(() => {
+    const guiada = paso !== "portada" && paso !== "enviado" && paso !== "sin_jurado";
+    if (guiada && !enHistoria.current && pasoAtras(paso, view)) {
+      enHistoria.current = true;
+      window.history.pushState({ puerta: true }, "");
+    }
+  }, [paso, view]);
+  useEffect(() => {
+    const onPop = () => {
+      if (!enHistoria.current) return;
+      enHistoria.current = false;
+      const back = pasoAtras(pasoRef.current.paso, pasoRef.current.view);
+      if (back) setLocal((l) => ({ ...l, ...back }));
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   // Autofill can fill inputs without React events.
   useEffect(() => {
     if (paso !== "codigo" && paso !== "email") return;
@@ -184,41 +245,76 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     if (!token || verifying.current || value.length !== 6) return;
     verifying.current = true;
     setBusy({ key: "verificar", label: p.comprobando });
-    const { data } = await call(`/api/entrada/${token}/verificar`, "POST", { code: value });
+    setAviso(null);
+    const { status, data } = await call(`/api/entrada/${token}/verificar`, "POST", { code: value });
     verifying.current = false;
     setBusy(null);
-    if (!apply(data)) setCode("");
+    // A network failure keeps the code so it can be sent again; a wrong one is cleared to type it again.
+    if (!apply(data, status) && !esFalloDeRed(status)) {
+      setCode("");
+      codeRef.current?.focus();
+    }
   }, [token, apply, p.comprobando]);
 
   useEffect(() => {
     if (paso === "codigo" && code.length === 6) void verify(code);
   }, [paso, code, verify]);
 
-  // «Confirmar mi email» may be pressed on the phone: this tab notices it by itself.
+  // «Confirmar mi email» may be pressed on the phone: this tab notices it by itself, and at once when the client
+  // comes back from the mail app (background tabs barely run timers).
   useEffect(() => {
     if (paso !== "codigo" || !token) return;
-    const id = setInterval(async () => {
+    const check = async () => {
       const { data } = await call(`/api/entrada/${token}`);
       if (data.view?.emailVerificado) setView(data.view);
-    }, 2500);
-    return () => clearInterval(id);
+    };
+    const id = setInterval(check, 2500);
+    const onVisible = () => document.visibilityState === "visible" && void check();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [paso, token]);
 
   useEffect(() => {
-    if (paso === "lectura" && !reading.current) void read();
+    if (paso === "lectura" && !reading.current && !readFail) void read();
   });
 
+  // A reading cut by the network (offline, app in the background) starts again by itself when the client is back.
   useEffect(() => {
-    if (paso !== "lectura") return setTick(0);
+    if (!readFail || paso !== "lectura") return;
+    const again = () => {
+      if (navigator.onLine && document.visibilityState === "visible") setReadFail(null);
+    };
+    window.addEventListener("online", again);
+    document.addEventListener("visibilitychange", again);
+    return () => {
+      window.removeEventListener("online", again);
+      document.removeEventListener("visibilitychange", again);
+    };
+  }, [readFail, paso]);
+
+  useEffect(() => {
+    if (paso !== "lectura") {
+      setLeyendoDesde(null);
+      return setTick(0);
+    }
+    setLeyendoDesde((d) => d ?? Date.now());
+    setAhora(Date.now());
     const id = setInterval(() => setTick((s) => s + 1), 4000);
-    return () => clearInterval(id);
+    const clock = setInterval(() => setAhora(Date.now()), 1000);
+    return () => {
+      clearInterval(id);
+      clearInterval(clock);
+    };
   }, [paso]);
 
   // Doubts written before the email was confirmed go out by themselves once it is.
   useEffect(() => {
     if (!token || !view?.emailVerificado) return;
     local.dudas.forEach((d, i) => {
-      if (d.a === null && !dudasEnVuelo.current.has(i)) void enviarDuda(i, d.q);
+      if (d.a === null && !d.fallo && !dudasEnVuelo.current.has(i)) void enviarDuda(i, d.q);
     });
   });
 
@@ -245,8 +341,8 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
 
   async function ensureEntrada(): Promise<string | null> {
     if (token) return token;
-    const { data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: origen || null, targetLangs: destinos, source, lang });
-    if (!data.ok || !data.token) return apply(data), null;
+    const { status, data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: origen || null, targetLangs: destinos, source, lang });
+    if (!data.ok || !data.token) return apply({ ...data, ok: false }, status), null;
     storage(TOKEN_KEY, data.token);
     setToken(data.token);
     return data.token;
@@ -260,7 +356,10 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     setWhy(r);
     if (r) return;
     setError(null);
-    setBusy({ key: "subir", label: p.subiendo(files[0].name, 1, files.length) });
+    setFallidos([]);
+    setLenta(false);
+    setBusy({ key: "subir", label: p.subiendoN(1, files.length, nombreCorto(files[0].name), null) });
+    const fallan: File[] = [];
     try {
       const tk = await ensureEntrada();
       if (!tk) return;
@@ -270,26 +369,40 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         i++;
         const mimeType = mimeOf(file);
         if (!Object.values(EXT_TYPES).includes(mimeType)) {
-          setError(t.badType(file.name));
+          setError(t.badType(nombreCorto(file.name)));
           continue;
         }
         if (file.size > 20 * 1024 * 1024) {
-          setError(t.tooBig(file.name));
+          setError(t.tooBig(nombreCorto(file.name)));
           continue;
         }
-        setBusy({ key: "subir", label: p.subiendo(file.name, i, files.length) });
+        const label = (pct: number | null) => p.subiendoN(i, files.length, nombreCorto(file.name), pct);
+        setBusy({ key: "subir", label: label(null) });
+        // A slow connection is said once a file takes longer than ~12 s, so the progress never looks frozen.
+        const slow = setTimeout(() => setLenta(true), 12000);
         try {
           const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
-          const blob = await upload(`entrada/${Date.now()}-${safe}`, file, { access: "public", handleUploadUrl: "/api/documents/upload", clientPayload: JSON.stringify({ gdprConsent: true }) });
-          const res = (await call(`/api/entrada/${tk}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType })).data;
+          const blob = await upload(`entrada/${Date.now()}-${safe}`, file, {
+            access: "public", handleUploadUrl: "/api/documents/upload", clientPayload: JSON.stringify({ gdprConsent: true }),
+            onUploadProgress: ({ percentage }) => percentage >= 1 && setBusy({ key: "subir", label: label(Math.min(99, Math.round(percentage))) }),
+          });
+          const { status, data: res } = await call(`/api/entrada/${tk}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType });
           if (res.view) setView(res.view);
-          if (!res.ok) setError(res.error ? enIdioma(lang, res.error) : t.error);
-        } catch (e) {
-          setError(e instanceof Error ? enIdioma(lang, e.message) : t.error);
+          if (!res.ok) {
+            if (esFalloDeRed(status)) fallan.push(file);
+            else setError(mensaje(status, res));
+          }
+        } catch {
+          // The blob client's own messages are English and technical: the client sees the file and a retry button.
+          fallan.push(file);
+        } finally {
+          clearTimeout(slow);
         }
       }
       patch({ verArchivos: false, quiereLeer: false, revisado: false });
     } finally {
+      setFallidos(fallan);
+      setLenta(false);
       setBusy(null);
     }
   }
@@ -353,11 +466,16 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         }
         if (Date.now() - started < 8 * 60 * 1000) continue;
       }
-      apply(data);
-      if (!data.ok) patch({ quiereLeer: false });
+      if (data.view) setView(data.view);
+      if (data.ok) {
+        setError(null);
+        patch({ quiereLeer: false, revisado: false });
+      } else {
+        // The client stays on the reading step with the reason and a retry: never sent back as if nothing happened.
+        setReadFail(data.error ? enIdioma(lang, data.error) : esFalloDeRed(status) && !navigator.onLine ? p.sinConexion : p.lecturaFallo);
+      }
       break;
     }
-    patch({ quiereLeer: false, revisado: false });
     reading.current = false;
   }
 
@@ -368,16 +486,20 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     if (!emailValid(value)) return setNeedWhy(t.falta([t.faltaEmail]));
     setNeedWhy(null);
     setBusy({ key: "email", label: t.enviarCodigo });
-    const { data } = await call(`/api/entrada/${token}/email`, "POST", { email: value, nombre: nombre.trim() || null, telefono: telefono.trim() || null, marketingConsent: true });
+    setAviso(null);
+    const { status, data } = await call(`/api/entrada/${token}/email`, "POST", { email: value, nombre: nombre.trim() || null, telefono: telefono.trim() || null, marketingConsent: true });
     setBusy(null);
-    if (apply(data)) patch({ cambiarEmail: false });
+    if (apply(data, status)) patch({ cambiarEmail: false });
   }
 
   async function resend() {
     if (!token || busy) return;
     setBusy({ key: "reenviar", label: t.enviarCodigo });
+    setAviso(null);
+    setCode("");
     try {
-      apply((await call(`/api/entrada/${token}/codigo`, "POST")).data);
+      const { status, data } = await call(`/api/entrada/${token}/codigo`, "POST");
+      if (apply(data, status)) setAviso(p.codigoReenviado(data.view?.email ?? view?.email ?? ""));
     } finally {
       setBusy(null);
     }
@@ -387,24 +509,26 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     if (!token || busy) return;
     setBusy({ key, label: t.guardando });
     try {
-      apply((await call(`/api/entrada/${token}/documentos`, "POST", body)).data);
+      const { status, data } = await call(`/api/entrada/${token}/documentos`, "POST", body);
+      apply(data, status);
     } finally {
       setBusy(null);
     }
   }
 
-  /** A doubt counts as sent only when its answer arrives; a network failure leaves it pending and it is retried. */
+  /** A doubt counts as answered only when its answer arrives; a failure shows a retry next to it. */
   async function enviarDuda(index: number, q: string) {
     if (!token || dudasEnVuelo.current.has(index)) return;
     dudasEnVuelo.current.add(index);
+    setLocal((l) => ({ ...l, dudas: l.dudas.map((d, i) => (i === index ? { ...d, fallo: false } : d)) }));
     const { status, data } = await call(`/api/entrada/${token}/pregunta`, "POST", { question: q, paso });
-    if (status === 0) {
-      setTimeout(() => dudasEnVuelo.current.delete(index), 10000);
+    dudasEnVuelo.current.delete(index);
+    if (esFalloDeRed(status) && !data.error) {
+      setLocal((l) => ({ ...l, dudas: l.dudas.map((d, i) => (i === index ? { ...d, fallo: true } : d)) }));
       return;
     }
-    dudasEnVuelo.current.delete(index);
     const a = data.ok && data.answer ? data.answer : data.error ? enIdioma(lang, data.error) : t.error;
-    setLocal((l) => ({ ...l, dudas: l.dudas.map((d, i) => (i === index ? { ...d, a } : d)) }));
+    setLocal((l) => ({ ...l, dudas: l.dudas.map((d, i) => (i === index ? { ...d, a, fallo: false } : d)) }));
   }
 
   function preguntar(text: string) {
@@ -431,6 +555,12 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     patch({ respuestas: { ...local.respuestas, [q]: text } });
   }
 
+  /** «Lo añado» / «No lo tengo» after the concierge asked again: joined to the answer so Juan reads both. */
+  function seguimiento(q: string, tiene: boolean) {
+    patch({ respuestas: { ...local.respuestas, [q]: conSeguimiento(lang, q, local.respuestas[q] ?? "", tiene) } });
+    if (tiene) pickFiles();
+  }
+
   const urgency = local.urgency ?? (view?.plazo.urgency as Urgency | null) ?? null;
   const neededBy = local.neededBy ?? view?.plazo.neededBy ?? null;
   const plazoFalta = !urgency ? p.faltaPlazo : urgency === "DATE" && !neededBy ? p.faltaFecha : null;
@@ -441,13 +571,15 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     setNeedWhy(null);
     setBusy({ key: "enviar", label: p.enviando });
     const preguntas = view.lectura?.preguntas ?? [];
-    const { data } = await call(`/api/entrada/${token}/confirmar`, "POST", {
+    const { status, data } = await call(`/api/entrada/${token}/confirmar`, "POST", {
       urgency, neededBy: urgency === "DATE" ? neededBy : null, organismo: local.organismo, pais: local.pais,
       notas: local.notas.trim() || null, loteUpdatedAt: view.lectura?.loteUpdatedAt ?? null,
       respuestas: respuestasDe(preguntas, local.respuestas),
     });
     setBusy(null);
-    apply(data);
+    // Confirming twice is harmless on the server, so a lost answer just asks to press again.
+    if (!data.ok && esFalloDeRed(status) && !data.error) return void setError(navigator.onLine ? p.envioFallo : p.sinConexion);
+    apply(data, status);
   }
 
   function restart() {
@@ -459,6 +591,10 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     olvidarMiniaturas();
     setGdpr(false);
     setCode("");
+    setFallidos([]);
+    setReadFail(null);
+    setAviso(null);
+    setRestaurando(null);
     setError(null);
   }
 
@@ -540,9 +676,24 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
 
   const fileInputEl = <input ref={fileInput} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => addFiles(e.target.files)} />;
   const statusLine = busy && (
-    <p className="flex items-center gap-2 text-sm font-semibold text-bleu" role="status"><Spinner />{busy.label}</p>
+    <div role="status" className="space-y-1">
+      <p className={`flex items-center gap-2 text-sm font-semibold text-bleu ${wrap}`}><Spinner />{busy.label}</p>
+      {busy.key === "subir" && lenta && <p className="text-xs text-graphite">{p.subidaLenta}</p>}
+      {busy.key === "enviar" && <Tarda after={6000}><p className="text-xs text-graphite">{p.enviandoLento}</p></Tarda>}
+    </div>
   );
-  const errorLine = error && <p className="rounded-xl bg-rouge/5 px-3 py-2 text-sm text-rouge" role="alert">{error}</p>;
+  const errorLine = error && <p className={`rounded-xl bg-rouge/5 px-3 py-2 text-sm text-rouge ${wrap}`} role="alert">{error}</p>;
+  const avisoLine = aviso && <p className={`flex items-start gap-2 rounded-xl bg-vert/10 px-3 py-2 text-sm text-encre ${wrap}`} role="status"><Check className="mt-0.5 h-4 w-4 shrink-0 text-vert" aria-hidden />{aviso}</p>;
+  const offlineLine = offline && !(paso === "lectura" && readFail) && <p className="rounded-xl bg-or/15 px-3 py-2 text-sm font-semibold text-encre" role="status">{p.sinConexion}</p>;
+  const fallidosLine = fallidos.length > 0 && !busy && (
+    <div className="space-y-2 rounded-xl bg-rouge/5 px-3 py-3 text-sm text-rouge" role="alert">
+      <p className={wrap}>{p.noSubidos(fallidos.map((f) => nombreCorto(f.name)))}</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={`${secondary} !min-h-11 !text-sm`} onClick={() => void addFiles(fallidos)}>{p.reintentar}</button>
+        <button type="button" className={linkBtn} onClick={() => setFallidos([])}>{p.descartar}</button>
+      </div>
+    </div>
+  );
   const desde = <p className="text-sm text-graphite"><strong className="text-encre">{t.desde.split(".")[0]}.</strong>{t.desde.slice(t.desde.indexOf(".") + 1)}</p>;
 
   // ——— Step 1 on the home page: languages, consent and one upload zone (no email here) ———
@@ -577,15 +728,41 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       <button type="button" onClick={pickFiles} disabled={!!busy} {...dropProps}
         className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-4 py-7 text-center transition ${drag ? "border-bleu bg-bleu/5" : "border-or bg-white [@media(hover:hover)]:hover:bg-parchment/60"} disabled:cursor-wait`}>
         <span className="flex items-center gap-3 text-or-dark" aria-hidden>{busy?.key === "subir" ? <Spinner /> : <><Upload className="h-7 w-7" /><Camera className="h-7 w-7" /></>}</span>
-        <span className="text-lg font-bold text-encre">{busy?.key === "subir" ? busy.label : drag ? p.soltar : p.zona}</span>
+        <span className={`max-w-full text-lg font-bold text-encre ${wrap}`} role={busy?.key === "subir" ? "status" : undefined}>{busy?.key === "subir" ? busy.label : busy ? busy.label : drag ? p.soltar : p.zona}</span>
         <span className="max-w-md text-sm text-graphite">{p.zonaHint}</span>
       </button>
       {why && <p className="text-sm font-semibold text-rouge" role="alert">{why}</p>}
+      {offlineLine}
+      {fallidosLine}
       {errorLine}
       {desde}
       <p className="text-xs text-graphite">{p.grande} <Link href="/expediente" className="font-semibold text-bleu underline">{p.grandeLink}</Link></p>
     </section>
   );
+
+  // After a reload the saved request is fetched again: say so instead of showing an empty home panel.
+  if (paso === "portada" && restaurando) {
+    return (
+      <div className="mt-4 grid items-start gap-4 sm:mt-6 sm:gap-7 lg:grid-cols-2">
+        <div id="subir" className="order-1 scroll-mt-24 lg:order-2">
+          <section className={`${CARD} space-y-4`} lang={lang} aria-live="polite">
+            {restaurando === "cargando" ? (
+              <p className="flex items-center gap-2 text-base font-semibold text-bleu" role="status"><Spinner />{p.recuperando}</p>
+            ) : (
+              <>
+                <p className="text-sm text-encre" role="alert">{p.noRecuperada}</p>
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" className={primary} onClick={restaurar}>{p.reintentar}</button>
+                  <button type="button" className={linkBtn} onClick={restart}>{p.empezarNueva}</button>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+        {asistente && <div id="preguntar" className="order-2 scroll-mt-24 lg:order-1">{asistente}</div>}
+      </div>
+    );
+  }
 
   if (paso === "portada") {
     return (
@@ -606,7 +783,11 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         <li key={i} className="space-y-1.5 text-sm">
           <p className="ml-auto w-fit max-w-[90%] rounded-2xl rounded-tr-sm bg-bleu/10 px-3 py-2 text-encre">{d.q}</p>
           <p className={`w-fit max-w-[95%] rounded-2xl rounded-tl-sm px-3 py-2 ${d.a ? "bg-parchment text-encre" : "flex items-center gap-2 bg-parchment text-graphite"}`}>
-            {d.a ?? (view?.emailVerificado ? <><Spinner />{t.pensando}</> : p.enEspera)}
+            {d.a ?? (d.fallo ? (
+              <span className="flex flex-wrap items-center gap-x-3 text-rouge" role="alert">{p.dudaFallo}<button type="button" className={linkBtn} onClick={() => void enviarDuda(i, d.q)}>{p.reintentar}</button></span>
+            ) : view?.emailVerificado ? (
+              <span className="flex flex-col gap-1" role="status"><span className="flex items-center gap-2"><Spinner />{t.pensando}</span><Tarda after={12000}><span className="text-xs">{p.dudaLenta}</span></Tarda></span>
+            ) : p.enEspera)}
           </p>
         </li>
       ))}
@@ -624,7 +805,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       {local.dudas.length > 0 && dudasList}
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); preguntar(duda); }}>
         <input value={duda} onChange={(e) => setDuda(e.target.value)} placeholder={t.dudaPh} aria-label={p.dudaTitulo} className={`${field} min-w-0`} />
-        <button type="submit" className={`${primary} shrink-0 !px-4`} disabled={duda.trim().length < 2}>{t.preguntar}</button>
+        <button type="submit" className={`${primary} shrink-0 !px-4`} onClick={(e) => { if (duda.trim().length < 2) { e.preventDefault(); (e.currentTarget.previousElementSibling as HTMLInputElement | null)?.focus(); } }}>{t.preguntar}</button>
       </form>
       <div className="flex flex-wrap gap-2">
         {p.dudaChips.map((c) => <button key={c} type="button" className={chip(false)} disabled={!!busy} onClick={() => preguntar(c)}>{c}</button>)}
@@ -639,7 +820,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     const lugar = [view?.organismo ?? local.organismo, (view?.pais ?? local.pais) && countryName((view?.pais ?? local.pais)!)].filter(Boolean).join(", ");
     return (
       <div className="mx-auto mt-4 max-w-3xl sm:mt-6">
-        <section ref={cardRef} className={`${CARD} scroll-mt-24 space-y-5`} aria-labelledby="puerta-titulo">
+        <section id="subir" ref={cardRef} className={`${CARD} scroll-mt-24 space-y-5`} aria-labelledby="puerta-titulo">
           <div className="flex items-center gap-3">
             <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white ${paso === "enviado" ? "bg-vert" : "bg-or"}`} aria-hidden>{paso === "enviado" ? <Check className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}</span>
             <div>
@@ -677,7 +858,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
               </ol>
             </>
           )}
-          <div className="flex flex-wrap gap-3">
+          <div id={paso === "enviado" && (verDuda || local.dudas.length > 0) ? undefined : "preguntar"} className="flex scroll-mt-24 flex-wrap gap-3">
             <button type="button" className={secondary} onClick={restart}>{t.otros}</button>
             {paso === "enviado" && !verDuda && local.dudas.length === 0 && <button type="button" className={secondary} onClick={() => setVerDuda(true)}><MessageCircle className="h-4 w-4" aria-hidden />{p.tengoDuda}</button>}
           </div>
@@ -736,16 +917,18 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       {solicitud.map((s) => (
         <li key={s.k}>
           {s.onChange ? (
-            <button type="button" onClick={s.onChange} disabled={!!busy} className="inline-flex min-h-9 items-center gap-1 rounded-full bg-parchment px-3 text-xs font-semibold text-encre" aria-label={`${s.label}: ${s.value}. ${p.cambiar}`}>
+            <button type="button" onClick={s.onChange} disabled={!!busy} className="inline-flex min-h-11 items-center gap-1 rounded-full bg-parchment px-3 text-left text-xs font-semibold text-encre" aria-label={`${s.label}: ${s.value}. ${p.cambiar}`}>
               <Check className="h-3.5 w-3.5 text-vert" aria-hidden />{s.value}<span className="text-bleu underline">· {p.cambiar}</span>
             </button>
           ) : (
-            <span className="inline-flex min-h-9 items-center gap-1 rounded-full bg-parchment px-3 text-xs font-semibold text-encre"><Check className="h-3.5 w-3.5 text-vert" aria-hidden />{s.value}</span>
+            <span className="inline-flex min-h-11 items-center gap-1 rounded-full bg-parchment px-3 text-xs font-semibold text-encre"><Check className="h-3.5 w-3.5 text-vert" aria-hidden />{s.value}</span>
           )}
         </li>
       ))}
     </ul>
   );
+
+  const cerca = paso === "email" || paso === "codigo" || paso === "fecha";
 
   // ——— Body of each step ———
   let bubble: ReactNode = null;
@@ -764,7 +947,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
                 <div className="flex flex-wrap gap-2">{thumbs(hojas, "md", 12)}</div>
                 <div className="flex items-center justify-between gap-3 border-t border-cream pt-2">
                   <span className="min-w-0 max-w-[150px] truncate text-xs font-semibold text-encre" title={a.name}>{a.name}</span>
-                  <button type="button" className="text-xs font-semibold text-rouge underline disabled:opacity-50" disabled={!!busy} onClick={() => remove(a.id)} aria-label={t.quitar(a.name)}>
+                  <button type="button" className="-my-2 inline-flex min-h-11 min-w-11 items-center justify-end text-xs font-semibold text-rouge underline disabled:opacity-50" disabled={!!busy} onClick={() => remove(a.id)} aria-label={t.quitar(a.name)}>
                     {busy?.key === `quitar:${a.id}` ? p.quitando : p.quitar}
                   </button>
                 </div>
@@ -778,6 +961,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           <button type="button" className={secondary} disabled={!!busy} onClick={pickFiles}>{busy?.key === "subir" ? <Spinner /> : <Plus className="h-4 w-4" aria-hidden />}{p.anadirMas}</button>
           <button type="button" className={primary} disabled={!!busy} onClick={() => patch(view!.estado === "leida" ? { verArchivos: false } : { quiereLeer: true, verArchivos: false })}>{p.siTodos}</button>
         </div>
+        {busy && <p className="text-right text-xs text-graphite">{p.ocupado}</p>}
       </div>
     );
   }
@@ -794,6 +978,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           <input type="tel" autoComplete="tel" placeholder={t.whatsapp} aria-label={t.whatsapp} value={telefono} onChange={(e) => setTelefono(e.target.value)} className={field} />
         </div>
         {needWhy && <p className="text-sm font-semibold text-rouge" role="alert">{needWhy}</p>}
+        {errorLine}
         <div className="flex justify-end">
           <button type="submit" className={primary} disabled={!!busy}>{busy?.key === "email" ? <Spinner /> : <Mail className="h-4 w-4" aria-hidden />}{t.enviarCodigo}</button>
         </div>
@@ -812,13 +997,16 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-encre">{t.codigoLabel}
           <input ref={codeRef} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" value={code}
-            onChange={(e) => setCode(digits(e.target.value))} onInput={(e) => setCode(digits(e.currentTarget.value))}
+            onChange={(e) => { setCode(digits(e.target.value)); if (e.target.value) setError(null); }} onInput={(e) => setCode(digits(e.currentTarget.value))}
             onPaste={(e) => { e.preventDefault(); setCode(digits(e.clipboardData.getData("text"))); }}
-            className="mt-1 block w-56 rounded-xl border border-graphite/30 bg-white px-3 py-3 text-center font-mono text-2xl tracking-[0.5em] text-encre" />
+            className="mt-1 block w-56 max-w-full scroll-mb-28 scroll-mt-28 rounded-xl border border-graphite/30 bg-white px-3 py-3 text-center font-mono text-2xl tracking-[0.5em] text-encre" />
         </label>
+        {busy?.key === "verificar" && statusLine}
+        {errorLine}
+        {avisoLine}
         <p className="flex items-center gap-2 text-sm text-graphite"><Lock className="h-4 w-4 shrink-0" aria-hidden />{code.length > 0 && code.length < 6 ? t.faltaCodigo : p.codigoSigue}</p>
         <p className="flex flex-wrap gap-x-3 gap-y-1">
-          <button type="button" className={linkBtn} disabled={!!busy} onClick={resend}>{busy?.key === "reenviar" ? t.enviarCodigo + "…" : t.reenviar}</button>
+          <button type="button" className={`${linkBtn} gap-2`} disabled={!!busy} onClick={resend}>{busy?.key === "reenviar" ? <><Spinner />{t.enviarCodigo}…</> : t.reenviar}</button>
           <button type="button" className={linkBtn} disabled={!!busy} onClick={() => { setEmail(view!.email ?? ""); patch({ cambiarEmail: true }); }}>{p.cambiarEmail}</button>
         </p>
         <div className="rounded-xl border border-cream bg-parchment/50 p-3">
@@ -838,17 +1026,25 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     const at = Math.min(tick, steps.length - 1);
     const current = steps[at];
     const archivoActual = current?.kind === "archivo" ? view!.archivos.find((a) => a.name === current.name)?.id : undefined;
+    const segundos = leyendoDesde ? Math.max(0, (ahora - leyendoDesde) / 1000) : 0;
     bubble = p.burbujaLectura;
-    body = (
+    body = readFail ? (
+      <div className="space-y-3 rounded-xl bg-rouge/5 px-4 py-4" role="alert">
+        <p className={`text-sm text-encre ${wrap}`}>{readFail}</p>
+        <button type="button" className={primary} onClick={() => setReadFail(null)}>{p.volverIntentar}</button>
+      </div>
+    ) : (
       <div className="space-y-4">
+        <p className="text-sm font-semibold text-graphite" aria-live="off">{p.llevamos(fmtEspera(segundos))}</p>
+        {segundos > 60 && <p className="rounded-xl bg-parchment px-3 py-2 text-sm text-encre" role="status">{p.lecturaLarga}</p>}
         <div className="h-2 overflow-hidden rounded-full bg-cream" role="progressbar" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={at + 1}>
           <div className="h-full rounded-full bg-or transition-all duration-700" style={{ width: `${Math.round(((at + 1) / (steps.length + 1)) * 100)}%` }} />
         </div>
         <ul className="space-y-1.5 text-[15px]">
           {steps.map((s, i) => (
             <li key={i} className={`flex items-center gap-2 ${i < at ? "text-encre" : i === at ? "font-semibold text-encre" : "text-graphite/70"}`}>
-              {i < at ? <Check className="h-4 w-4 text-vert" aria-hidden /> : i === at ? <Spinner /> : <span className="h-4 w-4" aria-hidden />}
-              {s.kind === "inicio" ? t.inicio(s.files, s.pages) : s.kind === "archivo" ? t.archivo(s.name, s.pages) : t[s.kind]}
+              {i < at ? <Check className="h-4 w-4 shrink-0 text-vert" aria-hidden /> : i === at ? <Spinner /> : <span className="h-4 w-4 shrink-0" aria-hidden />}
+              <span className={`min-w-0 ${wrap}`}>{s.kind === "inicio" ? t.inicio(s.files, s.pages) : s.kind === "archivo" ? t.archivo(nombreCorto(s.name), s.pages) : t[s.kind]}</span>
             </li>
           ))}
         </ul>
@@ -880,7 +1076,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
                   <h3 className="min-w-0 flex-1 font-sans text-base font-bold text-encre"><span className="text-or-dark">{n + 1}.</span> {d.titulo}</h3>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${badge[1]}`}>{badge[0]}</span>
                 </div>
-                <p className="mt-0.5 break-words text-sm text-graphite">{[t.pages(d.paginas), d.apostilla ? t.conApostilla : null, nombres.length === 1 ? nombres[0] : null].filter(Boolean).join(" · ")}</p>
+                <p className={`mt-0.5 text-sm text-graphite ${wrap}`}>{[t.pages(d.paginas), d.apostilla ? t.conApostilla : null, nombres.length === 1 ? nombreCorto(nombres[0], 40) : null].filter(Boolean).join(" · ")}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {thumbs(hojas, "md", 12)}
                   {d.incluido && d.faltan.map((pg) => (
@@ -936,7 +1132,28 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
               <p className="text-xs font-bold uppercase tracking-[0.1em] text-bleu">{done ? p.respondida : p.unaPregunta}</p>
               <p className="font-semibold text-encre">{q}</p>
               {done ? (
-                <p className="flex flex-wrap items-center gap-2 text-sm text-encre">«{local.respuestas[q]}» <button type="button" className={linkBtn} onClick={() => { const rest = { ...local.respuestas }; delete rest[q]; patch({ respuestas: rest }); }}>{p.cambiar}</button></p>
+                <>
+                  <p className={`flex flex-wrap items-center gap-x-2 text-sm text-encre ${wrap}`}>«{local.respuestas[q]}» <button type="button" className={linkBtn} onClick={() => { const rest = { ...local.respuestas }; delete rest[q]; patch({ respuestas: rest }); }}>{p.cambiar}</button></p>
+                  {(() => {
+                    // The concierge answers at once (fixed text, no AI): what happens with the answer, and the one thing still missing.
+                    const a = acuseRespuesta(lang, q, local.respuestas[q], { idioma });
+                    const b = ACUSE_BOTONES(lang);
+                    return (
+                      <div className="flex items-start gap-2" role="status">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-encre font-baskerville text-[11px] font-bold text-or-light" aria-hidden>TJ</span>
+                        <div className="min-w-0 flex-1 space-y-2 rounded-2xl rounded-tl-sm bg-white px-3 py-2 text-sm text-encre">
+                          <p>{a.texto}{a.repregunta ? <> <strong>{a.repregunta}</strong></> : null}</p>
+                          {a.repregunta && (
+                            <div className="flex flex-wrap gap-2">
+                              {l.editable && <button type="button" className={chip(false)} disabled={!!busy} onClick={() => seguimiento(q, true)}><Plus className="h-4 w-4" aria-hidden />{b.lo}</button>}
+                              <button type="button" className={chip(false)} onClick={() => seguimiento(q, false)}>{b.noLo}</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
               ) : idioma ? (
                 <div className="space-y-2">
                   {langFields(true)}
@@ -1004,9 +1221,11 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           <textarea value={local.notas} onChange={(e) => patch({ notas: e.target.value })} rows={3} placeholder={t.notasPh} className={`${field} mt-2`} />
         </label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {desde}
+          <p className="text-sm text-graphite">{p.queSigue}</p>
           <button type="button" className={`${primary} shrink-0`} disabled={!!busy} onClick={enviar}>{busy?.key === "enviar" ? <Spinner /> : null}{t.enviar}</button>
         </div>
+        {statusLine}
+        {errorLine}
         {(needWhy || plazoFalta) && <p className={needWhy ? "text-right text-sm font-semibold text-rouge" : "text-right text-xs text-graphite"} role={needWhy ? "alert" : undefined}>{needWhy ?? plazoFalta}</p>}
       </div>
     );
@@ -1035,8 +1254,11 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           </div>
         )}
         {bubble && <Burbuja>{bubble}</Burbuja>}
-        {statusLine}
-        {errorLine}
+        {offlineLine}
+        {/* Email, code and date show their wait and error next to their own button (on a phone the top is off screen). */}
+        {!cerca && statusLine}
+        {!cerca && fallidosLine}
+        {!cerca && errorLine}
         {why && <p className="text-sm font-semibold text-rouge" role="alert">{why}</p>}
         {body}
       </section>

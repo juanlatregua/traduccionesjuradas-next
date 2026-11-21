@@ -21,7 +21,7 @@ export type PortadaLocal = {
   /** Keyed by the question text: a new reading with other questions never inherits an answer. */
   respuestas: Record<string, string>;
   /** Dudas: sin respuesta (a = null) hasta que llega; las escritas antes de confirmar el email salen solas al confirmarlo. */
-  dudas: { q: string; a: string | null; enviada?: boolean }[];
+  dudas: { q: string; a: string | null; enviada?: boolean; fallo?: boolean }[];
 };
 
 export const PORTADA_VACIA: PortadaLocal = {
@@ -73,3 +73,31 @@ export function normalizarLocal(saved: Partial<PortadaLocal> | null): PortadaLoc
   const respuestas = Object.fromEntries(Object.entries(l.respuestas ?? {}).filter(([k]) => !/^\d+$/.test(k)));
   return { ...l, respuestas, dudas: (l.dudas ?? []).map((d) => ({ q: d.q, a: d.a ?? null })) };
 }
+
+/** The browser's back button inside the guided card: one step back in the card, or null to leave the page. */
+export function pasoAtras(paso: Paso, view: ClientView | null): Partial<PortadaLocal> | null {
+  if (paso === "fecha") return { revisado: false };
+  if (paso === "documentos") return { verArchivos: true };
+  if (paso === "codigo") return { cambiarEmail: true };
+  if (paso === "email") return view?.estado === "leida" ? { verArchivos: true } : { quiereLeer: false };
+  return null;
+}
+
+/** A long file name shortened in the middle, keeping its extension: «IMG_2026…apostilla.jpg». */
+export function nombreCorto(name: string, max = 32): string {
+  if (name.length <= max) return name;
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 && name.length - dot <= 6 ? name.slice(dot) : "";
+  const keep = max - ext.length - 1;
+  const head = Math.ceil(keep * 0.6);
+  return `${name.slice(0, head)}…${name.slice(name.length - ext.length - (keep - head), name.length - ext.length)}${ext}`;
+}
+
+/** Elapsed time for the client: «45 s», «1 min 20 s». */
+export function fmtEspera(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ""}`;
+}
+
+/** A failure the client can retry without losing anything (no answer, offline or a server error) vs a refusal to show as is. */
+export const esFalloDeRed = (status: number) => status === 0 || status >= 500;
