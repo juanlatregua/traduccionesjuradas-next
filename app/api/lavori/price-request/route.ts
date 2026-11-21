@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 import { findLiveSiblingLeadRequest, sendLeadPriceRequest, validarAntesDeRetirar, type LeadDoc, type LeadRequestInput } from "@/lib/lavori-lead";
 import { retireLeadRequest } from "@/lib/lavori-retire";
-import { freezeQuoteForRepricing } from "@/lib/precio-tras-envio";
+import { freezeQuoteForRepricing, handleLeadPriceOnSentQuote } from "@/lib/precio-tras-envio";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
-import { attachDecision } from "@/lib/quote-edit-hydrate";
+import { attachDecision, pricedAttachOutcome, pricedAttachPlan, pricedAttachRefusal } from "@/lib/quote-edit-hydrate";
+import { fillDraftQuoteFromLeadPrice } from "@/lib/lavori-quote-fill";
 import { sombraBloqueo } from "@/lib/caso/sombra";
 import { anclasDeExpediente } from "@/lib/caso/sombra-plan";
 import { decidirSolicitud, quotesACongelar, retirarEnOrden } from "@/lib/caso/hilo";
@@ -35,7 +36,10 @@ const eur = (c: number) => `${(c / 100).toFixed(2)} €`;
  * Página única: la solicitud pedida desde un presupuesto ya creado queda atada a ÉL si
  * es del mismo par guardado y sigue editable. Devuelve si lo está (y por qué no).
  */
-async function atarAlPresupuesto(quoteId: string | null | undefined, lpr: { ref: string; quoteId: string | null; par: string }) {
+async function atarAlPresupuesto(
+  quoteId: string | null | undefined,
+  lpr: { id?: string; ref: string; quoteId: string | null; par: string; priceCents?: number | null }
+) {
   if (!quoteId) return {};
   const q = await prisma.quote
     .findFirst({ where: { id: quoteId, deletedAt: null }, select: { status: true, sourceLang: true, targetLang: true } })
@@ -45,15 +49,43 @@ async function atarAlPresupuesto(quoteId: string | null | undefined, lpr: { ref:
     lpr,
     quote: q ? { par: parFromLangs(q.sourceLang, q.targetLang), editable: ["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status) } : null,
   });
-  let atada = d.atada;
-  if (d.atar) {
-    const r = await prisma.lavoriPriceRequest.updateMany({ where: { ref: lpr.ref, quoteId: null }, data: { quoteId } }).catch((err) => {
-      console.error("[lavori-price-request] atar al presupuesto falló:", err);
-      return { count: 0 };
-    });
-    atada = r.count > 0;
+  if (!d.atar) return { quoteId, atada: d.atada, ...(d.atada ? {} : { motivoNoAtada: d.motivo || "no se pudo atar" }) };
+
+  // Reutilizada que YA tiene cifra: su evento de precio ya pasó, así que la cifra se aplica
+  // al atar por el camino de siempre (relleno del borrador o precio tras envío, con su freno
+  // de pérdida y congelación). Si no se puede aplicar, no se ata.
+  const priced = lpr.id && lpr.priceCents && lpr.priceCents > 0 ? lpr.priceCents : null;
+  const plan = priced && q ? pricedAttachPlan(q.status) : null;
+  if (priced && plan === "refuse") return { quoteId, atada: false, motivoNoAtada: pricedAttachRefusal(priced) };
+
+  const r = await prisma.lavoriPriceRequest.updateMany({ where: { ref: lpr.ref, quoteId: null }, data: { quoteId } }).catch((err) => {
+    console.error("[lavori-price-request] atar al presupuesto falló:", err);
+    return { count: 0 };
+  });
+  if (r.count === 0) return { quoteId, atada: false, motivoNoAtada: "no se pudo atar" };
+  if (!priced || !plan) return { quoteId, atada: true };
+
+  let applied: { ok: boolean; frozen?: boolean; reason?: string } | null = null;
+  try {
+    if (plan === "fill") {
+      const f = await fillDraftQuoteFromLeadPrice(lpr.id!);
+      applied = f.ok ? { ok: true } : { ok: false, reason: f.reason };
+    } else {
+      const h = await handleLeadPriceOnSentQuote(lpr.id!);
+      applied = h.handled ? { ok: true, frozen: h.frozen } : { ok: false, reason: h.reason };
+    }
+  } catch (err: any) {
+    console.error("[lavori-price-request] aplicar la cifra al atar falló:", err);
+    applied = { ok: false, reason: String(err?.message || err) };
   }
-  return { quoteId, atada, ...(atada ? {} : { motivoNoAtada: d.motivo || "no se pudo atar" }) };
+  const out = pricedAttachOutcome(plan, applied, priced);
+  if (!out.atada) {
+    await prisma.lavoriPriceRequest
+      .updateMany({ where: { ref: lpr.ref, quoteId }, data: { quoteId: null } })
+      .catch((err) => console.error("[lavori-price-request] desatar tras no aplicar la cifra falló:", err));
+    return { quoteId, atada: false, motivoNoAtada: out.motivo };
+  }
+  return { quoteId, atada: true, cifraAplicada: out.aplicado };
 }
 
 export async function POST(req: Request) {
@@ -136,7 +168,7 @@ export async function POST(req: Request) {
 
         if (d.accion === "reutilizar") {
           const v = d.viva;
-          const atado = await atarAlPresupuesto(anclas.quoteId, { ref: v.ref, quoteId: v.quoteId ?? null, par: v.par });
+          const atado = await atarAlPresupuesto(anclas.quoteId, { id: v.id, ref: v.ref, quoteId: v.quoteId ?? null, par: v.par, priceCents: v.priceCents });
           return NextResponse.json({
             ...atado,
             ok: true,

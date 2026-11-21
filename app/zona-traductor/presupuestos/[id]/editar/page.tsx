@@ -7,6 +7,7 @@ import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
 import { serializeQuote } from "@/lib/quote-serializer";
 import { presupuestoPaginaUnicaOn } from "@/lib/quote-edit-hydrate";
+import { quoteContentVersion } from "@/lib/quote-content-version";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Editar presupuesto",
@@ -48,7 +49,7 @@ export default async function PresupuestoEditarPage({
           <h1 className="font-mono text-sm font-bold text-[#1A2E4A]">{numero}</h1>
         </div>
         <div className="rounded-[14px] border border-[#D5DAE1] bg-white p-4">
-          <QuoteEditForm quote={serialized as any} nuevaLinea={searchParams.nuevaLinea === "1"} frozen={frozen} />
+          <QuoteEditForm quote={serialized as any} nuevaLinea={searchParams.nuevaLinea === "1"} frozen={frozen} version={quoteContentVersion(quote)} />
         </div>
       </main>
     </div>

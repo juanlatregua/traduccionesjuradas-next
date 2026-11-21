@@ -6,6 +6,7 @@ import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS, type QuotePdfLang } from "@/lib
 import { PAYMENT_LABELS } from "@/lib/payment-labels";
 import { QUOTE_LOST_REASONS, QUOTE_LOST_REASON_LABELS, quoteLostReasonLabel } from "@/lib/quote-lost-reasons";
 import QuoteDocumentsViewer, { lineDocUrl } from "@/components/QuoteDocumentsViewer";
+import { notifyQuoteChanged } from "@/lib/quote-edit-hydrate";
 
 type QuoteLine = {
   id: string;
@@ -169,6 +170,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo cambiar el idioma.");
       setQuote((q) => ({ ...q, pdfLang: lang }));
+      notifyQuoteChanged(quote.id);
       setMessage(`PDF del presupuesto en ${QUOTE_PDF_LANG_LABELS[lang as QuotePdfLang] || lang}: se regenera al previsualizar, confirmar o reenviar.`);
     } catch (err: any) {
       setPdfLang(prev);
@@ -224,6 +226,7 @@ export default function AdminQuoteDetailPanel({ initialQuote }: Props) {
     if (res.ok && data?.ok && data.quote) {
       setQuote(data.quote);
     }
+    notifyQuoteChanged(quote.id);
   }
 
   async function handlePreviewEmail() {
