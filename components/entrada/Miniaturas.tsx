@@ -22,7 +22,8 @@ function pdfjs() {
         };
       }
       const m = await import("pdfjs-dist");
-      m.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+      // webpack bundles the worker as its own module chunk (a plain asset URL would be minified as a script and break).
+      m.GlobalWorkerOptions.workerPort = new Worker(new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url), { type: "module" });
       return m;
     })();
     lib.catch(() => { lib = null; });
