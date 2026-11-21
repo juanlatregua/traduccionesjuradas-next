@@ -20,6 +20,7 @@ import {
   isRealClientEmail,
   puertaFrAction,
   puertaFrMode,
+  puertaFrRiskReasons,
   puertaSegmentsAreFrEs,
   puertaWaitVerdict,
   segmentsFromPuertaRows,
@@ -176,7 +177,9 @@ async function processSession(
 
   // quoteFr solo devuelve ok si TODOS los documentos tienen tarifa por documento.
   const marketingConsent = list.some((r: any) => r.marketingConsent === true);
-  const action = puertaFrAction({ mode, allTariffed: true, decision: q.decision, marketingConsent });
+  const risk = puertaFrRiskReasons(rows);
+  const decision = risk.length ? { action: "alert" as const, reasons: risk } : q.decision;
+  const action = puertaFrAction({ mode, allTariffed: true, decision, marketingConsent });
   const quote = q.quote;
   const reviewUrl = `${SITE}/zona-traductor/presupuestos/${quote.id}`;
   if (action.action !== "send") {

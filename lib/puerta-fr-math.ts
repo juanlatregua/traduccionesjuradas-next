@@ -2,6 +2,7 @@
 // «ningún cliente de francés se va sin presupuesto o sin pagar»). Sin imports de
 // servidor: se testea con node --test. La capa de BD vive en lib/puerta-fr.ts.
 
+import { assessAutoPriceRisk } from "./ai/price-risk.ts";
 import { checkSegments, segmentFromAnalysis, segmentPair, type SendDecisionLike, type Segment } from "./agente-bandeja-math.ts";
 
 export type PuertaFrMode = "off" | "draft" | "fr";
@@ -119,4 +120,23 @@ export function puertaFrAction(o: { mode: PuertaFrMode; allTariffed: boolean; de
   if (!o.allTariffed) return { action: "draft", reasons: ["algún documento sin tarifa por documento"] };
   if (o.decision.action === "send") return { action: "send" };
   return { action: "draft", reasons: o.decision.action === "alert" ? o.decision.reasons : [o.decision.reason] };
+}
+
+/**
+ * Re-evaluación del riesgo de conteo/precio sobre el análisis guardado (fiscal_financial,
+ * copias repetidas, texto pegado, bilingüe): con PUERTA_FR=fr, cualquiera deja el presupuesto en borrador.
+ */
+export function puertaFrRiskReasons(rows: Pick<PuertaRow, "fileName" | "analysisJson">[]): string[] {
+  const out: string[] = [];
+  for (const r of rows) {
+    const json = r.analysisJson as any;
+    if (!json || typeof json !== "object") continue;
+    const analyses: any[] = json.segmented && Array.isArray(json.documents) ? json.documents.map((d: any) => d?.analysis).filter(Boolean) : [json];
+    for (const a of analyses) {
+      if (!a?.document_type) continue;
+      const risk = assessAutoPriceRisk({ analysis: a, fileName: r.fileName });
+      if (risk.risky || risk.reasons.length) out.push(`riesgo de conteo/precio (${risk.reasons.join(", ")}) en ${r.fileName}`);
+    }
+  }
+  return out;
 }

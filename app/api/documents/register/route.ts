@@ -1,6 +1,7 @@
 // app/api/documents/register/route.ts — Register uploaded blob as document
 
 import { NextResponse } from "next/server";
+import { recordUploadStarted } from "@/lib/clientes-a-medias";
 import { isDeclaredPairValid, normalizeDeclaredLang } from "@/lib/puerta-languages";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
@@ -106,6 +107,9 @@ export async function POST(req: Request) {
         ...(deadline ? { urgency: deadline.urgency, neededBy: deadline.neededBy } : {}),
       },
     });
+
+    // Solo la puerta (un token por sesión: el primer archivo lo crea y los demás lo reutilizan); ni lector ni pruebas.
+    if (!staff.ok && gate === "puerta" && normalizedSource !== "lector" && source !== "prueba") recordUploadStarted(token, "puerta", emailOk);
 
     return NextResponse.json({
       ok: true,

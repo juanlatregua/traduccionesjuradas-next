@@ -28,6 +28,7 @@ export type FrAutoIO = {
 };
 
 export type FrAutoResult = { action: "none" | "drafted" | "sent"; detail: string; quoteNumber?: string };
+const FISCAL_TYPES = new Set(["tax_return", "payslip", "company_registration", "bank_statement"]);
 const none = (detail: string): FrAutoResult => ({ action: "none", detail });
 
 /** Motivos por los que NO sale solo aunque haya líneas. Vacío = en verde. */
@@ -38,6 +39,9 @@ export function frAutoReviewReasons(data: FrAutoData, warnings: number): string[
   if (reasons.length > 0) out.push(`${reasons.length} motivo(s) de revisión en la lectura`);
   if (data.documents.some((d) => d.included && (d.manualPriceCents !== null || d.editedBy || d.reasons.length > 0))) out.push("documento editado a mano o con motivos de revisión");
   if (warnings > 0) out.push("avisos de margen o de documentos no incluidos");
+  // Fiscal/financiero o bilingüe: el conteo puede infracontar (incidente 1099-MISC); nunca sale solo.
+  const fiscal = data.documents.filter((d) => d.included && (d.category === "financial" || FISCAL_TYPES.has(String(d.type)) || d.isBilingualDuplicate));
+  if (fiscal.length > 0) out.push(`documento fiscal/financiero o bilingüe (${fiscal.map((d) => d.typeLabelEs || d.type).join(", ")}): riesgo de conteo`);
   return out;
 }
 

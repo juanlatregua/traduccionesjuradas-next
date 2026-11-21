@@ -783,6 +783,11 @@ export async function autoQuoteFromPuertaSession(opts: {
     }
   }
 
+  if (!autoSent && autoSendReasons.length) {
+    const { recordCarrilHold } = await import("@/lib/autoenvio-150-holds");
+    await recordCarrilHold(result.quoteId, result.quoteNumber, autoSendReasons, "tarifario");
+  }
+
   for (const p of priced) {
     await recordSample(
       { lang: p.info.lang, direction: p.info.direction, docType: p.rate.docType, apostille: p.rate.apostille },

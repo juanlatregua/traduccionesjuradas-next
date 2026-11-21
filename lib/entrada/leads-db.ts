@@ -3,7 +3,7 @@ import { entradaFunnel, entradaLeads, type EntradaLead } from "./leads.ts";
 import { sessionKeyOf } from "./store.ts";
 
 /** Fail-open: before the Entrada table exists (or if it fails) the vigía and the SLA keep working without it. */
-export async function loadEntradaLeads(since: Date): Promise<EntradaLead[]> {
+export async function loadEntradaLeads(since: Date, opts: { all?: boolean } = {}): Promise<EntradaLead[]> {
   try {
     const entradas = await prisma.entrada.findMany({ where: { createdAt: { gte: since }, estado: { not: "prueba" } }, orderBy: { createdAt: "asc" }, take: 500 });
     if (entradas.length === 0) return [];
@@ -24,6 +24,7 @@ export async function loadEntradaLeads(since: Date): Promise<EntradaLead[]> {
           files: files.filter((f) => f.sessionToken === sessionKeyOf(e.id)).map((f) => ({ name: f.fileName, sha256: f.fileHash })),
         };
       }),
+      opts,
     );
   } catch (err) {
     console.error("[entrada] leads", err);

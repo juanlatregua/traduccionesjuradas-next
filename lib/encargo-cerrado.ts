@@ -235,6 +235,12 @@ async function crearBorradorCerrado(ctx: {
     payUrl = out.payUrl;
   }
 
+  // Solo el rodaje se mira en vivo (ENCARGO_CERRADO_AUTOSEND); cualquier otro freno del carril retiene el borrador para AUTOENVIO_150.
+  if (!sent && autoSendReasons.length && isEncargoCerradoAutosend(process.env.ENCARGO_CERRADO_AUTOSEND)) {
+    const { recordCarrilHold } = await import("@/lib/autoenvio-150-holds");
+    await recordCarrilHold(created.quoteId, created.quoteNumber, autoSendReasons, "encargo-cerrado");
+  }
+
   return {
     ok: true,
     repetido: false,

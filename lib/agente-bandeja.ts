@@ -338,6 +338,10 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
   };
 
   if (action.action === "draft") {
+    const { recordCarrilHold } = await import("@/lib/autoenvio-150-holds");
+    // «Sin tiempo en esta pasada» no es un freno del carril: no retiene.
+    const frenos = action.reasons.filter((r) => r !== "sin tiempo para enviar en esta pasada");
+    if (frenos.length) await recordCarrilHold(quote.id, quote.quoteNumber, frenos, "agente-bandeja");
     await saveDraft(row, subject, isWa ? waText : buildQuoteReply({ ...replyInput, draftOf: { quoteNumber: quote.quoteNumber } }), quote.id);
     const head = isWa ? "Agente bandeja (WhatsApp, borrador)" : mode === "draft" ? "Agente bandeja (borrador)" : "Agente bandeja: NO sale solo";
     await sms(

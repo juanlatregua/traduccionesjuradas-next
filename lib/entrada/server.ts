@@ -248,4 +248,7 @@ export const entradaApiDeps: EntradaApiDeps = {
   clientIp: getClientIp,
   ipHash: (ip) => createHash("sha256").update(ip).digest("hex").slice(0, 16),
   isOwnBlobUrl: own,
+  uploadStarted: (entradaId, withEmail) => {
+    import("@/lib/clientes-a-medias").then((m) => m.recordUploadStarted(sessionKeyOf(entradaId), "entrada", withEmail)).catch(() => {});
+  },
 };

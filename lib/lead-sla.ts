@@ -13,21 +13,24 @@ import { runPuertaFr } from "@/lib/puerta-fr";
 import { loadEntradaLeads } from "@/lib/entrada/leads-db";
 import { ENTRADA_SESSION_PREFIX } from "@/lib/entrada/leads";
 import { paidSince } from "@/lib/paid-orders";
-import { SLA_WINDOW_HOURS, dedupeId, selectLeadSla, smsAllowed, type SlaLead } from "@/lib/lead-sla-core";
+import { clientDraft, mailtoDraft } from "@/lib/no-presupuestable";
+import { SLA_WINDOW_HOURS, avisoNoPresupuestablesOn, dedupeId, selectLeadSla, smsAllowed, type SlaLead } from "@/lib/lead-sla-core";
 
 const STEP = "lead_sla";
+
+const ANALYZED = new Set(["ANALYZED", "QUOTE_GENERATED", "PAYMENT_PENDING", "ANALYSIS_FAILED"]);
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const eur = (n: number) => `${n.toFixed(2).replace(".", ",")} €`;
 const waiting = (min: number) => (min < 120 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`);
 
-export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
+export async function loadLeadSla(now: Date, v2 = avisoNoPresupuestablesOn()): Promise<SlaLead[]> {
   const since = new Date(now.getTime() - SLA_WINDOW_HOURS * 36e5);
   const quotesSince = new Date(now.getTime() - 90 * 864e5);
   const [docRows, inbound, solicitudes, quotes, paidOrders, entradaDocs] = await Promise.all([
     prisma.documentAnalysis.findMany({
       where: { createdAt: { gte: since }, clientEmail: { not: null }, orderId: null, NOT: [{ sessionToken: { startsWith: "staff:" } }, { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } }], AND: [{ OR: [{ source: null }, { source: { notIn: ["lector", "prueba"] } }] }] },
-      select: { clientEmail: true, clientName: true, clientPhone: true, sessionToken: true, fileHash: true, fileName: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, createdAt: true, urgency: true, neededBy: true },
+      select: { clientEmail: true, clientName: true, clientPhone: true, sessionToken: true, fileHash: true, fileName: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, createdAt: true, urgency: true, neededBy: true, status: true },
     }),
     prisma.inboundEmail.findMany({
       where: { receivedAt: { gte: since } },
@@ -39,9 +42,12 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
       select: { id: true, customerEmail: true, customerPhone: true, expedienteRef: true, holderNames: true, sentAt: true, createdAt: true },
     }),
     prisma.order.findMany({ where: { paymentStatus: "PAID", paidAt: { gte: paidSince(now) } }, select: { clientEmail: true, clientName: true, clientPhone: true, paidAt: true, quoteId: true, documentAnalyses: { select: { fileHash: true } } } }),
-    loadEntradaLeads(since),
+    loadEntradaLeads(since, { all: v2 }),
   ]);
-  const docs: ((typeof docRows)[number] & { link?: string })[] = [...docRows, ...entradaDocs];
+  const docs = [
+    ...docRows.map(({ status, ...d }) => ({ ...d, analyzed: ANALYZED.has(String(status)) })),
+    ...entradaDocs,
+  ];
   const hashesOfQuote = await loadQuoteHashes([...new Set([...quotes.map((q) => q.id), ...paidOrders.map((o) => o.quoteId).filter((x): x is string => !!x)])]);
   const staffEmails = [...getStaffEmails(), process.env.PRESUPUESTO_TO, process.env.ADMIN_EMAIL, process.env.EMAIL_FROM, "info@traduccionesjuradas.net"].filter((e): e is string => !!e);
   return selectLeadSla({
@@ -53,20 +59,28 @@ export async function loadLeadSla(now: Date): Promise<SlaLead[]> {
     paidOrders: paidOrders.map(({ documentAnalyses, quoteId, ...o }) => ({ ...o, paidAt: o.paidAt!, fileHashes: [...documentAnalyses.map((d) => d.fileHash), ...(quoteId ? hashesOfQuote.get(quoteId) || [] : [])] })),
     hashesOfQuote,
     staffEmails,
+    v2,
   });
 }
 
-function renderEmail(leads: SlaLead[]): { subject: string; html: string } {
+function renderEmail(leads: SlaLead[], v2 = false): { subject: string; html: string } {
   const oldest = leads[0];
   // Plazo corto (lo antes posible o ≤3 días) = urgente desde el primer aviso.
   const byDeadline = leads.map((l) => urgentSubjectPrefix(l.deadline)).find(Boolean);
-  const late = leads.some((l) => l.stage === 2);
-  const subject = `${byDeadline || (late ? "URGENTE · " : "")}${leads.length} lead${leads.length > 1 ? "s" : ""} sin presupuesto · el más antiguo espera ${waiting(oldest.minutes)}`;
+  const late = leads.some((l) => l.stage >= 2);
+  const lost = leads.some((l) => l.stage === 3);
+  const subject = `${lost ? "PIERDES EL CLIENTE · " : ""}${byDeadline || (late ? "URGENTE · " : "")}${leads.length} lead${leads.length > 1 ? "s" : ""} sin presupuesto · el más antiguo espera ${waiting(oldest.minutes)}`;
   const rows = leads
     .map((l) => {
       const who = [l.name, l.email, l.phone].filter(Boolean).map((x) => esc(String(x))).join(" · ") || "sin datos";
       const plazo = deadlineLine(l.deadline);
-      return `<li style="margin-bottom:12px"><b>${esc(l.name || l.email || l.phone || "Lead")}</b> — espera <b>${waiting(l.minutes)}</b>${l.stage === 2 ? " (2.º aviso)" : ""}<br>${who}<br>${plazo ? `<b${l.urgent ? ' style="color:#b91c1c"' : ""}>${esc(plazo)}</b><br>` : ""}Par: ${esc(l.pairs.join(", ") || "sin par")}${l.motor != null ? ` · motor ${eur(l.motor)}` : ""} · vía ${esc(l.via.join("/"))}<br>${l.links.map((u) => `<a href="${esc(u)}">${u.includes("/admin/inbox") ? "Bandeja" : "Hacer presupuesto"}</a>`).join(" · ")}</li>`;
+      const np = l.noPresupuestable;
+      const draft = np ? mailtoDraft(l.email, clientDraft(np, l.name)) : null;
+      const extra =
+        (l.stage === 3 ? `<b style="color:#b91c1c">PIERDES EL CLIENTE: 3 h sin presupuesto</b><br>` : "") +
+        (np ? `<b style="color:#b45309">NO PRESUPUESTABLE: ${esc(np.falta)}</b>${draft ? ` · <a href="${esc(draft)}">Borrador al cliente (no enviado)</a>` : ""}<br>` : "") +
+        (v2 && l.hasDraft ? `<b>Hay borrador: revisa y envía.</b><br>` : "");
+      return `<li style="margin-bottom:12px"><b>${esc(l.name || l.email || l.phone || "Lead")}</b> — espera <b>${waiting(l.minutes)}</b>${l.stage === 2 ? " (2.º aviso)" : l.stage === 3 ? " (3.er aviso)" : ""}<br>${extra}${who}<br>${plazo ? `<b${l.urgent ? ' style="color:#b91c1c"' : ""}>${esc(plazo)}</b><br>` : ""}Par: ${esc(l.pairs.join(", ") || "sin par")}${l.motor != null ? ` · motor ${eur(l.motor)}` : ""} · vía ${esc(l.via.join("/"))}<br>${l.links.map((u) => `<a href="${esc(u)}">${u.includes("/admin/inbox") ? "Bandeja" : "Hacer presupuesto"}</a>`).join(" · ")}</li>`;
     })
     .join("");
   const html = wrapClientEmailHtml(`<p>Los clientes piden precio a varias agencias: hay que enviar presupuesto en 3-4 h.</p><ul style="padding-left:18px">${rows}</ul>`);
@@ -75,7 +89,9 @@ function renderEmail(leads: SlaLead[]): { subject: string; html: string } {
 
 function renderSms(leads: SlaLead[]): string {
   const parts = leads.slice(0, 4).map((l) => `${(l.name || l.email || l.phone || "lead").slice(0, 20)} ${waiting(l.minutes)}${l.pairs[0] ? ` ${l.pairs[0]}` : ""}`);
-  return `${leads.some((l) => l.urgent) ? "URGENTE · " : ""}Lead sin presupuesto (${leads.length}): ${parts.join("; ")}${leads.length > 4 ? "…" : ""}. Detalle en el email.`.slice(0, 300);
+  const lost = leads.some((l) => l.stage === 3) ? "PIERDES EL CLIENTE · " : "";
+  const np = leads.filter((l) => l.noPresupuestable).length;
+  return `${lost}${leads.some((l) => l.urgent) ? "URGENTE · " : ""}${np ? `${np} no presupuestable · ` : ""}Lead sin presupuesto (${leads.length}): ${parts.join("; ")}${leads.length > 4 ? "…" : ""}. Detalle en el email.`.slice(0, 300);
 }
 
 /** Cron cada 10 min. Nunca lanza por un transporte caído: cada uno deja su resultado en el rastro. */
@@ -86,7 +102,8 @@ export async function runLeadSla(now = new Date()) {
     console.error("[lead-sla] puerta FR falló", e);
     return { mode: "error" as const, outcomes: [] };
   });
-  const leads = await loadLeadSla(now);
+  const v2 = avisoNoPresupuestablesOn();
+  const leads = await loadLeadSla(now, v2);
   const windowStart = new Date(now.getTime() - SLA_WINDOW_HOURS * 36e5);
   const basesOf = (l: SlaLead) => [l.keyBase, ...l.altBases];
   const matches = (l: SlaLead, id: string) => basesOf(l).some((b) => id.startsWith(`lead-sla:${b}:`));
@@ -117,7 +134,7 @@ export async function runLeadSla(now = new Date()) {
   let email = "none";
   if (toAlert.length) {
     const to = process.env.PRESUPUESTO_TO || "hola@traduccionesjuradas.net";
-    const { subject, html } = renderEmail(toAlert);
+    const { subject, html } = renderEmail(toAlert, v2);
     email = await sendMail({ to, subject, html }).then(() => "ok", (e) => { console.error("[lead-sla] email failed", e); return "fail"; });
   }
 

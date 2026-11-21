@@ -188,7 +188,7 @@ export async function autoSendTarifarioDraft(quoteId: string): Promise<{ sent: b
  * Decisión de envío automático de un borrador (margen + tope + guardas anti-duplicado),
  * sin enviar nada. `frAllowed` solo lo pasa el agente de bandeja (par FR con coste 0 de Juan).
  */
-export async function evaluateDraftAutoSend(quoteId: string, opts: { frAllowed?: boolean } = {}) {
+export async function evaluateDraftAutoSend(quoteId: string, opts: { frAllowed?: boolean; heldByJuan?: boolean; duplicate?: string | null; leadPar?: string | null } = {}) {
   const quote = await prisma.quote.findUnique({ where: { id: quoteId }, include: { lines: { orderBy: { createdAt: "asc" } } } });
   if (!quote || quote.deletedAt) return { quote: null, decision: { action: "skip", reason: "presupuesto no disponible" } as AutoSendDecision };
   const lines = quote.lines.map((l) => ({ description: l.description, quantity: Number(l.quantity) || 1, unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) }));
@@ -207,16 +207,17 @@ export async function evaluateDraftAutoSend(quoteId: string, opts: { frAllowed?:
     customerPhone: quote.customerPhone,
     marginDetail: margin.ok ? null : margin.detail,
     costMissing: lines.some((l) => l.unitPrice > 0 && !(l.supplierUnitCost && l.supplierUnitCost > 0)),
-    heldByJuan: false,
-    duplicate: guards.duplicate,
+    heldByJuan: opts.heldByJuan === true,
+    duplicate: opts.duplicate || guards.duplicate,
     alreadyCustomer: guards.alreadyCustomer,
     clientSaidNo: guards.clientSaidNo,
     frAllowed: opts.frAllowed,
+    ...(opts.leadPar ? { leadPar: opts.leadPar } : {}),
   });
   return { quote, decision };
 }
 
-async function syncLeadTranslator(lead: { miembroId: string | null; miembroNombre: string | null }, quoteId: string) {
+export async function syncLeadTranslator(lead: { miembroId: string | null; miembroNombre: string | null }, quoteId: string) {
   if (!lead.miembroNombre) return;
   try {
     const { LAVORI_MEMBER_COLLABORATOR_EMAIL } = await import("@/lib/lavori-bridge");
@@ -238,6 +239,9 @@ async function alertReview(
   reasons: string[]
 ): Promise<AutoSendOutcome> {
   const url = cierreReviewUrl(quote.id);
+  // El carril NO lo dejó salir: AUTOENVIO_150 nunca lo adelanta.
+  const { recordCarrilHold } = await import("@/lib/autoenvio-150-holds");
+  await recordCarrilHold(quote.id, quote.quoteNumber, reasons, "cierre");
   await alertStaff(
     `🧾 Precio recibido: revisa y envía ${quote.quoteNumber} (${par}, ${total} €)`,
     [`Ha llegado el precio del jurado para ${cliente} (${par}) y el presupuesto ${quote.quoteNumber} (${total} € con IVA) NO ha salido solo:`, ...reasons.map((r) => `• ${r}`), `Revisar y enviar (un toque): ${url}`],
