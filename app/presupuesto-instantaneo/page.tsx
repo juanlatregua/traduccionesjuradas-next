@@ -3,6 +3,7 @@ import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 import Link from "next/link";
 import PuertaClient from "./PuertaClient";
 import PuertaPortada from "@/components/entrada/PuertaPortada";
+import { sourceDe } from "@/lib/entrada/sources";
 import AsistentePanel from "@/components/home/AsistentePanel";
 import { HOME_HERO } from "@/lib/i18n/home-hero";
 import { puertaV2On } from "@/lib/entrada/flag";
@@ -14,9 +15,8 @@ const PURPOSE_PRESETS: Record<string, string> = {
   "regularizacion-2026": PURPOSE_REGULARIZACION_2026,
 };
 
-// Orígenes de captación válidos (atribución del funnel). No tocan el precio;
+// Orígenes de captación válidos (atribución del funnel, lib/entrada/sources.ts). No tocan el precio;
 // solo etiquetan de dónde llega el lead (p. ej. el handoff del bloque uge-ce).
-const KNOWN_SOURCES = new Set(["regularizacion-2026", "uge-ce", "lavori", "precios", "whatsapp"]);
 
 // Enlace que Juan manda por WhatsApp (?p=whatsapp&l=fr): cabecera corta en el
 // idioma del cliente y selector para cambiarlo; la puerta entera sigue ese
@@ -48,7 +48,7 @@ export default function PresupuestoInstantaneoPage({
 }) {
   const presetKey = searchParams?.p?.toLowerCase().trim();
   const purpose = (presetKey && PURPOSE_PRESETS[presetKey]) || null;
-  const source = (presetKey && KNOWN_SOURCES.has(presetKey) && presetKey) || null;
+  const source = sourceDe(presetKey);
   const lang = toPuertaLang(searchParams?.l);
   const resumeToken = searchParams?.r || null;
 

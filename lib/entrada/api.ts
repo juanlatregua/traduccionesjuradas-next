@@ -5,6 +5,7 @@ import { abrirEntrada, confirmarEnlace, ponerEmail, confirmarEntrada, currentFin
 import type { EntradaRow } from "./store.ts";
 import { answerQuestion, type ConserjeCall } from "./conserje.ts";
 import type { EntradaLang } from "./i18n.ts";
+import { ENTRADA_SOURCES } from "./sources.ts";
 
 export type ApiResponse = { status: number; body: unknown; headers?: Record<string, string> };
 export type EntradaApiDeps = FlowDeps & {
@@ -39,8 +40,7 @@ export const DOUBTS_PER_EMAIL_DAY = 30;
 export const DOUBTS_PER_IP_DAY = 40;
 export const DOUBTS_GLOBAL_DAY = 1500;
 
-/** Same attribution presets as /presupuesto-instantaneo (?p=) and /api/documents/register. */
-export const ENTRADA_SOURCES = ["regularizacion-2026", "uge-ce", "lavori", "precios", "whatsapp"] as const;
+export { ENTRADA_SOURCES };
 export const ENTRADA_LANGS = ["es", "fr", "en", "de", "pt"] as const;
 
 const Lang = z.string().trim().toLowerCase().regex(/^[a-z]{2,3}$/);
