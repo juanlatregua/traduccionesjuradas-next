@@ -223,6 +223,19 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
       }
 
+      // Pedida desde la página única de un presupuesto ya creado: la solicitud nace atada
+      // a ESE presupuesto (si es del mismo par y aún editable), como al crearlo.
+      if (anclas.quoteId && parSolicitado) {
+        const q = await prisma.quote
+          .findFirst({ where: { id: anclas.quoteId, deletedAt: null, status: { in: ["DRAFT", "SENT", "OPENED", "ACCEPTED"] } }, select: { sourceLang: true, targetLang: true } })
+          .catch(() => null);
+        if (q && parFromLangs(q.sourceLang, q.targetLang) === parSolicitado) {
+          await prisma.lavoriPriceRequest
+            .updateMany({ where: { ref: result.ref, quoteId: null }, data: { quoteId: anclas.quoteId } })
+            .catch((err) => console.error("[lavori-price-request] atar al presupuesto falló:", err));
+        }
+      }
+
       // Acuse al cliente (12-ago SMS; 24-ago también email): al salir los documentos
       // hacia el traductor, el cliente recibe UN aviso — email si es real, SMS/WhatsApp
       // si es lead solo-WhatsApp. Con await: sin él, la lambda se congela al responder

@@ -55,7 +55,7 @@ function eur(n: number) {
   return `${n.toFixed(2)} €`;
 }
 
-export default function QuoteEditForm({ quote, nuevaLinea = false }: { quote: Quote; nuevaLinea?: boolean }) {
+export default function QuoteEditForm({ quote, nuevaLinea = false, frozen = false }: { quote: Quote; nuevaLinea?: boolean; frozen?: boolean }) {
   const router = useRouter();
   const [customerName, setCustomerName] = useState(quote.customerName || "");
   const [customerEmail, setCustomerEmail] = useState(quote.customerEmail || "");
@@ -118,6 +118,8 @@ export default function QuoteEditForm({ quote, nuevaLinea = false }: { quote: Qu
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(overrideLowMargin ? { overrideLowMargin: true } : {}),
+          // Pago congelado: esta pantalla ES la reparación («Editar las líneas con la cifra del jurado»).
+          ...(frozen ? { frozenRepair: true } : {}),
           customerName: customerName.trim(),
           customerEmail: customerEmail.trim(),
           customerPhone: customerPhone.trim() || undefined,

@@ -15,6 +15,18 @@ import { suggestClientLang } from "@/lib/client-lang";
 import type { EmailBrief } from "@/lib/ai/email-brief";
 import { UNREAD_PAGES_TYPE_ES } from "@/lib/ai/unread-pages";
 import { aplicarCosteJurado } from "@/lib/caso/coste-lead";
+import {
+  buildQuotePatchPayload,
+  editFormFromQuote,
+  editGateFor,
+  editLineFor,
+  hydrateRows,
+  shippingBaseFor,
+  FROZEN_EDIT_CODE,
+  type AnalysisDoc,
+  type EditableLine,
+  type EditableQuote,
+} from "@/lib/quote-edit-hydrate";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -126,6 +138,10 @@ type DocRow = {
   pageEnd?: number;
   absorbedPages?: number[]; // páginas sin texto que el análisis unió a este documento
   priorFrom?: string; // nº del presupuesto anterior cuyo precio y coste lleva la línea
+  // Página única (mode="edit"): línea del presupuesto guardado de la que sale la fila.
+  lineDescription?: string; // texto de la línea tal cual (editable)
+  origLine?: EditableLine;
+  hydratedSig?: string;
 };
 
 // URL del endpoint que extrae el rango de páginas de un documento para
@@ -337,6 +353,12 @@ type Props = {
   solicitudesVivas?: SolicitudViva[];
   // Cifras del jurado por par (también de una solicitud ya no viva): coste de las líneas.
   costesJurado?: { ref: string; par: string; baseCents: number; docsCount: number }[];
+  // Página única del presupuesto (PRESUPUESTO_PAGINA_UNICA): el constructor sobre uno ya
+  // creado. Guarda SIEMPRE con PATCH /api/quotes/[id]; nunca crea otro.
+  mode?: "create" | "edit";
+  quote?: EditableQuote;
+  analysisDocs?: AnalysisDoc[];
+  nuevaLinea?: boolean;
 };
 
 export default function StaffExpedienteIntake({
@@ -351,30 +373,47 @@ export default function StaffExpedienteIntake({
   puertaSession,
   solicitudesVivas = [],
   costesJurado = [],
+  mode = "create",
+  quote,
+  analysisDocs = [],
+  nuevaLinea = false,
 }: Props = {}) {
-  const [docs, setDocs] = useState<DocRow[]>([]);
-  const [customerName, setCustomerName] = useState(initialCustomer?.name || initialData?.customerName || "");
-  const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || initialData?.customerEmail || "");
-  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone || initialData?.customerPhone || "");
-  const [sourceLang, setSourceLang] = useState(initialData?.sourceLang || "");
-  const [targetLang, setTargetLang] = useState(initialData?.targetLang || "");
-  const [discountPct, setDiscountPct] = useState(0);
-  const [discountTouched, setDiscountTouched] = useState(false);
+  const editQuote = mode === "edit" && quote ? quote : null;
+  const [ef] = useState(() => (editQuote ? editFormFromQuote(editQuote) : null));
+  const gate = editQuote ? editGateFor(editQuote.status) : null;
+  const readOnly = gate === "readonly";
+  const frozen = !!editQuote?.paymentFrozenAt;
+  const [docs, setDocs] = useState<DocRow[]>(() =>
+    editQuote
+      ? [
+          ...hydrateRows(editQuote.lines, analysisDocs, () => uid()),
+          ...(nuevaLinea && !readOnly ? [{ localId: uid(), fileName: "", fileSize: 0, mimeType: "", status: "manual" as DocStatus, include: true, unitPrice: 0 }] : []),
+        ]
+      : []
+  );
+  const [customerName, setCustomerName] = useState(ef ? ef.customerName : initialCustomer?.name || initialData?.customerName || "");
+  const [customerEmail, setCustomerEmail] = useState(ef ? ef.customerEmail : initialCustomer?.email || initialData?.customerEmail || "");
+  const [customerPhone, setCustomerPhone] = useState(ef ? ef.customerPhone : initialCustomer?.phone || initialData?.customerPhone || "");
+  const [sourceLang, setSourceLang] = useState(ef ? ef.sourceLang : initialData?.sourceLang || "");
+  const [targetLang, setTargetLang] = useState(ef ? ef.targetLang : initialData?.targetLang || "");
+  const [discountPct, setDiscountPct] = useState(ef ? ef.discountValue : 0);
+  const [discountTouched, setDiscountTouched] = useState(!!ef);
+  const [discountKind, setDiscountKind] = useState(ef ? ef.discountType : "NONE");
   // true si el % de descuento lo propuso el builder al soltar archivos (no en ?exp/?lead).
   const autoDiscountRef = useRef(false);
-  const [validityDays, setValidityDays] = useState(15);
-  const [notesLegal, setNotesLegal] = useState("");
-  const [holderNames, setHolderNames] = useState("");
+  const [validityDays, setValidityDays] = useState(ef ? ef.validityDays : 15);
+  const [notesLegal, setNotesLegal] = useState(ef ? ef.notesLegal : "");
+  const [holderNames, setHolderNames] = useState(ef ? ef.holderNames : "");
   // null = margen AUTO (tiered por coste, FR sin margen). Un número = override manual.
-  const [marginPct, setMarginPct] = useState<number | null>(initialData?.lineAmount ? 0 : null);
+  const [marginPct, setMarginPct] = useState<number | null>(ef ? ef.marginPct : initialData?.lineAmount ? 0 : null);
   // Modo de precio del COSTE por línea: "document" = precio fijo por documento
   // (escribes el coste a mano); "word" = por palabra (coste = palabras × tarifa).
   const [wordRate, setWordRate] = useState<number>(0.07);
   const [docRate, setDocRate] = useState<number>(15);
   // P2: si false, soltar documentos NO lanza el conteo IA (precio a mano / fijo).
   const [autoCount, setAutoCount] = useState(true);
-  const [pdfLang, setPdfLang] = useState<string>("es");
-  const [pdfLangTouched, setPdfLangTouched] = useState(false);
+  const [pdfLang, setPdfLang] = useState<string>(ef?.pdfLang || "es");
+  const [pdfLangTouched, setPdfLangTouched] = useState(!!ef);
   // Sugerencia de idioma del cliente: texto del email/WhatsApp > prefijo > TLD. La
   // puerta no guarda el locale de la página, así que ese dato no entra aquí.
   const langSuggestion = useMemo(
@@ -385,13 +424,18 @@ export default function StaffExpedienteIntake({
     if (!pdfLangTouched) setPdfLang(langSuggestion?.lang ?? "es");
   }, [langSuggestion, pdfLangTouched]);
   const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">(
-    initialData?.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
+    (ef ? ef.deliveryType : initialData?.deliveryType) === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
   );
-  const [deliveryNote, setDeliveryNote] = useState(initialDeliveryNote || "");
+  const [deliveryNote, setDeliveryNote] = useState(ef ? ef.deliveryTerm : initialDeliveryNote || "");
   // Orden Juan 24-ago: la cuenta de los presupuestos es SIEMPRE Sabadell — BBVA
   // está en cierre y NO debe salir en presupuestos nuevos.
-  const [paymentMethods, setPaymentMethods] = useState<string[]>(["sabadell", "bizum654"]);
-  const [contactWhatsapp, setContactWhatsapp] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(ef ? ef.paymentMethods : ["sabadell", "bizum654"]);
+  const [contactWhatsapp, setContactWhatsapp] = useState(ef ? ef.contactWhatsapp : "");
+  // Guardado en modo edición (PATCH): confirmación en página, freno de margen y reenvío.
+  const [editSave, setEditSave] = useState<{
+    phase: "idle" | "confirm" | "saving" | "margin" | "saved" | "resending" | "resent";
+    msg?: string;
+  }>({ phase: "idle" });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
@@ -747,6 +791,8 @@ export default function StaffExpedienteIntake({
             words: undefined,
             unitPrice: 0,
             absorbedPages: d.absorbedPages?.includes(pg) ? [pg] : undefined,
+            // Fila del presupuesto guardado: cada página se precia de nuevo (no hereda el total).
+            ...(d.origLine ? { clientPrice: undefined, basis: undefined, unitCount: undefined, unitRate: undefined, lineDescription: undefined, origLine: undefined, hydratedSig: undefined } : {}),
           });
         }
         return [...prev.slice(0, idx), ...rows, ...prev.slice(idx + 1)];
@@ -796,6 +842,7 @@ export default function StaffExpedienteIntake({
           autoPriced: keepB ? false : host.autoPriced,
           priceNote: keepB ? undefined : host.priceNote,
           absorbedPages: absorbed.length ? absorbed : undefined,
+          ...(a.origLine || b.origLine ? { lineDescription: undefined, origLine: undefined, hydratedSig: undefined } : {}),
         };
         return [...prev.slice(0, idx - 1), merged, ...prev.slice(idx + 1)];
       });
@@ -1034,6 +1081,47 @@ export default function StaffExpedienteIntake({
     [clientPriceOf]
   );
 
+  // Línea del presupuesto a partir de una fila (crear y editar usan la misma).
+  const composeLine = useCallback(
+    (d: DocRow) => {
+      // Sin tipo documental cae al nombre del fichero: al menos sin extensión.
+      const baseName = d.documentTypeEs || d.fileName.trim().replace(/\.(pdf|jpe?g|png|heic|docx?)$/i, "") || "Línea";
+      // Dirección cara al cliente: NUNCA "Desconocido"/"Unknown" (presupuesto
+      // 2026-00045) — si el análisis no supo el destino, manda el del
+      // presupuesto; sin dato fiable, se omite la dirección.
+      const dirSrc = knownLangName(d.sourceName) || langNameOf(knownLangCode(d.sourceLang)) || langNameOf(sourceLang);
+      const dirTgt =
+        knownLangName(d.targetName) ||
+        langNameOf(knownLangCode(d.targetLang)) ||
+        langNameOf(targetLang) ||
+        // Original extranjero sin destino explícito → hacia el español.
+        (knownLangCode(d.sourceLang) && d.sourceLang !== "es" ? "Español" : "");
+      const parts: string[] = [];
+      if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
+      // Por documento: la línea sale como cantidad × precio unitario (15 × 15 €)
+      // si el total del cliente se reparte exacto entre los documentos.
+      const count = d.basis === "unit" && d.unitCount && d.unitCount > 1 ? d.unitCount : 1;
+      const client = rowClientPrice(d);
+      const perUnit = Math.round((client / count) * 100) / 100;
+      const asUnits = count > 1 && Math.round(perUnit * count * 100) === Math.round(client * 100);
+      if (d.basis === "unit" && d.unitCount) parts.push(`${d.unitCount} documento${d.unitCount === 1 ? "" : "s"}`);
+      else if (d.words) parts.push(`${d.words} palabras`);
+      if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
+      return {
+        // Fila del presupuesto guardado: su texto tal cual (editable), sin recomponer.
+        description: d.lineDescription !== undefined ? d.lineDescription.trim() || "Línea" : parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
+        quantity: asUnits ? count : 1,
+        unitPrice: asUnits ? perUnit : client, // precio CLIENTE = coste × (1+margen)
+        supplierUnitCost: asUnits ? Math.round((d.unitPrice / count) * 100) / 100 : d.unitPrice, // coste del traductor (interno), por unidad
+        sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
+        pageStart: d.pageStart,
+        pageEnd: d.pageEnd,
+        docKind: kindForKey(d.documentType) || undefined,
+      };
+    },
+    [rowClientPrice, sourceLang, targetLang]
+  );
+
   const [priorPrices, setPriorPrices] = useState<Record<string, PriorPrice[]>>({});
   const priorKeyOf = useCallback(
     (d: DocRow) => priorKey(knownLangCode(d.sourceLang) || sourceLang, knownLangCode(d.targetLang) || targetLang, (d.documentTypeEs || "").trim(), d.documentType),
@@ -1145,11 +1233,46 @@ export default function StaffExpedienteIntake({
       }),
     [includedDocs, rowClientPrice, discountPct, deliveryType]
   );
-  const subtotal = quoteTotals.subtotal;
-  const shipping = quoteTotals.shippingAmount;
-  const discountAmount = quoteTotals.discountAmount;
-  const vat = quoteTotals.vatAmount;
-  const total = quoteTotals.total;
+  // Modo edición: las líneas que guardaría el PATCH y sus totales, con la misma función
+  // que el servidor. Fila sin tocar = la línea guardada, exacta.
+  const editForm = ef
+    ? {
+        ...ef,
+        customerName,
+        customerEmail,
+        customerPhone,
+        sourceLang,
+        targetLang,
+        deliveryType,
+        discountType: discountKind,
+        discountValue: discountPct,
+        validityDays,
+        notesLegal,
+        holderNames,
+        deliveryTerm: deliveryNote,
+        marginPct,
+        paymentMethods,
+        contactWhatsapp,
+        pdfLang: ef.pdfLang == null && pdfLang === "es" ? null : pdfLang,
+      }
+    : null;
+  const editLines = editForm ? includedDocs.map((d) => editLineFor(d, composeLine)) : [];
+  const editTotals = editForm
+    ? computeQuoteTotals({
+        lines: editLines,
+        discountType: editForm.discountType as "NONE" | "PERCENT" | "FIXED",
+        discountValue: editForm.discountValue,
+        vatRate: editForm.vatRate,
+        deliveryType,
+        shippingBase: shippingBaseFor(editForm),
+      })
+    : null;
+  const shownTotals = editTotals ?? quoteTotals;
+  const subtotal = shownTotals.subtotal;
+  const shipping = shownTotals.shippingAmount;
+  const discountAmount = shownTotals.discountAmount;
+  const vat = shownTotals.vatAmount;
+  const total = shownTotals.total;
 
   const busy = docs.some((d) => d.status === "uploading" || d.status === "analyzing");
   const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
@@ -1275,6 +1398,8 @@ export default function StaffExpedienteIntake({
           lavoriLeadRef: lavoriLeadRef || yaPedida?.ref || undefined,
           sessionToken: puertaSession || undefined,
           volverAPedir: opts.volverAPedir || undefined,
+          // Página única: la solicitud se ata a ESTE presupuesto y la guarda anti-duplicado lo ve.
+          ...(editQuote ? { quoteId: editQuote.id } : {}),
         }),
       });
       let data = await (await post(false)).json();
@@ -1312,16 +1437,19 @@ export default function StaffExpedienteIntake({
           ? `El caso ya tenía la solicitud ${data.existing}: no se ha pedido otra.`
           : data.repetido
             ? `Esta solicitud ya estaba enviada (no se ha duplicado).`
-            : `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador.`,
+            : editQuote
+              ? `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. Queda atada a ${editQuote.quoteNumber}: cuando el jurado cotice, su cifra llega a este presupuesto.`
+              : `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador.`,
       });
       return refEnviada;
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
       return null;
     }
-  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros, casoId, lavoriLeadRef, yaPedida, puertaSession]);
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros, casoId, lavoriLeadRef, yaPedida, puertaSession, editQuote]);
 
   const handleSubmit = useCallback(async (leadRefRecienEnviada?: string) => {
+    if (editQuote) return; // página única: nunca se crea otro presupuesto (guarda saveEdit con PATCH)
     setSubmitError(null);
     const conSolicitud = !!(lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || yaPedida?.ref);
     const deMotor = conSolicitud ? [] : includedDocs.filter((d) => isEngineCostRow(d, sourceLang, targetLang));
@@ -1336,41 +1464,7 @@ export default function StaffExpedienteIntake({
       return;
     setSubmitting(true);
     try {
-      const lines = includedDocs.map((d) => {
-        // Sin tipo documental cae al nombre del fichero: al menos sin extensión.
-        const baseName = d.documentTypeEs || d.fileName.trim().replace(/\.(pdf|jpe?g|png|heic|docx?)$/i, "") || "Línea";
-        // Dirección cara al cliente: NUNCA "Desconocido"/"Unknown" (presupuesto
-        // 2026-00045) — si el análisis no supo el destino, manda el del
-        // presupuesto; sin dato fiable, se omite la dirección.
-        const dirSrc = knownLangName(d.sourceName) || langNameOf(knownLangCode(d.sourceLang)) || langNameOf(sourceLang);
-        const dirTgt =
-          knownLangName(d.targetName) ||
-          langNameOf(knownLangCode(d.targetLang)) ||
-          langNameOf(targetLang) ||
-          // Original extranjero sin destino explícito → hacia el español.
-          (knownLangCode(d.sourceLang) && d.sourceLang !== "es" ? "Español" : "");
-        const parts: string[] = [];
-        if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
-        // Por documento: la línea sale como cantidad × precio unitario (15 × 15 €)
-        // si el total del cliente se reparte exacto entre los documentos.
-        const count = d.basis === "unit" && d.unitCount && d.unitCount > 1 ? d.unitCount : 1;
-        const client = rowClientPrice(d);
-        const perUnit = Math.round((client / count) * 100) / 100;
-        const asUnits = count > 1 && Math.round(perUnit * count * 100) === Math.round(client * 100);
-        if (d.basis === "unit" && d.unitCount) parts.push(`${d.unitCount} documento${d.unitCount === 1 ? "" : "s"}`);
-        else if (d.words) parts.push(`${d.words} palabras`);
-        if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
-        return {
-          description: parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
-          quantity: asUnits ? count : 1,
-          unitPrice: asUnits ? perUnit : client, // precio CLIENTE = coste × (1+margen)
-          supplierUnitCost: asUnits ? Math.round((d.unitPrice / count) * 100) / 100 : d.unitPrice, // coste del traductor (interno), por unidad
-          sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
-          pageStart: d.pageStart,
-          pageEnd: d.pageEnd,
-          docKind: kindForKey(d.documentType) || undefined,
-        };
-      });
+      const lines = includedDocs.map(composeLine);
       const res = await fetch("/api/quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1409,7 +1503,7 @@ export default function StaffExpedienteIntake({
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, yaPedida, rowClientPrice, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, yaPedida, composeLine, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang, editQuote]);
 
   // "Pedir precio y dejar en espera" (19-sep-2026, orden de Juan: «hay momentos
   // que no quiero aventurarme»). Hace los DOS pasos en el único orden que ata la
@@ -1423,9 +1517,77 @@ export default function StaffExpedienteIntake({
     await handleSubmit(ref);
   }, [sendLavoriPrice, handleSubmit]);
 
+  // Página única: guardar SIEMPRE con PATCH sobre el presupuesto abierto (nunca POST).
+  const saveEdit = async (overrideLowMargin = false) => {
+    if (!editQuote || !editForm || readOnly) return;
+    setEditSave({ phase: "saving" });
+    try {
+      const res = await fetch(`/api/quotes/${editQuote.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildQuotePatchPayload(editForm, editLines, { overrideLowMargin, frozenRepair: frozen })),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.code === "MARGEN_INSUFICIENTE") {
+        setEditSave({ phase: "margin", msg: String(data.error || "").replace("MARGEN_INSUFICIENTE: ", "") });
+        return;
+      }
+      if (!res.ok || !data?.ok) {
+        setEditSave({ phase: "idle", msg: data?.code === FROZEN_EDIT_CODE ? "Pago congelado: descongela antes de editar." : data?.error || "No se pudo guardar." });
+        return;
+      }
+      if (Array.isArray(data.quote?.lines)) setDocs(hydrateRows(data.quote.lines, analysisDocs, () => uid()));
+      if (gate === "live") {
+        setEditSave({ phase: "saved", msg: `Guardado: total ${Number(data.quote?.total ?? 0).toFixed(2)} €. El cliente aún tiene el PDF y el mensaje anteriores.` });
+      } else {
+        setEditSave({ phase: "saved", msg: "Guardado. Recargando la ficha…" });
+        window.location.reload();
+      }
+    } catch {
+      setEditSave({ phase: "idle", msg: "Error de conexión al guardar." });
+    }
+  };
 
-  return (
-    <div className="space-y-6 text-[#1F2933]">
+  const resendEdit = async () => {
+    if (!editQuote) return;
+    setEditSave({ phase: "resending" });
+    try {
+      const res = await fetch(`/api/quotes/${editQuote.id}/resend`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        setEditSave({ phase: "saved", msg: data?.error || "No se pudo reenviar." });
+        return;
+      }
+      setEditSave({ phase: "resent", msg: `Reenviado a ${customerEmail}. Recargando la ficha…` });
+      window.location.reload();
+    } catch {
+      setEditSave({ phase: "saved", msg: "Error de conexión al reenviar." });
+    }
+  };
+
+
+  const editBanner = editQuote ? (
+    <div
+      className={`rounded-[14px] border px-4 py-3 text-sm ${
+        readOnly ? "border-[#D5DAE1] bg-[#F6F7F9] text-[#1F2933]" : gate === "live" ? "border-[#E9D8A6] bg-[#FFF8E6] text-[#7A5A10]" : "border-[#BFE0CC] bg-[#EEF7F1] text-[#1F6B45]"
+      }`}
+    >
+      {readOnly
+        ? `Solo lectura: el presupuesto está en ${editQuote.status}. Aquí se ve todo, pero no se guarda ni se pide precio.`
+        : gate === "live"
+          ? `Enviado (${editQuote.status}): el cliente tiene el enlace vivo; lo que guardes cambia lo que paga. Tras guardar, reenvía.`
+          : "Borrador: todo editable. «Guardar cambios» actualiza este presupuesto; no crea otro."}
+      {frozen && !readOnly && (
+        <p className="mt-1 font-semibold text-[#A12B2B]">
+          Pago CONGELADO: guardar líneas aquí es la reparación con la cifra del jurado. Guardar no descongela: después, desbloquea arriba o reenvía.
+        </p>
+      )}
+    </div>
+  ) : null;
+
+  const body = (
+    <>
+      {editBanner}
       {/* Cliente ARRIBA: confirma QUIÉN antes de subir documentos / cotizar.
           (Selector de agenda + datos; el builder unificado funciona sin docs.) */}
       <div className="space-y-3 rounded-xl border border-[#D5DAE1] bg-white p-4">
@@ -1576,6 +1738,7 @@ export default function StaffExpedienteIntake({
       </div>
 
       {/* P2: elegir si el conteo IA se lanza al soltar (tiene coste) o se pone a mano */}
+      {!readOnly && (
       <label className="flex flex-wrap items-center gap-2 rounded-xl border border-[#D5DAE1] bg-white px-4 py-3 text-sm text-[#1F2933]">
         <input
           type="checkbox"
@@ -1589,8 +1752,10 @@ export default function StaffExpedienteIntake({
           (p. ej. 30 €/doc): subes el archivo y pones el precio a mano, sin lanzar el conteo.
         </span>
       </label>
+      )}
 
       {/* Dropzone */}
+      {!readOnly && (
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -1619,8 +1784,10 @@ export default function StaffExpedienteIntake({
           }}
         />
       </div>
+      )}
 
       {/* Añadir una línea a mano (sin documento) */}
+      {!readOnly && (
       <div>
         <button
           type="button"
@@ -1631,6 +1798,7 @@ export default function StaffExpedienteIntake({
         </button>
         <span className="ml-2 text-xs text-[#52606D]">Para presupuestar sin subir documento, o añadir conceptos sueltos.</span>
       </div>
+      )}
 
       {/* Tabla de documentos */}
       {docs.length > 0 && (
@@ -1661,7 +1829,26 @@ export default function StaffExpedienteIntake({
                     />
                   </td>
                   <td className="max-w-[220px] px-3 py-2">
-                    {d.status === "manual" || d.status === "error" ? (
+                    {d.lineDescription !== undefined ? (
+                      <div>
+                        <input
+                          type="text"
+                          value={d.lineDescription}
+                          onChange={(e) => patch(d.localId, { lineDescription: e.target.value })}
+                          placeholder="Concepto de la línea"
+                          title="Texto de la línea tal como lo ve el cliente"
+                          className="w-full min-w-[160px] rounded border border-[#D5DAE1] bg-white px-2 py-1 text-sm"
+                        />
+                        {d.blobUrl && (
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px]">
+                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">ver</a>
+                            <span className="text-[#52606D]">·</span>
+                            <a href={docViewUrl(d, true)!} className="text-[#1A2E4A] hover:underline">descargar</a>
+                            {d.status === "done" && <span className="truncate text-[#52606D]" title={d.fileName}>· {d.fileName}</span>}
+                          </div>
+                        )}
+                      </div>
+                    ) : d.status === "manual" || d.status === "error" ? (
                       <div>
                         <input
                           type="text"
@@ -1928,7 +2115,17 @@ export default function StaffExpedienteIntake({
                     )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#1A2E4A]">
-                    {isPriceable(d.status) ? `${rowClientPrice(d).toFixed(2)} €` : "—"}
+                    {editQuote && isPriceable(d.status) ? (
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={rowClientPrice(d)}
+                        onChange={(e) => patch(d.localId, { clientPrice: Math.max(0, Number(e.target.value)), autoPriced: false, priceNote: undefined })}
+                        className="w-24 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right font-semibold tabular-nums"
+                        title="Precio al cliente de la línea (sin IVA)"
+                      />
+                    ) : isPriceable(d.status) ? `${rowClientPrice(d).toFixed(2)} €` : "—"}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1">
@@ -1990,10 +2187,24 @@ export default function StaffExpedienteIntake({
                   {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
                 </select>
               </label>
+              {editQuote ? (
+                <label className="text-xs text-[#52606D]">
+                  Descuento
+                  <div className="mt-1 flex gap-1">
+                    <select value={discountKind} onChange={(e) => setDiscountKind(e.target.value)} className="rounded border border-[#D5DAE1] bg-white px-1 py-2 text-[#1F2933]">
+                      <option value="NONE">Sin</option>
+                      <option value="PERCENT">%</option>
+                      <option value="FIXED">€ fijo</option>
+                    </select>
+                    <input type="number" min={0} step="0.01" value={discountPct} disabled={discountKind === "NONE"} onChange={(e) => setDiscountPct(Number(e.target.value))} className="w-full min-w-0 rounded border border-[#D5DAE1] bg-white px-2 py-2 disabled:opacity-50" />
+                  </div>
+                </label>
+              ) : (
               <label className="text-xs text-[#52606D]">
                 Descuento volumen (%)
                 <input type="number" min={0} max={100} value={discountPct} onChange={(e) => { setDiscountTouched(true); setDiscountPct(Number(e.target.value)); }} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
               </label>
+              )}
               <label className="text-xs text-[#52606D]">
                 Validez (días)
                 <input type="number" min={1} value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
@@ -2095,6 +2306,7 @@ export default function StaffExpedienteIntake({
                   { id: "bizum654", label: "Bizum 614619682" },
                   { id: "paypal", label: "PayPal" },
                   { id: "bbva", label: "BBVA (en cierre)" },
+                  ...(editQuote ? [{ id: "revolut", label: "Revolut (internacional/SWIFT)" }] : []),
                 ].map((m) => (
                   <label key={m.id} className="flex items-center gap-1">
                     <input type="checkbox" checked={paymentMethods.includes(m.id)} onChange={() => togglePaymentMethod(m.id)} />
@@ -2111,7 +2323,7 @@ export default function StaffExpedienteIntake({
           en el tablón. El traductor ve los documentos y propone su precio; la
           respuesta llega por email y queda anclada al lead. Destinatarios: carril
           por defecto, toda la lengua o uno en concreto (21-ago-2026). */}
-      {lavoriRoute && yaPedida && !volverAPedir && (
+      {!readOnly && lavoriRoute && yaPedida && !volverAPedir && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] px-4 py-3 text-sm text-[#1A2E4A]">
           <span>
             Ya pedido: <span className="font-mono">{yaPedida.ref}</span>
@@ -2136,7 +2348,7 @@ export default function StaffExpedienteIntake({
         </div>
       )}
 
-      {lavoriRoute && lavoriDocs.length > 0 && (!yaPedida || volverAPedir) && (
+      {!readOnly && lavoriRoute && lavoriDocs.length > 0 && (!yaPedida || volverAPedir) && (
         <div className="space-y-2 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
           <h3 className="text-sm font-semibold text-[#1A2E4A]">
             {yaPedida ? `Volver a pedir precio · ${yaPedida.ref} se retira en lavori` : `Solicitar precio vía lavori · ${lavoriRoute.par}`}
@@ -2199,9 +2411,17 @@ export default function StaffExpedienteIntake({
         <div className="flex flex-col items-end gap-3 rounded-xl border border-[#D5DAE1] bg-white p-4">
           <div className="w-full max-w-xs space-y-1 text-sm">
             <div className="flex justify-between text-[#52606D]"><span>Subtotal</span><span className="tabular-nums">{subtotal.toFixed(2)} €</span></div>
-            {discountPct > 0 && <div className="flex justify-between text-[#1F6B45]"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>}
+            {editForm ? (
+              discountAmount > 0 && <div className="flex justify-between text-[#1F6B45]"><span>{discountKind === "PERCENT" ? `Descuento ${discountPct}%` : "Descuento"}</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>
+            ) : (
+              discountPct > 0 && <div className="flex justify-between text-[#1F6B45]"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>
+            )}
             {shipping > 0 && <div className="flex justify-between text-[#52606D]"><span>Envío papel</span><span className="tabular-nums">{shipping.toFixed(2)} €</span></div>}
-            <div className="flex justify-between text-[#52606D]"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
+            {editForm ? (
+              <div className="flex justify-between text-[#52606D]"><span>{`IVA ${Math.round(editForm.vatRate * 100)}%`}</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
+            ) : (
+              <div className="flex justify-between text-[#52606D]"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
+            )}
             <div className="flex justify-between border-t border-[#D5DAE1] pt-1 text-base font-semibold text-[#1A2E4A]"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
             <div className="mt-1 flex justify-between border-t border-dashed border-[#D5DAE1] pt-1 text-[11px] text-[#52606D]" title="Solo visible para ti, no aparece en el presupuesto del cliente">
               <span>Interno · coste {costTotal.toFixed(2)} € · margen {marginPct === null ? "AUTO" : `${marginPct}%`}</span>
@@ -2214,6 +2434,74 @@ export default function StaffExpedienteIntake({
               Margen {(subtotal - discountAmount - costTotal).toFixed(2)} €: con este precio se pierde o no se gana. Sube el precio antes de generar.
             </p>
           )}
+          {editQuote ? (
+            <div className="flex w-full flex-col items-end gap-2">
+              {editSave.phase === "confirm" && (
+                <div className="w-full rounded-[14px] border border-[#E9D8A6] bg-[#FFF8E6] p-3 text-sm text-[#7A5A10]">
+                  <p className="font-semibold">
+                    {gate === "live" ? "El cliente tiene el enlace vivo; el importe que paga cambia. Tras guardar, reenvía." : "Pago congelado: vas a guardar las líneas como reparación con la cifra del jurado."}
+                  </p>
+                  {gate === "live" && frozen && <p className="mt-1">Pago congelado: esto guarda la reparación con la cifra del jurado; no descongela.</p>}
+                  <p className="mt-1">Total nuevo: {total.toFixed(2)} € (antes {editQuote.total.toFixed(2)} €).</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => saveEdit()} className="rounded-[10px] bg-[#1A2E4A] px-4 py-2 font-semibold text-white hover:bg-[#243F66]">
+                      Sí, guardar
+                    </button>
+                    <button type="button" onClick={() => setEditSave({ phase: "idle" })} className="rounded-[10px] border border-[#D5DAE1] bg-white px-4 py-2 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {editSave.phase === "margin" && (
+                <div className="w-full rounded-[14px] border border-[#F0C9C9] bg-[#FDF2F2] p-3 text-sm text-[#A12B2B]">
+                  <p className="font-semibold">Freno de margen: {editSave.msg}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => saveEdit(true)} className="rounded-[10px] bg-[#A12B2B] px-4 py-2 font-semibold text-white hover:opacity-90">
+                      Guardar igualmente (avisa por email y SMS)
+                    </button>
+                    <button type="button" onClick={() => setEditSave({ phase: "idle", msg: "Guardado frenado por margen insuficiente. Ajusta precio o coste." })} className="rounded-[10px] border border-[#D5DAE1] bg-white px-4 py-2 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {editSave.msg && editSave.phase !== "margin" && (
+                <p className={`text-sm ${editSave.phase === "idle" ? "text-[#A12B2B]" : "text-[#1F6B45]"}`}>{editSave.msg}</p>
+              )}
+              {!readOnly && (
+                <div className="flex flex-wrap justify-end gap-2">
+                  {(editSave.phase === "saved" || editSave.phase === "resending" || editSave.phase === "resent") && gate === "live" && (
+                    <button
+                      type="button"
+                      disabled={editSave.phase !== "saved"}
+                      onClick={resendEdit}
+                      className="inline-flex items-center gap-2 rounded-[10px] border border-[#1A2E4A] bg-white px-5 py-2.5 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-60"
+                    >
+                      {editSave.phase === "resending" && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {editSave.phase === "resending" ? "Reenviando…" : editSave.phase === "resent" ? "Reenviado" : "Reenviar al cliente"}
+                    </button>
+                  )}
+                  {editSave.phase === "saved" && gate === "live" && (
+                    <button type="button" onClick={() => window.location.reload()} className="rounded-[10px] border border-[#D5DAE1] bg-white px-4 py-2.5 text-sm font-semibold text-[#52606D] hover:bg-[#F6F7F9]">
+                      Recargar sin reenviar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy || missing.length > 0 || ["confirm", "saving", "resending", "resent"].includes(editSave.phase)}
+                    onClick={() => (gate === "live" || frozen ? setEditSave({ phase: "confirm" }) : saveEdit())}
+                    className="inline-flex items-center gap-2 rounded-[10px] bg-[#1A2E4A] px-5 py-2.5 font-semibold text-white hover:bg-[#243F66] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {editSave.phase === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {editSave.phase === "saving" ? "Guardando…" : `Guardar cambios (${includedDocs.length} línea${includedDocs.length === 1 ? "" : "s"})`}
+                  </button>
+                </div>
+              )}
+              {!readOnly && missing.length > 0 && <p className="text-xs text-[#7A5A10]">Falta: {missing.join(", ")}.</p>}
+            </div>
+          ) : (
+            <>
           {submitError && (
             <p className="text-sm text-[#7A5A10]">
               {submitError}
@@ -2257,8 +2545,18 @@ export default function StaffExpedienteIntake({
               ? " Si el precio lo pone el jurado, usa «Pedir precio y dejar en espera»: el borrador queda atado a la solicitud y su cifra cae sola cuando conteste."
               : ""}
           </p>
+            </>
+          )}
         </div>
       )}
-    </div>
+    </>
+  );
+
+  return editQuote ? (
+    <fieldset disabled={readOnly} className="min-w-0 space-y-6 text-[#1F2933]">
+      {body}
+    </fieldset>
+  ) : (
+    <div className="space-y-6 text-[#1F2933]">{body}</div>
   );
 }

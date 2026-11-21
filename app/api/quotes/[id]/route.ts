@@ -9,6 +9,7 @@ import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { unsealOnLineEdit } from "@/lib/encargo-cerrado-math";
 import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
 import { abs, hrefPresupuesto } from "@/lib/staff-links";
+import { frozenEditBlocked, FROZEN_EDIT_CODE } from "@/lib/quote-edit-hydrate";
 
 export const runtime = "nodejs";
 
@@ -62,6 +63,8 @@ export async function PATCH(req: Request, { params }: Params) {
         status: true,
         issuedAt: true,
         autoPricedBy: true,
+        paymentFrozenAt: true,
+        total: true,
         lines: { orderBy: { createdAt: "asc" }, select: { quantity: true, unitPrice: true, supplierUnitCost: true, sourceFileUrl: true } },
       },
     });
@@ -87,6 +90,22 @@ export async function PATCH(req: Request, { params }: Params) {
           ? parsed.data.shippingBase || PAPER_SHIPPING_BASE_EUR
           : 0,
     });
+
+    // Pago CONGELADO: líneas e importe solo desde la reparación con la cifra del jurado
+    // (la UI manda frozenRepair tras enseñar el aviso). Lo demás se guarda.
+    if (
+      frozenEditBlocked({
+        frozen: !!current.paymentFrozenAt,
+        frozenRepair: (body as any)?.frozenRepair === true,
+        current: { lines: current.lines, total: current.total },
+        next: { lines: totals.lines, total: totals.total },
+      })
+    ) {
+      return NextResponse.json(
+        { ok: false, code: FROZEN_EDIT_CODE, error: "Pago congelado: descongela antes de editar" },
+        { status: 409 }
+      );
+    }
 
     const validUntil = calculateValidUntil(current.issuedAt, parsed.data.validityDays);
 

@@ -1,0 +1,299 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import {
+  buildQuotePatchPayload,
+  editFormFromQuote,
+  editGateFor,
+  editLineFor,
+  frozenEditBlocked,
+  hydrateRows,
+  matchAnalysis,
+  patchLineFromQuoteLine,
+  preferAnalysisRows,
+  presupuestoPaginaUnicaOn,
+  rowSignature,
+  sessionKeysForExpediente,
+  shippingBaseFor,
+  type AnalysisDoc,
+  type EditableLine,
+  type EditableQuote,
+} from "../../lib/quote-edit-hydrate.ts";
+import { computeQuoteTotals, normalizeQuoteLines } from "../../lib/quotes.ts";
+
+const URL_A = "https://abc.public.blob.vercel-storage.com/expedientes/a.pdf";
+const URL_B = "https://abc.public.blob.vercel-storage.com/expedientes/b.pdf";
+
+const LINES: EditableLine[] = [
+  { description: "Acta de nacimiento (Francés→Español, 250 palabras)", quantity: 1, unitPrice: 42.5, supplierUnitCost: 30, sourceFileUrl: URL_A, pageStart: 1, pageEnd: 2, docKind: "birth_certificate" },
+  { description: "Diploma (Francés→Español)", quantity: 1, unitPrice: 35, supplierUnitCost: null, sourceFileUrl: URL_A, pageStart: 3, pageEnd: 3, docKind: null },
+  { description: "Extractos bancarios (15 documentos)", quantity: 15, unitPrice: 15.33, supplierUnitCost: 11.11, sourceFileUrl: URL_B, pageStart: null, pageEnd: null, docKind: "bank_statement" },
+  { description: "Gestión urgente", quantity: 1, unitPrice: 19.99, supplierUnitCost: 0, sourceFileUrl: null, pageStart: null, pageEnd: null, docKind: null },
+];
+
+function quoteOf(over: Partial<EditableQuote> = {}): EditableQuote {
+  const base: EditableQuote = {
+    id: "q1",
+    quoteNumber: "2026-00999",
+    status: "SENT",
+    customerName: "Cliente Prueba",
+    customerEmail: "cliente@example.com",
+    customerPhone: null,
+    sourceLang: "fr",
+    targetLang: "es",
+    deliveryType: "PAPER_SHIP",
+    shippingBase: 14,
+    vatRate: 0.21,
+    discountType: "PERCENT",
+    discountValue: 7,
+    notesLegal: "Notas",
+    deliveryTerm: "2 días",
+    holderNames: null,
+    validityDays: 10,
+    marginPct: 25,
+    paymentMethods: ["sabadell", "revolut"],
+    contactWhatsapp: null,
+    pdfLang: null,
+    paymentFrozenAt: null,
+    total: 0,
+    lines: LINES,
+    ...over,
+  };
+  return base;
+}
+
+// Lo que hace el PATCH con el cuerpo: normalizeQuoteLines + computeQuoteTotals (route.ts).
+function serverRecompute(body: ReturnType<typeof buildQuotePatchPayload>) {
+  const parsed = normalizeQuoteLines(body.lines);
+  assert.ok(parsed.ok);
+  return computeQuoteTotals({
+    lines: parsed.lines,
+    discountType: body.discountType as any,
+    discountValue: body.discountValue,
+    vatRate: body.vatRate,
+    deliveryType: body.deliveryType as any,
+    shippingBase: body.deliveryType === "PAPER_SHIP" ? body.shippingBase || 12 : 0,
+  });
+}
+
+function storedTotals(q: EditableQuote) {
+  return computeQuoteTotals({
+    lines: q.lines.map((l) => ({ ...l, supplierUnitCost: l.supplierUnitCost ?? undefined, sourceFileUrl: l.sourceFileUrl ?? undefined, pageStart: l.pageStart ?? undefined, pageEnd: l.pageEnd ?? undefined, docKind: l.docKind ?? undefined })),
+    discountType: q.discountType as any,
+    discountValue: q.discountValue,
+    vatRate: q.vatRate,
+    deliveryType: q.deliveryType as any,
+    shippingBase: q.deliveryType === "PAPER_SHIP" ? q.shippingBase : 0,
+  });
+}
+
+// Composición de filas tocadas: una línea simple con el coste y precio de la fila.
+const compose = (r: any) => ({ description: r.lineDescription ?? "x", quantity: 1, unitPrice: r.clientPrice, supplierUnitCost: r.unitPrice });
+
+test("flag: solo PRESUPUESTO_PAGINA_UNICA=on exacto", () => {
+  assert.equal(presupuestoPaginaUnicaOn({ PRESUPUESTO_PAGINA_UNICA: "on" }), true);
+  for (const v of [undefined, "", "off", "ON", " on", "true", "1"]) assert.equal(presupuestoPaginaUnicaOn({ PRESUPUESTO_PAGINA_UNICA: v }), false, String(v));
+});
+
+test("estado → qué deja hacer", () => {
+  assert.equal(editGateFor("DRAFT"), "draft");
+  for (const s of ["SENT", "OPENED", "ACCEPTED"]) assert.equal(editGateFor(s), "live");
+  for (const s of ["PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED", "LOST", "CANCELLED", "ALGO"]) assert.equal(editGateFor(s), "readonly");
+});
+
+test("claves de sesión del expedienteRef", () => {
+  assert.deepEqual(sessionKeysForExpediente("puerta:tok123"), ["tok123", "puerta:tok123"]);
+  assert.deepEqual(sessionKeysForExpediente("REF9"), ["exp:REF9", "REF9"]);
+  assert.deepEqual(sessionKeysForExpediente("exp:REF9"), ["exp:REF9", "REF9"]);
+  assert.deepEqual(sessionKeysForExpediente(null), []);
+});
+
+test("una fila de análisis por URL: la de la sesión del presupuesto gana a una más reciente", () => {
+  const rows = [
+    { id: "old-own", fileUrl: URL_A, sessionToken: "tok", createdAt: new Date("2026-01-01") },
+    { id: "new-other", fileUrl: URL_A, sessionToken: "otra", createdAt: new Date("2026-02-01") },
+    { id: "b1", fileUrl: URL_B, sessionToken: null, createdAt: new Date("2026-01-01") },
+    { id: "b2", fileUrl: URL_B, sessionToken: null, createdAt: new Date("2026-03-01") },
+  ];
+  const picked = preferAnalysisRows(rows, ["tok"]).map((r) => r.id).sort();
+  assert.deepEqual(picked, ["b2", "old-own"]);
+});
+
+test("matchAnalysis: mismo PDF y rango; un único documento sin rango; si no, nada", () => {
+  const docs: AnalysisDoc[] = [
+    { fileUrl: URL_A, fileName: "a.pdf", pageStart: 1, pageEnd: 2, words: 250, documentTypeEs: "Acta de nacimiento" },
+    { fileUrl: URL_A, fileName: "a.pdf", pageStart: 3, pageEnd: 3, words: 90 },
+    { fileUrl: URL_B, fileName: "b.pdf", pageStart: 1, pageEnd: 15, words: 3000 },
+  ];
+  assert.equal(matchAnalysis(LINES[0], docs)?.words, 250);
+  assert.equal(matchAnalysis(LINES[1], docs)?.words, 90);
+  assert.equal(matchAnalysis(LINES[2], docs)?.words, 3000);
+  assert.equal(matchAnalysis(LINES[3], docs), null);
+  assert.equal(matchAnalysis({ ...LINES[0], pageStart: 1, pageEnd: 1 }, docs), null);
+});
+
+test("hydrate: filas con coste y precio TOTALES de la línea, texto tal cual y análisis", () => {
+  const docs: AnalysisDoc[] = [{ fileUrl: URL_A, fileName: "a.pdf", pageStart: 1, pageEnd: 2, words: 250, pages: 2, documentType: "birth_certificate", documentTypeEs: "Acta de nacimiento", sourceLang: "fr", targetLang: "es", mode: "text" }];
+  const rows = hydrateRows(LINES, docs);
+  assert.equal(rows.length, 4);
+  const [acta, diploma, extractos, manual] = rows;
+  assert.equal(acta.status, "done");
+  assert.equal(acta.words, 250);
+  assert.equal(acta.fileName, "a.pdf · págs 1-2");
+  assert.equal(acta.lineDescription, LINES[0].description);
+  assert.equal(acta.unitPrice, 30);
+  assert.equal(acta.clientPrice, 42.5);
+  assert.equal(acta.autoPriced, false);
+  assert.equal(acta.blobUrl, URL_A);
+  assert.equal(diploma.status, "manual");
+  assert.equal(diploma.unitPrice, 0);
+  assert.equal(diploma.documentTypeEs, "Diploma");
+  assert.equal(extractos.basis, "unit");
+  assert.equal(extractos.unitCount, 15);
+  assert.equal(extractos.unitRate, 11.11);
+  assert.equal(extractos.unitPrice, 166.65);
+  assert.equal(extractos.clientPrice, 229.95);
+  // El efecto «por documento» del constructor recalcula así: no debe mover nada.
+  assert.equal(Math.round(extractos.unitCount! * extractos.unitRate! * 100) / 100, extractos.unitPrice);
+  assert.equal(manual.blobUrl, undefined);
+  assert.equal(manual.mimeType, "");
+  for (const r of rows) assert.equal(r.hydratedSig, rowSignature(r));
+});
+
+test("form desde el presupuesto: todo lo que el PATCH reescribe", () => {
+  const f = editFormFromQuote(quoteOf({ customerPhone: "+34600000000", pdfLang: "fr" }));
+  assert.equal(f.customerPhone, "+34600000000");
+  assert.equal(f.discountType, "PERCENT");
+  assert.equal(f.discountValue, 7);
+  assert.equal(f.vatRate, 0.21);
+  assert.equal(f.shippingBase, 14);
+  assert.equal(f.marginPct, 25);
+  assert.equal(f.pdfLang, "fr");
+  assert.equal(f.validityDays, 10);
+  assert.deepEqual(f.paymentMethods, ["sabadell", "revolut"]);
+});
+
+for (const [name, over] of [
+  ["papel + descuento % + IVA 21", {}],
+  ["descuento fijo + IVA 0 (extranjero) + digital", { discountType: "FIXED", discountValue: 12.5, vatRate: 0, deliveryType: "DIGITAL_PDF", shippingBase: 0 }],
+  ["sin descuento + papel con base guardada 0 → estándar", { discountType: "NONE", discountValue: 0, shippingBase: 0 }],
+  ["margen auto (null)", { marginPct: null }],
+] as const) {
+  test(`ida y vuelta sin tocar nada: mismos totales, líneas, costes y margen (${name})`, () => {
+    const q = quoteOf(over as Partial<EditableQuote>);
+    const rows = hydrateRows(q.lines, []);
+    const lines = rows.map((r) => editLineFor(r, () => assert.fail("una fila sin tocar no se recompone")));
+    const body = buildQuotePatchPayload(editFormFromQuote(q), lines);
+    const after = serverRecompute(body);
+    const before = q.shippingBase === 0 && q.deliveryType === "PAPER_SHIP"
+      ? computeQuoteTotals({ ...storedTotalsArgs(q), shippingBase: 12 })
+      : storedTotals(q);
+    assert.equal(after.subtotal, before.subtotal);
+    assert.equal(after.discountAmount, before.discountAmount);
+    assert.equal(after.shippingAmount, before.shippingAmount);
+    assert.equal(after.vatAmount, before.vatAmount);
+    assert.equal(after.total, before.total);
+    assert.deepEqual(after.lines.map((l) => [l.description, l.quantity, l.unitPrice, l.lineTotal, l.supplierUnitCost, l.sourceFileUrl, l.pageStart, l.pageEnd, l.docKind]),
+      before.lines.map((l) => [l.description, l.quantity, l.unitPrice, l.lineTotal, l.supplierUnitCost, l.sourceFileUrl, l.pageStart, l.pageEnd, l.docKind]));
+    // marginPct: el parser lo redondea; undefined → null, igual que estaba.
+    assert.equal(body.marginPct ?? null, q.marginPct);
+    assert.equal(body.vatRate, q.vatRate);
+    assert.equal(body.discountType, q.discountType);
+    assert.equal(body.pdfLang, q.pdfLang);
+  });
+}
+
+function storedTotalsArgs(q: EditableQuote) {
+  return {
+    lines: q.lines.map((l) => ({ ...l, supplierUnitCost: l.supplierUnitCost ?? undefined, sourceFileUrl: l.sourceFileUrl ?? undefined, pageStart: l.pageStart ?? undefined, pageEnd: l.pageEnd ?? undefined, docKind: l.docKind ?? undefined })),
+    discountType: q.discountType as any,
+    discountValue: q.discountValue,
+    vatRate: q.vatRate,
+    deliveryType: q.deliveryType as any,
+  };
+}
+
+test("coste null se conserva (no se vuelve 0 €) aunque la fila se toque sin ponerle coste", () => {
+  const [, diploma] = hydrateRows(LINES, []);
+  assert.equal(patchLineFromQuoteLine(LINES[1]).supplierUnitCost, undefined);
+  const touched = { ...diploma, lineDescription: "Diploma universitario" };
+  const out = editLineFor(touched, compose);
+  assert.equal(out.description, "Diploma universitario");
+  assert.equal("supplierUnitCost" in out, false);
+  const withCost = { ...diploma, unitPrice: 20 };
+  assert.equal(editLineFor(withCost, compose).supplierUnitCost, 20);
+});
+
+test("fila tocada: se recompone y el total cambia por donde toca", () => {
+  const q = quoteOf();
+  const rows = hydrateRows(q.lines, []);
+  rows[0] = { ...rows[0], clientPrice: 50 };
+  const lines = rows.map((r) => editLineFor(r, compose));
+  assert.equal(lines[0].unitPrice, 50);
+  assert.deepEqual(lines.slice(1), q.lines.slice(1).map(patchLineFromQuoteLine));
+  const after = serverRecompute(buildQuotePatchPayload(editFormFromQuote(q), lines));
+  assert.equal(after.subtotal, Math.round((storedTotals(q).subtotal + 7.5) * 100) / 100);
+});
+
+test("cuerpo del PATCH: mismo formato que QuoteEditForm + pdfLang/shippingBase; flags solo si se piden", () => {
+  const q = quoteOf({ customerPhone: "  " });
+  const body = buildQuotePatchPayload(editFormFromQuote(q), []);
+  assert.equal(body.customerPhone, undefined);
+  assert.equal(body.holderNames, null);
+  assert.equal(body.contactWhatsapp, null);
+  assert.equal(body.shippingBase, 14);
+  assert.equal("overrideLowMargin" in body, false);
+  assert.equal("frozenRepair" in body, false);
+  const b2 = buildQuotePatchPayload(editFormFromQuote(q), [], { overrideLowMargin: true, frozenRepair: true });
+  assert.equal(b2.overrideLowMargin, true);
+  assert.equal(b2.frozenRepair, true);
+  assert.equal(shippingBaseFor({ deliveryType: "DIGITAL_PDF", shippingBase: 14 }), 0);
+  assert.equal(shippingBaseFor({ deliveryType: "PAPER_SHIP", shippingBase: 0 }), 12);
+});
+
+test("guarda de pago congelado: bloquea dinero sin frozenRepair; deja datos sin dinero y la reparación", () => {
+  const current = { lines: [{ quantity: 1, unitPrice: "42.50", supplierUnitCost: "30.00" }], total: "51.43" };
+  const same = { lines: [{ quantity: 1, unitPrice: 42.5, supplierUnitCost: 30 }], total: 51.43 };
+  const newCost = { lines: [{ quantity: 1, unitPrice: 42.5, supplierUnitCost: 45 }], total: 51.43 };
+  const newPrice = { lines: [{ quantity: 1, unitPrice: 60, supplierUnitCost: 45 }], total: 72.6 };
+  const extraLine = { lines: [...same.lines, { quantity: 1, unitPrice: 0, supplierUnitCost: null }], total: 51.43 };
+  assert.equal(frozenEditBlocked({ frozen: true, frozenRepair: false, current, next: same }), false);
+  assert.equal(frozenEditBlocked({ frozen: true, frozenRepair: false, current, next: newCost }), true);
+  assert.equal(frozenEditBlocked({ frozen: true, frozenRepair: false, current, next: newPrice }), true);
+  assert.equal(frozenEditBlocked({ frozen: true, frozenRepair: false, current, next: extraLine }), true);
+  assert.equal(frozenEditBlocked({ frozen: true, frozenRepair: true, current, next: newPrice }), false);
+  assert.equal(frozenEditBlocked({ frozen: false, frozenRepair: false, current, next: newPrice }), false);
+});
+
+test("PATCH /api/quotes/[id] aplica la guarda antes de escribir y responde 409", () => {
+  const src = readFileSync(new URL("../../app/api/quotes/[id]/route.ts", import.meta.url), "utf8");
+  const guard = src.indexOf("frozenEditBlocked({");
+  assert.ok(guard > 0);
+  assert.ok(guard < src.indexOf("prisma.$transaction"));
+  assert.match(src.slice(guard, guard + 600), /frozenRepair: \(body as any\)\?\.frozenRepair === true/);
+  assert.match(src.slice(guard, guard + 800), /Pago congelado: descongela antes de editar[\s\S]{0,40}status: 409/);
+});
+
+test("modo edición nunca crea: handleSubmit (POST) se corta y guardar es PATCH", () => {
+  const src = readFileSync(new URL("../../components/StaffExpedienteIntake.tsx", import.meta.url), "utf8");
+  const submit = src.indexOf("const handleSubmit = useCallback(async");
+  assert.ok(submit > 0);
+  assert.match(src.slice(submit, submit + 200), /if \(editQuote\) return;/);
+  assert.equal(src.match(/fetch\("\/api\/quotes",/g)?.length, 1);
+  assert.ok(src.indexOf('fetch("/api/quotes",') > submit);
+  const save = src.indexOf("const saveEdit = async");
+  const saveBody = src.slice(save, src.indexOf("const resendEdit", save));
+  assert.match(saveBody, /fetch\(`\/api\/quotes\/\$\{editQuote\.id\}`/);
+  assert.match(saveBody, /method: "PATCH"/);
+  assert.doesNotMatch(saveBody, /method: "POST"/);
+  assert.doesNotMatch(saveBody, /window\.confirm/);
+});
+
+test("flag apagado: la ficha y /editar siguen como hoy", () => {
+  const ficha = readFileSync(new URL("../../app/zona-traductor/presupuestos/[id]/page.tsx", import.meta.url), "utf8");
+  assert.match(ficha, /const editarHref = paginaUnica \? "#editar" : `\/zona-traductor\/presupuestos\/\$\{params\.id\}\/editar`;/);
+  assert.match(ficha, /const constructor = paginaUnica \? await constructorDelPresupuesto/);
+  const editar = readFileSync(new URL("../../app/zona-traductor/presupuestos/[id]/editar/page.tsx", import.meta.url), "utf8");
+  assert.match(editar, /if \(presupuestoPaginaUnicaOn\(\)\) \{\s*redirect\(/);
+  assert.match(editar, /<QuoteEditForm /);
+});
