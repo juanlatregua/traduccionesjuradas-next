@@ -31,7 +31,7 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
 }
 
-const FIELD = "rounded-md border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-500";
+const FIELD = "rounded-md border border-[#D5DAE1] bg-white px-2 py-1.5 text-xs text-[#1F2933] placeholder:text-[#52606D]";
 
 function GroupCard({ group, canIssue, onDone }: { group: CollaboratorAccountGroup; canIssue: boolean; onDone: (msg: string) => void }) {
   const [sel, setSel] = useState<Set<string>>(() => new Set(group.charges.map((c) => c.id)));
@@ -102,36 +102,36 @@ function GroupCard({ group, canIssue, onDone }: { group: CollaboratorAccountGrou
   }
 
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-3">
+    <div className="rounded-lg border border-[#D5DAE1] bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-white">{group.name}</p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-sm font-semibold text-[#1A2E4A]">{group.name}</p>
+          <p className="text-[11px] text-[#52606D]">
             {group.charges.length} encargo(s) pendientes de factura · {group.supplierType === "AUTONOMO" ? "autónomo (IRPF 15%)" : "empresa"}
             {!group.collaboratorId && " · sin ficha de colaborador (no liquidable desde aquí)"}
           </p>
         </div>
         <div className="text-right">
-          <p className="text-sm font-semibold tabular-nums text-amber-200">{eur(sumCents)}</p>
-          <p className="text-[10px] text-slate-500">seleccionado ({selCharges.length})</p>
+          <p className="text-sm font-semibold tabular-nums text-[#7A5A10]">{eur(sumCents)}</p>
+          <p className="text-[10px] text-[#52606D]">seleccionado ({selCharges.length})</p>
         </div>
       </div>
 
-      <ul className="mt-2 divide-y divide-slate-800 rounded-md border border-slate-800">
+      <ul className="mt-2 divide-y divide-[#D5DAE1] rounded-md border border-[#D5DAE1]">
         {group.charges.map((c) => (
-          <li key={c.id} className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-300">
+          <li key={c.id} className="flex items-center gap-2 px-2 py-1.5 text-xs text-[#1F2933]">
             {canIssue && group.collaboratorId && (
               <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggle(c.id)} aria-label={`Incluir ${c.orderReference ?? c.concept}`} />
             )}
-            <span className="text-slate-500">{fmtDate(c.date)}</span>
+            <span className="text-[#52606D]">{fmtDate(c.date)}</span>
             {c.orderReference ? (
-              <a href={`/zona-traductor/pedido/${c.orderReference}`} className="font-mono text-cyan-300 hover:underline">
+              <a href={`/zona-traductor/pedido/${c.orderReference}`} className="font-mono text-[#1A2E4A] hover:underline">
                 {c.orderReference}
               </a>
             ) : (
-              <span className="text-slate-500">—</span>
+              <span className="text-[#52606D]">—</span>
             )}
-            <span className="min-w-0 flex-1 truncate text-slate-400">{c.concept}</span>
+            <span className="min-w-0 flex-1 truncate text-[#52606D]">{c.concept}</span>
             <span className="tabular-nums">{eur(c.baseCents)}</span>
           </li>
         ))}
@@ -143,13 +143,13 @@ function GroupCard({ group, canIssue, onDone }: { group: CollaboratorAccountGrou
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500"
+              className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243F66]"
             >
               Registrar factura ({selCharges.length} encargo{selCharges.length === 1 ? "" : "s"})
             </button>
           ) : (
-            <div className="rounded-lg border border-emerald-800/50 bg-emerald-900/10 p-3">
-              <p className="text-xs font-semibold text-emerald-200">Factura de {group.name}</p>
+            <div className="rounded-lg border border-[#BFE0CC] bg-[#EEF7F1] p-3">
+              <p className="text-xs font-semibold text-[#1F6B45]">Factura de {group.name}</p>
               <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 <input value={form.number} onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))} placeholder="Nº factura del colaborador *" className={FIELD} />
                 <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className={FIELD} />
@@ -174,12 +174,12 @@ function GroupCard({ group, canIssue, onDone }: { group: CollaboratorAccountGrou
                 <input value={form.nif} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value }))} placeholder="NIF del colaborador" className={FIELD} />
               </div>
               {mismatch && (
-                <label className="mt-2 flex items-center gap-2 text-[11px] text-amber-300">
+                <label className="mt-2 flex items-center gap-2 text-[11px] text-[#7A5A10]">
                   <input type="checkbox" checked={form.acceptMismatch} onChange={(e) => setForm((f) => ({ ...f, acceptMismatch: e.target.checked }))} />
                   La base ({eur(baseCents)}) no cuadra con los devengos ({eur(sumCents)}) — registrar igualmente
                 </label>
               )}
-              <p className="mt-2 text-[11px] text-slate-500">
+              <p className="mt-2 text-[11px] text-[#52606D]">
                 El justificante (PDF) se adjunta después desde Gastos, como cualquier factura recibida.
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -187,7 +187,7 @@ function GroupCard({ group, canIssue, onDone }: { group: CollaboratorAccountGrou
                   type="button"
                   onClick={() => submit(false)}
                   disabled={busy || selCharges.length === 0 || !form.number.trim() || (mismatch && !form.acceptMismatch)}
-                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
                 >
                   {busy ? "Registrando…" : `Registrar y liquidar ${selCharges.length} devengo(s)`}
                 </button>
@@ -196,12 +196,12 @@ function GroupCard({ group, canIssue, onDone }: { group: CollaboratorAccountGrou
                     type="button"
                     onClick={() => submit(true)}
                     disabled={busy}
-                    className="rounded-lg border border-amber-600 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
+                    className="rounded-lg border border-[#E9D8A6] px-3 py-1.5 text-xs font-semibold text-[#7A5A10] hover:bg-[#FFF8E6] disabled:opacity-50"
                   >
                     Registrar de todas formas
                   </button>
                 )}
-                <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">
+                <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs text-[#1F2933] hover:bg-[#F6F7F9]">
                   Cancelar
                 </button>
               </div>
@@ -209,7 +209,7 @@ function GroupCard({ group, canIssue, onDone }: { group: CollaboratorAccountGrou
           )}
         </div>
       )}
-      {msg && <p className="mt-2 text-xs text-rose-300">{msg}</p>}
+      {msg && <p className="mt-2 text-xs text-[#A12B2B]">{msg}</p>}
     </div>
   );
 }
@@ -228,8 +228,8 @@ export default function CollaboratorAccountPanel({ groups, canIssue }: { groups:
 
   if (groups.length === 0) {
     return (
-      <div className="mb-4 rounded-xl border border-slate-700 bg-slate-900/30 p-3 text-xs text-slate-500">
-        {okMsg && <p className="mb-1 text-emerald-300">{okMsg}</p>}
+      <div className="mb-4 rounded-xl border border-[#D5DAE1] bg-white p-3 text-xs text-[#52606D]">
+        {okMsg && <p className="mb-1 text-[#1F6B45]">{okMsg}</p>}
         Cuenta por traductor: sin encargos pendientes de factura. Los encargos adjudicados se acumulan aquí hasta que el
         colaborador envía su factura (mensual o puntual).
       </div>
@@ -237,18 +237,18 @@ export default function CollaboratorAccountPanel({ groups, canIssue }: { groups:
   }
 
   return (
-    <div className="mb-4 rounded-xl border border-amber-700/40 bg-amber-900/5 p-3">
+    <div className="mb-4 rounded-xl border border-[#E9D8A6] bg-[#FFF8E6] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-white">Cuenta por traductor — encargos sin facturar</h3>
-        <p className="text-xs text-slate-400">
-          {groups.length} colaborador(es) · <span className="font-semibold text-amber-200">{eur(totalCents)}</span> devengados
+        <h3 className="text-sm font-semibold text-[#1A2E4A]">Cuenta por traductor — encargos sin facturar</h3>
+        <p className="text-xs text-[#52606D]">
+          {groups.length} colaborador(es) · <span className="font-semibold text-[#7A5A10]">{eur(totalCents)}</span> devengados
         </p>
       </div>
-      <p className="mt-1 text-[11px] text-slate-500">
+      <p className="mt-1 text-[11px] text-[#52606D]">
         Cada encargo adjudicado acumula aquí su coste. Estos devengos NO cuentan en libro/303/gestoría: cuentan cuando
         registras la factura real del colaborador (una al mes o puntual), que los liquida y entra como factura recibida.
       </p>
-      {okMsg && <p className="mt-2 text-xs text-emerald-300">{okMsg}</p>}
+      {okMsg && <p className="mt-2 text-xs text-[#1F6B45]">{okMsg}</p>}
       <div className="mt-3 space-y-3">
         {groups.map((g) => (
           <GroupCard key={g.collaboratorId ?? g.name} group={g} canIssue={canIssue} onDone={handleDone} />

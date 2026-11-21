@@ -6,12 +6,12 @@ export type FacturaParada = { expenseId: string; reference: string | null; suppl
 
 const eur = (cents: number) => `${(cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
-function Cifra({ label, valor, nota, tono = "text-white" }: { label: string; valor: string; nota: string; tono?: string }) {
+function Cifra({ label, valor, nota, tono = "text-[#1A2E4A]" }: { label: string; valor: string; nota: string; tono?: string }) {
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-3">
-      <p className="text-xs text-slate-400">{label}</p>
+    <div className="rounded-lg border border-[#D5DAE1] bg-white p-3">
+      <p className="text-xs text-[#52606D]">{label}</p>
       <p className={`mt-1 text-xl font-semibold tabular-nums ${tono}`}>{valor}</p>
-      <p className="mt-1 text-[11px] text-slate-500">{nota}</p>
+      <p className="mt-1 text-[11px] text-[#52606D]">{nota}</p>
     </div>
   );
 }
@@ -26,7 +26,7 @@ export default function PanelDiarioContable({ resumen, paradas, porLeer }: { res
           label="Resultado del mes"
           valor={eur(r.resultadoMesCents)}
           nota={`Suma ${eur(r.cobradoSinFacturaMesCents)} cobrados sin factura; resta ${eur(r.gastosMesCents)} de gastos y ${eur(r.costeSinFacturaMesCents)} de traductores sin factura`}
-          tono={r.resultadoMesCents >= 0 ? "text-emerald-300" : "text-rose-300"}
+          tono={r.resultadoMesCents >= 0 ? "text-[#1F6B45]" : "text-[#A12B2B]"}
         />
         <Cifra
           label="A guardar"
@@ -38,7 +38,7 @@ export default function PanelDiarioContable({ resumen, paradas, porLeer }: { res
             label="Libre en el banco"
             valor={eur(r.banco.libreCents)}
             nota={`Saldo ${eur(r.banco.saldoCents)} el ${r.banco.asOf.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} menos lo que hay que guardar. Se actualiza al subir el extracto.`}
-            tono={r.banco.libreCents >= 0 ? "text-emerald-300" : "text-rose-300"}
+            tono={r.banco.libreCents >= 0 ? "text-[#1F6B45]" : "text-[#A12B2B]"}
           />
         ) : (
           <Cifra label="Libre en el banco" valor="—" nota="Sube el extracto del banco en Conciliación y aparece aquí." />
@@ -46,13 +46,13 @@ export default function PanelDiarioContable({ resumen, paradas, porLeer }: { res
       </div>
 
       {paradas.length > 0 ? (
-        <div className="rounded-lg border border-amber-600/40 bg-amber-500/10 p-3">
-          <p className="text-sm font-semibold text-amber-200">Necesitan tu decisión ({paradas.length})</p>
-          <ul className="mt-2 space-y-1 text-xs text-slate-200">
+        <div className="rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] p-3">
+          <p className="text-sm font-semibold text-[#7A5A10]">Necesitan tu decisión ({paradas.length})</p>
+          <ul className="mt-2 space-y-1 text-xs text-[#1F2933]">
             {paradas.map((p) => (
               <li key={p.expenseId}>
                 {p.reference ? (
-                  <a href={`/zona-traductor/pedido/${p.reference}`} className="font-semibold text-cyan-300 hover:underline">
+                  <a href={`/zona-traductor/pedido/${p.reference}`} className="font-semibold text-[#1A2E4A] hover:underline">
                     {p.reference}
                   </a>
                 ) : (
@@ -64,13 +64,13 @@ export default function PanelDiarioContable({ resumen, paradas, porLeer }: { res
           </ul>
         </div>
       ) : (
-        <p className="text-xs text-slate-400">Nada espera tu decisión.</p>
+        <p className="text-xs text-[#52606D]">Nada espera tu decisión.</p>
       )}
 
-      {porLeer > 0 && <p className="text-[11px] text-slate-500">{porLeer} factura(s) de traductor por leer: el agente pasa cada mañana.</p>}
+      {porLeer > 0 && <p className="text-[11px] text-[#52606D]">{porLeer} factura(s) de traductor por leer: el agente pasa cada mañana.</p>}
 
       {r.gastosSinCompletar > 0 && (
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-[#52606D]">
           {r.gastosSinCompletar} gasto(s) del trimestre sin completar: no cuentan en estas cifras hasta confirmarse en el detalle.
         </p>
       )}

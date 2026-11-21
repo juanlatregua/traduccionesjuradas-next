@@ -22,7 +22,7 @@ type Row = {
   error?: string;
 };
 
-const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100";
+const FIELD = "rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933]";
 
 const COLS: Record<string, string[]> = {
   number: ["numero", "numero factura", "n factura", "nº", "n", "num", "factura"],
@@ -153,25 +153,25 @@ export default function ImportInvoicesPanel() {
   }
 
   return (
-    <div className="mt-10 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+    <div className="mt-10 rounded-xl border border-[#D5DAE1] bg-white p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Importar facturas desde Excel (CSV)</h2>
-        <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs text-cyan-300 hover:text-cyan-200">
+        <h2 className="text-sm font-semibold text-[#1A2E4A]">Importar facturas desde Excel (CSV)</h2>
+        <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs text-[#1A2E4A] hover:text-[#1A2E4A]">
           {open ? "Cerrar" : "Abrir importador"}
         </button>
       </div>
 
       {open && (
         <div className="mt-3">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#52606D]">
             En Excel: <strong>Guardar como → CSV</strong>. Columnas reconocidas (cabecera):{" "}
-            <code className="text-slate-300">número, fecha, cliente, nif, base, iva, total, concepto, marca</code>. Se autodetecta el
+            <code className="text-[#1F2933]">número, fecha, cliente, nif, base, iva, total, concepto, marca</code>. Se autodetecta el
             separador (; o ,) y los decimales con coma. Solo se importan filas válidas; los números duplicados se rechazan.
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-slate-300" />
-            <span className="text-xs text-slate-500">o pega el contenido abajo</span>
+            <input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-[#1F2933]" />
+            <span className="text-xs text-[#52606D]">o pega el contenido abajo</span>
           </div>
           <textarea
             className={`mt-2 block h-24 w-full ${FIELD} font-mono text-xs`}
@@ -179,13 +179,13 @@ export default function ImportInvoicesPanel() {
             onChange={(e) => handleText(e.target.value)}
           />
 
-          {headerError && <p className="mt-2 text-xs text-rose-300">{headerError}</p>}
+          {headerError && <p className="mt-2 text-xs text-[#A12B2B]">{headerError}</p>}
 
           {rows.length > 0 && (
             <>
-              <div className="mt-3 overflow-x-auto rounded-lg border border-slate-700">
-                <table className="w-full text-xs text-slate-200">
-                  <thead className="bg-slate-800/60 text-left uppercase tracking-wide text-slate-400">
+              <div className="mt-3 overflow-x-auto rounded-lg border border-[#D5DAE1]">
+                <table className="w-full text-xs text-[#1F2933]">
+                  <thead className="bg-[#F6F7F9] text-left uppercase tracking-wide text-[#52606D]">
                     <tr>
                       <th className="px-3 py-1.5">Nº</th>
                       <th className="px-3 py-1.5">Fecha</th>
@@ -197,9 +197,9 @@ export default function ImportInvoicesPanel() {
                       <th className="px-3 py-1.5"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800">
+                  <tbody className="divide-y divide-[#D5DAE1]">
                     {rows.map((r, i) => (
-                      <tr key={i} className={r.error ? "bg-rose-900/20" : undefined}>
+                      <tr key={i} className={r.error ? "bg-[#FDF2F2]" : undefined}>
                         <td className="px-3 py-1.5 font-mono">{r.number || "—"}</td>
                         <td className="px-3 py-1.5">{r.date}</td>
                         <td className="px-3 py-1.5">{r.fiscalName || "—"}</td>
@@ -208,7 +208,7 @@ export default function ImportInvoicesPanel() {
                         <td className="px-3 py-1.5 text-right tabular-nums">{eur(r.totalCents)}</td>
                         {/* Etiqueta desde BRANDS: añadir una marca no debe exigir tocar esta tabla. */}
                         <td className="px-3 py-1.5">{getBrand(r.brand).label}</td>
-                        <td className="px-3 py-1.5 text-rose-300">{r.error || ""}</td>
+                        <td className="px-3 py-1.5 text-[#A12B2B]">{r.error || ""}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -219,18 +219,18 @@ export default function ImportInvoicesPanel() {
                   type="button"
                   onClick={doImport}
                   disabled={busy || valid.length === 0}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
                 >
                   {busy ? "Importando…" : `Importar ${valid.length} factura(s)`}
                 </button>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-[#52606D]">
                   {rows.length} fila(s) · {valid.length} válida(s) · {rows.length - valid.length} con error
                 </span>
               </div>
             </>
           )}
 
-          {result && <p className="mt-2 text-xs text-cyan-300">{result}</p>}
+          {result && <p className="mt-2 text-xs text-[#1A2E4A]">{result}</p>}
         </div>
       )}
     </div>

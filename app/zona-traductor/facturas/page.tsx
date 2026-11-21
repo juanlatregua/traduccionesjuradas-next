@@ -66,28 +66,28 @@ export default async function ZonaTraductorFacturasPage() {
   ]);
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Facturas</h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <h1 className="text-2xl font-semibold text-[#1A2E4A]">Facturas</h1>
+            <p className="mt-1 text-sm text-[#52606D]">
               {issued.length} emitida{issued.length === 1 ? "" : "s"} · {eur(facturado)} facturado. Próximo nº sugerido:{" "}
-              <span className="font-mono text-cyan-300">{suggested}</span> · presupuestos:{" "}
-              <span className="font-mono text-violet-300">{suggestedQuote}</span>
+              <span className="font-mono text-[#1A2E4A]">{suggested}</span> · presupuestos:{" "}
+              <span className="font-mono text-[#1A2E4A]">{suggestedQuote}</span>
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <a
               href="/zona-traductor/facturas/declaracion-responsable"
-              className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
               title="Declaración responsable del sistema de facturación (RD 1007/2023) y estado de la cadena de registros"
             >
               VeriFactu · declaración
             </a>
             <a
               href="/zona-traductor/contabilidad"
-              className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+              className="rounded-lg border border-[#D5DAE1] px-4 py-2 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
             >
               Ir a Contabilidad →
             </a>
