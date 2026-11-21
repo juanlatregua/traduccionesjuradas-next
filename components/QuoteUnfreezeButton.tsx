@@ -35,7 +35,7 @@ export default function QuoteUnfreezeButton({ quoteId, estimatedCostZero = false
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-rose-300/60 px-3 py-1.5 text-sm font-semibold text-rose-100 hover:bg-rose-500/20"
+        className="rounded-lg border border-[#F0C9C9] px-3 py-1.5 text-sm font-semibold text-[#A12B2B] hover:bg-[#F6F7F9]"
       >
         Desbloquear igualmente
       </button>
@@ -48,10 +48,10 @@ export default function QuoteUnfreezeButton({ quoteId, estimatedCostZero = false
         onChange={(e) => setReason(e.target.value)}
         rows={2}
         placeholder="Por qué se desbloquea asumiendo la pérdida (queda en el registro)"
-        className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+        className="w-full rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933]"
       />
       {estimatedCostZero && (
-        <label className="flex items-start gap-2 text-sm text-rose-100">
+        <label className="flex items-start gap-2 text-sm text-[#A12B2B]">
           <input type="checkbox" checked={confirmSinCoste} onChange={(e) => setConfirmSinCoste(e.target.checked)} className="mt-1" />
           <span>
             Sin coste estimado en las líneas: al pagar, la cifra del jurado se aceptará SOLA en lavori (no hay freno). Lo asumo.
@@ -67,11 +67,11 @@ export default function QuoteUnfreezeButton({ quoteId, estimatedCostZero = false
         >
           {busy ? "Desbloqueando…" : "Desbloquear y asumir la pérdida"}
         </button>
-        <button type="button" onClick={() => setOpen(false)} className="text-sm text-slate-300 underline">
+        <button type="button" onClick={() => setOpen(false)} className="text-sm text-[#1F2933] underline">
           Cancelar
         </button>
       </div>
-      {error && <p className="text-sm text-rose-200">{error}</p>}
+      {error && <p className="text-sm text-[#A12B2B]">{error}</p>}
     </div>
   );
 }

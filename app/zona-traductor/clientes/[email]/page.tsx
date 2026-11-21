@@ -125,17 +125,17 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
   const totalPaid =
     orders.filter((o) => o.paymentStatus === "PAID").reduce((s, o) => s + o.amountCents, 0) +
     invoices.filter((i) => i.status === "ISSUED" && i.paidAt).reduce((s, i) => s + i.totalCents, 0);
-  const card = "rounded-2xl border border-slate-700 bg-slate-900/60 p-5";
+  const card = "rounded-2xl border border-[#D5DAE1] bg-white p-5";
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl space-y-5 px-4 py-8 sm:px-6">
         <div>
-          <a href="/zona-traductor/clientes" className="text-xs font-semibold text-cyan-400 hover:underline">
+          <a href="/zona-traductor/clientes" className="text-xs font-semibold text-[#1A2E4A] hover:underline">
             ← Clientes
           </a>
-          <h1 className="mt-1 text-2xl font-semibold text-white">{name}</h1>
-          <p className="text-sm text-slate-400">
+          <h1 className="mt-1 text-2xl font-semibold text-[#1A2E4A]">{name}</h1>
+          <p className="text-sm text-[#52606D]">
             {email} · {orders.length} pedido(s) · {quotes.length} presupuesto(s) · {issuedInvoiceCount} factura(s) suelta(s) · {eur(totalPaid)} cobrado
           </p>
           {customer && (
@@ -172,9 +172,9 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
 
         {customer?.intermediary && (
           <div className={card}>
-            <p className="text-sm text-slate-400">
-              Traído por <span className="font-medium text-slate-100">{customer.intermediary.name}</span>{" "}
-              <a href={`/zona-traductor/clientes/${encodeURIComponent(customer.intermediary.email)}`} className="text-cyan-400 hover:underline">
+            <p className="text-sm text-[#52606D]">
+              Traído por <span className="font-medium text-[#1F2933]">{customer.intermediary.name}</span>{" "}
+              <a href={`/zona-traductor/clientes/${encodeURIComponent(customer.intermediary.email)}`} className="text-[#1A2E4A] hover:underline">
                 ({customer.intermediary.email})
               </a>
             </p>
@@ -183,21 +183,21 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
 
         {customer && customer.referrals.length > 0 && (
           <div className={card}>
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">
               Sus clientes ({customer.referrals.length}) · intermediario
             </h2>
-            <div className="mt-3 divide-y divide-slate-800 rounded-xl border border-slate-700">
+            <div className="mt-3 divide-y divide-[#D5DAE1] rounded-xl border border-[#D5DAE1]">
               {customer.referrals.map((r) => (
                 <a
                   key={r.email}
                   href={`/zona-traductor/clientes/${encodeURIComponent(r.email)}`}
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-900/40"
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-[#F6F7F9]"
                 >
-                  <span className="font-medium text-white">
+                  <span className="font-medium text-[#1A2E4A]">
                     {r.name || r.email}
-                    {r.isBusiness && <span className="ml-2 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-200">B2B</span>}
+                    {r.isBusiness && <span className="ml-2 rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[10px] font-semibold text-[#1A2E4A]">B2B</span>}
                   </span>
-                  <span className="text-slate-400">{r.email}</span>
+                  <span className="text-[#52606D]">{r.email}</span>
                 </a>
               ))}
             </div>
@@ -206,21 +206,21 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
 
         {customer && (customer.nif || customer.fiscalName || customer.address || customer.companyName || customer.creditEnabled) && (
           <div className={card}>
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Datos fiscales</h2>
-            <div className="mt-2 grid gap-1 text-sm text-slate-300 sm:grid-cols-2">
-              {customer.fiscalName && <p>Nombre fiscal: <span className="text-slate-100">{customer.fiscalName}</span></p>}
-              {customer.nif && <p>NIF: <span className="text-slate-100">{customer.nif}</span></p>}
-              {customer.companyName && <p>Empresa: <span className="text-slate-100">{customer.companyName}</span></p>}
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Datos fiscales</h2>
+            <div className="mt-2 grid gap-1 text-sm text-[#1F2933] sm:grid-cols-2">
+              {customer.fiscalName && <p>Nombre fiscal: <span className="text-[#1F2933]">{customer.fiscalName}</span></p>}
+              {customer.nif && <p>NIF: <span className="text-[#1F2933]">{customer.nif}</span></p>}
+              {customer.companyName && <p>Empresa: <span className="text-[#1F2933]">{customer.companyName}</span></p>}
               {(customer.address || customer.city) && (
-                <p>Dirección: <span className="text-slate-100">{[customer.address, customer.postalCode, customer.city].filter(Boolean).join(", ")}</span></p>
+                <p>Dirección: <span className="text-[#1F2933]">{[customer.address, customer.postalCode, customer.city].filter(Boolean).join(", ")}</span></p>
               )}
               {customer.isBusiness && (
-                <p className="text-cyan-300">Cliente B2B{customer.autoConfirmPayment ? " · pago auto-confirmado" : ""}</p>
+                <p className="text-[#1A2E4A]">Cliente B2B{customer.autoConfirmPayment ? " · pago auto-confirmado" : ""}</p>
               )}
               {customer.creditEnabled && (
-                <p className="text-violet-300">
+                <p className="text-[#1A2E4A]">
                   Cliente de crédito · vence a {customer.creditDays} días
-                  {!customer.nif || !customer.fiscalName ? <span className="text-amber-300"> · falta razón social o NIF</span> : ""}
+                  {!customer.nif || !customer.fiscalName ? <span className="text-[#7A5A10]"> · falta razón social o NIF</span> : ""}
                 </p>
               )}
             </div>
@@ -228,11 +228,11 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
         )}
 
         <div className={card}>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">
             Pedidos · documentos · traducciones · facturas · presupuestos
           </h2>
           {orders.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">Sin pedidos.</p>
+            <p className="mt-2 text-sm text-[#52606D]">Sin pedidos.</p>
           ) : (
             <div className="mt-3 space-y-3">
               {orders.map((o) => {
@@ -240,56 +240,56 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
                 const delivered = getDelivered(o);
                 const state = getWorkflowState(o as any);
                 return (
-                  <div key={o.reference} className="rounded-xl border border-slate-700 bg-slate-800/30 p-4">
+                  <div key={o.reference} className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <a href={`/zona-traductor/pedido/${o.reference}`} className="font-mono text-sm font-semibold text-cyan-400 hover:underline">
+                        <a href={`/zona-traductor/pedido/${o.reference}`} className="font-mono text-sm font-semibold text-[#1A2E4A] hover:underline">
                           {o.reference}
                         </a>
-                        <span className="ml-2 text-xs text-slate-400">
+                        <span className="ml-2 text-xs text-[#52606D]">
                           {o.langPair || ""} · {eur(o.amountCents)} · {getWorkflowStateLabel(state)}
                         </span>
                       </div>
-                      <a href={`/zona-traductor/pedido/${o.reference}`} className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800">
+                      <a href={`/zona-traductor/pedido/${o.reference}`} className="rounded-lg border border-[#D5DAE1] px-2.5 py-1 text-xs text-[#1F2933] hover:bg-[#F6F7F9]">
                         Abrir pedido →
                       </a>
                     </div>
                     <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
                       <div>
-                        <p className="font-semibold text-slate-400">Originales</p>
+                        <p className="font-semibold text-[#52606D]">Originales</p>
                         {docs.length ? (
                           docs.map((d, i) => (
-                            <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="block truncate text-cyan-300 hover:underline" title={d.name}>
+                            <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="block truncate text-[#1A2E4A] hover:underline" title={d.name}>
                               📄 {d.name}
                             </a>
                           ))
                         ) : (
-                          <p className="text-slate-600">—</p>
+                          <p className="text-[#52606D]">—</p>
                         )}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-400">Traducciones</p>
+                        <p className="font-semibold text-[#52606D]">Traducciones</p>
                         {delivered.length ? (
                           delivered.map((d, i) => (
-                            <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="block truncate text-emerald-300 hover:underline" title={d.name}>
+                            <a key={i} href={d.url} target="_blank" rel="noopener noreferrer" className="block truncate text-[#1F6B45] hover:underline" title={d.name}>
                               ✓ {d.name}
                             </a>
                           ))
                         ) : (
-                          <p className="text-slate-600">—</p>
+                          <p className="text-[#52606D]">—</p>
                         )}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-400">Factura / presupuesto</p>
+                        <p className="font-semibold text-[#52606D]">Factura / presupuesto</p>
                         {o.clientInvoice?.status === "ISSUED" ? (
-                          <a href={`/api/orders/${o.reference}/invoice-pdf`} className="block text-emerald-300 hover:underline">
+                          <a href={`/api/orders/${o.reference}/invoice-pdf`} className="block text-[#1F6B45] hover:underline">
                             🧾 {o.clientInvoice.number} (PDF)
                           </a>
                         ) : (
-                          <p className="text-slate-600">sin factura</p>
+                          <p className="text-[#52606D]">sin factura</p>
                         )}
                         {o.quote && (
-                          <a href={`/zona-traductor/presupuestos/${o.quote.id}`} className="block text-slate-300 hover:underline">
+                          <a href={`/zona-traductor/presupuestos/${o.quote.id}`} className="block text-[#1F2933] hover:underline">
                             Presupuesto {o.quote.quoteNumber}
                           </a>
                         )}
@@ -304,20 +304,20 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
 
         {/* Presupuestos del cliente (incluye los que aún no son pedido) */}
         <div className={card}>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Presupuestos</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Presupuestos</h2>
           {quotes.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">Sin presupuestos.</p>
+            <p className="mt-2 text-sm text-[#52606D]">Sin presupuestos.</p>
           ) : (
-            <div className="mt-3 divide-y divide-slate-800 rounded-xl border border-slate-700">
+            <div className="mt-3 divide-y divide-[#D5DAE1] rounded-xl border border-[#D5DAE1]">
               {quotes.map((q) => (
                 <a
                   key={q.id}
                   href={`/zona-traductor/presupuestos/${q.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-slate-900/40"
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-[#F6F7F9]"
                 >
-                  <span className="font-mono font-semibold text-cyan-400">{q.quoteNumber}</span>
-                  <span className="text-xs text-slate-400">{q.status}</span>
-                  <span className="tabular-nums text-slate-200">{eur(Math.round(Number(q.total) * 100))}</span>
+                  <span className="font-mono font-semibold text-[#1A2E4A]">{q.quoteNumber}</span>
+                  <span className="text-xs text-[#52606D]">{q.status}</span>
+                  <span className="tabular-nums text-[#1F2933]">{eur(Math.round(Number(q.total) * 100))}</span>
                 </a>
               ))}
             </div>
@@ -328,31 +328,31 @@ export default async function ClienteFolderPage({ params }: { params: { email: s
         <MonthlyInvoicePanel invoices={monthly} billingCycle={customer?.billingCycle || "PER_ORDER"} />
 
         <div className={card}>
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Facturas sueltas (sin pedido)</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Facturas sueltas (sin pedido)</h2>
           {invoices.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-400">Sin facturas.</p>
+            <p className="mt-2 text-sm text-[#52606D]">Sin facturas.</p>
           ) : (
-            <div className="mt-3 divide-y divide-slate-800 rounded-xl border border-slate-700">
+            <div className="mt-3 divide-y divide-[#D5DAE1] rounded-xl border border-[#D5DAE1]">
               {invoices.map((inv) => {
                 const issued = inv.status === "ISSUED";
                 return (
                   <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-semibold text-cyan-400">{inv.number || "borrador"}</span>
+                      <span className="font-mono font-semibold text-[#1A2E4A]">{inv.number || "borrador"}</span>
                       {issued ? (
                         inv.paidAt ? (
-                          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">Cobrada</span>
+                          <span className="rounded-full bg-[#EEF7F1] px-2 py-0.5 text-[10px] font-semibold text-[#1F6B45]">Cobrada</span>
                         ) : (
-                          <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-semibold text-rose-200">Pendiente</span>
+                          <span className="rounded-full bg-[#FDF2F2] px-2 py-0.5 text-[10px] font-semibold text-[#A12B2B]">Pendiente</span>
                         )
                       ) : (
-                        <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-200">Borrador</span>
+                        <span className="rounded-full bg-[#FFF8E6] px-2 py-0.5 text-[10px] font-semibold text-[#7A5A10]">Borrador</span>
                       )}
                     </div>
-                    {inv.holderNames && <span className="text-xs text-slate-400">{inv.holderNames}</span>}
+                    {inv.holderNames && <span className="text-xs text-[#52606D]">{inv.holderNames}</span>}
                     <div className="flex items-center gap-3">
-                      <span className="tabular-nums text-slate-200">{eur(inv.totalCents)}</span>
-                      <a href={`/api/invoices/${inv.id}/pdf`} target="_blank" rel="noreferrer" className="text-xs text-cyan-300 hover:underline">
+                      <span className="tabular-nums text-[#1F2933]">{eur(inv.totalCents)}</span>
+                      <a href={`/api/invoices/${inv.id}/pdf`} target="_blank" rel="noreferrer" className="text-xs text-[#1A2E4A] hover:underline">
                         PDF
                       </a>
                     </div>

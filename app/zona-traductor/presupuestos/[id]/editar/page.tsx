@@ -31,7 +31,7 @@ export default async function PresupuestoEditarPage({
   const numero = (serialized as any).quoteNumber || "";
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <main className="mx-auto max-w-3xl px-4 py-8">
         <ZonaTraductorSubNav
           tabs={[
@@ -42,15 +42,15 @@ export default async function PresupuestoEditarPage({
         <div className="mb-5 flex items-center gap-3">
           <Link
             href={`/zona-traductor/presupuestos/${params.id}`}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1F2933] hover:text-[#1A2E4A]"
           >
             <ArrowLeft className="h-4 w-4" />
             Volver al presupuesto
           </Link>
-          <span className="text-slate-600">·</span>
-          <h1 className="font-mono text-sm font-bold text-cyan-300">{numero}</h1>
+          <span className="text-[#52606D]">·</span>
+          <h1 className="font-mono text-sm font-bold text-[#1A2E4A]">{numero}</h1>
         </div>
-        <div className="rounded-2xl bg-cream p-4 shadow-xl">
+        <div className="rounded-[14px] border border-[#D5DAE1] bg-white p-4">
           <QuoteEditForm quote={serialized as any} nuevaLinea={searchParams.nuevaLinea === "1"} />
         </div>
       </main>

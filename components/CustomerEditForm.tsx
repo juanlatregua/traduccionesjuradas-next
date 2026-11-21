@@ -25,8 +25,8 @@ export type CustomerEditable = {
 };
 
 const input =
-  "w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-cyan-500 focus:outline-none";
-const label = "text-[11px] font-semibold uppercase tracking-wide text-slate-500";
+  "w-full rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3] focus:border-[#1A2E4A] focus:outline-none";
+const label = "text-[11px] font-semibold uppercase tracking-wide text-[#52606D]";
 
 // Editar la ficha del cliente sin tocar la base de datos. Los datos fiscales
 // (NIF, razón social) se imprimen en la factura → un typo aquí obligaba antes a
@@ -92,23 +92,23 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+          className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
         >
           ✎ Editar datos
         </button>
-        {msg && <span className="text-xs font-medium text-emerald-300">{msg}</span>}
+        {msg && <span className="text-xs font-medium text-[#1F6B45]">{msg}</span>}
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-5">
+    <div className="rounded-2xl border border-[#D5DAE1] bg-white p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Editar ficha del cliente</h2>
+        <h2 className="text-sm font-semibold text-[#1A2E4A]">Editar ficha del cliente</h2>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-xs font-semibold text-slate-400 hover:text-slate-200"
+          className="text-xs font-semibold text-[#52606D] hover:text-[#1A2E4A]"
         >
           Cancelar
         </button>
@@ -179,38 +179,38 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-xs text-slate-300">
+        <label className="flex items-center gap-2 text-xs text-[#1F2933]">
           <input
             type="checkbox"
             checked={form.isBusiness}
             onChange={(e) => set("isBusiness", e.target.checked)}
-            className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+            className="h-4 w-4 rounded border-[#D5DAE1] bg-white"
           />
           Cliente de empresa (B2B)
         </label>
-        <label className="flex items-center gap-2 text-xs text-slate-300">
+        <label className="flex items-center gap-2 text-xs text-[#1F2933]">
           <input
             type="checkbox"
             checked={form.autoConfirmPayment}
             onChange={(e) => set("autoConfirmPayment", e.target.checked)}
-            className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+            className="h-4 w-4 rounded border-[#D5DAE1] bg-white"
           />
           Cliente de confianza (justificante auto-confirma el cobro)
         </label>
         {/* Carril de crédito (Juan, 2-sep-2026): "se puede entregar y trabajar con
             determinados clientes". Exige razón social + NIF para que la factura
             con vencimiento no salga simplificada. */}
-        <label className="flex items-center gap-2 text-xs text-slate-300">
+        <label className="flex items-center gap-2 text-xs text-[#1F2933]">
           <input
             type="checkbox"
             checked={form.creditEnabled}
             onChange={(e) => set("creditEnabled", e.target.checked)}
-            className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+            className="h-4 w-4 rounded border-[#D5DAE1] bg-white"
           />
           Cliente de crédito (se trabaja y entrega antes de cobrar, contra factura)
         </label>
         {form.creditEnabled && (
-          <label className="flex items-center gap-2 text-xs text-slate-300">
+          <label className="flex items-center gap-2 text-xs text-[#1F2933]">
             Vence a
             <input
               type="number"
@@ -218,7 +218,7 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
               max={90}
               value={form.creditDays}
               onChange={(e) => set("creditDays", Math.max(1, Math.min(90, Number(e.target.value) || 30)))}
-              className="w-16 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+              className="w-16 rounded-lg border border-[#D5DAE1] bg-white px-2 py-1 text-sm text-[#1F2933] focus:border-[#1A2E4A] focus:outline-none"
             />
             días
           </label>
@@ -226,12 +226,12 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
         {/* Factura agrupada a fin de mes (4-sep-2026, Marbella Translators): los
             pedidos cuelgan de un borrador mensual que se emite al cerrar el mes. */}
         {form.creditEnabled && (
-          <label className="flex items-center gap-2 text-xs text-slate-300">
+          <label className="flex items-center gap-2 text-xs text-[#1F2933]">
             Facturación
             <select
               value={form.billingCycle}
               onChange={(e) => set("billingCycle", e.target.value === "MONTHLY" ? "MONTHLY" : "PER_ORDER")}
-              className="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+              className="rounded-lg border border-[#D5DAE1] bg-white px-2 py-1 text-sm text-[#1F2933] focus:border-[#1A2E4A] focus:outline-none"
             >
               <option value="PER_ORDER">una factura por pedido, al autorizar</option>
               <option value="MONTHLY">factura agrupada a fin de mes</option>
@@ -240,7 +240,7 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
         )}
       </div>
       {form.creditEnabled && (!form.fiscalName?.trim() || !form.nif?.trim()) && (
-        <p className="mt-2 text-xs text-amber-300">
+        <p className="mt-2 text-xs text-[#7A5A10]">
           Para autorizar crédito hacen falta razón social y NIF (arriba): sin NIF la factura sale simplificada y a una empresa no le sirve.
         </p>
       )}
@@ -250,11 +250,11 @@ export default function CustomerEditForm({ customer }: { customer: CustomerEdita
           type="button"
           onClick={save}
           disabled={busy}
-          className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-60"
+          className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-60"
         >
           {busy ? "Guardando…" : "Guardar cambios"}
         </button>
-        {msg && <span className="text-xs font-medium text-amber-300">{msg}</span>}
+        {msg && <span className="text-xs font-medium text-[#7A5A10]">{msg}</span>}
       </div>
     </div>
   );

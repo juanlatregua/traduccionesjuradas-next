@@ -47,7 +47,7 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
     });
     const refs = await casoRefs(entradas.flatMap((e) => [e.casoId, ...e.posibles, ...e.relacionados]));
     return (
-      <div className="min-h-screen bg-slate-950">
+      <div className="min-h-screen bg-[#F6F7F9]">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
           <EntradasPendientes entradas={entradas} refs={refs} />
         </div>
@@ -78,12 +78,12 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
   const entradaRefs = await casoRefs(entradas.flatMap((e) => [...e.posibles, ...e.relacionados]));
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <header className="mb-6">
-          <a href="/zona-traductor/presupuesto" className="text-sm text-cyan-400 hover:text-cyan-300">← Constructor</a>
-          <h1 className="mt-2 text-2xl font-semibold text-white">Leer el lote{caso ? ` · ${caso.ref}` : expedienteRef ? ` · ${expedienteRef}` : ""}</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <a href="/zona-traductor/presupuesto" className="text-sm text-[#1A2E4A] hover:text-[#1A2E4A]">← Constructor</a>
+          <h1 className="mt-2 text-2xl font-semibold text-[#1A2E4A]">Leer el lote{caso ? ` · ${caso.ref}` : expedienteRef ? ` · ${expedienteRef}` : ""}</h1>
+          <p className="mt-1 text-sm text-[#52606D]">
             La lectura agrupa los archivos en documentos. Revisa, corrige y confirma: ninguna línea existe sin que una persona la confirme.
           </p>
         </header>
