@@ -102,19 +102,19 @@ export default function ZonaTraductorFilters({ current, counts, query }: Props) 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por referencia, cliente, email, NIF o titulo"
-          className="rounded-xl border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="rounded-xl border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
           aria-label="Buscar pedido"
         />
         <button
           type="submit"
-          className="rounded-xl bg-cyan-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-cyan-500"
+          className="rounded-xl bg-[#1A2E4A] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-[#243F66]"
         >
           Buscar
         </button>
         <button
           type="button"
           onClick={clearSearch}
-          className="rounded-xl border border-slate-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-200 hover:bg-slate-800"
+          className="rounded-xl border border-[#D5DAE1] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#1F2933] hover:bg-[#F6F7F9]"
         >
           Limpiar
         </button>
@@ -134,10 +134,10 @@ export default function ZonaTraductorFilters({ current, counts, query }: Props) 
               onClick={() => navigate(key)}
               className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                 isActive
-                  ? "bg-cyan-600 text-white"
+                  ? "bg-[#1A2E4A] text-white"
                   : isRisk
-                    ? "border border-red-500 bg-red-500/10 text-red-300 hover:bg-red-500/20"
-                    : "border border-slate-600 text-slate-300 hover:bg-slate-700"
+                    ? "border border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B] hover:bg-[#FDF2F2]"
+                    : "border border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]"
               }`}
             >
               {LABELS[key]} ({count})
@@ -150,14 +150,14 @@ export default function ZonaTraductorFilters({ current, counts, query }: Props) 
         <button
           type="button"
           onClick={exportCsv}
-          className="rounded-xl border border-emerald-500/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-300 hover:bg-emerald-500/10"
+          className="rounded-xl border border-[#BFE0CC] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#1F6B45] hover:bg-[#EEF7F1]"
         >
           Exportar CSV
         </button>
         <button
           type="button"
           onClick={resetView}
-          className="rounded-xl border border-amber-500/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-amber-300 hover:bg-amber-500/10"
+          className="rounded-xl border border-[#E9D8A6] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#7A5A10] hover:bg-[#FFF8E6]"
         >
           Resetear vista
         </button>

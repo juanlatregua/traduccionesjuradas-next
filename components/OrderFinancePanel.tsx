@@ -210,10 +210,10 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-xs text-slate-300">
+      <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3 text-xs text-[#1F2933]">
         <p>
           Reconciliacion:{" "}
-          <span className="font-semibold text-slate-100">{snapshot.reconciliationStatus}</span>
+          <span className="font-semibold text-[#1F2933]">{snapshot.reconciliationStatus}</span>
           {snapshot.reconciliationDiffCents !== null && (
             <span className="ml-2">
               Descuadre: {toMoney(snapshot.reconciliationDiffCents)} (tol:{" "}
@@ -223,14 +223,14 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
         </p>
         <p className="mt-1">
           Factura proveedor:{" "}
-          <span className="font-semibold text-slate-100">{snapshot.supplierInvoiceStatus}</span>
-          <span className="ml-2 text-slate-400">
+          <span className="font-semibold text-[#1F2933]">{snapshot.supplierInvoiceStatus}</span>
+          <span className="ml-2 text-[#52606D]">
             ({snapshot.supplierInvoiceBillingMode === "MONTHLY_BATCH" ? "Lote mensual" : "Por pedido"})
           </span>
         </p>
         <p className="mt-1">
           Tipo proveedor:{" "}
-          <span className="font-semibold text-slate-200">
+          <span className="font-semibold text-[#1F2933]">
             {snapshot.supplierType === "AUTONOMO"
               ? "Autonomo"
               : snapshot.supplierType === "EMPRESA"
@@ -242,7 +242,7 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
           Margen actual:{" "}
           <span
             className={`font-semibold ${
-              snapshot.marginCents !== null && snapshot.marginCents < 0 ? "text-red-300" : "text-emerald-300"
+              snapshot.marginCents !== null && snapshot.marginCents < 0 ? "text-[#A12B2B]" : "text-[#1F6B45]"
             }`}
           >
             {toMoney(snapshot.marginCents)}
@@ -251,15 +251,15 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
         </p>
         <p className="mt-1">
           Umbral minimo:{" "}
-          <span className="font-semibold text-slate-200">{snapshot.marginThresholdPct}%</span> | Aprobacion margen:{" "}
-          <span className="font-semibold text-slate-100">{snapshot.marginApprovalStatus}</span>
+          <span className="font-semibold text-[#1F2933]">{snapshot.marginThresholdPct}%</span> | Aprobacion margen:{" "}
+          <span className="font-semibold text-[#1F2933]">{snapshot.marginApprovalStatus}</span>
         </p>
         <p className="mt-1">
-          Cierre contable (dia 25): <span className="font-semibold text-slate-100">{formatDate(snapshot.accountingCutoffDate)}</span>
-          {snapshot.accountingCutoffPassed && <span className="ml-2 text-amber-300">periodo vencido</span>}
+          Cierre contable (dia 25): <span className="font-semibold text-[#1F2933]">{formatDate(snapshot.accountingCutoffDate)}</span>
+          {snapshot.accountingCutoffPassed && <span className="ml-2 text-[#7A5A10]">periodo vencido</span>}
         </p>
         {snapshot.warnings.length > 0 && (
-          <ul className="mt-2 space-y-1 text-[11px] text-amber-300">
+          <ul className="mt-2 space-y-1 text-[11px] text-[#7A5A10]">
             {snapshot.warnings.map((w) => (
               <li key={w}>• {w}</li>
             ))}
@@ -268,10 +268,10 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Conciliacion cobro</p>
+        <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Conciliacion cobro</p>
           <div className="mt-2 space-y-2">
-            <label className="block text-[11px] text-slate-400">
+            <label className="block text-[11px] text-[#52606D]">
               Importe recibido (€)
             <input
               type="text"
@@ -279,10 +279,10 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               value={receivedAmountCents}
               onChange={(e) => setReceivedAmountCents(e.target.value)}
               placeholder="Importe recibido (€)"
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             </label>
-            <label className="block text-[11px] text-slate-400">
+            <label className="block text-[11px] text-[#52606D]">
               Comisión de la pasarela (€)
             <input
               type="text"
@@ -290,10 +290,10 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               value={gatewayFeeCents}
               onChange={(e) => setGatewayFeeCents(e.target.value)}
               placeholder="Comisión pasarela (€)"
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             </label>
-            <label className="block text-[11px] text-slate-400">
+            <label className="block text-[11px] text-[#52606D]">
               Tolerancia de descuadre (€)
             <input
               type="text"
@@ -301,24 +301,24 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               value={toleranceEur}
               onChange={(e) => setToleranceEur(e.target.value)}
               placeholder="Tolerancia descuadre (€)"
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             </label>
-            <label className="block text-[11px] text-slate-400">
+            <label className="block text-[11px] text-[#52606D]">
               Fecha en que llegó el dinero
             <input
               type="date"
               value={settledAt}
               onChange={(e) => setSettledAt(e.target.value)}
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             </label>
-            <label className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200">
+            <label className="flex items-center gap-2 rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]">
               <input
                 type="checkbox"
                 checked={markReconciled}
                 onChange={(e) => setMarkReconciled(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-500 bg-slate-950 text-cyan-500"
+                className="h-4 w-4 rounded border-[#D5DAE1] bg-[#fff] text-[#1A2E4A]"
               />
               Marcar como RECONCILED (listo para cierre)
             </label>
@@ -326,15 +326,15 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               type="button"
               onClick={saveReconciliation}
               disabled={loading}
-              className="w-full rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-60"
+              className="w-full rounded-lg bg-[#1A2E4A] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-60"
             >
               Guardar conciliacion
             </button>
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Factura proveedor</p>
+        <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#7A5A10]">Factura proveedor</p>
           <div className="mt-2">
             <SupplierInvoiceDrop
               key={[...pendingAccruals, ...supplierInvoices].map((e) => e.id).join(",")}
@@ -345,12 +345,12 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
             />
           </div>
           <details className="mt-3">
-            <summary className="cursor-pointer text-[11px] text-slate-400">Estado manual de la factura (sin contabilizar)</summary>
+            <summary className="cursor-pointer text-[11px] text-[#52606D]">Estado manual de la factura (sin contabilizar)</summary>
           <div className="mt-2 space-y-2">
             <select
               value={supplierStatus}
               onChange={(e) => setSupplierStatus(e.target.value as SupplierStatus)}
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             >
               <option value="PENDING_REQUEST">Pendiente de solicitar</option>
               <option value="REQUESTED">Solicitada</option>
@@ -361,7 +361,7 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
             <select
               value={billingMode}
               onChange={(e) => setBillingMode(e.target.value as BillingMode)}
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             >
               <option value="PER_ORDER">Facturacion por pedido</option>
               <option value="MONTHLY_BATCH">Facturacion por lote mensual</option>
@@ -373,13 +373,13 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
                 setSupplierType(next);
                 if (next === "EMPRESA") setIrpfRetentionPct("0");
               }}
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             >
               <option value="AUTONOMO">Proveedor autonomo (con IRPF)</option>
               <option value="EMPRESA">Proveedor empresa (sin IRPF)</option>
             </select>
             {supplierType === "AUTONOMO" && (
-              <label className="block text-[11px] text-slate-400">
+              <label className="block text-[11px] text-[#52606D]">
                 IRPF %
               <input
                 type="text"
@@ -387,7 +387,7 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
                 value={irpfRetentionPct}
                 onChange={(e) => setIrpfRetentionPct(e.target.value)}
                 placeholder="% IRPF retenido"
-                className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+                className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
               />
               </label>
             )}
@@ -396,16 +396,16 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               value={supplierName}
               onChange={(e) => setSupplierName(e.target.value)}
               placeholder="Proveedor / traductor"
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             <input
               type="text"
               value={invoiceNumber}
               onChange={(e) => setInvoiceNumber(e.target.value)}
               placeholder="Numero de factura"
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
-            <label className="block text-[11px] text-slate-400">
+            <label className="block text-[11px] text-[#52606D]">
               Total factura (€)
             <input
               type="text"
@@ -413,20 +413,20 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               value={invoiceTotalCents}
               onChange={(e) => setInvoiceTotalCents(e.target.value)}
               placeholder="Total factura (€)"
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             </label>
             <input
               type="date"
               value={invoiceDueDate}
               onChange={(e) => setInvoiceDueDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             <button
               type="button"
               onClick={saveSupplierInvoice}
               disabled={loading}
-              className="w-full rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+              className="w-full rounded-lg bg-[#7A5A10] px-3 py-2 text-xs font-semibold text-white hover:bg-[#654A0D] disabled:opacity-60"
             >
               Guardar factura proveedor
             </button>
@@ -436,10 +436,10 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Margen del pedido</p>
+        <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">Margen del pedido</p>
           <div className="mt-2 space-y-2">
-            <label className="block text-[11px] text-slate-400">
+            <label className="block text-[11px] text-[#52606D]">
               Coste del traductor (€)
             <input
               type="text"
@@ -447,10 +447,10 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               value={supplierCostCents}
               onChange={(e) => setSupplierCostCents(e.target.value)}
               placeholder="Coste proveedor (€)"
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             </label>
-            <label className="block text-[11px] text-slate-400">
+            <label className="block text-[11px] text-[#52606D]">
               Otros costes (€)
             <input
               type="text"
@@ -458,35 +458,35 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
               value={otherCostCents}
               onChange={(e) => setOtherCostCents(e.target.value)}
               placeholder="Otros costes (€)"
-              className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+              className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
             />
             </label>
             <button
               type="button"
               onClick={saveMargin}
               disabled={loading}
-              className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+              className="w-full rounded-lg bg-[#1F6B45] px-3 py-2 text-xs font-semibold text-white hover:bg-[#185738] disabled:opacity-60"
             >
               Calcular y guardar margen
             </button>
           </div>
           {snapshot.requiresMarginApproval && (
-            <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2">
-              <p className="text-[11px] text-amber-200">
+            <div className="mt-3 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] p-2">
+              <p className="text-[11px] text-[#7A5A10]">
                 Margen por debajo del {snapshot.marginThresholdPct}%. Requiere aprobacion.
               </p>
               <textarea
                 value={approvalNote}
                 onChange={(e) => setApprovalNote(e.target.value)}
                 placeholder="Nota de aprobacion/rechazo"
-                className="mt-2 h-16 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+                className="mt-2 h-16 w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
               />
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => updateMarginApproval("APPROVED")}
                   disabled={loading}
-                  className="rounded-lg bg-lime-600 px-3 py-2 text-xs font-semibold text-white hover:bg-lime-500 disabled:opacity-60"
+                  className="rounded-lg bg-lime-600 px-3 py-2 text-xs font-semibold text-[#1A2E4A] hover:bg-lime-500 disabled:opacity-60"
                 >
                   Aprobar margen
                 </button>
@@ -494,7 +494,7 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
                   type="button"
                   onClick={() => updateMarginApproval("REJECTED")}
                   disabled={loading}
-                  className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+                  className="rounded-lg bg-[#A12B2B] px-3 py-2 text-xs font-semibold text-white hover:bg-[#8A2323] disabled:opacity-60"
                 >
                   Rechazar margen
                 </button>
@@ -503,9 +503,9 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">Cierre financiero</p>
-          <p className="mt-2 text-xs text-slate-400">
+        <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Cierre financiero</p>
+          <p className="mt-2 text-xs text-[#52606D]">
             Sin aprobacion extra: al pagar proveedor se informa al Project Manager. El cierre exige conciliacion OK,
             factura requerida y margen valido.
           </p>
@@ -513,14 +513,14 @@ export default function OrderFinancePanel({ reference, amountCents, snapshot, pe
             type="button"
             onClick={closeFinance}
             disabled={loading}
-            className="mt-3 w-full rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
+            className="mt-3 w-full rounded-lg bg-[#1A2E4A] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-60"
           >
             {snapshot.hasFinanceCloseEvent ? "Cierre ya registrado" : "Cerrar financieramente"}
           </button>
         </div>
       </div>
 
-      {message && <p className="text-xs font-semibold text-slate-200">{message}</p>}
+      {message && <p className="text-xs font-semibold text-[#1F2933]">{message}</p>}
     </div>
   );
 }

@@ -146,8 +146,8 @@ export default function LavoriCandidatePicker({
   const auto = !todosCabe && value.mode === "todos" ? pickLavoriAuto(route.lang, miembros) : [];
   const elegidos = value.mode === "varios" ? value.ids : [];
   const lleno = elegidos.length >= LAVORI_MAX_CANDIDATOS;
-  const radio = "mt-0.5 h-3.5 w-3.5 accent-violet-500";
-  const label = "flex items-start gap-2 text-xs text-violet-100/90";
+  const radio = "mt-0.5 h-3.5 w-3.5 accent-[#1A2E4A]";
+  const label = "flex items-start gap-2 text-xs text-[#1A2E4A]";
 
   const toggle = (id: string) => {
     const set = new Set(elegidos);
@@ -158,9 +158,9 @@ export default function LavoriCandidatePicker({
 
   return (
     <fieldset className="space-y-1.5" disabled={disabled}>
-      <legend className="text-[11px] font-semibold uppercase tracking-wide text-violet-300/80">
+      <legend className="text-[11px] font-semibold uppercase tracking-wide text-[#1A2E4A]">
         Destinatarios
-        <span className="ml-2 font-normal normal-case tracking-normal text-violet-400/70">
+        <span className="ml-2 font-normal normal-case tracking-normal text-[#1A2E4A]">
           {cartera.loading ? "leyendo el tablón…" : cartera.live ? "cartera en vivo de lavori" : "cartera de respaldo (lavori no respondió)"}
           {" · "}máximo {LAVORI_MAX_CANDIDATOS} por solicitud (regla de lavori)
         </span>
@@ -169,7 +169,7 @@ export default function LavoriCandidatePicker({
         <label className={label}>
           <input type="radio" name="lavori-pick" className={radio} checked={value.mode === "carril"} onChange={() => onChange({ mode: "carril" })} />
           <span>
-            Carril por defecto · <span className="text-violet-200">{defaultNames}</span>
+            Carril por defecto · <span className="text-[#1A2E4A]">{defaultNames}</span>
           </span>
         </label>
       )}
@@ -184,17 +184,17 @@ export default function LavoriCandidatePicker({
           ) : (
             <>
               Los {LAVORI_MAX_CANDIDATOS} más activos de los {conCanal} de {route.lang.toUpperCase()} con canal, elegidos solos
-              <span className="ml-1 text-violet-400/70">(carril · con tarifas · disponibles · última entrada; empates al azar)</span>
+              <span className="ml-1 text-[#1A2E4A]">(carril · con tarifas · disponibles · última entrada; empates al azar)</span>
             </>
           )}
         </span>
       </label>
       {auto.length > 0 && (
-        <div className="ml-6 rounded-md border border-violet-800/60 bg-violet-950/40 p-2 text-xs text-violet-200/90">
+        <div className="ml-6 rounded-md border border-[#D5DAE1] bg-[#F6F7F9] p-2 text-xs text-[#1A2E4A]">
           {auto.map((m) => (
             <span key={m.id} className="mr-3 inline-block">
               {m.nombre}
-              <span className="text-violet-400/70"> · {entrada(m)}</span>
+              <span className="text-[#1A2E4A]"> · {entrada(m)}</span>
             </span>
           ))}
         </div>
@@ -210,25 +210,25 @@ export default function LavoriCandidatePicker({
         <span>
           Varios a mano (hasta {LAVORI_MAX_CANDIDATOS})
           {value.mode === "varios" && (
-            <span className="ml-1 text-violet-300/80">
+            <span className="ml-1 text-[#1A2E4A]">
               · {elegidos.length} de {LAVORI_MAX_CANDIDATOS}
             </span>
           )}
         </span>
       </label>
       {value.mode === "varios" && (
-        <div className="ml-6 grid max-h-56 gap-1 overflow-y-auto rounded-md border border-violet-800/60 bg-violet-950/40 p-2 sm:grid-cols-2">
+        <div className="ml-6 grid max-h-56 gap-1 overflow-y-auto rounded-md border border-[#D5DAE1] bg-[#F6F7F9] p-2 sm:grid-cols-2">
           {receptores.length === 0 && (
-            <span className="text-xs text-violet-300/70">(sin jurados de {route.lang.toUpperCase()} con canal en el tablón)</span>
+            <span className="text-xs text-[#1A2E4A]">(sin jurados de {route.lang.toUpperCase()} con canal en el tablón)</span>
           )}
           {receptores.map((m) => {
             const s = señales(m);
             const checked = elegidos.includes(m.id);
             return (
-              <label key={m.id} className={`flex items-start gap-2 text-xs ${!checked && lleno ? "opacity-50" : "text-violet-100/90"}`}>
+              <label key={m.id} className={`flex items-start gap-2 text-xs ${!checked && lleno ? "opacity-50" : "text-[#1A2E4A]"}`}>
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-3.5 w-3.5 accent-violet-500"
+                  className="mt-0.5 h-3.5 w-3.5 accent-[#1A2E4A]"
                   checked={checked}
                   disabled={!checked && lleno}
                   onChange={() => toggle(m.id)}
@@ -237,7 +237,7 @@ export default function LavoriCandidatePicker({
                   {m.nombre}
                   {m.tij ? ` · T-IJ ${m.tij}` : ""}
                   {defaults.includes(m.id) ? " · carril" : ""}
-                  <span className="text-violet-300/70">
+                  <span className="text-[#1A2E4A]">
                     {" · "}
                     {entrada(m)}
                     {s ? ` · ${s}` : ""}
@@ -262,7 +262,7 @@ export default function LavoriCandidatePicker({
             <select
               value={value.id}
               onChange={(e) => onChange({ mode: "uno", id: e.target.value })}
-              className="rounded-md border border-violet-700/60 bg-violet-950/60 px-2 py-1 text-xs text-violet-100 focus:border-violet-500 focus:outline-none"
+              className="rounded-md border border-[#D5DAE1] bg-[#F6F7F9] px-2 py-1 text-xs text-[#1A2E4A] focus:border-[#D5DAE1] focus:outline-none"
             >
               {miembros.length === 0 && <option value="">(sin jurados de {route.lang.toUpperCase()} en el tablón)</option>}
               {miembros.map((m) => {

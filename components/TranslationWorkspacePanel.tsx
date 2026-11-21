@@ -178,49 +178,49 @@ export default function TranslationWorkspacePanel({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+    <div className="rounded-2xl border border-[#D5DAE1] bg-[#fff] p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">
         Estado de entrega
       </p>
 
       {/* Enlace para que el traductor asignado suba su traducción */}
-      <div className="mt-3 rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3">
-        <p className="text-xs text-slate-400">Enlace de subida para el traductor:</p>
+      <div className="mt-3 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+        <p className="text-xs text-[#52606D]">Enlace de subida para el traductor:</p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={getTranslatorLink}
             disabled={linkLoading}
-            className="rounded-lg border border-indigo-500/40 px-3 py-1.5 text-xs font-semibold text-indigo-300 hover:bg-indigo-500/10 disabled:opacity-50"
+            className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-50"
           >
             {linkLoading ? "Generando…" : translatorLink ? "Copiar de nuevo" : "Generar y copiar enlace"}
           </button>
           {translatorLink && (
-            <a href={translatorLink} target="_blank" rel="noopener noreferrer" className="truncate text-xs text-indigo-300 hover:underline">
+            <a href={translatorLink} target="_blank" rel="noopener noreferrer" className="truncate text-xs text-[#1A2E4A] hover:underline">
               {translatorLink}
             </a>
           )}
         </div>
-        <p className="mt-1 text-[11px] text-slate-500">Pásaselo al traductor; sube ahí su traducción y te aviso para verificar y enviar.</p>
+        <p className="mt-1 text-[11px] text-[#52606D]">Pásaselo al traductor; sube ahí su traducción y te aviso para verificar y enviar.</p>
       </div>
 
       {!withoutDelivery && translatorDeliveredAt && (
-        <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-          <p className="text-xs font-semibold text-amber-300">⏳ El traductor entregó — pendiente de verificar</p>
-          <p className="mt-1 text-[11px] text-slate-300">
+        <div className="mt-3 rounded-xl border border-[#E9D8A6] bg-[#FFF8E6] p-3">
+          <p className="text-xs font-semibold text-[#7A5A10]">⏳ El traductor entregó — pendiente de verificar</p>
+          <p className="mt-1 text-[11px] text-[#1F2933]">
             <b>Descarga y revisa el archivo de abajo.</b> Si está correcto, marca <b>«Notificar al cliente»</b> (desactivado a propósito) y pulsa Guardar para enviárselo. No se envía nada hasta que tú lo marques.
           </p>
         </div>
       )}
 
       {!withoutDelivery && existingFileUrl && (
-        <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-          <p className="text-xs text-slate-400">Archivo actual:</p>
+        <div className="mt-3 rounded-xl border border-[#BFE0CC] bg-[#EEF7F1] p-3">
+          <p className="text-xs text-[#52606D]">Archivo actual:</p>
           <a
             href={existingFileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-semibold text-emerald-300 hover:underline"
+            className="text-sm font-semibold text-[#1F6B45] hover:underline"
           >
             {existingFilename || "Descargar archivo"}
           </a>
@@ -232,7 +232,7 @@ export default function TranslationWorkspacePanel({
         <select
           value={state}
           onChange={(e) => setState(e.target.value as "EN_PROCESO" | "TRADUCIDO")}
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          className="rounded-xl border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-sm text-[#1F2933]"
         >
           <option value="EN_PROCESO">En proceso</option>
           <option value="TRADUCIDO">Traducido</option>
@@ -241,7 +241,7 @@ export default function TranslationWorkspacePanel({
       )}
       {!withoutDelivery && (
       <details className="mt-2" open={Boolean(url)}>
-        <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
+        <summary className="cursor-pointer text-xs font-semibold text-[#52606D] hover:text-[#1F2933]">
           Avanzado: traducción alojada fuera (URL externa)
         </summary>
         <input
@@ -249,19 +249,19 @@ export default function TranslationWorkspacePanel({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="URL PDF traducido (opcional si subes archivo)"
-          className="mt-2 w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="mt-2 w-full rounded-xl border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
         />
       </details>
       )}
 
       {state === "EN_PROCESO" && !(withoutDelivery && alreadyDelivered) && (
-        <div className="mt-3 space-y-2 rounded-xl border border-slate-700 bg-slate-900/60 p-3">
-          <label className="flex items-center gap-2 text-xs text-slate-300">
+        <div className="mt-3 space-y-2 rounded-xl border border-[#D5DAE1] bg-[#fff] p-3">
+          <label className="flex items-center gap-2 text-xs text-[#1F2933]">
             <input
               type="checkbox"
               checked={autoEta}
               onChange={(e) => setAutoEta(e.target.checked)}
-              className="rounded border-slate-500"
+              className="rounded border-[#D5DAE1]"
             />
             Calcular ETA automáticamente (laborables)
           </label>
@@ -270,7 +270,7 @@ export default function TranslationWorkspacePanel({
               type="date"
               value={etaDate}
               onChange={(e) => setEtaDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              className="w-full rounded-xl border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-sm text-[#1F2933]"
             />
           )}
         </div>
@@ -279,8 +279,8 @@ export default function TranslationWorkspacePanel({
       {/* Subir la traducción terminada — siempre visible. Elegir un archivo ya
           marca el pedido como Traducido (listo para entregar al cliente). */}
       {!withoutDelivery && (
-      <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
-        <p className="text-xs font-semibold text-emerald-300">
+      <div className="mt-3 rounded-xl border border-[#BFE0CC] bg-[#EEF7F1] p-3">
+        <p className="text-xs font-semibold text-[#1F6B45]">
           {alreadyDelivered
             ? "📄 Subir corrección: la traducción ya se entregó. La nueva versión pasa a ser la principal (sustituye a la anterior si el nombre coincide)."
             : "📄 Entregar al cliente: sube la traducción terminada"}
@@ -293,7 +293,7 @@ export default function TranslationWorkspacePanel({
             addFiles(Array.from(e.target.files || []));
             e.target.value = ""; // permite reelegir / añadir el mismo input otra vez
           }}
-          className="mt-2 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-emerald-500/50 file:bg-emerald-600/20 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-200"
+          className="mt-2 block w-full text-xs text-[#1F2933] file:mr-3 file:rounded-lg file:border file:border-[#BFE0CC] file:bg-[#EEF7F1] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#1F6B45]"
         />
         {/* Subir una CARPETA entera (webkitdirectory) — coge sus PDF/Word/ZIP, descarta ocultos. */}
         <input
@@ -311,7 +311,7 @@ export default function TranslationWorkspacePanel({
             addFiles(picked);
             e.target.value = "";
           }}
-          className="mt-2 block w-full text-xs text-slate-400 file:mr-3 file:rounded-lg file:border file:border-slate-500/50 file:bg-slate-700/40 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-200"
+          className="mt-2 block w-full text-xs text-[#52606D] file:mr-3 file:rounded-lg file:border file:border-[#D5DAE1] file:bg-[#F6F7F9] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#1F2933]"
         />
         {files.length > 0 ? (
           <div className="mt-2">
@@ -319,26 +319,26 @@ export default function TranslationWorkspacePanel({
               {files.map((f, i) => (
                 <li
                   key={`${f.name}-${f.size}-${i}`}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-slate-800/60 px-2.5 py-1.5 text-xs text-slate-200"
+                  className="flex items-center justify-between gap-2 rounded-lg bg-[#F6F7F9] px-2.5 py-1.5 text-xs text-[#1F2933]"
                 >
                   <span className="truncate">📄 {f.name}</span>
                   <button
                     type="button"
                     onClick={() => removeFile(i)}
-                    className="shrink-0 font-semibold text-red-300 hover:text-red-200"
+                    className="shrink-0 font-semibold text-[#A12B2B] hover:text-[#A12B2B]"
                   >
                     quitar
                   </button>
                 </li>
               ))}
             </ul>
-            <p className="mt-1.5 text-[11px] text-slate-400">
+            <p className="mt-1.5 text-[11px] text-[#52606D]">
               ✓ {files.length} archivo{files.length > 1 ? "s" : ""} listo{files.length > 1 ? "s" : ""}. Marca «Notificar al
               cliente» y pulsa Guardar para enviárselo{files.length > 1 ? "s todos" : ""}.
             </p>
           </div>
         ) : (
-          <p className="mt-1.5 text-[11px] text-slate-400">
+          <p className="mt-1.5 text-[11px] text-[#52606D]">
             PDF, Word o ZIP. Añade los archivos de uno en uno (se ACUMULAN, no se borran) o una CARPETA entera. Al elegir se
             marca como Traducido.
           </p>
@@ -347,7 +347,7 @@ export default function TranslationWorkspacePanel({
       )}
 
       {state === "TRADUCIDO" && (
-        <label className="mt-3 flex items-center gap-2 text-sm font-medium text-slate-100">
+        <label className="mt-3 flex items-center gap-2 text-sm font-medium text-[#1F2933]">
           <input
             type="checkbox"
             checked={notifyClient}
@@ -355,7 +355,7 @@ export default function TranslationWorkspacePanel({
               setNotifyClient(e.target.checked);
               if (e.target.checked) setDelivered(false);
             }}
-            className="rounded border-slate-500"
+            className="rounded border-[#D5DAE1]"
           />
           {alreadyDelivered
             ? "Notificar al cliente (le llega email con la versión corregida)"
@@ -368,7 +368,7 @@ export default function TranslationWorkspacePanel({
         type="button"
         onClick={submit}
         disabled={loading || delivered}
-        className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+        className="mt-4 rounded-xl bg-[#1F6B45] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#185738] disabled:opacity-60"
       >
         {loading
           ? "Guardando..."
@@ -383,7 +383,7 @@ export default function TranslationWorkspacePanel({
       )}
 
       {message && (
-        <p className={`mt-2 text-xs font-semibold ${message.includes("Error") ? "text-red-300" : "text-emerald-300"}`}>
+        <p className={`mt-2 text-xs font-semibold ${message.includes("Error") ? "text-[#A12B2B]" : "text-[#1F6B45]"}`}>
           {message}
         </p>
       )}

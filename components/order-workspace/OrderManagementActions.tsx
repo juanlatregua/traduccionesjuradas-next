@@ -216,7 +216,7 @@ export default function OrderManagementActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {moves[0] && (
-        <button type="button" onClick={advance} disabled={busy} className={`${btn} bg-cyan-600 text-white hover:bg-cyan-500`}>
+        <button type="button" onClick={advance} disabled={busy} className={`${btn} bg-[#1A2E4A] text-white hover:bg-[#243F66]`}>
           Avanzar → {moves[0].label}
         </button>
       )}
@@ -226,7 +226,7 @@ export default function OrderManagementActions({
           href={`https://wa.me/${phone}?text=${encodeURIComponent(cobroText)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className={`${btn} bg-emerald-600 text-white hover:bg-emerald-500`}
+          className={`${btn} bg-[#1F6B45] text-white hover:bg-[#185738]`}
         >
           Cobrar por WhatsApp (Bizum)
         </a>
@@ -235,32 +235,32 @@ export default function OrderManagementActions({
       {invoice ? (
         <a
           href={`/api/orders/${reference}/invoice-pdf`}
-          className={`${btn} border border-emerald-600 text-emerald-300 hover:bg-emerald-600/20`}
+          className={`${btn} border border-[#BFE0CC] text-[#1F6B45] hover:bg-[#EEF7F1]`}
         >
           🧾 {invoice.number || "Factura"} (PDF)
         </a>
       ) : (
-        <button type="button" onClick={emitInvoice} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
+        <button type="button" onClick={emitInvoice} disabled={busy} className={`${btn} border border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]`}>
           Emitir factura
         </button>
       )}
 
       {paymentStatus === "PAID" && (
-        <button type="button" onClick={() => setShipOpen((v) => !v)} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
+        <button type="button" onClick={() => setShipOpen((v) => !v)} disabled={busy} className={`${btn} border border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]`}>
           📦 {shipment?.shippedAt ? "Envío notificado · corregir" : "Notificar envío"}
           {!shipment?.shippedAt && caseSiblingsToShip.length > 0 ? ` (${caseSiblingsToShip.length + 1} pedidos)` : ""}
         </button>
       )}
 
       {shipOpen && (
-        <div className="basis-full rounded-xl border border-slate-700 bg-slate-800/40 p-3 text-sm">
+        <div className="basis-full rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3 text-sm">
           {shipment?.shippedAt && (
-            <p className="mb-2 text-xs text-slate-400">
+            <p className="mb-2 text-xs text-[#52606D]">
               Notificado el {new Date(shipment.shippedAt).toLocaleDateString("es-ES")}
               {shipment.proofUrl ? (
                 <>
                   {" · "}
-                  <a href={shipment.proofUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-300 hover:underline">
+                  <a href={shipment.proofUrl} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">
                     justificante actual{shipment.proofName ? ` (${shipment.proofName})` : ""}
                   </a>
                 </>
@@ -271,56 +271,56 @@ export default function OrderManagementActions({
             </p>
           )}
           <div className="grid gap-2 sm:grid-cols-2">
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               Transportista
-              <input list="couriers" value={ship.courier} onChange={(e) => setShip({ ...ship, courier: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-slate-100" placeholder="Correos, MRW, SEUR…" />
+              <input list="couriers" value={ship.courier} onChange={(e) => setShip({ ...ship, courier: e.target.value })} className="mt-1 block w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-2 py-1.5 text-[#1F2933]" placeholder="Correos, MRW, SEUR…" />
               <datalist id="couriers">
                 {["Correos", "Correos Express", "MRW", "SEUR", "GLS", "Nacex", "DHL", "UPS"].map((c) => (
                   <option key={c} value={c} />
                 ))}
               </datalist>
             </label>
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               Nº de seguimiento *
-              <input value={ship.trackingNumber} onChange={(e) => setShip({ ...ship, trackingNumber: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 font-mono text-slate-100" />
+              <input value={ship.trackingNumber} onChange={(e) => setShip({ ...ship, trackingNumber: e.target.value })} className="mt-1 block w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-2 py-1.5 font-mono text-[#1F2933]" />
             </label>
-            <label className="text-xs text-slate-400 sm:col-span-2">
+            <label className="text-xs text-[#52606D] sm:col-span-2">
               Enlace de seguimiento (opcional)
-              <input value={ship.trackingUrl} onChange={(e) => setShip({ ...ship, trackingUrl: e.target.value })} className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-slate-100" placeholder="https://…" />
+              <input value={ship.trackingUrl} onChange={(e) => setShip({ ...ship, trackingUrl: e.target.value })} className="mt-1 block w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-2 py-1.5 text-[#1F2933]" placeholder="https://…" />
             </label>
-            <label className="text-xs text-slate-400 sm:col-span-2">
+            <label className="text-xs text-[#52606D] sm:col-span-2">
               Justificante del envío (foto o PDF del resguardo)
-              <input type="file" accept="image/*,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-slate-300" />
+              <input type="file" accept="image/*,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] || null)} className="mt-1 block w-full text-[#1F2933]" />
             </label>
           </div>
           <div className="mt-3 flex gap-2">
-            <button type="button" onClick={notifyShipment} disabled={busy} className={`${btn} bg-cyan-600 text-white hover:bg-cyan-500`}>
+            <button type="button" onClick={notifyShipment} disabled={busy} className={`${btn} bg-[#1A2E4A] text-white hover:bg-[#243F66]`}>
               {busy ? "Enviando…" : "Guardar y avisar al cliente"}
             </button>
-            <button type="button" onClick={() => setShipOpen(false)} disabled={busy} className={`${btn} border border-slate-600 text-slate-300 hover:bg-slate-800`}>
+            <button type="button" onClick={() => setShipOpen(false)} disabled={busy} className={`${btn} border border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]`}>
               Cancelar
             </button>
           </div>
         </div>
       )}
 
-      <button type="button" onClick={groupIntoCase} disabled={busy} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
+      <button type="button" onClick={groupIntoCase} disabled={busy} className={`${btn} border border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]`}>
         {caseRef ? `🗂 Trámite ${caseRef}` : "🗂 Agrupar en un trámite"}
       </button>
 
       {caseRef && (
-        <button type="button" onClick={leaveCase} disabled={busy} className={`${btn} border border-slate-700 text-slate-400 hover:bg-slate-800`}>
+        <button type="button" onClick={leaveCase} disabled={busy} className={`${btn} border border-[#D5DAE1] text-[#52606D] hover:bg-[#F6F7F9]`}>
           Sacar del trámite
         </button>
       )}
 
       {quote && (
-        <a href={`/zona-traductor/presupuestos/${quote.id}`} className={`${btn} border border-slate-600 text-slate-200 hover:bg-slate-800`}>
+        <a href={`/zona-traductor/presupuestos/${quote.id}`} className={`${btn} border border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]`}>
           Presupuesto {quote.quoteNumber}
         </a>
       )}
 
-      {msg && <span className="text-xs font-medium text-cyan-300">{msg}</span>}
+      {msg && <span className="text-xs font-medium text-[#1A2E4A]">{msg}</span>}
     </div>
   );
 }

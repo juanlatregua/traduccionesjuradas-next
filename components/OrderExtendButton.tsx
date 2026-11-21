@@ -43,13 +43,13 @@ export default function OrderExtendButton({
         title="Presupuesto hermano con los documentos llegados después del pago; al pagarlo se agrupa en el mismo trámite"
         className={
           compact
-            ? "rounded-lg border border-amber-500/50 bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-500/20 disabled:opacity-50"
-            : "rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-sm font-semibold text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            ? "rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] px-2 py-1 text-xs font-semibold text-[#7A5A10] hover:bg-[#FFF8E6] disabled:opacity-50"
+            : "rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] px-3 py-1.5 text-sm font-semibold text-[#7A5A10] hover:bg-[#FFF8E6] disabled:cursor-not-allowed disabled:opacity-40"
         }
       >
         {busy ? "Preparando…" : `➕ ${label}`}
       </button>
-      {error && <span className="text-xs text-red-400">{error}</span>}
+      {error && <span className="text-xs text-[#A12B2B]">{error}</span>}
     </span>
   );
 }

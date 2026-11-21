@@ -27,9 +27,9 @@ function eur(c: number) {
 
 const NEXT_STATUS: Record<string, string> = { PENDING: "IN_TRANSLATION", IN_TRANSLATION: "DELIVERED", DELIVERED: "PENDING" };
 const STATUS_UI: Record<string, { label: string; cls: string }> = {
-  PENDING: { label: "Pendiente", cls: "bg-slate-600/40 text-slate-300" },
-  IN_TRANSLATION: { label: "En proceso", cls: "bg-amber-500/20 text-amber-300" },
-  DELIVERED: { label: "Entregado", cls: "bg-emerald-500/20 text-emerald-300" },
+  PENDING: { label: "Pendiente", cls: "bg-[#F6F7F9] text-[#1F2933]" },
+  IN_TRANSLATION: { label: "En proceso", cls: "bg-[#FFF8E6] text-[#7A5A10]" },
+  DELIVERED: { label: "Entregado", cls: "bg-[#EEF7F1] text-[#1F6B45]" },
 };
 
 export default function OrderDocumentItems({ reference, items: initial }: { reference: string; items: Item[] }) {
@@ -82,25 +82,25 @@ export default function OrderDocumentItems({ reference, items: initial }: { refe
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-800/30 p-4">
+    <div className="mt-4 rounded-2xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-100">Desglose por documento</p>
+        <p className="text-sm font-semibold text-[#1F2933]">Desglose por documento</p>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setShowAssignees((v) => !v)}
-            className="text-[11px] font-semibold text-slate-500 hover:text-slate-300"
+            className="text-[11px] font-semibold text-[#52606D] hover:text-[#1F2933]"
             title="Asignar un colaborador distinto a cada documento (expedientes multi-colaborador)"
           >
             {showAssignees ? "ocultar asignación por documento" : "asignación por documento"}
           </button>
-          <div className="h-1.5 w-28 overflow-hidden rounded-full bg-slate-700">
+          <div className="h-1.5 w-28 overflow-hidden rounded-full bg-[#F6F7F9]">
             <div className="h-full bg-emerald-500" style={{ width: `${Math.round((done / total) * 100)}%` }} />
           </div>
-          <span className="text-xs tabular-nums text-slate-400">{done}/{total}</span>
+          <span className="text-xs tabular-nums text-[#52606D]">{done}/{total}</span>
         </div>
       </div>
-      <ul className="mt-3 divide-y divide-slate-800">
+      <ul className="mt-3 divide-y divide-[#D5DAE1]">
         {items.map((it) => {
           const ui = STATUS_UI[it.prodStatus] || STATUS_UI.PENDING;
           return (
@@ -109,8 +109,8 @@ export default function OrderDocumentItems({ reference, items: initial }: { refe
                 {ui.label}
               </button>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-white" title={it.fileName}>{it.documentType || it.fileName}</p>
-                <p className="text-xs text-slate-500">
+                <p className="truncate text-sm text-[#1A2E4A]" title={it.fileName}>{it.documentType || it.fileName}</p>
+                <p className="text-xs text-[#52606D]">
                   {[it.sourceLang && it.targetLang ? `${it.sourceLang}-${it.targetLang}` : "", it.words ? `${it.words} pal.` : "", it.quotedCents ? eur(it.quotedCents) : ""].filter(Boolean).join(" · ")}
                 </p>
               </div>
@@ -119,21 +119,21 @@ export default function OrderDocumentItems({ reference, items: initial }: { refe
                   defaultValue={it.assignedTo || ""}
                   onBlur={(e) => saveAssignee(it, e.target.value.trim())}
                   placeholder="colaborador"
-                  className="w-32 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                  className="w-32 rounded border border-[#D5DAE1] bg-[#fff] px-2 py-1 text-xs text-[#1F2933]"
                 />
               )}
               {it.fileUrl && (
-                <a href={it.fileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-md border border-slate-600 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800">
+                <a href={it.fileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-md border border-[#D5DAE1] px-2 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">
                   📄 Original
                 </a>
               )}
               {it.fileUrl && (
-                <a href={blobDownloadUrl(it.fileUrl)} download={it.fileName} className="shrink-0 rounded-md border border-slate-600 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800">
+                <a href={blobDownloadUrl(it.fileUrl)} download={it.fileName} className="shrink-0 rounded-md border border-[#D5DAE1] px-2 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">
                   ⤓ Descargar
                 </a>
               )}
               {it.deliveredFileUrl && (
-                <a href={it.deliveredFileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-emerald-400 hover:text-emerald-300">
+                <a href={it.deliveredFileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-[#1F6B45] hover:text-[#1F6B45]">
                   ✓ traducción
                 </a>
               )}
@@ -141,7 +141,7 @@ export default function OrderDocumentItems({ reference, items: initial }: { refe
           );
         })}
       </ul>
-      {msg && <p className="mt-2 text-xs text-cyan-300">{msg}</p>}
+      {msg && <p className="mt-2 text-xs text-[#1A2E4A]">{msg}</p>}
     </div>
   );
 }

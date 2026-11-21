@@ -80,11 +80,11 @@ function getAuditEntryLabel(type: string) {
 }
 
 function getAuditEntryClass(type: string) {
-  if (type.endsWith("send_failed")) return "border-red-500/30 bg-red-500/5 text-red-200";
+  if (type.endsWith("send_failed")) return "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]";
   if (type === "quote.sent_to_client" || type === "order.payment_link_sent") {
-    return "border-emerald-500/30 bg-emerald-500/5 text-emerald-200";
+    return "border-[#BFE0CC] bg-[#EEF7F1] text-[#1F6B45]";
   }
-  return "border-slate-600 bg-slate-900/70 text-slate-200";
+  return "border-[#D5DAE1] bg-[#fff] text-[#1F2933]";
 }
 
 export default function OrderDocumentsPanel({
@@ -256,24 +256,24 @@ export default function OrderDocumentsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Documentos enviados por cliente</p>
-        <p className="mt-1 text-[11px] text-slate-400">
-          Estado workflow: <span className="text-slate-200">{workflowState}</span> · Importe actual:{" "}
-          <span className="text-slate-200">{(amountCents / 100).toFixed(2)} EUR</span>
+      <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Documentos enviados por cliente</p>
+        <p className="mt-1 text-[11px] text-[#52606D]">
+          Estado workflow: <span className="text-[#1F2933]">{workflowState}</span> · Importe actual:{" "}
+          <span className="text-[#1F2933]">{(amountCents / 100).toFixed(2)} EUR</span>
         </p>
         {documents.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-400">No hay adjuntos guardados en este pedido.</p>
+          <p className="mt-3 text-sm text-[#52606D]">No hay adjuntos guardados en este pedido.</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {documents.map((doc, idx) => (
               <li
                 key={`${doc.name}-${idx}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-xs"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs"
               >
                 <div>
-                  <p className="font-semibold text-slate-100">{doc.name}</p>
-                  <p className="text-slate-400">
+                  <p className="font-semibold text-[#1F2933]">{doc.name}</p>
+                  <p className="text-[#52606D]">
                     {formatSize(doc.size)}
                     {doc.uploadedAt ? ` · ${new Date(doc.uploadedAt).toLocaleString("es-ES")}` : ""}
                   </p>
@@ -283,57 +283,57 @@ export default function OrderDocumentsPanel({
                     href={doc.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                    className="rounded-lg border border-[#D5DAE1] px-2.5 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                   >
                     Abrir documento
                   </a>
                 ) : (
-                  <span className="text-[11px] text-slate-500">{doc.url?.includes("DELETED") ? "Eliminado (GDPR)" : "Sin enlace"}</span>
+                  <span className="text-[11px] text-[#52606D]">{doc.url?.includes("DELETED") ? "Eliminado (GDPR)" : "Sin enlace"}</span>
                 )}
               </li>
             ))}
           </ul>
         )}
 
-        <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
+        <div className="mt-4 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#7A5A10]">
             Documento ilegible
           </p>
-          <p className="mt-1 text-[11px] text-slate-300">
+          <p className="mt-1 text-[11px] text-[#1F2933]">
             Envía aviso al cliente para que reenvíe el archivo con mejor calidad.
           </p>
           <textarea
             value={resubmissionReason}
             onChange={(e) => setResubmissionReason(e.target.value)}
             placeholder="Ejemplo: foto borrosa, falta margen izquierdo, sello no legible."
-            className="mt-3 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500"
+            className="mt-3 w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933] placeholder:text-[#8A96A3]"
             rows={3}
           />
           <button
             type="button"
             onClick={requestResubmission}
             disabled={resubmissionLoading}
-            className="mt-3 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+            className="mt-3 rounded-lg bg-[#7A5A10] px-3 py-2 text-xs font-semibold text-white hover:bg-[#654A0D] disabled:opacity-60"
           >
             {resubmissionLoading ? "Enviando solicitud..." : "Solicitar reenvio al cliente"}
           </button>
           {resubmissionMessage && (
-            <p className="mt-2 text-xs font-semibold text-slate-100">{resubmissionMessage}</p>
+            <p className="mt-2 text-xs font-semibold text-[#1F2933]">{resubmissionMessage}</p>
           )}
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Costes por documento</p>
+      <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#7A5A10]">Costes por documento</p>
         <div className="mt-3 space-y-2">
           {rows.map((row, idx) => (
-            <div key={`quote-row-${idx}`} className="grid gap-2 rounded-lg border border-slate-700 bg-slate-900/70 p-2 sm:grid-cols-[2fr_1fr_2fr_auto]">
+            <div key={`quote-row-${idx}`} className="grid gap-2 rounded-lg border border-[#D5DAE1] bg-[#fff] p-2 sm:grid-cols-[2fr_1fr_2fr_auto]">
               <input
                 type="text"
                 value={row.documentName}
                 onChange={(e) => updateRow(idx, { documentName: e.target.value })}
                 placeholder="Documento (ej. Certificado de nacimiento)"
-                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+                className="rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
               />
               <input
                 type="number"
@@ -342,19 +342,19 @@ export default function OrderDocumentsPanel({
                 value={row.amountEur}
                 onChange={(e) => updateRow(idx, { amountEur: e.target.value })}
                 placeholder="EUR"
-                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+                className="rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
               />
               <input
                 type="text"
                 value={row.notes}
                 onChange={(e) => updateRow(idx, { notes: e.target.value })}
                 placeholder="Notas opcionales"
-                className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+                className="rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
               />
               <button
                 type="button"
                 onClick={() => removeRow(idx)}
-                className="rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
               >
                 Quitar
               </button>
@@ -366,12 +366,12 @@ export default function OrderDocumentsPanel({
           <button
             type="button"
             onClick={addRow}
-            className="rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+            className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
           >
             Añadir línea
           </button>
-          <p className="text-xs text-slate-300">
-            Total calculado: <span className="font-semibold text-emerald-300">{totalEur.toFixed(2)} EUR</span>
+          <p className="text-xs text-[#1F2933]">
+            Total calculado: <span className="font-semibold text-[#1F6B45]">{totalEur.toFixed(2)} EUR</span>
           </p>
         </div>
 
@@ -380,7 +380,7 @@ export default function OrderDocumentsPanel({
             type="button"
             onClick={() => saveQuote(false)}
             disabled={loading}
-            className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+            className="rounded-lg bg-[#F6F7F9] px-3 py-2 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-60"
           >
             {loading ? "Guardando..." : "Guardar borrador"}
           </button>
@@ -388,26 +388,26 @@ export default function OrderDocumentsPanel({
             type="button"
             onClick={() => saveQuote(true)}
             disabled={loading}
-            className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
+            className="rounded-lg bg-[#1F6B45] px-3 py-2 text-xs font-semibold text-white hover:bg-[#185738] disabled:opacity-60"
           >
             {loading ? "Enviando..." : "Guardar y enviar presupuesto"}
           </button>
         </div>
 
-        <div className="mt-4 rounded-lg border border-slate-700 bg-slate-900/70 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-300">
+        <div className="mt-4 rounded-lg border border-[#D5DAE1] bg-[#fff] p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#1A2E4A]">
             Control de envio al cliente
           </p>
           {latestSendEvent ? (
-            <div className="mt-2 rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-200">
-              <p className="font-semibold text-slate-100">
+            <div className="mt-2 rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] p-3 text-xs text-[#1F2933]">
+              <p className="font-semibold text-[#1F2933]">
                 Ultimo estado: {getAuditEntryLabel(latestSendEvent.type)}
               </p>
-              <p className="mt-1 text-slate-400">
+              <p className="mt-1 text-[#52606D]">
                 {formatDateTime(latestSendEvent.createdAt)} · {latestSendEvent.toEmail || "Sin destinatario"}
               </p>
               {latestSendEvent.totalCents !== null && latestSendEvent.totalCents !== undefined && (
-                <p className="mt-1 text-slate-300">
+                <p className="mt-1 text-[#1F2933]">
                   Total enviado: {(latestSendEvent.totalCents / 100).toFixed(2)} EUR
                 </p>
               )}
@@ -417,32 +417,32 @@ export default function OrderDocumentsPanel({
                     href={latestSendEvent.paymentUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                    className="rounded-lg border border-[#D5DAE1] px-2.5 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                   >
                     Abrir enlace pago enviado
                   </a>
                   <button
                     type="button"
                     onClick={() => copyAuditPaymentUrl(latestSendEvent.paymentUrl)}
-                    className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                    className="rounded-lg border border-[#D5DAE1] px-2.5 py-1 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
                   >
                     Copiar enlace
                   </button>
                 </div>
               )}
               {latestSendEvent.providerMessageId && (
-                <p className="mt-2 text-[11px] text-slate-500">
+                <p className="mt-2 text-[11px] text-[#52606D]">
                   ID proveedor: {latestSendEvent.providerMessageId}
                 </p>
               )}
               {latestSendEvent.error && (
-                <p className="mt-2 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-200">
+                <p className="mt-2 rounded border border-[#F0C9C9] bg-[#FDF2F2] px-2 py-1 text-[#A12B2B]">
                   {latestSendEvent.error}
                 </p>
               )}
             </div>
           ) : (
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-[#52606D]">
               Aun no hay registro de envio de presupuesto/enlace para este pedido.
             </p>
           )}
@@ -457,16 +457,16 @@ export default function OrderDocumentsPanel({
                   <p className="font-semibold">
                     {getAuditEntryLabel(entry.type)} · {formatDateTime(entry.createdAt)}
                   </p>
-                  <p className="mt-0.5 text-slate-300">{entry.message}</p>
-                  <p className="mt-0.5 text-slate-400">
+                  <p className="mt-0.5 text-[#1F2933]">{entry.message}</p>
+                  <p className="mt-0.5 text-[#52606D]">
                     {entry.actorEmail ? `Por ${entry.actorEmail}` : "Actor no registrado"}
                     {entry.toEmail ? ` · Destino ${entry.toEmail}` : ""}
                   </p>
                   {entry.totalCents !== null && entry.totalCents !== undefined && (
-                    <p className="mt-0.5 text-slate-300">Total: {(entry.totalCents / 100).toFixed(2)} EUR</p>
+                    <p className="mt-0.5 text-[#1F2933]">Total: {(entry.totalCents / 100).toFixed(2)} EUR</p>
                   )}
                   {entry.lines && entry.lines.length > 0 && (
-                    <p className="mt-0.5 text-slate-400">
+                    <p className="mt-0.5 text-[#52606D]">
                       Lineas:{" "}
                       {entry.lines
                         .slice(0, 3)
@@ -475,12 +475,12 @@ export default function OrderDocumentsPanel({
                       {entry.lines.length > 3 ? ` · +${entry.lines.length - 3} mas` : ""}
                     </p>
                   )}
-                  {entry.subject && <p className="mt-0.5 text-slate-500">Asunto: {entry.subject}</p>}
+                  {entry.subject && <p className="mt-0.5 text-[#52606D]">Asunto: {entry.subject}</p>}
                   {entry.providerMessageId && (
-                    <p className="mt-0.5 text-slate-500">ID proveedor: {entry.providerMessageId}</p>
+                    <p className="mt-0.5 text-[#52606D]">ID proveedor: {entry.providerMessageId}</p>
                   )}
                   {entry.error && (
-                    <p className="mt-1 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-200">
+                    <p className="mt-1 rounded border border-[#F0C9C9] bg-[#FDF2F2] px-2 py-1 text-[#A12B2B]">
                       {entry.error}
                     </p>
                   )}
@@ -488,11 +488,11 @@ export default function OrderDocumentsPanel({
               ))}
             </ul>
           )}
-          {auditMessage && <p className="mt-2 text-xs font-semibold text-slate-200">{auditMessage}</p>}
+          {auditMessage && <p className="mt-2 text-xs font-semibold text-[#1F2933]">{auditMessage}</p>}
         </div>
       </div>
 
-      {message && <p className="text-xs font-semibold text-slate-100">{message}</p>}
+      {message && <p className="text-xs font-semibold text-[#1F2933]">{message}</p>}
     </div>
   );
 }
