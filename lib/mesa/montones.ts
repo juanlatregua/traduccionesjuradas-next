@@ -73,6 +73,8 @@ export type Tarjeta = {
   accion: AccionPaso | null;
   ficha: string | null;
   entro: Date;
+  /** Cerrado por silencio pero aún pagable: no hay nada que hacer, va plegado al final de su montón. */
+  plegada: boolean;
 };
 
 export type Mesa = { yo: Tarjeta[]; espera: Tarjeta[]; marcha: Tarjeta[]; vencidos: number; entreganHoy: number };
@@ -161,6 +163,7 @@ export function clasificarCaso(c: CasoMesa, ahora: Date, baseUrl: string, nombre
     accion: paso.accion,
     ficha: `/zona-traductor/caso/${c.id}`,
     entro: c.createdAt,
+    plegada: paso.clave === "pagable_cerrado",
   };
 
   switch (paso.clave) {
@@ -269,6 +272,7 @@ export function tarjetasDeLeads(leads: SlaLead[], yaEnMesa: Tarjeta[], ahora: Da
         accion: { label: link.startsWith("/admin/inbox") ? "Abrir en la bandeja" : "Montar presupuesto", href: link },
         ficha: null,
         entro: l.firstAt,
+        plegada: false,
       };
     });
 }

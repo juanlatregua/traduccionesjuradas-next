@@ -192,6 +192,8 @@ test("perdido con presupuesto aún pagable: espero al cliente", () => {
   const t = tarjeta({ estado: "PERDIDO", quotes: [quote({ lostReason: "NO_RESPONSE", lostReasonNote: "auto:sin_respuesta", sentAt: antes(60) })] })!;
   assert.equal(t.clave, "pagable_cerrado");
   assert.equal(t.monton, "espera");
+  assert.equal(t.plegada, true);
+  assert.equal(tarjeta({ quotes: [quote()] })!.plegada, false);
 });
 
 test("fecha del cliente urgente se marca en la tarjeta", () => {
