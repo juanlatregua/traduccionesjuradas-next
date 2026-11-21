@@ -90,9 +90,9 @@ function SeccionesFrances() {
 }
 
 export const metadata: Metadata = {
-  title: { absolute: "Traductor jurado de franc\u00E9s \u00B7 MAEC n\u00BA 3850 \u00B7 desde 30 \u20AC" },
+  title: { absolute: "Traductor jurado de francés · MAEC nº 3850 · desde 30 €" },
   description:
-    "30 \u20AC + IVA por p\u00E1gina. Traductor jurado de franc\u00E9s MAEC n\u00BA 3850: franc\u00E9s-espa\u00F1ol y espa\u00F1ol-franc\u00E9s. Antecedentes penales, actas, t\u00EDtulos.",
+    "30 € + IVA por página. Traductor jurado de francés MAEC nº 3850: francés-español y español-francés. Antecedentes penales, actas, títulos.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
   },

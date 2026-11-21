@@ -147,7 +147,7 @@ export default function AcreditacionPage() {
               <dd className="mt-0.5 text-sm font-bold text-bleu">B93712784</dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold text-encre">Dirección</dt>
+              <dt className="text-xs font-semibold text-encre">Domicilio social</dt>
               <dd className="mt-0.5 text-sm text-sepia">
                 Calle Esperanto, 9, 29007 Málaga
               </dd>

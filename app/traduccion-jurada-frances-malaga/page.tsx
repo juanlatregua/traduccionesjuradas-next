@@ -51,7 +51,7 @@ const PASOS = [
   { n: "1", titulo: "Sube el documento", texto: "Una foto o un PDF desde el móvil o el ordenador. No hace falta desplazarse." },
   { n: "2", titulo: "Precio cerrado al instante", texto: "Ves el precio final y el plazo antes de pagar, sin compromiso." },
   { n: "3", titulo: "Traducción jurada", texto: "La hace y la firma un traductor jurado de francés nombrado por el MAEC (nº 3850)." },
-  { n: "4", titulo: "Entrega", texto: "En PDF con firma electrónica cualificada en 1 día hábil. Si te piden el papel, lo enviamos por mensajería." },
+  { n: "4", titulo: "Entrega", texto: "En PDF con firma electrónica cualificada en 1 día hábil. Si te piden el papel, lo enviamos por mensajería (envío aparte, se suma al presupuesto)." },
 ];
 
 const FAQ = [
@@ -72,7 +72,7 @@ const FAQ = [
   {
     question: "¿Cuánto tarda?",
     answer:
-      "1 día hábil para documentos de hasta 5 páginas. Si tienes cita en extranjería o en el Registro Civil muy pronto, dínoslo: se puede entregar en el día con un recargo del 40 %.",
+      "1 día hábil para documentos de hasta 5 páginas. Si tienes cita en extranjería o en el Registro Civil muy pronto, dínoslo: se puede estudiar la entrega urgente, con un recargo que verás en el presupuesto antes de pagar.",
   },
   {
     question: "¿Traducís también de español a francés?",
@@ -157,8 +157,8 @@ export default function TraduccionJuradaFrancesMalagaPage() {
           <h2 className="text-base font-semibold">Plazo</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-sepia">
             <li>1 día hábil hasta 5 páginas.</li>
-            <li>En el día, con recargo del 40 %, si tienes cita muy pronto.</li>
-            <li>Papel por mensajería si el trámite es presencial.</li>
+            <li>Entrega urgente, con recargo que verás en el presupuesto, si tienes cita muy pronto.</li>
+            <li>Papel por mensajería (se cobra aparte) si el trámite lo exige.</li>
           </ul>
         </article>
       </section>

@@ -12,7 +12,7 @@ const JUAN_SILVA_DATA = {
   language_iso: "fr",
   appointed_year: 2009,
   experience_years_min: 15,
-  professional_address: "Calle Esperanto, 9 — 29007 Málaga",
+  base_city: "Málaga (servicio 100 % online, sin atención presencial)",
   company: "HBTJ Consultores Lingüísticos S.L.",
   cif: "B93712784",
   total_translations_min: 3000,

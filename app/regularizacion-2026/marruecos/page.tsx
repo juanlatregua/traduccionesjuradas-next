@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title:
     "Regularización 2026 Marruecos: traducción jurada francés-árabe-español",
   description:
-    "Documentos marroquíes en francés (o bilingüe árabe/francés) traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire bulletin nº 3, extrait d'acte de naissance, apostilla. Entrega 24h.",
+    "Documentos marroquíes en francés (o bilingüe árabe/francés) traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire bulletin nº 3, extrait d'acte de naissance, apostilla. Entrega en 1 día hábil.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/regularizacion-2026/marruecos",
@@ -30,7 +30,7 @@ const FAQ_ITEMS = [
   {
     question: "¿El acta de nacimiento marroquí en árabe sirve o necesito la versión en francés?",
     answer:
-      "Pide a la comuna la versión bilingüe árabe/francés o el extrait d'acte de naissance en francés. Es la opción más rápida y económica: traducimos del francés directamente con plazo de 24h. Si solo tienes el original exclusivamente en árabe, derivamos a colaborador jurado externo (plazos y precios distintos al flujo automatizado francés).",
+      "Pide a la comuna la versión bilingüe árabe/francés o el extrait d'acte de naissance en francés. Es la opción más rápida y económica: traducimos del francés directamente con plazo de 1 día hábil (hasta 5 páginas). Si solo tienes el original exclusivamente en árabe, derivamos a colaborador jurado externo (plazos y precios distintos al flujo automatizado francés).",
   },
   {
     question: "¿Cuánto tarda obtener el bulletin nº 3 en Marruecos?",
@@ -50,7 +50,7 @@ export default function RegularizacionMarruecosPage() {
       <SchemaService
         id="service-regularizacion-2026-marruecos"
         serviceName="Traducción jurada francés-español de documentos marroquíes para la regularización 2026"
-        serviceDescription="Traducción jurada francés-español de casier judiciaire (bulletin nº 3), extrait d'acte de naissance y otros documentos marroquíes en francés o bilingüe árabe/francés para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). Entrega 24h."
+        serviceDescription="Traducción jurada francés-español de casier judiciaire (bulletin nº 3), extrait d'acte de naissance y otros documentos marroquíes en francés o bilingüe árabe/francés para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). Entrega en 1 día hábil."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026/marruecos"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -97,7 +97,7 @@ export default function RegularizacionMarruecosPage() {
           página explica qué documentos marroquíes necesitas, cómo
           obtenerlos y cómo los traducimos al español como traductor jurado de
           francés (MAEC nº 3850). Trabajamos con la versión en francés o
-          bilingüe árabe/francés del documento: es el flujo más rápido (24h) y
+          bilingüe árabe/francés del documento: es el flujo más rápido (1 día hábil) y
           el más económico.
         </p>
       </header>
@@ -205,7 +205,7 @@ export default function RegularizacionMarruecosPage() {
           <em>Bureau d&apos;état civil</em>). Pide siempre la{" "}
           <strong>versión bilingüe árabe/francés</strong> o el{" "}
           <strong>extrait en francés</strong>: traducimos directamente del
-          francés con plazo de 24h y precio cerrado: 30 € + IVA por página · 35 € apostillado.
+          francés con plazo de 1 día hábil y precio cerrado: 30 € + IVA por página · 35 € apostillado.
         </p>
         <p className="text-xs">
           Si el documento que tienes está exclusivamente en árabe, deriva a
@@ -251,20 +251,20 @@ export default function RegularizacionMarruecosPage() {
         <p className="mt-2 text-sepia">
           Tarifa especial para expedientes de regularización extraordinaria 2026.
           Aplica a la versión en francés o bilingüe árabe-francés del documento
-          (flujo automatizado, entrega 24h).
+          (flujo automatizado, entrega en 1 día hábil).
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
             <strong>Casier judiciaire bulletin nº 3 (francés):</strong> 25 € —
-            entrega 24h
+            entrega en 1 día hábil
           </li>
           <li>
             <strong>Acta de nacimiento bilingüe árabe/francés:</strong> 25 € —
-            entrega 24h
+            entrega en 1 día hábil
           </li>
           <li>
             <strong>Acta de matrimonio (francés o bilingüe):</strong> 25 € —
-            entrega 24-48h
+            entrega en 1 día hábil
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio
@@ -289,8 +289,8 @@ export default function RegularizacionMarruecosPage() {
           Pago fácil: Bizum, tarjeta o transferencia
         </h2>
         <p className="mt-2 text-sepia">
-          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys),
-          PayPal o transferencia bancaria. Recibo electrónico inmediato. Empezamos
+          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys) o
+          transferencia bancaria. Recibo electrónico inmediato. Empezamos
           a tramitar en cuanto recibimos el pago.
         </p>
       </section>

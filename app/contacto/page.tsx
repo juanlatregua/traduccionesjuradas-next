@@ -105,10 +105,10 @@ export default function ContactoPage() {
           </span>
           <div className="flex flex-col">
             <span className="text-xs font-semibold uppercase tracking-wide text-graphite">
-              Dirección
+              Domicilio social
             </span>
             <span className="text-sm text-encre">
-              Calle Esperanto, 9, 29007 Málaga
+              Málaga · servicio 100 % online, sin atención presencial
             </span>
           </div>
         </div>
@@ -124,7 +124,7 @@ export default function ContactoPage() {
             ¿Vale el PDF o necesito papel?
           </summary>
           <p className="mt-2 text-sm text-sepia">
-            El PDF firmado digitalmente es válido en la mayoría de trámites. Si te piden papel, lo enviamos por mensajería.
+            El PDF firmado digitalmente es válido en la mayoría de trámites. Si te piden papel, lo enviamos por mensajería; el envío en papel se cobra aparte y se suma al presupuesto.
           </p>
         </details>
         <details className="rounded-xl border border-cream bg-parchment px-3 py-2">
@@ -132,7 +132,7 @@ export default function ContactoPage() {
             ¿Cómo se paga?
           </summary>
           <p className="mt-2 text-sm text-sepia">
-            Transferencia, tarjeta, Bizum o PayPal. Para urgentes solemos pedir el pago antes de empezar.
+            Con tarjeta, transferencia o Bizum, antes de empezar la traducción.
           </p>
         </details>
         <details className="rounded-xl border border-cream bg-parchment px-3 py-2">

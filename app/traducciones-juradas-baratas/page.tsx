@@ -5,9 +5,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 import { SchemaFAQ } from "@/components/SchemaFAQ";
 
 export const metadata: Metadata = {
-  title: "Traducciones Juradas Baratas: desde 30 \u20AC \u00B7 Sin Agencia (MAEC)",
+  title: "Traducciones Juradas Baratas: desde 30 € · Sin Agencia (MAEC)",
   description:
-    "Traducciones juradas baratas y v\u00E1lidas desde 30 \u20AC por p\u00E1gina en franc\u00E9s. Traductor jurado nombrado por el MAEC, sin agencia intermediaria: pagas el trabajo del traductor, no comisiones. Presupuesto cerrado al instante.",
+    "Traducciones juradas baratas y válidas desde 30 € por página en francés. Traductor jurado nombrado por el MAEC, sin agencia intermediaria: pagas el trabajo del traductor, no comisiones. Presupuesto cerrado al instante.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/traducciones-juradas-baratas" },
 };
 

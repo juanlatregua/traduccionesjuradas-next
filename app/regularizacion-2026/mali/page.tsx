@@ -34,7 +34,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto cuesta la traducción jurada de mis documentos malienses?",
     answer:
-      "25 € por documento (tarifa especial regularización 2026). Incluye PDF firmado digitalmente. Plazo de entrega 24h una vez tenemos el documento legalizado consularmente. Pago con Bizum, tarjeta, PayPal o transferencia.",
+      "25 € por documento (tarifa especial regularización 2026). Incluye PDF firmado digitalmente. Plazo de entrega en 1 día hábil una vez tenemos el documento legalizado consularmente. Pago con tarjeta, transferencia o Bizum.",
   },
   {
     question: "¿Tradúcis directamente del francés?",
@@ -49,7 +49,7 @@ export default function RegularizacionMaliPage() {
       <SchemaService
         id="service-regularizacion-2026-mali"
         serviceName="Traducción jurada francés-español de documentos malienses para la regularización 2026"
-        serviceDescription="Traducción jurada francés-español de casier judiciaire, extrait d'acte de naissance y otros documentos de Mali para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). 25 € por documento. Entrega 24h."
+        serviceDescription="Traducción jurada francés-español de casier judiciaire, extrait d'acte de naissance y otros documentos de Mali para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). 25 € por documento. Entrega en 1 día hábil."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026/mali"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -206,7 +206,7 @@ export default function RegularizacionMaliPage() {
             Una vez tengas el documento legalizado consularmente, nos lo envías
             por WhatsApp o por el formulario en PDF o foto legible.
           </li>
-          <li>Te confirmamos precio cerrado y plazo de entrega (24h habitual).</li>
+          <li>Te confirmamos precio cerrado y plazo de entrega (1 día hábil en francés, hasta 5 páginas).</li>
           <li>
             Traducimos al español incluyendo todos los sellos de la cadena de
             legalización. Firma manuscrita y sello de traductor jurado MAEC nº
@@ -229,14 +229,14 @@ export default function RegularizacionMaliPage() {
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Casier judiciaire (francés):</strong> 25 € — entrega 24h
+            <strong>Casier judiciaire (francés):</strong> 25 € — entrega en 1 día hábil
           </li>
           <li>
             <strong>Extrait d&apos;acte de naissance:</strong> 25 € — entrega
-            24h
+            1 día hábil
           </li>
           <li>
-            <strong>Acte de mariage:</strong> 25 € — entrega 24-48h
+            <strong>Acte de mariage:</strong> 25 € — entrega en 1 día hábil
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio
@@ -256,8 +256,8 @@ export default function RegularizacionMaliPage() {
           Pago fácil: Bizum, tarjeta o transferencia
         </h2>
         <p className="mt-2 text-sepia">
-          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys),
-          PayPal o transferencia bancaria. Recibo electrónico inmediato. Empiezas
+          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys) o
+          transferencia bancaria. Recibo electrónico inmediato. Empiezas
           a tramitar en cuanto recibimos el pago.
         </p>
       </section>
