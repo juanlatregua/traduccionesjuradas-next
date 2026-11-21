@@ -595,9 +595,7 @@ export const LAVORI_MEMBER_COLLABORATOR_EMAIL: Record<string, string> = {
   "1h8tul4zycnayru8bsi1tmu4": "carmen.lencastre@gmail.com", // María Carmen Lencastre (Collaborator pt, alta 21-sep-2026)
   zyuep34us3e33h3fd98w3yyz: "nielson@icam.es", // Nielson Maycon de Souza Vilela (Collaborator pt, SL, alta 30-sep-2026)
   g45tpqggq16yn8q4r9ww2m5c: "info@madeintranslation.com", // Marta López (Collaborator ar, Made in Translation Ltd, 3-nov-2026)
-  // Cristina Aguilera Viladés (pt, encargo cerrado PT>ES): descomentar con su email cuando exista su Collaborator.
-  // Sin esta línea ENCARGO_CERRADO ignora "pt" (lib/encargo-cerrado.ts, activeEncargoCerradoLangs).
-  // nhucqnd3q4znddxhe8qs5c51: "<email de Cristina>",
+  nhucqnd3q4znddxhe8qs5c51: "cristinaaguileraes@yahoo.es", // Cristina Aguilera Viladés (Collaborator pt, encargo cerrado PT>ES, alta 21-nov-2026)
 };
 
 export type LavoriRoute = { lang: string; par: string; candidatos: string[] };
