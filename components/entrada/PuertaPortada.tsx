@@ -11,10 +11,11 @@ import type { EntradaLang } from "@/lib/entrada/i18n";
 import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
 import { progressSteps, isLangQuestion } from "@/lib/entrada/hilo";
 import { isQuestion } from "@/lib/entrada/conserje";
-import { ETAPA, PORTADA_VACIA, conAviso, hojasDe, paginasDe, pasoDe, type Paso, type PortadaLocal, type Urgency } from "@/lib/entrada/portada";
+import { ETAPA, PORTADA_VACIA, conAviso, hojasDe, normalizarLocal, paginasDe, pasoDe, respuestasDe, type Paso, type PortadaLocal, type Urgency } from "@/lib/entrada/portada";
+import { enIdioma } from "@/lib/entrada/errores-i18n";
 import { PORTADA_T } from "@/lib/entrada/portada-i18n";
 import type { ClientView } from "@/lib/entrada/view";
-import { Miniatura, Visor, type Hoja } from "@/components/entrada/Miniaturas";
+import { Miniatura, Visor, olvidarMiniaturas, type Hoja } from "@/components/entrada/Miniaturas";
 import { PUERTA_LANGS, WHATSAPP_HEAD } from "@/lib/i18n/whatsapp-arrival";
 
 const TOKEN_KEY = "tj-entrada";
@@ -108,7 +109,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   const [telefono, setTelefono] = useState("");
   const [code, setCode] = useState("");
   const [duda, setDuda] = useState("");
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [faltaAbierta, setFaltaAbierta] = useState<string | null>(null);
   const [visor, setVisor] = useState<{ hojas: Hoja[]; index: number } | null>(null);
   const [needWhy, setNeedWhy] = useState<string | null>(null);
@@ -123,13 +124,14 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   const reading = useRef(false);
   const verifying = useRef(false);
   const prevPaso = useRef<Paso | null>(null);
+  const dudasEnVuelo = useRef(new Set<number>());
 
   const patch = useCallback((x: Partial<PortadaLocal>) => setLocal((l) => ({ ...l, ...x })), []);
   const apply = useCallback((d: Res) => {
     if (d.view) setView(d.view);
-    setError(d.ok ? null : d.error ?? t.error);
+    setError(d.ok ? null : d.error ? enIdioma(lang, d.error) : t.error);
     return d.ok;
-  }, [t.error]);
+  }, [t.error, lang]);
 
   useEffect(() => {
     const saved = storage<string>(TOKEN_KEY);
@@ -141,7 +143,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       }
       if (!data.view) return;
       setToken(saved);
-      setLocal({ ...PORTADA_VACIA, ...(storage<PortadaLocal>(LOCAL_KEY(saved)) ?? {}) });
+      setLocal(normalizarLocal(storage<Partial<PortadaLocal>>(LOCAL_KEY(saved))));
       if (data.view.idiomas.destinos.length) setDestinos(data.view.idiomas.destinos);
       setOrigen(data.view.idiomas.origen ?? "");
       setView(data.view);
@@ -216,7 +218,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   useEffect(() => {
     if (!token || !view?.emailVerificado) return;
     local.dudas.forEach((d, i) => {
-      if (!d.enviada) void enviarDuda(i, d.q);
+      if (d.a === null && !dudasEnVuelo.current.has(i)) void enviarDuda(i, d.q);
     });
   });
 
@@ -281,9 +283,9 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           const blob = await upload(`entrada/${Date.now()}-${safe}`, file, { access: "public", handleUploadUrl: "/api/documents/upload", clientPayload: JSON.stringify({ gdprConsent: true }) });
           const res = (await call(`/api/entrada/${tk}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType })).data;
           if (res.view) setView(res.view);
-          if (!res.ok) setError(res.error ?? t.error);
+          if (!res.ok) setError(res.error ? enIdioma(lang, res.error) : t.error);
         } catch (e) {
-          setError(e instanceof Error ? e.message : t.error);
+          setError(e instanceof Error ? enIdioma(lang, e.message) : t.error);
         }
       }
       patch({ verArchivos: false, quiereLeer: false, revisado: false });
@@ -391,11 +393,17 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     }
   }
 
+  /** A doubt counts as sent only when its answer arrives; a network failure leaves it pending and it is retried. */
   async function enviarDuda(index: number, q: string) {
-    if (!token) return;
-    setLocal((l) => ({ ...l, dudas: l.dudas.map((d, i) => (i === index ? { ...d, enviada: true } : d)) }));
-    const { data } = await call(`/api/entrada/${token}/pregunta`, "POST", { question: q, paso });
-    const a = data.ok && data.answer ? data.answer : data.error ?? t.error;
+    if (!token || dudasEnVuelo.current.has(index)) return;
+    dudasEnVuelo.current.add(index);
+    const { status, data } = await call(`/api/entrada/${token}/pregunta`, "POST", { question: q, paso });
+    if (status === 0) {
+      setTimeout(() => dudasEnVuelo.current.delete(index), 10000);
+      return;
+    }
+    dudasEnVuelo.current.delete(index);
+    const a = data.ok && data.answer ? data.answer : data.error ? enIdioma(lang, data.error) : t.error;
     setLocal((l) => ({ ...l, dudas: l.dudas.map((d, i) => (i === index ? { ...d, a } : d)) }));
   }
 
@@ -404,23 +412,23 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     if (q.length < 2) return;
     setDuda("");
     const index = local.dudas.length;
-    setLocal((l) => ({ ...l, dudas: [...l.dudas, { q, a: null, enviada: false }] }));
+    setLocal((l) => ({ ...l, dudas: [...l.dudas, { q, a: null }] }));
     if (view?.emailVerificado) void enviarDuda(index, q);
   }
 
-  async function answerIdioma(index: number) {
+  async function answerIdioma(q: string) {
     if (!destinos.length || sameLang) return;
-    if (await saveLangs(origen, destinos)) patch({ respuestas: { ...local.respuestas, [index]: destinos.map(langName).join(", ") } });
+    if (await saveLangs(origen, destinos)) patch({ respuestas: { ...local.respuestas, [q]: destinos.map(langName).join(", ") } });
   }
 
-  function answerTexto(index: number) {
-    const text = (answers[index] ?? "").trim();
+  function answerTexto(q: string) {
+    const text = (answers[q] ?? "").trim();
     if (!text) return;
     if (isQuestion(text) && !/^(s[ií]|no|yes|oui|non|ja|nein|sim|não)\b/i.test(text)) {
-      setAnswers((a) => ({ ...a, [index]: "" }));
+      setAnswers((a) => ({ ...a, [q]: "" }));
       return preguntar(text);
     }
-    patch({ respuestas: { ...local.respuestas, [index]: text } });
+    patch({ respuestas: { ...local.respuestas, [q]: text } });
   }
 
   const urgency = local.urgency ?? (view?.plazo.urgency as Urgency | null) ?? null;
@@ -436,7 +444,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     const { data } = await call(`/api/entrada/${token}/confirmar`, "POST", {
       urgency, neededBy: urgency === "DATE" ? neededBy : null, organismo: local.organismo, pais: local.pais,
       notas: local.notas.trim() || null, loteUpdatedAt: view.lectura?.loteUpdatedAt ?? null,
-      respuestas: Object.entries(local.respuestas).map(([i, r]) => ({ pregunta: (preguntas[Number(i)] ?? "").slice(0, 300), respuesta: r.slice(0, 1000) })),
+      respuestas: respuestasDe(preguntas, local.respuestas),
     });
     setBusy(null);
     apply(data);
@@ -448,6 +456,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     setToken(null);
     setView(null);
     setLocal(PORTADA_VACIA);
+    olvidarMiniaturas();
     setGdpr(false);
     setCode("");
     setError(null);
@@ -470,7 +479,9 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       {hojas.slice(0, max).map((h, i) => (
         <Miniatura key={`${h.archivo.id}:${h.page}:${i}`} h={h} size={size} onOpen={() => abrir(hojas, i)} ariaLabel={p.ampliar(h.archivo.name, h.label)} />
       ))}
-      {hojas.length > max && <span className="self-center text-xs font-semibold text-graphite">{p.masPaginas(hojas.length - max)}</span>}
+      {hojas.length > max && (
+        <button type="button" onClick={() => abrir(hojas, max)} className={`self-start rounded-md border border-dashed border-graphite/30 bg-parchment px-2 text-xs font-semibold text-bleu ${size === "sm" ? "h-14" : "h-[104px]"}`}>{p.masPaginas(hojas.length - max)}</button>
+      )}
     </>
   );
 
@@ -546,7 +557,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       </div>
       {source === "whatsapp" && <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{WHATSAPP_HEAD[lang].banner}</p>}
       {idiomaNav && (
-        <nav aria-label="Idioma" className="flex flex-wrap gap-2">
+        <nav aria-label={p.idiomaNav} className="flex flex-wrap gap-2">
           {PUERTA_LANGS.map((l) => (
             <Link key={l} href={`?p=whatsapp&l=${l}`} aria-current={l === lang ? "true" : undefined}
               className={`inline-flex min-h-11 items-center rounded-full border px-4 text-xs font-semibold uppercase ${l === lang ? "border-bleu bg-bleu text-white" : "border-bleu/20 bg-parchment text-bleu"}`}>{l}</Link>
@@ -616,7 +627,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         <button type="submit" className={`${primary} shrink-0 !px-4`} disabled={duda.trim().length < 2}>{t.preguntar}</button>
       </form>
       <div className="flex flex-wrap gap-2">
-        {p.dudaChips.map((c) => <button key={c} type="button" className={chip(false)} onClick={() => preguntar(c)}>{c}</button>)}
+        {p.dudaChips.map((c) => <button key={c} type="button" className={chip(false)} disabled={!!busy} onClick={() => preguntar(c)}>{c}</button>)}
       </div>
       {!view?.emailVerificado && <p className="text-xs text-graphite">{p.dudaEspera}</p>}
     </section>
@@ -680,7 +691,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   // ——— The guided card ———
   const [titulo, subtitulo] = p.titulo[paso as keyof typeof p.titulo] ?? ["", ""];
   const progreso = (
-    <ol className="grid grid-cols-4 gap-2" aria-label={p.etapas.join(" · ")}>
+    <ol className="grid grid-cols-4 gap-2 break-words [hyphens:auto]" aria-label={p.etapas.join(" · ")}>
       {p.etapas.map((s, i) => (
         <li key={s} aria-current={i === etapa ? "step" : undefined} aria-label={i < etapa ? p.hechoAria(s) : i === etapa ? p.actualAria(s) : s}>
           <span className={`block h-1.5 rounded-full ${i < etapa ? "bg-vert" : i === etapa ? "bg-or" : "bg-cream"}`} />
@@ -776,7 +787,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     body = (
       <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void sendEmail(); }}>
         <label className="block text-sm font-semibold text-encre">{t.email}
-          <input ref={emailRef} type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setNeedWhy(null); }} className={`${field} mt-1`} placeholder="tu@email.com" />
+          <input ref={emailRef} type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setNeedWhy(null); }} className={`${field} mt-1`} placeholder={p.emailPh} />
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           <input autoComplete="name" placeholder={t.name} aria-label={t.name} value={nombre} onChange={(e) => setNombre(e.target.value)} className={field} />
@@ -871,7 +882,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
                 </div>
                 <p className="mt-0.5 break-words text-sm text-graphite">{[t.pages(d.paginas), d.apostilla ? t.conApostilla : null, nombres.length === 1 ? nombres[0] : null].filter(Boolean).join(" · ")}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {thumbs(hojas)}
+                  {thumbs(hojas, "md", 12)}
                   {d.incluido && d.faltan.map((pg) => (
                     <figure key={`f${pg}`} className="flex w-[76px] shrink-0 flex-col items-center gap-1">
                       <button type="button" onClick={pickFiles} disabled={!!busy || !l.editable} className="flex h-[104px] w-[76px] items-center justify-center rounded-md border-2 border-dashed border-or bg-or/5 text-or-dark disabled:opacity-50" aria-label={p.anadirPag(pg)}>
@@ -881,6 +892,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
                     </figure>
                   ))}
                 </div>
+                {d.incluido && d.faltan.length > 0 && !l.editable && <p className="mt-2 text-xs text-graphite">{p.sinEditar}</p>}
                 {d.incluido && d.faltan.length > 0 && <p className="mt-3 flex gap-2 rounded-lg bg-or/10 px-3 py-2 text-sm text-encre"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-or-dark" aria-hidden />{t.faltan(d.faltan.join(", "))}</p>}
                 {d.incluido && d.ilegible && <p className="mt-3 flex gap-2 rounded-lg bg-or/10 px-3 py-2 text-sm text-encre"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-or-dark" aria-hidden />{t.ilegible}</p>}
                 {!d.incluido && d.motivo && <p className="mt-2 text-xs text-graphite">{t.noIncluido}: {d.motivo}</p>}
@@ -916,24 +928,28 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           </div>
         )}
         {preguntas.map((q, i) => {
-          const done = local.respuestas[i] !== undefined;
-          const idioma = isLangQuestion(q);
+          const done = Object.prototype.hasOwnProperty.call(local.respuestas, q);
+          const idioma = l.preguntasIdioma?.[i] ?? isLangQuestion(q);
+          const vacia = !(answers[q] ?? "").trim();
           return (
-            <div key={i} className="space-y-2 rounded-xl border border-bleu/20 bg-bleu/5 p-4">
+            <div key={q} className="space-y-2 rounded-xl border border-bleu/20 bg-bleu/5 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.1em] text-bleu">{done ? p.respondida : p.unaPregunta}</p>
               <p className="font-semibold text-encre">{q}</p>
               {done ? (
-                <p className="flex flex-wrap items-center gap-2 text-sm text-encre">«{local.respuestas[i]}» <button type="button" className={linkBtn} onClick={() => { const { [i]: _, ...rest } = local.respuestas; void _; patch({ respuestas: rest }); }}>{p.cambiar}</button></p>
+                <p className="flex flex-wrap items-center gap-2 text-sm text-encre">«{local.respuestas[q]}» <button type="button" className={linkBtn} onClick={() => { const rest = { ...local.respuestas }; delete rest[q]; patch({ respuestas: rest }); }}>{p.cambiar}</button></p>
               ) : idioma ? (
                 <div className="space-y-2">
                   {langFields(true)}
-                  <button type="button" className={primary} disabled={!!busy || !destinos.length || sameLang} onClick={() => answerIdioma(i)}>{busy?.key === "idiomas" ? <Spinner /> : null}{t.listo}</button>
+                  <button type="button" className={primary} disabled={!!busy || !destinos.length || sameLang} onClick={() => answerIdioma(q)}>{busy?.key === "idiomas" ? <Spinner /> : null}{t.listo}</button>
                 </div>
               ) : (
-                <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); answerTexto(i); }}>
-                  <input value={answers[i] ?? ""} onChange={(e) => setAnswers((a) => ({ ...a, [i]: e.target.value }))} placeholder={t.responder} aria-label={t.responder} className={`${field} min-w-0`} />
-                  <button type="submit" className={`${primary} shrink-0 !px-4`} disabled={!(answers[i] ?? "").trim()}>{t.enviarRespuesta}</button>
-                </form>
+                <>
+                  <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); answerTexto(q); }}>
+                    <input value={answers[q] ?? ""} onChange={(e) => setAnswers((x) => ({ ...x, [q]: e.target.value }))} placeholder={t.responder} aria-label={t.responder} className={`${field} min-w-0`} />
+                    <button type="submit" className={`${primary} shrink-0 !px-4`} disabled={vacia} aria-describedby={vacia ? `vacia-${i}` : undefined}>{t.enviarRespuesta}</button>
+                  </form>
+                  {vacia && <p id={`vacia-${i}`} className="text-xs text-graphite">{p.escribeRespuesta}</p>}
+                </>
               )}
             </div>
           );

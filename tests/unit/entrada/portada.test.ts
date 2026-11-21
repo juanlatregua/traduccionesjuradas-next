@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ETAPA, PORTADA_VACIA, hojasDe, pasoDe } from "../../../lib/entrada/portada.ts";
+import { readFileSync } from "node:fs";
+import { ETAPA, PORTADA_VACIA, hojasDe, normalizarLocal, pasoDe, respuestasDe } from "../../../lib/entrada/portada.ts";
+import { MENSAJES_TRADUCIDOS, enIdioma } from "../../../lib/entrada/errores-i18n.ts";
 import { PORTADA_T } from "../../../lib/entrada/portada-i18n.ts";
 import type { ClientView } from "../../../lib/entrada/view.ts";
 
@@ -41,4 +43,25 @@ test("portada: textos en los 5 idiomas, sin precios salvo el «desde»", () => {
     assert.doesNotMatch(flat, /€|\d+ ?eur/i, l);
     assert.equal(PORTADA_T[l].etapas.length, 4);
   }
+});
+
+test("portada: tras una relectura con otras preguntas, ninguna respuesta se cruza", () => {
+  const respuestas = { "¿Para qué trámite es?": "Homologación", "¿Falta la página 2?": "No la tengo" };
+  assert.deepEqual(respuestasDe(["¿A qué organismo va?", "¿Para qué trámite es?"], respuestas), [{ pregunta: "¿Para qué trámite es?", respuesta: "Homologación" }]);
+  assert.deepEqual(respuestasDe(["¿Hay apostilla?"], respuestas), []);
+  const viejo = normalizarLocal({ respuestas: { 0: "x", "¿Hay apostilla?": "sí" } as Record<string, string>, dudas: [{ q: "¿?", a: null, enviada: true }] });
+  assert.deepEqual(viejo.respuestas, { "¿Hay apostilla?": "sí" });
+  assert.deepEqual(viejo.dudas, [{ q: "¿?", a: null }], "a doubt marked sent without answer is pending again");
+});
+
+test("portada: todo mensaje de error de la puerta tiene traducción en fr/en/de/pt", () => {
+  const src = ["lib/entrada/api.ts", "lib/entrada/flow.ts"].map((f) => readFileSync(new URL(`../../../${f}`, import.meta.url), "utf8")).join("\n");
+  const msgs = [...src.matchAll(/(?:fail\(\d+, |error: |READING_NOW = )"([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(msgs.length > 20);
+  for (const m of msgs) assert.ok(MENSAJES_TRADUCIDOS.includes(m), `sin traducir: ${m}`);
+  for (const l of ["fr", "en", "de", "pt"] as const) {
+    assert.notEqual(enIdioma(l, "El código no es correcto."), "El código no es correcto.");
+    assert.doesNotMatch(enIdioma(l, "Caben como mucho 40 archivos. Si tienes más, escríbenos y te ayudamos."), /Caben/);
+  }
+  assert.equal(enIdioma("es", "El código no es correcto."), "El código no es correcto.");
 });

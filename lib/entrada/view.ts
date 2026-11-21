@@ -10,7 +10,7 @@ type Part = PartRef;
 export type ReadingExtras = {
   notToTranslate: { parts: PartRef[]; reason: string }[];
   duplicates: { parts: PartRef[] }[];
-  questions: { textEs: string }[];
+  questions: { textEs: string; kind?: string }[];
   /** docKey (D1, D2…) → pages the document declares and did not arrive. */
   missing: Record<string, number[]>;
 };
@@ -45,6 +45,8 @@ export type ClientView = {
         documentos: ClientDocument[];
         noIncluidos: { que: string; motivo: string }[];
         preguntas: string[];
+        /** Same order as preguntas: the question asks for the target language (answered with the language picker). */
+        preguntasIdioma?: boolean[];
         resumen: string;
       };
   sinJurado: null | { idioma: string; codigo: string; maecUrl: string };
@@ -146,6 +148,7 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
     : fase === "leyendo"
       ? "Estamos revisando el conjunto de tus archivos."
       : "Tus archivos los revisa Juan personalmente.";
+  const preguntas = fase === "lista" ? (extras?.questions ?? []).filter((q) => Boolean(q.textEs)) : [];
   const soloLectura = lote.status !== "ok" ? null : lote.sessionKey !== sessionKeyOf(entrada.id) ? "otra_entrada" : entrada.regla === "huella" || entrada.regla === "contacto" ? "caso_existente" : null;
   return {
     ...base,
@@ -157,7 +160,8 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
       targetLang: lote.targetLang && lote.targetLang !== "unknown" ? lote.targetLang : entrada.targetLang,
       documentos,
       noIncluidos,
-      preguntas: fase === "lista" ? (extras?.questions ?? []).map((q) => q.textEs).filter(Boolean) : [],
+      preguntas: preguntas.map((q) => q.textEs),
+      preguntasIdioma: preguntas.map((q) => q.kind === "target_lang"),
       resumen,
     },
   };

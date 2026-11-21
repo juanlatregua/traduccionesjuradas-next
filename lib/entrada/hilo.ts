@@ -50,7 +50,8 @@ export type Ask =
   | { kind: "lugar" }
   | { kind: "enviar" };
 
-const LANG_QUESTION = /idioma|lengua|language|langue|sprache|traducir(?:lo|la|los|las)? al?\s|translate\w* (?:it )?into|tradui\w* (?:en|vers)\s/i;
+/** Asks for the TARGET language («¿a qué idioma…?», «¿traducirlo al inglés?»), never about the document's own language. */
+const LANG_QUESTION = /\b(?:a|para)\s+(?:qu[eé]|cu[aá]l(?:es)?)\s+(?:idiomas?|lenguas?)\b|traduc\w*\s+al?\s|\binto\s+(?:which|what)\s+language|\btranslat\w*\s+(?:it\s+|them\s+)?into\s|vers\s+quelle\s+langue|tradui\w*\s+(?:en|vers)\s|in\s+welche\s+sprache|[üu]bersetz\w*\s+in\s|para\s+(?:qual|que)\s+(?:idioma|l[ií]ngua)|tradu\w*\s+para\s+o\s/iu;
 /** A reading question about the target language is answered with the language picker, not free text. */
 export const isLangQuestion = (text: string) => LANG_QUESTION.test(text) && /\?|¿/.test(text);
 

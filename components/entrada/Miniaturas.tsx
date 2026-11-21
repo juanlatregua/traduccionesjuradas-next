@@ -2,7 +2,7 @@
 
 // Miniaturas de las páginas que sube el cliente: las fotos tal cual; los PDF, página a página con pdf.js (se carga
 // solo cuando hace falta la primera miniatura de un PDF). HEIC/TIFF: si el navegador no los pinta, un icono.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { FileText, ImageOff, X, ChevronLeft, ChevronRight } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
@@ -82,24 +82,52 @@ export function renderPdfPage(url: string, page: number, width: number): Promise
   return r;
 }
 
+/** Restart: the open PDFs are destroyed and the rendered pages forgotten. */
+export function olvidarMiniaturas() {
+  for (const d of docs.values()) d.then((doc) => doc.destroy(), () => {});
+  docs.clear();
+  renders.clear();
+}
+
 const isPdf = (m: string) => m === "application/pdf";
 
-/** The page as an image source: the photo itself, or the PDF page rendered here. null while it renders; "" if it cannot. */
-function usePageSrc(h: Hoja, width: number): string | null {
-  const pdf = isPdf(h.archivo.mimeType);
-  const [src, setSrc] = useState<string | null>(pdf ? null : h.archivo.url);
+/** True once the element is on screen (or close): nothing is downloaded or rendered before that. */
+function useVisible<T extends Element>(): [RefObject<T>, boolean] {
+  const ref = useRef<T>(null);
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
+    const el = ref.current;
+    if (!el || visible) return;
+    if (typeof IntersectionObserver === "undefined") return setVisible(true);
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setVisible(true);
+        io.disconnect();
+      }
+    }, { rootMargin: "200px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [visible]);
+  return [ref, visible];
+}
+
+/** The page as an image source: the photo itself, or the PDF page rendered here. null while it renders; "" if it cannot. */
+function usePageSrc(h: Hoja, width: number, enabled: boolean): string | null {
+  const pdf = isPdf(h.archivo.mimeType);
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
     if (!pdf) return setSrc(h.archivo.url);
     let alive = true;
     setSrc(null);
     renderPdfPage(h.archivo.url, h.page, width).then((s) => alive && setSrc(s), () => alive && setSrc(""));
     return () => { alive = false; };
-  }, [pdf, h.archivo.url, h.page, width]);
+  }, [pdf, h.archivo.url, h.page, width, enabled]);
   return src;
 }
 
-function Pagina({ h, width, className }: { h: Hoja; width: number; className: string }) {
-  const src = usePageSrc(h, width);
+function Pagina({ h, width, className, enabled = true }: { h: Hoja; width: number; className: string; enabled?: boolean }) {
+  const src = usePageSrc(h, width, enabled);
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [src]);
   if (src === null) return <span className={`${className} animate-pulse bg-cream`} aria-hidden />;
@@ -113,17 +141,19 @@ function Pagina({ h, width, className }: { h: Hoja; width: number; className: st
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} className={`${className} bg-white object-contain`} />;
+  return <img src={src} alt="" decoding="async" onError={() => setBroken(true)} className={`${className} bg-white object-contain`} />;
 }
 
 /** A tappable page thumbnail with its caption. */
 export function Miniatura({ h, onOpen, size = "md", highlight = false, ariaLabel }: { h: Hoja; onOpen?: () => void; size?: "sm" | "md"; highlight?: boolean; ariaLabel: string }) {
   const box = size === "sm" ? "h-14 w-10" : "h-[104px] w-[76px]";
+  const [ref, visible] = useVisible<HTMLButtonElement>();
   return (
     <figure className={`flex shrink-0 flex-col items-center gap-1 ${size === "sm" ? "w-10" : "w-[76px]"}`}>
-      <button type="button" onClick={onOpen} disabled={!onOpen} aria-label={ariaLabel}
+      <button ref={ref} type="button" onClick={onOpen} disabled={!onOpen} aria-label={ariaLabel}
         className={`overflow-hidden rounded-md border bg-white shadow-sm transition ${highlight ? "border-or ring-2 ring-or" : "border-graphite/20"} [@media(hover:hover)]:hover:border-bleu`}>
-        <Pagina h={h} width={size === "sm" ? 40 : 76} className={`block max-w-none ${box}`} />
+        {/* Small and normal thumbnails share one render (and the same photo URL, downloaded once). */}
+        <Pagina h={h} width={76} enabled={visible} className={`block max-w-none ${box}`} />
       </button>
       {size === "md" && <figcaption className="max-w-[76px] truncate text-center text-[11px] text-graphite">{h.label}</figcaption>}
     </figure>

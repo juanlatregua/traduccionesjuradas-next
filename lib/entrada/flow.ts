@@ -236,7 +236,7 @@ export async function leerEntrada(deps: FlowDeps, e: EntradaRow, opts: { continu
     const r = await deps.lectura.start(
       {
         source: { casoId, sessionKey: sessionKeyOf(e.id), quoteId: null },
-        targetLang: cur.targetLang, sourceLang: cur.sourceLang, notes: cur.notas, reread: false, by: actorOf(e),
+        targetLang: cur.targetLang, sourceLang: cur.sourceLang, notes: cur.notas, clientLang: cur.lang, reread: false, by: actorOf(e),
       },
       files,
     );

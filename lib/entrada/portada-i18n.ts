@@ -95,7 +95,11 @@ const es = {
   rolApostilla: "apostilla",
   rolAnexo: "anexo",
   ampliar: (name: string, label: string) => `Ver en grande: ${name}, ${label}`,
-  masPaginas: (n: number) => `+${n}`,
+  masPaginas: (n: number) => `+${n} más`,
+  idiomaNav: "Idioma",
+  emailPh: "tu@email.com",
+  sinEditar: "Estos documentos no se cambian aquí: si falta o sobra algo, cuéntanoslo en «¿Algo más que debamos saber?».",
+  escribeRespuesta: "Escribe tu respuesta para enviarla.",
   para: "para el",
 };
 
@@ -195,8 +199,12 @@ const fr: PortadaStrings = {
   rolApostilla: "apostille",
   rolAnexo: "annexe",
   ampliar: (name, label) => `Agrandir : ${name}, ${label}`,
-  masPaginas: (n) => `+${n}`,
+  masPaginas: (n) => `+${n} de plus`,
   para: "pour le",
+  idiomaNav: "Langue",
+  emailPh: "vous@email.com",
+  sinEditar: "Ces documents ne se modifient pas ici : s'il manque ou s'il y a trop de choses, dites-le dans « Autre chose à savoir ? ».",
+  escribeRespuesta: "Écrivez votre réponse pour l'envoyer.",
 };
 
 const en: PortadaStrings = {
@@ -293,8 +301,12 @@ const en: PortadaStrings = {
   rolApostilla: "apostille",
   rolAnexo: "annex",
   ampliar: (name, label) => `View large: ${name}, ${label}`,
-  masPaginas: (n) => `+${n}`,
+  masPaginas: (n) => `+${n} more`,
   para: "by",
+  idiomaNav: "Language",
+  emailPh: "you@email.com",
+  sinEditar: "These documents can't be changed here: if something is missing or extra, tell us under “Anything else we should know?”.",
+  escribeRespuesta: "Write your answer to send it.",
 };
 
 const de: PortadaStrings = {
@@ -391,8 +403,12 @@ const de: PortadaStrings = {
   rolApostilla: "Apostille",
   rolAnexo: "Anlage",
   ampliar: (name, label) => `Groß anzeigen: ${name}, ${label}`,
-  masPaginas: (n) => `+${n}`,
+  masPaginas: (n) => `+${n} weitere`,
   para: "bis",
+  idiomaNav: "Sprache",
+  emailPh: "sie@email.de",
+  sinEditar: "Diese Dokumente lassen sich hier nicht ändern: Wenn etwas fehlt oder zu viel ist, schreiben Sie es unter „Sollten wir sonst noch etwas wissen?“.",
+  escribeRespuesta: "Schreiben Sie Ihre Antwort, um sie zu senden.",
 };
 
 const pt: PortadaStrings = {
@@ -489,8 +505,12 @@ const pt: PortadaStrings = {
   rolApostilla: "apostila",
   rolAnexo: "anexo",
   ampliar: (name, label) => `Ver em grande: ${name}, ${label}`,
-  masPaginas: (n) => `+${n}`,
+  masPaginas: (n) => `+${n} mais`,
   para: "para",
+  idiomaNav: "Idioma",
+  emailPh: "voce@email.com",
+  sinEditar: "Estes documentos não se mudam aqui: se faltar ou sobrar algo, diga em «Mais alguma coisa que devamos saber?».",
+  escribeRespuesta: "Escreva a sua resposta para enviar.",
 };
 
 export const PORTADA_T: Record<EntradaLang, PortadaStrings> = { es, fr, en, de, pt };

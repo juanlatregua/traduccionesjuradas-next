@@ -11,6 +11,8 @@ export type StartInput = {
   targetLang: string | null;
   sourceLang: string | null;
   notes: string | null;
+  /** Language the client reads (questions and reasons are written in it). */
+  clientLang?: string | null;
   reread: boolean;
   by: string;
 };
@@ -133,7 +135,7 @@ export async function startReading(deps: StartDeps, input: StartInput): Promise<
   try {
     reading = await deps.read(
       inputs.map((i) => ({ name: i.ref.name, mimeType: i.ref.mimeType, bytes: i.bytes })),
-      { declaredTargetLang: input.targetLang, declaredSourceLang: input.sourceLang, caseNotes: input.notes },
+      { declaredTargetLang: input.targetLang, declaredSourceLang: input.sourceLang, caseNotes: input.notes, clientLang: input.clientLang ?? null },
       { attempt },
     );
   } catch (err) {

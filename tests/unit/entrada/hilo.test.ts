@@ -83,6 +83,12 @@ test("language questions are detected in the five languages the reading may use"
   assert.equal(isLangQuestion("¿Para qué organismo es?"), false);
   assert.equal(isLangQuestion("¿Para qué trámite necesitas la traducción?"), false);
   assert.equal(isLangQuestion("¿Quieres traducirlo al inglés o al francés?"), true);
+  assert.equal(isLangQuestion("¿Está en otro idioma además del francés?"), false);
+  assert.equal(isLangQuestion("¿Está en lengua árabe o también en francés?"), false);
+  assert.equal(isLangQuestion("Vers quelle langue faut-il traduire l'acte ?"), true);
+  assert.equal(isLangQuestion("Into which language do you need the certificate translated?"), true);
+  assert.equal(isLangQuestion("In welche Sprache soll übersetzt werden?"), true);
+  assert.equal(isLangQuestion("Para qual idioma precisa da tradução?"), true);
 });
 
 test("every thread string exists in the five languages", () => {

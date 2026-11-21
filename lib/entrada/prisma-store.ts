@@ -170,7 +170,7 @@ export async function filesWithoutHash(db: PrismaClient, q: { sizes: number[]; d
 type ReadingJson = {
   notToTranslate?: { parts?: { fileIndex: number; page: number }[]; reason?: string }[];
   duplicates?: { parts?: { fileIndex: number; page: number }[] }[];
-  questions?: { textEs?: string }[];
+  questions?: { textEs?: string; kind?: string }[];
   documents?: { id?: string; missingPages?: number[] }[];
 };
 
@@ -181,7 +181,7 @@ export async function readingExtras(db: PrismaClient, loteId: string): Promise<R
   return {
     notToTranslate: (j.notToTranslate ?? []).map((n) => ({ parts: n.parts ?? [], reason: n.reason ?? "no hace falta traducirlo" })),
     duplicates: (j.duplicates ?? []).map((d) => ({ parts: d.parts ?? [] })),
-    questions: (j.questions ?? []).map((q) => ({ textEs: q.textEs ?? "" })),
+    questions: (j.questions ?? []).map((q) => ({ textEs: q.textEs ?? "", kind: q.kind })),
     missing: Object.fromEntries((j.documents ?? []).filter((d) => d.id && d.missingPages?.length).map((d) => [d.id!, d.missingPages!])),
   };
 }

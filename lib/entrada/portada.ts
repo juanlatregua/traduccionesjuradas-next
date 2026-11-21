@@ -18,9 +18,10 @@ export type PortadaLocal = {
   pais: string | null;
   organismo: string | null;
   notas: string;
-  respuestas: Record<number, string>;
-  /** Dudas: las que se escriben antes de confirmar el email esperan (a = null, enviada = false) y salen solas al confirmarlo. */
-  dudas: { q: string; a: string | null; enviada: boolean }[];
+  /** Keyed by the question text: a new reading with other questions never inherits an answer. */
+  respuestas: Record<string, string>;
+  /** Dudas: sin respuesta (a = null) hasta que llega; las escritas antes de confirmar el email salen solas al confirmarlo. */
+  dudas: { q: string; a: string | null; enviada?: boolean }[];
 };
 
 export const PORTADA_VACIA: PortadaLocal = {
@@ -60,3 +61,15 @@ export function hojasDe(archivos: { id: string; pages: number | null }[]): { arc
 
 /** A reading document with something to look at again: missing pages or hard to read. */
 export const conAviso = (d: { incluido: boolean; faltan: number[]; ilegible: boolean }) => d.incluido && (d.faltan.length > 0 || d.ilegible);
+
+/** The answers that belong to the questions of THIS reading, in its order. */
+export function respuestasDe(preguntas: string[], respuestas: Record<string, string>): { pregunta: string; respuesta: string }[] {
+  return preguntas.filter((q) => Object.prototype.hasOwnProperty.call(respuestas, q)).map((q) => ({ pregunta: q.slice(0, 300), respuesta: respuestas[q].slice(0, 1000) }));
+}
+
+/** A saved state from an older version (answers by index, doubts marked sent before their answer came) is made safe to resume. */
+export function normalizarLocal(saved: Partial<PortadaLocal> | null): PortadaLocal {
+  const l = { ...PORTADA_VACIA, ...(saved ?? {}) };
+  const respuestas = Object.fromEntries(Object.entries(l.respuestas ?? {}).filter(([k]) => !/^\d+$/.test(k)));
+  return { ...l, respuestas, dudas: (l.dudas ?? []).map((d) => ({ q: d.q, a: d.a ?? null })) };
+}
