@@ -10,6 +10,7 @@ import { madridParts } from "@/lib/panel-period";
 import { AUTOENVIO_MAX_HOURS, AUTOENVIO_ORIGINS, autoenvio150On, autoenvioHourOk, autoenvioVerdict, type AutoenvioInput, type AutoenvioVerdict } from "@/lib/autoenvio-150-core";
 import { HOLD_STEP, loadHolds } from "@/lib/autoenvio-150-holds";
 import { isEncargoCerradoAutosend } from "@/lib/encargo-cerrado-math";
+import { abs, hrefPresupuesto } from "./staff-links.ts";
 
 const STEP = "autoenvio_150";
 const ACTOR = "system:autoenvio-150";
@@ -180,7 +181,7 @@ export async function runAutoenvio150(now = new Date()) {
         await finalizeAndSendQuote({ quoteId: q.id, actorEmail: ACTOR, requireDraft: true, channelPriceSource: v.channel });
         sent++;
         await prisma.funnelEvent.update({ where: { sessionId_step: { sessionId: `autoenvio-150:${q.id}`, step: STEP } }, data: { metadata: { result: "sent" } } }).catch(() => {});
-        await sendStaffAlertSMS(`Autoenvío 2,5 h: ${q.quoteNumber} (${decimalToNumber(q.total).toFixed(2)} €) enviado a ${q.customerEmail}. Ficha: ${SITE}/zona-traductor/presupuestos/${q.id}`, `autoenvio_150 ${q.quoteNumber}`).catch(() => {});
+        await sendStaffAlertSMS(`Autoenvío 2,5 h: ${q.quoteNumber} (${decimalToNumber(q.total).toFixed(2)} €) enviado a ${q.customerEmail}. Ficha: ${abs(hrefPresupuesto(q.id), SITE)}`, `autoenvio_150 ${q.quoteNumber}`).catch(() => {});
         out.push({ quote: q.quoteNumber, action: "send" });
       } catch (err) {
         const msg = String((err as Error)?.message || err).slice(0, 200);
@@ -193,7 +194,7 @@ export async function runAutoenvio150(now = new Date()) {
         }
         await prisma.funnelEvent.update({ where: { sessionId_step: { sessionId: `autoenvio-150:${q.id}`, step: STEP } }, data: { metadata: { result: "error", detail: msg } } }).catch(() => {});
         await hold(q, [`el envío automático falló: ${msg}`]);
-        await sendStaffAlertSMS(`Autoenvío 2,5 h: ${q.quoteNumber} NO salió (${msg.slice(0, 80)}). Queda en borrador: ${SITE}/zona-traductor/presupuestos/${q.id}`, `autoenvio_150_error ${q.quoteNumber}`).catch(() => {});
+        await sendStaffAlertSMS(`Autoenvío 2,5 h: ${q.quoteNumber} NO salió (${msg.slice(0, 80)}). Queda en borrador: ${abs(hrefPresupuesto(q.id), SITE)}`, `autoenvio_150_error ${q.quoteNumber}`).catch(() => {});
         out.push({ quote: q.quoteNumber, action: "hold", detail: msg });
       }
     } catch (err) {

@@ -2,6 +2,7 @@
 // Un solo paso y un solo botón. Orden: pago congelado (pierde dinero) > pedido >
 // presupuesto vigente > solicitud viva a lavori > nada vivo.
 
+import { hrefConstructor, hrefPresupuesto, hrefPedido, hrefSolicitud } from "../staff-links.ts";
 import { estadoPorPedidos, lprViva, quotePagable, quoteVivo, type PedidoParaEstado } from "./estados.ts";
 
 export type QuotePaso = {
@@ -66,14 +67,7 @@ const fmtHora = (d: Date) =>
   d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const eur = (cents: number) => `${(cents / 100).toFixed(2).replace(".", ",")} €`;
 
-export const hrefPresupuesto = (quoteId: string) => `/zona-traductor/presupuestos/${quoteId}`;
-export const hrefPedido = (reference: string) => `/zona-traductor/pedido/${encodeURIComponent(reference)}`;
-export const hrefCaso = (casoId: string) => `/zona-traductor/casos/${casoId}`;
-/** Igual que la lista «Solicitudes de precio en lavori»: builder atado a la solicitud. */
-export function hrefSolicitud(l: { ref: string; expedienteRef: string | null }): string {
-  const exp = l.expedienteRef && !l.expedienteRef.startsWith("puerta:") ? `&exp=${encodeURIComponent(l.expedienteRef)}` : "";
-  return `/zona-traductor/presupuesto?lead=${encodeURIComponent(l.ref)}${exp}`;
-}
+export { hrefPresupuesto, hrefPedido, hrefCaso, hrefSolicitud } from "../staff-links.ts";
 export const urlPublicaQuote = (baseUrl: string, publicToken: string) => `${baseUrl.replace(/\/$/, "")}/q/${publicToken}`;
 
 /** Vigente: la que tiene la clave del caso y sigue viva; si nadie la tiene, la viva más reciente. */
@@ -198,7 +192,7 @@ export function siguientePaso(i: {
       titulo: "Sin presupuesto ni solicitud a lavori",
       accion: {
         label: "Montar presupuesto",
-        href: i.sesion ? `/zona-traductor/presupuesto?session=${encodeURIComponent(i.sesion)}` : "/zona-traductor/presupuesto",
+        href: i.sesion ? hrefConstructor({ session: i.sesion }) : hrefConstructor(),
       },
     };
   }

@@ -30,6 +30,7 @@ import { paresDe } from "@/lib/caso/sombra-plan";
 import { deadlineLine, deadlineOf, jurorDeadlineNote, urgentSubjectPrefix, type DeadlineUrgency } from "@/lib/needed-by";
 import { saveSessionDeadline } from "@/lib/needed-by-db";
 import { AVISO_REPETIDO_HORAS, clavesDocs, decidirAvisoHumano, dedupeAviso, type AvisoPrevio } from "@/lib/caso/aviso-humano";
+import { abs, hrefCaso, hrefCliente, hrefConstructor, hrefPresupuesto } from "./staff-links.ts";
 
 const horaMadrid = (d: Date) =>
   d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -183,7 +184,7 @@ export async function routePuertaQuoteRequest(input: {
 
     const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-    if (recurrente.kind !== "none") recurrenteTxt += ` · Historial: ${baseUrl}/zona-traductor/clientes/${encodeURIComponent(recurrente.email)}`;
+    if (recurrente.kind !== "none") recurrenteTxt += ` · Historial: ${abs(hrefCliente(recurrente.email), baseUrl)}`;
     const lineas = [...(input.extraLines ?? []), ...docs.map((d) => {
       const par = `${getLanguageName(d.sourceLanguage || "?")} → ${getLanguageName(d.targetLanguage || "?")}`;
       const ref = d.quoteAmount ? ` · motor (referencia interna): ${Number(d.quoteAmount).toFixed(2)} € netos` : "";
@@ -192,7 +193,7 @@ export async function routePuertaQuoteRequest(input: {
     // El builder importa los documentos de la puerta por sesión (25-ago-2026):
     // ya no hay que volver a soltar el PDF.
     const builderUrl =
-      `${baseUrl}/zona-traductor/presupuesto?session=${encodeURIComponent(token)}` +
+      abs(hrefConstructor({ session: token }), baseUrl) +
       `&customerEmail=${encodeURIComponent(contactEmail)}` +
       (docs[0]?.clientName ? `&customerName=${encodeURIComponent(docs[0].clientName)}` : "") +
       (contactPhone ? `&customerPhone=${encodeURIComponent(contactPhone)}` : "");
@@ -376,7 +377,7 @@ export async function routePuertaQuoteRequest(input: {
               ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
               : "Sin jurado asociado a la tarifa: al pagar irá por el carril normal de lavori.",
             ...lineas,
-            `Ficha: ${baseUrl}/zona-traductor/presupuestos/${auto.quoteId}`,
+            `Ficha: ${abs(hrefPresupuesto(auto.quoteId), baseUrl)}`,
           ].join("\n")
         ),
       }).catch((err) => console.error("[puerta:request-quote] aviso auto fallo:", err));
@@ -435,7 +436,7 @@ export async function routePuertaQuoteRequest(input: {
         h.priceCents ? `${(h.priceCents / 100).toFixed(2)} € de ${h.miembroNombre || "el traductor"}` : "sin precio aún",
         hermana.quote ? `presupuesto ${hermana.quote.quoteNumber} ${hermana.quote.status}` : "sin presupuesto",
       ].join(" · ");
-      lavoriEmail = `Ya está en lavori: ${h.ref} enviada a ${h.miembroNombre || `${h.candidatos.length} jurado(s)`} el ${horaMadrid(h.createdAt)} (${detalle}). NO se ha enviado otra. Solicitud: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(h.ref)}`;
+      lavoriEmail = `Ya está en lavori: ${h.ref} enviada a ${h.miembroNombre || `${h.candidatos.length} jurado(s)`} el ${horaMadrid(h.createdAt)} (${detalle}). NO se ha enviado otra. Solicitud: ${abs(hrefConstructor({ lead: h.ref }), baseUrl)}`;
       lavoriSms = `Ya en curso ${h.ref} (${h.status}) — sin 2.ª solicitud`;
     } else if (closedLang) {
       // NL/PT/DE (orden Juan 8-nov-2026): la puerta NUNCA pide precio previo al
@@ -504,7 +505,7 @@ export async function routePuertaQuoteRequest(input: {
           if (auto?.ok) {
             lavoriSent = { lang: leadLang, langName: getLanguageName(leadLang) };
             if (!auto.repetido) solicitudNueva = auto.ref;
-            lavoriEmail = `${await lineaEnLavori(auto.ref, auto.nombres.join(", "), auto.repetido)}${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
+            lavoriEmail = `${await lineaEnLavori(auto.ref, auto.nombres.join(", "), auto.repetido)}${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${abs(hrefConstructor({ lead: auto.ref }), baseUrl)}`;
             lavoriSms = auto.repetido ? `Ya en lavori ${auto.ref} — sin 2.ª solicitud` : `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
           } else {
             lavoriEmail = `NO se ha enviado a lavori (falló el envío automático${auto && !auto.ok ? `: ${auto.error}` : ""}). Pedir precio en lavori (${quien}) → ${lavoriOneTapUrl(token)}`;
@@ -524,7 +525,7 @@ export async function routePuertaQuoteRequest(input: {
     // reclama ANTES de enviar; mismo cliente y mismos documentos = no se repite.
     const claves = clavesDocs(lead?.rows?.length ? lead.rows.map((r) => ({ id: r.id, hash: r.fileHash })) : docs.map((d) => ({ id: d.id })));
     const aviso = await reclamarAvisoHumano(caso?.casoId ?? null, claves, solicitudNueva, token, { email: contactEmail, phone: contactPhone });
-    const casoUrl = aviso.casoRef ? `${baseUrl}/zona-traductor/casos/${caso!.casoId}` : null;
+    const casoUrl = aviso.casoRef ? abs(hrefCaso(caso!.casoId as string), baseUrl) : null;
     const etiqueta = aviso.casoRef ? `[${aviso.casoRef}] ` : "";
     const quienCliente = docs[0]?.clientName || contactEmail || contactPhone || "El cliente";
     if (aviso.tipo === "completo") {

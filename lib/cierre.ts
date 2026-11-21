@@ -15,6 +15,7 @@ import { findClientSaidNo } from "@/lib/respuesta-guard-db";
 import { cierreReviewUrl } from "@/lib/cierre-token";
 import { decideAutoSend, type AutoSendDecision, isRealEmail, deduceLostReason, hasCostGap, linkedExpenseFor, hasHumanOpen, autoLostNote, OWN_TRANSLATOR_EMAIL, type ColabExpense, type CostGapOrder } from "@/lib/cierre-math";
 import type { AutoLostCode } from "@/lib/quote-lost-reasons";
+import { abs, hrefPresupuesto } from "./staff-links.ts";
 
 const SITE = "https://www.traduccionesjuradas.net";
 
@@ -99,7 +100,7 @@ export async function autoSendQuoteForLead(leadId: string, extraAvisos: string[]
       await finalizeAndSendQuote({ quoteId: quote.id, actorEmail: "system:cierre-auto", requireDraft: true });
       await alertStaff(
         `✅ Presupuesto ${quote.quoteNumber} enviado solo a ${cliente}: ${total} € IVA incl.`,
-        [`${lead.miembroNombre || "El jurado"} cotizó ${((lead.priceCents ?? 0) / 100).toFixed(2)} € (${lead.par}) y el presupuesto ${quote.quoteNumber} (${total} € con IVA) ha salido al cliente: margen OK, importe ≤ tope y par no FR.`, `Ficha: ${SITE}/zona-traductor/presupuestos/${quote.id}`],
+        [`${lead.miembroNombre || "El jurado"} cotizó ${((lead.priceCents ?? 0) / 100).toFixed(2)} € (${lead.par}) y el presupuesto ${quote.quoteNumber} (${total} € con IVA) ha salido al cliente: margen OK, importe ≤ tope y par no FR.`, `Ficha: ${abs(hrefPresupuesto(quote.id), SITE)}`],
         null, // informativo: solo email; el SMS se reserva para lo que exige acción
         `cierre_enviado ${lead.ref}`
       );

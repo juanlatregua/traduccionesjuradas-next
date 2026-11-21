@@ -4,6 +4,7 @@ import { verifyLavoriOneTapToken } from "@/lib/lavori-onetap";
 import { leadFromPuertaSession, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
 import { jurorDeadlineNote } from "@/lib/needed-by";
+import { abs, hrefConstructor } from "@/lib/staff-links";
 
 export const runtime = "nodejs";
 
@@ -40,7 +41,7 @@ export async function GET(req: Request) {
   const leadLangOneTap = lead.sourceLang === "es" ? lead.targetLang : lead.sourceLang;
   const casa = casaJuradoFor(leadLangOneTap);
   if (casa) {
-    const builder = `${baseUrl}/zona-traductor/presupuesto?session=${encodeURIComponent(sessionToken)}`;
+    const builder = abs(hrefConstructor({ session: sessionToken }), baseUrl);
     return page("No sale a lavori", `<p>El ${String(leadLangOneTap).toUpperCase()} lo jura la casa (${casa.nombre}). <a href="${builder}">Móntalo en el builder</a>.</p>`, 400);
   }
   const hint = [lead.contact.name, lead.contact.email, lead.contact.phone].filter(Boolean).join(" · ") || null;
@@ -56,11 +57,11 @@ export async function GET(req: Request) {
     contacto: { email: lead.contact.email, phone: lead.contact.phone, nombre: lead.contact.name },
   });
   if (!result.ok) {
-    const builder = `${baseUrl}/zona-traductor/presupuesto?session=${encodeURIComponent(sessionToken)}`;
+    const builder = abs(hrefConstructor({ session: sessionToken }), baseUrl);
     return page("No se pudo enviar", `<p>${result.error}</p><p><a href="${builder}">Abrir el lead en el builder</a> y pedirlo a mano.</p>`, result.status);
   }
 
-  const builder = `${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(result.ref)}`;
+  const builder = abs(hrefConstructor({ lead: result.ref }), baseUrl);
   const quien = result.nombres.join(", ");
   const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
   return page(

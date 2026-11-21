@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createVerifiedOtpToken, STAFF_OTP_VERIFIED_COOKIE } from "@/lib/staff-otp";
 import { isStaffEmail } from "@/lib/staff-access";
+import { hrefZona } from "@/lib/staff-links";
 
 export async function GET(req: Request) {
   if (process.env.NODE_ENV !== "development") {
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
   }
 
   const token = createVerifiedOtpToken(email, 8 * 60 * 60 * 1000);
-  const response = NextResponse.redirect(new URL("/zona-traductor", req.url));
+  const response = NextResponse.redirect(new URL(hrefZona(), req.url));
   response.cookies.set({
     name: STAFF_OTP_VERIFIED_COOKIE,
     value: token,

@@ -9,6 +9,7 @@ import { sendClientSMS, sendStaffAlertSMS, formatPhoneSpain } from "@/lib/sms";
 import { findClientSaidNo, findLiveBlock } from "@/lib/respuesta-guard-db";
 import { alreadyCustomerFor, countSkip, loadCustomerIndex } from "@/lib/client-contact-guard";
 import { hasCronSecret } from "@/lib/cron-auth";
+import { abs, hrefConstructor } from "@/lib/staff-links";
 
 
 export const runtime = "nodejs";
@@ -181,7 +182,7 @@ export async function GET(req: Request) {
     const phone = parts.find((x) => /\+?\d[\d\s]{6,}/.test(x)) || null;
     const name = parts.find((x) => x !== email && x !== phone) || "";
     const horas = Math.round((now.getTime() - lpr.createdAt.getTime()) / 3600000);
-    const builder = `${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(lpr.ref)}`;
+    const builder = abs(hrefConstructor({ lead: lpr.ref }), baseUrl);
     const yaCliente = index
       ? alreadyCustomerFor({ email, phone, at: lpr.createdAt }, { index })
       : ({ skip: false } as const);

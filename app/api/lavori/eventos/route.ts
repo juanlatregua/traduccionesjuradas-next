@@ -10,6 +10,7 @@ import { acceptanceMatchesPrice, acceptsNewPrice, isDirectLeadRequest } from "@/
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { hasMotorAuth, isMotorTestRef } from "@/lib/lavori-motor-auth";
 import { ingestLavoriSignedUrl, isLavoriSignedUrl, verifyLavoriBlob } from "@/lib/lavori-upload";
+import { abs, hrefConstructor, hrefPedido, hrefPresupuesto, hrefTarifario } from "@/lib/staff-links";
 
 export const runtime = "nodejs";
 // Copia en streaming de ficheros grandes de lavori (hasta 500 MB; lavori espera 120 s).
@@ -129,7 +130,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, repetido: true });
   }
 
-  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${order.reference}`;
+  const ficha = abs(hrefPedido(order.reference));
   const staffMail = (subject: string, lines: string[]) =>
     sendMail({
       to: STAFF_ALERT_EMAIL,
@@ -632,8 +633,8 @@ async function handleLeadEvento(opts: {
     ? await prisma.quote.findUnique({ where: { id: lead.quoteId }, select: { id: true, quoteNumber: true, status: true } })
     : null;
   const builderUrl = quoteAtado
-    ? `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${quoteAtado.id}`
-    : `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?lead=${encodeURIComponent(lead.ref)}` +
+    ? abs(hrefPresupuesto(quoteAtado.id))
+    : abs(hrefConstructor({ lead: lead.ref })) +
       (lead.expedienteRef && !lead.expedienteRef.startsWith("puerta:") ? `&exp=${encodeURIComponent(lead.expedienteRef)}` : "");
   const montarLine = quoteAtado
     ? `Ya tiene presupuesto ${quoteAtado.quoteNumber} (${quoteAtado.status}) — pon ahí el coste si falta y envíalo; NO montes otro: ${builderUrl}`
@@ -657,7 +658,7 @@ async function handleLeadEvento(opts: {
       const refNueva = lead.notas?.startsWith("reabierta:") ? lead.notas.slice("reabierta:".length) : null;
       // El enlace va a la solicitud NUEVA (la que sigue viva), nunca a ?lead=<vieja>.
       const enlaceNueva = refNueva
-        ? `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?lead=${encodeURIComponent(refNueva)}`
+        ? abs(hrefConstructor({ lead: refNueva }))
         : "(sin ref nueva en notas — revisa a mano)";
       // La cifra tardía queda SOLO en el texto del aviso: no se toca status ni
       // priceCents de la solicitud vieja.
@@ -889,7 +890,7 @@ async function handleLeadEvento(opts: {
       }
 
       const borradorDirecto = directoResultado?.kind === "retenido" ? directoResultado : null;
-      const enlaceDirecto = borradorDirecto ? `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${borradorDirecto.quoteId}` : null;
+      const enlaceDirecto = borradorDirecto ? abs(hrefPresupuesto(borradorDirecto.quoteId)) : null;
       const cifraDirecto = borradorDirecto
         ? (() => {
             const margen = borradorDirecto.subtotalEur - borradorDirecto.costEur;
@@ -932,13 +933,13 @@ async function handleLeadEvento(opts: {
         directoResultado?.kind === "fallo" ? `No salió solo: ${directoResultado.reason}` : "",
         `${miembro} ha propuesto ${precio} € por la solicitud de precio ${lead.ref} (${lead.par})${quien}.`,
         aprendido.learned
-          ? `Tarifario: tarifa aprendida (${lead.par}). Apruébala en https://www.traduccionesjuradas.net/zona-traductor/tarifario y la próxima vez el presupuesto saldrá solo.`
+          ? `Tarifario: tarifa aprendida (${lead.par}). Apruébala en ${abs(hrefTarifario())} y la próxima vez el presupuesto saldrá solo.`
           : `Tarifario: no aprendido (${"reason" in aprendido ? aprendido.reason : "sin motivo"}).`,
         plazoDias ? `Plazo propuesto: ${plazoDias} días.` : "Sin plazo indicado.",
         `Neto de cliente sugerido por el modelo 75/25: ${netoSugerido} € (+ IVA y envío).`,
         datos.notas ? `Notas: ${String(datos.notas)}` : "",
         borradorRelleno
-          ? `✅ El borrador ${borradorRelleno.quoteNumber} ya tiene el coste puesto (${borradorRelleno.costEur.toFixed(2)} € base) y queda en ${borradorRelleno.totalEur.toFixed(2)} € con IVA${borradorRelleno.subidas > 0 ? `; ${borradorRelleno.subidas} línea(s) subidas sobre el precio del motor para no perder margen` : " (precio del motor intacto)"}. Revísalo y envíalo: https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${borradorRelleno.quoteId}`
+          ? `✅ El borrador ${borradorRelleno.quoteNumber} ya tiene el coste puesto (${borradorRelleno.costEur.toFixed(2)} € base) y queda en ${borradorRelleno.totalEur.toFixed(2)} € con IVA${borradorRelleno.subidas > 0 ? `; ${borradorRelleno.subidas} línea(s) subidas sobre el precio del motor para no perder margen` : " (precio del motor intacto)"}. Revísalo y envíalo: ${abs(hrefPresupuesto(borradorRelleno.quoteId))}`
           : "",
         borradorRelleno?.margenBajo ? `⚠ Margen por debajo del mínimo tras descuento/envío: ${borradorRelleno.margenBajo}` : "",
         borradorFallo ? `⚠ No se pudo rellenar el borrador solo: ${borradorFallo}` : "",
@@ -1200,7 +1201,7 @@ async function handleRetiradoEnLavori(opts: {
   }
   if (!order) return NextResponse.json({ ok: true });
 
-  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${order.reference}`;
+  const ficha = abs(hrefPedido(order.reference));
   const email = aceptadoPor ? LAVORI_MEMBER_COLLABORATOR_EMAIL[aceptadoPor] : undefined;
   const collaborator = email
     ? await prisma.collaborator.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true, fullName: true } })

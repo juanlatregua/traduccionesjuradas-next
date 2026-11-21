@@ -5,8 +5,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import AdminQuoteDetailPanel from "@/components/AdminQuoteDetailPanel";
 import RecurrentClientBadge from "@/components/RecurrentClientBadge";
 import OpenSiblingsBanner from "@/components/OpenSiblingsBanner";
-import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
-import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
 import { prisma } from "@/lib/prisma";
 import { serializeQuote } from "@/lib/quote-serializer";
@@ -28,7 +27,6 @@ export const metadata: Metadata = {
  */
 export default async function PresupuestoFichaPage({ params }: { params: { id: string } }) {
   await authZonaTraductorOrRedirect();
-  const expedientesPendientes = await countExpedientesPendientes();
 
   const quote = await getQuoteByIdForAdmin(params.id);
   if (!quote) notFound();
@@ -77,12 +75,6 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
   return (
     <div className="min-h-screen bg-slate-950">
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <ZonaTraductorSubNav
-          tabs={[
-            { href: "/zona-traductor/presupuestos", label: "Carpeta" },
-            { href: "/zona-traductor/expedientes", label: "Expedientes", badge: expedientesPendientes },
-          ]}
-        />
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link

@@ -17,6 +17,7 @@ import {
   type DeliveryLang,
 } from "@/lib/delivery-message";
 import { NUDGE_COPY, type NudgeLocale } from "@/lib/lead-nudge";
+import { abs, hrefPedido, hrefPresupuesto, hrefZona } from "./staff-links.ts";
 
 // Copia de archivo: toda entrega al cliente (traducción y/o factura adjunta) se
 // manda en copia oculta a esta dirección para dejar constancia exacta de lo que
@@ -145,8 +146,8 @@ export async function sendPresupuestoEmail(payload: PresupuestoPayload) {
 
   const baseUrl = "https://www.traduccionesjuradas.net";
   const quoteLink = payload.quoteId
-    ? `<p><a href="${baseUrl}/zona-traductor/presupuestos/${payload.quoteId}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Revisar presupuesto y enviar</a></p>`
-    : `<p><a href="${baseUrl}/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona operativa</a></p>`;
+    ? `<p><a href="${abs(hrefPresupuesto(payload.quoteId), baseUrl)}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Revisar presupuesto y enviar</a></p>`
+    : `<p><a href="${abs(hrefZona(), baseUrl)}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona operativa</a></p>`;
 
   const html = `
     <h2>Solicitud desde estimador — ${payload.referencia}</h2>
@@ -652,7 +653,7 @@ export async function sendNewOrderStaffEmail(data: {
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount} EUR</td></tr>
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Cliente</td><td>${data.clientEmail}</td></tr>
     </table>
-    <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
+    <p><a href="${abs(hrefZona())}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
   `;
 
   await sendMail({ to, subject, html });
@@ -683,8 +684,8 @@ export async function sendOrderReviewRoutingEmail(data: {
     ? `Nuevo pedido ${data.reference} — Presupuesto listo para revisar`
     : `Revision interna requerida - ${data.reference}`;
   const ctaUrl = hasQuote
-    ? `${baseUrl}/zona-traductor/presupuestos/${data.quoteId}`
-    : `${baseUrl}/zona-traductor`;
+    ? abs(hrefPresupuesto(data.quoteId as string), baseUrl)
+    : abs(hrefZona(), baseUrl);
   const ctaLabel = hasQuote ? "Revisar presupuesto y enviar" : "Abrir zona operativa";
 
   const quoteHtml = hasQuote
@@ -769,7 +770,7 @@ export async function sendPaymentProofUploadedStaffEmail(data: {
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Archivo</td><td>${data.fileName || "comprobante"}</td></tr>
     </table>
     <p><a href="${data.proofUrl}">Abrir comprobante</a></p>
-    <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
+    <p><a href="${abs(hrefZona())}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Ver zona traductor</a></p>
   `;
 
   await sendMail({ to, subject, html });
@@ -785,7 +786,7 @@ export async function sendTranslatorDeliveredStaffEmail(data: {
   if (!to) throw new Error("Missing PRESUPUESTO_TO");
 
   const subject = `Traduccion recibida del traductor - ${data.reference}`;
-  const workspaceUrl = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${data.reference}`;
+  const workspaceUrl = abs(hrefPedido(data.reference));
 
   const html = `
     <h2>El traductor entregó la traducción</h2>
@@ -812,7 +813,7 @@ export async function sendSourceDocsUploadedStaffEmail(data: {
   if (!to) return;
 
   const subject = `Documentos subidos por el cliente - ${data.reference}`;
-  const orderUrl = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${data.reference}`;
+  const orderUrl = abs(hrefPedido(data.reference));
 
   const html = `
     <h2>El cliente ha subido documentos</h2>
@@ -1014,7 +1015,7 @@ export async function sendProjectManagerFinanceUpdateEmail(data: {
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Factura</td><td>${data.invoiceNumber || "N/D"}</td></tr>
       <tr><td style="padding:4px 12px 4px 0; font-weight:600;">Importe</td><td>${amount}</td></tr>
     </table>
-    <p><a href="https://www.traduccionesjuradas.net/zona-traductor" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona traductor</a></p>
+    <p><a href="${abs(hrefZona())}" style="display:inline-block; background:#0891b2; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Abrir zona traductor</a></p>
   `;
 
   await sendMail({ to, subject, html });

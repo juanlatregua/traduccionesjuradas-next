@@ -7,6 +7,7 @@ import { sendOrderCreatedEmail } from "@/lib/email";
 import { netFromGross } from "@/lib/quotes";
 import { isFrenchPair } from "@/lib/workflow";
 import { notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
+import { abs, hrefPedido } from "@/lib/staff-links";
 
 export const runtime = "nodejs";
 
@@ -170,7 +171,7 @@ export async function POST(req: Request, { params }: Params) {
         label: order.reference,
         actorEmail,
         detail: `presupuesto enviado sin coste del traductor comprometido (precio ${(netFromGross(totalCents) / 100).toFixed(2)} € netos)`,
-        url: `https://www.traduccionesjuradas.net/zona-traductor/pedido/${order.reference}`,
+        url: abs(hrefPedido(order.reference)),
       });
     }
 
@@ -250,7 +251,7 @@ export async function POST(req: Request, { params }: Params) {
           label: order.reference,
           actorEmail,
           detail: `precio nuevo ${(revenueNetCents / 100).toFixed(2)} € netos − coste comprometido ${(committedCost / 100).toFixed(2)} € = ${(marginCents / 100).toFixed(2)} €`,
-          url: `https://www.traduccionesjuradas.net/zona-traductor/pedido/${order.reference}`,
+          url: abs(hrefPedido(order.reference)),
         });
       }
     }

@@ -3,6 +3,7 @@ import { SITE_BASE_URL } from "@/lib/contact";
 import { realEmailKey as emailKey, phoneKey } from "@/lib/client-identity";
 import { matchOpenSiblings, blockingSibling, separarPorCaso, type OpenItem, type OpenSibling } from "@/lib/open-siblings";
 import { parFromLangs, lavoriContentKeys, contentKeyForQuote } from "@/lib/lavori-dup-guard";
+import { abs, hrefConstructor, hrefPresupuesto } from "./staff-links.ts";
 
 const QUOTE_OPEN = ["DRAFT", "SENT", "OPENED", "ACCEPTED"] as const;
 const LPR_OPEN = ["SENT", "PRICED", "ACCEPTED"];
@@ -63,7 +64,7 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
       items.push({
         kind: "quote", ref: q.quoteNumber, id: q.id, at: q.createdAt, chan: "presupuesto",
         par: parFromLangs(q.sourceLang, q.targetLang), email: q.customerEmail, phone: q.customerPhone,
-        url: `${SITE_BASE_URL}/zona-traductor/presupuestos/${q.id}`,
+        url: abs(hrefPresupuesto(q.id), SITE_BASE_URL),
         casoId: q.casoId, expedienteRef: q.expedienteRef,
       });
     }
@@ -75,7 +76,7 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
       const ph = parts.find((x) => !x.includes("@") && x.replace(/\D/g, "").length >= 9) || null;
       items.push({
         kind: "lpr", ref: l.ref, id: l.id, at: l.createdAt, chan: "lavori", par: l.par, email: em, phone: ph,
-        url: `${SITE_BASE_URL}/zona-traductor/presupuesto?lead=${encodeURIComponent(l.ref)}`,
+        url: abs(hrefConstructor({ lead: l.ref }), SITE_BASE_URL),
         casoId: l.casoId, expedienteRef: l.expedienteRef,
       });
     }
@@ -89,7 +90,7 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
           kind: "lead", ref: `puerta:${tok.slice(0, 8)}`, id: tok, at: d.createdAt, chan: d.source === "whatsapp" ? "whatsapp" : "puerta",
           par: parFromLangs(d.sourceLanguage === "unknown" ? null : d.sourceLanguage, d.targetLanguage === "unknown" ? null : d.targetLanguage),
           email: d.clientEmail, phone: d.clientPhone,
-          url: `${SITE_BASE_URL}/zona-traductor/presupuesto?session=${encodeURIComponent(tok)}`,
+          url: abs(hrefConstructor({ session: tok }), SITE_BASE_URL),
           casoId: d.casoId,
         });
       } else {
@@ -104,7 +105,7 @@ export async function findOpenSiblings(opts: FindOpenSiblingsOpts): Promise<Open
       items.push({
         kind: "inbox", ref: m.subject.slice(0, 40) || "(sin asunto)", id: m.id, at: m.receivedAt,
         chan: m.channel === "WHATSAPP" ? "whatsapp" : "email", par: null, email: m.fromEmail, phone: m.fromPhone,
-        url: `${SITE_BASE_URL}/zona-traductor/presupuesto?inbox=${encodeURIComponent(m.id)}`,
+        url: abs(hrefConstructor({ inbox: m.id }), SITE_BASE_URL),
         casoId: m.casoId,
       });
     }

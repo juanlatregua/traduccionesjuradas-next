@@ -28,6 +28,7 @@ import { workingHoursMadrid,
   isAnomalousPrice,
   type PriceBasis,
 } from "@/lib/lavori-directo-math";
+import { abs, hrefConstructor, hrefPresupuesto } from "./staff-links.ts";
 
 export type { PriceBasis };
 export { isClosedPriceDirectLang };
@@ -355,8 +356,8 @@ export async function escalateStaleDirectRequests(now: Date = new Date()): Promi
     if (count === 0) continue;
     atascadasResueltas++;
     const enlace = lpr.quoteId
-      ? `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${lpr.quoteId}`
-      : `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?lead=${encodeURIComponent(lpr.ref)}`;
+      ? abs(hrefPresupuesto(lpr.quoteId))
+      : abs(hrefConstructor({ lead: lpr.ref }));
     await avisarStaffIndividual(
       lpr.quoteId
         ? `El presupuesto de la solicitud directa ${lpr.ref} se quedó a medias — revísalo y envíalo: ${enlace}`
@@ -423,7 +424,7 @@ export async function escalateStaleDirectRequests(now: Date = new Date()): Promi
         .catch(() => ({ count: 0 }));
       if (claim.count === 0) continue;
       avisadas++;
-      const enlace = `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?lead=${encodeURIComponent(lpr.ref)}`;
+      const enlace = abs(hrefConstructor({ lead: lpr.ref }));
       await avisarStaffIndividual(
         `${lpr.ref} (${lpr.par}) lleva ${DIRECT_FALLBACK_HOURS} h laborables sin precio de los jurados directos. NO se ha reabierto a nadie (el encargo sigue vivo en lavori). Decide: esperar, insistir en lavori, o retirarlo en lavori y pedir precio a otros: ${enlace}`,
         `⏱ ${lpr.ref} sin precio del directo — ¿esperar o reabrir?`,

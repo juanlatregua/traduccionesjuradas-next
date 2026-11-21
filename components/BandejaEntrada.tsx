@@ -133,7 +133,7 @@ function BandejaOrderCard({ order }: { order: BandejaOrder }) {
     params.set("lineDescription", order.title || "Traducción jurada");
     params.set("lineAmount", (Math.max(0, order.amountCents) / 100).toFixed(2));
     if (order.langPair) params.set("langPair", order.langPair);
-    return `/admin/quotes/new?${params.toString()}`;
+    return `/zona-traductor/presupuesto?${params.toString()}`;
   }, [order]);
 
   const borderColor = order.overdue

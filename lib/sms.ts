@@ -1,6 +1,7 @@
 // lib/sms.ts — Abstracción SMS + WhatsApp via Twilio
 
 import { prisma } from "@/lib/prisma";
+import { abs, hrefPedido, hrefZona } from "./staff-links.ts";
 
 export type SMSMessage = {
   to: string; // formato E.164: +34600123456
@@ -251,7 +252,7 @@ export async function sendStaffNewOrderSMS(data: {
 }): Promise<void> {
   const amount = (data.amountCents / 100).toFixed(2);
   const lang = data.langPair ? ` ${data.langPair}` : "";
-  const body = `PAGO ${amount} EUR - pedido ${data.reference}${lang} (${data.via}). Tramitar: traduccionesjuradas.net/zona-traductor`;
+  const body = `PAGO ${amount} EUR - pedido ${data.reference}${lang} (${data.via}). Tramitar: ${abs(hrefZona(), "traduccionesjuradas.net")}`;
   await sendStaffSMS(body, `pago ${data.reference}`);
 }
 
@@ -263,7 +264,7 @@ export async function sendStaffQuoteSMS(data: {
   priceCents: number;
 }): Promise<void> {
   const amount = (data.priceCents / 100).toFixed(2);
-  const body = `COTIZACION ${amount} EUR de ${data.collaboratorName} - pedido ${data.reference}. Adjudica: traduccionesjuradas.net/zona-traductor/pedido/${encodeURIComponent(data.reference)}`;
+  const body = `COTIZACION ${amount} EUR de ${data.collaboratorName} - pedido ${data.reference}. Adjudica: ${abs(hrefPedido(data.reference), "traduccionesjuradas.net")}`;
   await sendStaffSMS(body, `cotizacion ${data.reference}`);
 }
 

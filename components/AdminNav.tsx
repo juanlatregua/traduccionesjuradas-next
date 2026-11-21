@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 
 const LINKS = [
   { href: "/admin/inbox", label: "Bandeja" },
-  { href: "/admin/quotes", label: "Presupuestos" },
+  { href: "/zona-traductor/presupuestos", label: "Presupuestos" },
   { href: "/admin/orders", label: "Pedidos" },
   { href: "/admin/metricas", label: "Métricas v2" },
   { href: "/admin/funnel", label: "Funnel" },

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hrefVigia } from "@/lib/staff-links";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { verifyCierreToken } from "@/lib/cierre-token";
 import { QUOTE_LOST_REASONS, QUOTE_LOST_REASON_LABELS, type QuoteLostReasonCode } from "@/lib/quote-lost-reasons";
@@ -26,7 +27,7 @@ function parse(url: URL) {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const p = parse(url);
-  if (!p.ok) return page("Enlace no válido o caducado", '<p>Abre <a href="/zona-traductor/vigia">la gestión de hoy</a>.</p>', 403);
+  if (!p.ok) return page("Enlace no válido o caducado", `<p>Abre <a href="${hrefVigia()}">la gestión de hoy</a>.</p>`, 403);
   const action = `${url.pathname}${url.search}`.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   return page(`Motivo: ${QUOTE_LOST_REASON_LABELS[p.r]}`, `<form method="post" action="${action}"><button type="submit">Confirmar</button></form>`);
 }

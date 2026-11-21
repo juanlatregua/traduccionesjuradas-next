@@ -165,31 +165,38 @@ const nextConfig = {
         destination: "/traduction-assermentee",
         permanent: true,
       },
-      // ?modo=control era el atajo a la vista de control: ahora es la vista
-      // Tabla de Pedidos (misma pantalla). OJO: Next conserva los query params
-      // del origen en el destino, así que redirigir a /zona-traductor volvería a
-      // traer ?modo=control y la regla reentraría en bucle. El salto pasa por
-      // /control (que no tiene regla `has`) y allí el page component descarta
-      // `modo` y reenvía a la vista Tabla. Un salto de más, cero bucles.
+      // ?modo=control era el atajo a la vista de control: ahora es la vista Tabla de
+      // Pedidos. Next conserva los query params del origen, así que `modo=control`
+      // viaja al destino: `missing vista` corta el bucle (el destino ya lleva vista).
       {
         source: "/zona-traductor",
         has: [{ type: "query", key: "modo", value: "control" }],
-        destination: "/zona-traductor/control",
+        missing: [{ type: "query", key: "vista" }],
+        destination: "/zona-traductor?vista=tabla",
         permanent: false,
       },
-      // Consolidación: la Landing del pedido es la ÚNICA pantalla de detalle.
-      // Workspace y Cockpit se retiran redirigiendo a ella (307 revertible). Cubre
-      // los enlaces ya enviados en SMS/email a /workspace.
+      // Rutas de staff retiradas: los enlaces ya enviados en SMS/email siguen vivos.
       {
-        source: "/zona-traductor/workspace/:reference",
-        destination: "/zona-traductor/pedido/:reference",
+        source: "/zona-traductor/control",
+        missing: [{ type: "query", key: "vista" }],
+        destination: "/zona-traductor?vista=tabla",
         permanent: false,
       },
       {
-        source: "/zona-traductor/proyecto/:reference",
-        destination: "/zona-traductor/pedido/:reference",
+        source: "/zona-traductor/control",
+        has: [{ type: "query", key: "vista" }],
+        destination: "/zona-traductor",
         permanent: false,
       },
+      { source: "/zona-traductor/tablero", destination: "/zona-traductor/hoy", permanent: false },
+      { source: "/zona-traductor/workspace/:reference", destination: "/zona-traductor/pedido/:reference", permanent: false },
+      { source: "/zona-traductor/proyecto/:reference", destination: "/zona-traductor/pedido/:reference", permanent: false },
+      // /admin/* de presupuestos y detalle de pedido: viven en la zona traductor.
+      { source: "/admin/quotes", destination: "/zona-traductor/presupuestos", permanent: false },
+      { source: "/admin/quotes/new", destination: "/zona-traductor/presupuesto", permanent: false },
+      { source: "/admin/quotes/:id/editar", destination: "/zona-traductor/presupuestos/:id/editar", permanent: false },
+      { source: "/admin/quotes/:id", destination: "/zona-traductor/presupuestos/:id", permanent: false },
+      { source: "/admin/orders/:reference", destination: "/zona-traductor/pedido/:reference", permanent: false },
       {
         source: "/:path*",
         has: [{ type: "host", value: "traduccionesjuradas.net" }],

@@ -41,7 +41,7 @@ test("franja 08-21 Madrid con cron en UTC, invierno y verano", () => {
 });
 
 test("sesión y entrada sin presupuesto: llegada, progreso, minutos que quedan y enlace", () => {
-  const out = run({ docs: [doc()], entradas: [ent()] });
+  const out = run({ docs: [doc()], entradas: [ent()], lecturaOn: true });
   assert.equal(out.length, 2);
   const s = out.find((i) => i.kind === "puerta")!;
   assert.equal(s.minutes, 70);
@@ -52,6 +52,12 @@ test("sesión y entrada sin presupuesto: llegada, progreso, minutos que quedan y
   const e = out.find((i) => i.kind === "entrada")!;
   assert.match(e.link, /lectura\?caso=C1$/);
   assert.equal(e.files, 2);
+});
+
+test("entrada sin LECTURA_CONSTRUCTOR: el enlace cae al constructor, no a /lectura (404)", () => {
+  const e = run({ entradas: [ent()], lecturaOn: false }).find((i) => i.kind === "entrada")!;
+  assert.match(e.link, /zona-traductor\/presupuesto\?session=entrada%3A/);
+  assert.doesNotMatch(e.link, /lectura/);
 });
 
 test("ventana de 6 h; staff, prueba y entradas «prueba» fuera", () => {
