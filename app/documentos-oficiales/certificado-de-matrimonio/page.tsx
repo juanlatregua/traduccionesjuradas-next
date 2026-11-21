@@ -42,7 +42,7 @@ export default function CertificadoMatrimonioPage() {
       />
       <SchemaProduct
         name="Traducción jurada de certificado de matrimonio"
-        description="Traducción jurada oficial de certificados de matrimonio extranjeros. Entrega en PDF firmado en 24-48h."
+        description="Traducción jurada oficial de certificados de matrimonio extranjeros. Francés: hasta 5 páginas en 1 día hábil; otros idiomas, plazo en el presupuesto."
         sku="tj-certificado-matrimonio"
         offers={[
           { name: "1 página (francés → español)", price: "30", priceCurrency: "EUR", vatIncluded: false, url: "https://www.traduccionesjuradas.net/documentos-oficiales/certificado-de-matrimonio" },
@@ -145,11 +145,11 @@ export default function CertificadoMatrimonioPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           {[
             { pair: "Español → Inglés", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
-            { pair: "Español → Francés", price: "35 € + IVA", plazo: "24 h" },
+            { pair: "Español → Francés", price: "35 € + IVA", plazo: "1 día hábil (hasta 5 páginas)" },
             { pair: "Portugués (apostillado) → Español", price: "Desde 40 € + IVA", plazo: "plazo en el presupuesto" },
-            { pair: "Francés → Español", price: "30 € + IVA por página · 35 € si está apostillado", plazo: "24 h" },
-            { pair: "Alemán → Español", price: "precio cerrado en el día, confirmado por el traductor jurado · desde 40 € + IVA por documento", plazo: "48 h" },
-            { pair: "Español → Alemán", price: "precio cerrado en el día, confirmado por el traductor jurado · desde 40 € + IVA por documento", plazo: "48 h" },
+            { pair: "Francés → Español", price: "30 € + IVA por página · 35 € si está apostillado", plazo: "1 día hábil (hasta 5 páginas)" },
+            { pair: "Alemán → Español", price: "precio cerrado en el día, confirmado por el traductor jurado · desde 40 € + IVA por documento", plazo: "en el presupuesto" },
+            { pair: "Español → Alemán", price: "precio cerrado en el día, confirmado por el traductor jurado · desde 40 € + IVA por documento", plazo: "en el presupuesto" },
           ].map((item) => (
             <div key={item.pair} className="rounded-xl border border-cream bg-parchment px-3 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-bleu">

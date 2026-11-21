@@ -29,12 +29,12 @@ const FAQ_ITEMS = [
   {
     question: "¿Tradúcis del francés y del inglés camerunés?",
     answer:
-      "Camerún tiene dos lenguas oficiales: francés e inglés. Como traductor jurado oficial de francés (MAEC nº 3850), atendemos directamente los documentos en francés con plazo 24h. Para documentos exclusivamente en inglés trabajamos con colaborador jurado de inglés.",
+      "Camerún tiene dos lenguas oficiales: francés e inglés. Como traductor jurado oficial de francés (MAEC nº 3850), atendemos directamente los documentos en francés con plazo de 1 día hábil (hasta 5 páginas). Para documentos exclusivamente en inglés trabajamos con colaborador jurado de inglés.",
   },
   {
     question: "¿Cuánto cuesta la traducción jurada?",
     answer:
-      "25 € por documento (tarifa especial regularización 2026, francés). Incluye PDF firmado digitalmente. Plazo 24h una vez tenemos el documento legalizado consularmente. Pago con Bizum, tarjeta, PayPal o transferencia.",
+      "25 € por documento (tarifa especial regularización 2026, francés). Incluye PDF firmado digitalmente. Plazo: 1 día hábil (hasta 5 páginas) una vez tenemos el documento legalizado consularmente. Pago con tarjeta, transferencia o Bizum.",
   },
   {
     question: "¿Cuánto tarda la legalización consular?",
@@ -49,7 +49,7 @@ export default function RegularizacionCamerunPage() {
       <SchemaService
         id="service-regularizacion-2026-camerun"
         serviceName="Traducción jurada francés-español de documentos cameruneses para la regularización 2026"
-        serviceDescription="Traducción jurada francés-español de Bulletin nº 3, extrait d'acte de naissance y otros documentos cameruneses para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). 25 € por documento. Entrega 24h."
+        serviceDescription="Traducción jurada francés-español de Bulletin nº 3, extrait d'acte de naissance y otros documentos cameruneses para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). 25 € por documento. Entrega en 1 día hábil."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026/camerun"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -195,7 +195,7 @@ export default function RegularizacionCamerunPage() {
         <p className="text-xs">
           Camerún tiene zonas francófonas (mayoría) y zonas anglófonas.
           Confirma siempre el idioma del documento antes de enviarlo: nuestro
-          flujo automatizado de 24h aplica al francés. Si el documento está en
+          flujo automatizado de 1 día hábil aplica al francés. Si el documento está en
           inglés, derivamos a colaborador jurado de inglés (consultar plazos y
           precios).
         </p>
@@ -210,7 +210,7 @@ export default function RegularizacionCamerunPage() {
             Una vez tengas el documento legalizado consularmente, nos lo envías
             por WhatsApp o por el formulario en PDF o foto legible.
           </li>
-          <li>Te confirmamos precio cerrado y plazo de entrega (24h habitual).</li>
+          <li>Te confirmamos precio cerrado y plazo de entrega (1 día hábil en francés, hasta 5 páginas).</li>
           <li>
             Traducimos al español incluyendo todos los sellos. Firma manuscrita
             y sello de traductor jurado MAEC nº 3850.
@@ -232,14 +232,14 @@ export default function RegularizacionCamerunPage() {
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Bulletin nº 3 (francés):</strong> 25 € — entrega 24h
+            <strong>Bulletin nº 3 (francés):</strong> 25 € — entrega en 1 día hábil
           </li>
           <li>
             <strong>Extrait d&apos;acte de naissance (francés):</strong> 25 € —
-            entrega 24h
+            entrega en 1 día hábil
           </li>
           <li>
-            <strong>Acte de mariage (francés):</strong> 25 € — entrega 24-48h
+            <strong>Acte de mariage (francés):</strong> 25 € — entrega en 1 día hábil
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio
@@ -263,8 +263,8 @@ export default function RegularizacionCamerunPage() {
           Pago fácil: Bizum, tarjeta o transferencia
         </h2>
         <p className="mt-2 text-sepia">
-          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys),
-          PayPal o transferencia bancaria. Recibo electrónico inmediato. Empiezas
+          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys) o
+          transferencia bancaria. Recibo electrónico inmediato. Empiezas
           a tramitar en cuanto recibimos el pago.
         </p>
       </section>

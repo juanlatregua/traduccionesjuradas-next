@@ -7,7 +7,7 @@ import { CIUDADES, type Ciudad } from "@/src/data/ciudades";
 export const metadata: Metadata = {
   title: "Traductor Jurado por Ciudades en España · Servicio Online · MAEC",
   description:
-    "Traductor jurado oficial (MAEC) para toda España, 100% online. Encuentra la traducción jurada en tu ciudad: Madrid, Barcelona, Valencia, Sevilla, Málaga y más. Entrega en 24-48h, sin desplazamientos.",
+    "Traductor jurado oficial (MAEC) para toda España, 100% online. Encuentra la traducción jurada en tu ciudad: Madrid, Barcelona, Valencia, Sevilla, Málaga y más. Francés: hasta 5 páginas en 1 día hábil; otros idiomas, plazo en el presupuesto. Sin desplazamientos.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/traductor-jurado" },
 };
 
@@ -55,7 +55,7 @@ export default function HubCiudades() {
       <p className="mt-3 max-w-2xl text-base text-sepia">
         Somos traductores jurados acreditados por el MAEC (nº 3850) y trabajamos{" "}
         <strong>100% online para toda España</strong>: envías tus documentos desde tu ciudad y
-        recibes la traducción jurada con validez oficial en 24-48&nbsp;horas, sin desplazamientos.
+        recibes la traducción jurada con validez oficial: en francés, hasta 5 páginas en 1 día hábil; en otros idiomas, con el plazo del presupuesto. Sin desplazamientos.
         Elige tu ciudad para ver los trámites y documentos más frecuentes.
       </p>
       <div className="mt-5">

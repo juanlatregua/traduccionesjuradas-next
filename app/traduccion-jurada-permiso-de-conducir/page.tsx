@@ -7,9 +7,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Traducci\u00F3n Jurada Permiso de Conducir \u00B7 Franc\u00E9s\u2194Espa\u00F1ol \u00B7 Desde 35\u20AC",
+    "Traducción Jurada Permiso de Conducir · Francés↔Español · Desde 35€",
   description:
-    "Traducci\u00F3n jurada de permiso de conducir para canjear tu carnet en Espa\u00F1a. Traductor jurado oficial MAEC n\u00BA 3850. Franc\u00E9s, ingl\u00E9s, alem\u00E1n y m\u00E1s. Entrega en PDF firmado en 24h. Desde 35\u20AC.",
+    "Traducción jurada de permiso de conducir para canjear tu carnet en España. Traductor jurado oficial MAEC nº 3850. Francés, inglés, alemán y más. Francés en 1 día hábil, PDF firmado. Desde 35€.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traduccion-jurada-permiso-de-conducir",
@@ -18,24 +18,24 @@ export const metadata: Metadata = {
 
 const FAQ_ITEMS = [
   {
-    question: "\u00BFNecesito traducci\u00F3n jurada para canjear mi permiso de conducir?",
+    question: "¿Necesito traducción jurada para canjear mi permiso de conducir?",
     answer:
-      "S\u00ED, la DGT exige traducci\u00F3n jurada del permiso de conducir extranjero para tramitar el canje por un carnet espa\u00F1ol. Debe estar realizada por un traductor jurado acreditado por el MAEC.",
+      "Sí, la DGT exige traducción jurada del permiso de conducir extranjero para tramitar el canje por un carnet español. Debe estar realizada por un traductor jurado acreditado por el MAEC.",
   },
   {
-    question: "\u00BFCu\u00E1nto cuesta la traducci\u00F3n jurada de un permiso de conducir?",
+    question: "¿Cuánto cuesta la traducción jurada de un permiso de conducir?",
     answer:
-      "El precio habitual es de 35-50 \u20AC dependiendo del idioma y la complejidad del documento. El permiso de conducir suele ser un documento breve con precio ajustado.",
+      "El precio habitual es de 35-50 € dependiendo del idioma y la complejidad del documento. El permiso de conducir suele ser un documento breve con precio ajustado.",
   },
   {
-    question: "\u00BFCu\u00E1nto tarda la traducci\u00F3n jurada del carnet de conducir?",
+    question: "¿Cuánto tarda la traducción jurada del carnet de conducir?",
     answer:
-      "Normalmente 24 horas para permisos en franc\u00E9s. Para otros idiomas, entre 24 y 48 horas. Entregamos en PDF firmado digitalmente.",
+      "En francés, hasta 5 páginas se entregan en 1 día hábil. En otros idiomas el plazo lo fija el traductor jurado y figura en el presupuesto. Entregamos en PDF firmado digitalmente.",
   },
   {
-    question: "\u00BFSirve el PDF firmado o necesito la traducci\u00F3n en papel?",
+    question: "¿Sirve el PDF firmado o necesito la traducción en papel?",
     answer:
-      "La mayor\u00EDa de las Jefaturas de Tr\u00E1fico aceptan el PDF firmado digitalmente. Si tu oficina exige papel, podemos enviarlo por mensajer\u00EDa.",
+      "La mayoría de las Jefaturas de Tráfico aceptan el PDF firmado digitalmente. Si tu oficina exige papel, podemos enviarlo por mensajería.",
   },
 ];
 
@@ -44,14 +44,14 @@ export default function TraduccionJuradaPermisoConducirPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       <SchemaService
         id="service-permiso-conducir"
-        serviceName="Traducci\u00F3n jurada de permiso de conducir"
-        serviceDescription="Traducci\u00F3n jurada oficial de permisos de conducir extranjeros para canje en la DGT. Traductor jurado MAEC n\u00BA 3850."
+        serviceName="Traducción jurada de permiso de conducir"
+        serviceDescription="Traducción jurada oficial de permisos de conducir extranjeros para canje en la DGT. Traductor jurado MAEC nº 3850."
         serviceUrl="https://www.traduccionesjuradas.net/traduccion-jurada-permiso-de-conducir"
-        brand={{ "@type": "Brand", name: "HBTJ Consultores Ling\u00FC\u00EDsticos" }}
+        brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
           "@type": "Person",
           name: "Juan Silva Moreno",
-          jobTitle: "Traductor Jurado Oficial MAEC n\u00BA 3850",
+          jobTitle: "Traductor Jurado Oficial MAEC nº 3850",
         }}
       />
       <SchemaBreadcrumbs
@@ -59,7 +59,7 @@ export default function TraduccionJuradaPermisoConducirPage() {
         items={[
           { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
           {
-            name: "Traducci\u00F3n jurada permiso de conducir",
+            name: "Traducción jurada permiso de conducir",
             url: "https://www.traduccionesjuradas.net/traduccion-jurada-permiso-de-conducir",
           },
         ]}
@@ -71,38 +71,38 @@ export default function TraduccionJuradaPermisoConducirPage() {
           Permiso de conducir
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
-          Traducci\u00F3n jurada de permiso de conducir
+          Traducción jurada de permiso de conducir
         </h1>
         <p className="mt-3 text-sm text-sepia sm:text-base">
           Si necesitas <strong>canjear tu permiso de conducir extranjero</strong> por
-          uno espa\u00F1ol, la DGT te exigir\u00E1 una traducci\u00F3n jurada del carnet
-          original. Realizamos la traducci\u00F3n jurada de permisos de conducir de
-          cualquier pa\u00EDs, con entrega r\u00E1pida en PDF firmado digitalmente por
+          uno español, la DGT te exigirá una traducción jurada del carnet
+          original. Realizamos la traducción jurada de permisos de conducir de
+          cualquier país, con entrega rápida en PDF firmado digitalmente por
           traductor jurado oficial MAEC.
         </p>
       </header>
 
       <section className="mt-8 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          \u00BFCu\u00E1ndo necesitas traducir tu permiso de conducir?
+          ¿Cuándo necesitas traducir tu permiso de conducir?
         </h2>
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            <strong>Canje del carnet en la DGT</strong> \u2014 obligatorio para
-            residentes con permiso de conducir extranjero de pa\u00EDses sin convenio
+            <strong>Canje del carnet en la DGT</strong> — obligatorio para
+            residentes con permiso de conducir extranjero de países sin convenio
             de reconocimiento directo.
           </li>
           <li>
-            <strong>Alquiler de veh\u00EDculos</strong> \u2014 algunas empresas de alquiler
-            exigen traducci\u00F3n jurada del permiso si no es europeo.
+            <strong>Alquiler de vehículos</strong> — algunas empresas de alquiler
+            exigen traducción jurada del permiso si no es europeo.
           </li>
           <li>
-            <strong>Tr\u00E1mites de extranjer\u00EDa</strong> \u2014 el permiso de conducir
+            <strong>Trámites de extranjería</strong> — el permiso de conducir
             sirve como documento de identidad complementario en algunos expedientes.
           </li>
           <li>
-            <strong>Tr\u00E1mites judiciales y de seguros</strong> \u2014 en caso de
-            accidentes o siniestros, se exige la traducci\u00F3n oficial del carnet.
+            <strong>Trámites judiciales y de seguros</strong> — en caso de
+            accidentes o siniestros, se exige la traducción oficial del carnet.
           </li>
         </ul>
       </section>
@@ -112,18 +112,18 @@ export default function TraduccionJuradaPermisoConducirPage() {
           Precios y plazos orientativos
         </h2>
         <p className="mt-2 text-sepia">
-          El permiso de conducir suele ser un documento breve (1-2 p\u00E1ginas), con un
+          El permiso de conducir suele ser un documento breve (1-2 páginas), con un
           precio ajustado:
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Franc\u00E9s \u2194 Espa\u00F1ol:</strong> desde 35 \u20AC \u2014 entrega en 24h
+            <strong>Francés ↔ Español:</strong> desde 35 € — entrega en 1 día hábil
           </li>
           <li>
-            <strong>Ingl\u00E9s \u2194 Espa\u00F1ol:</strong> desde 40 \u20AC \u2014 entrega en 24-48h
+            <strong>Inglés ↔ Español:</strong> desde 40 € — plazo en el presupuesto
           </li>
           <li>
-            <strong>Alem\u00E1n \u2194 Espa\u00F1ol:</strong> desde 45 \u20AC \u2014 entrega en 48h
+            <strong>Alemán ↔ Español:</strong> desde 45 € — plazo en el presupuesto
           </li>
           <li>
             <strong>Otros idiomas:</strong> consultar
@@ -137,53 +137,53 @@ export default function TraduccionJuradaPermisoConducirPage() {
 
       <section className="mt-10 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          Pa\u00EDses m\u00E1s frecuentes
+          Países más frecuentes
         </h2>
         <p>
-          Traducimos permisos de conducir de cualquier pa\u00EDs. Los m\u00E1s habituales
+          Traducimos permisos de conducir de cualquier país. Los más habituales
           en nuestra experiencia:
         </p>
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            <strong>Marruecos</strong> \u2014 permiso en franc\u00E9s y \u00E1rabe, para canje
+            <strong>Marruecos</strong> — permiso en francés y árabe, para canje
             en la DGT.
           </li>
           <li>
-            <strong>Francia y B\u00E9lgica</strong> \u2014 permisos europeos que requieren
-            traducci\u00F3n para procedimientos judiciales o administrativos.
+            <strong>Francia y Bélgica</strong> — permisos europeos que requieren
+            traducción para procedimientos judiciales o administrativos.
           </li>
           <li>
-            <strong>Alemania, Austria y Suiza</strong> \u2014 para tr\u00E1mites de seguros
+            <strong>Alemania, Austria y Suiza</strong> — para trámites de seguros
             y procedimientos civiles.
           </li>
           <li>
-            <strong>Reino Unido</strong> \u2014 tras el Brexit, el canje requiere
-            traducci\u00F3n jurada.
+            <strong>Reino Unido</strong> — tras el Brexit, el canje requiere
+            traducción jurada.
           </li>
         </ul>
       </section>
 
       <section className="mt-10 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          \u00BFC\u00F3mo enviar tu permiso de conducir?
+          ¿Cómo enviar tu permiso de conducir?
         </h2>
         <ul className="list-disc space-y-2 pl-5">
           <li>Haz una foto clara del anverso y reverso del permiso.</li>
           <li>
-            Aseg\u00FArate de que se leen todos los datos: nombre, fecha, categor\u00EDas
-            y n\u00FAmero del permiso.
+            Asegúrate de que se leen todos los datos: nombre, fecha, categorías
+            y número del permiso.
           </li>
-          <li>Ind\u00EDcanos el idioma y el tr\u00E1mite para el que lo necesitas.</li>
+          <li>Indícanos el idioma y el trámite para el que lo necesitas.</li>
         </ul>
       </section>
 
       <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
         <h2 className="text-lg font-semibold text-bleu">
-          \u00BFNecesitas traducir tu permiso de conducir?
+          ¿Necesitas traducir tu permiso de conducir?
         </h2>
         <p className="mt-1 text-encre">
-          Env\u00EDanos una foto de tu carnet y te damos precio cerrado al instante.
-          Entrega r\u00E1pida en PDF firmado por traductor jurado oficial.
+          Envíanos una foto de tu carnet y te damos precio cerrado al instante.
+          Entrega rápida en PDF firmado por traductor jurado oficial.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
@@ -204,19 +204,19 @@ export default function TraduccionJuradaPermisoConducirPage() {
       </section>
 
       <p className="mt-6 text-xs text-sepia">
-        Ver tambi\u00E9n:{" "}
+        Ver también:{" "}
         <Link
           href="/documentos-oficiales/documentos-laborales"
           className="font-semibold text-bleu hover:underline"
         >
           Documentos laborales
         </Link>
-        {" \u00B7 "}
+        {" · "}
         <Link
           href="/traductor-jurado-frances"
           className="font-semibold text-bleu hover:underline"
         >
-          Traductor jurado de franc\u00E9s
+          Traductor jurado de francés
         </Link>
       </p>
     </main>

@@ -206,7 +206,7 @@ export default function RegularizacionSenegalPage() {
             bulletin nº 3 y los documentos civiles, ya apostillados en Senegal.
           </li>
           <li>
-            Te confirmamos precio cerrado y plazo realista (24-48h habituales).
+            Te confirmamos precio cerrado y plazo realista (1 día hábil en francés, hasta 5 páginas).
           </li>
           <li>
             Traducimos al español, incluyendo apostilla y sellos. Firma
@@ -230,14 +230,14 @@ export default function RegularizacionSenegalPage() {
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
             <strong>Casier judiciaire bulletin nº 3 (francés):</strong> 25 € —
-            entrega 24h
+            entrega en 1 día hábil
           </li>
           <li>
             <strong>Extrait d&apos;acte de naissance:</strong> 25 € — entrega
-            24h
+            1 día hábil
           </li>
           <li>
-            <strong>Acte de mariage:</strong> 25 € — entrega 24-48h
+            <strong>Acte de mariage:</strong> 25 € — entrega en 1 día hábil
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio
@@ -257,8 +257,8 @@ export default function RegularizacionSenegalPage() {
           Pago fácil: Bizum, tarjeta o transferencia
         </h2>
         <p className="mt-2 text-sepia">
-          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys),
-          PayPal o transferencia bancaria. Recibo electrónico inmediato. Empezamos
+          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys) o
+          transferencia bancaria. Recibo electrónico inmediato. Empezamos
           a tramitar en cuanto recibimos el pago.
         </p>
       </section>

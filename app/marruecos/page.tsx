@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Traducci\u00F3n Jurada Documentos Marroqu\u00EDes \u00B7 Franc\u00E9s\u2194Espa\u00F1ol \u00B7 MAEC",
+  title: "Traducción Jurada Documentos Marroquíes · Francés↔Español · MAEC",
   description:
-    "Traducci\u00F3n jurada de documentos marroqu\u00EDes: casier judiciaire, acta de nacimiento, diplomas, n\u00F3minas CNSS, certificados de matrimonio. Traductor jurado oficial MAEC n\u00BA 3850. Desde 35\u20AC.",
+    "Traducción jurada de documentos marroquíes: casier judiciaire, acta de nacimiento, diplomas, nóminas CNSS, certificados de matrimonio. Traductor jurado oficial MAEC nº 3850. Desde 35€.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/marruecos" },
 };
 

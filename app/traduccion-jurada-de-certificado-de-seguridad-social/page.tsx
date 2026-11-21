@@ -7,9 +7,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Traducci\u00F3n Jurada Certificado Seguridad Social \u00B7 Franc\u00E9s\u2194Espa\u00F1ol \u00B7 MAEC",
+    "Traducción Jurada Certificado Seguridad Social · Francés↔Español · MAEC",
   description:
-    "Traducci\u00F3n jurada de certificados de Seguridad Social: n\u00F3minas CNSS, cotizaciones, vida laboral y prestaciones. Traductor jurado oficial MAEC n\u00BA 3850. Presupuesto gratis.",
+    "Traducción jurada de certificados de Seguridad Social: nóminas CNSS, cotizaciones, vida laboral y prestaciones. Traductor jurado oficial MAEC nº 3850. Presupuesto gratis.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/traduccion-jurada-de-certificado-de-seguridad-social",
@@ -18,24 +18,24 @@ export const metadata: Metadata = {
 
 const FAQ_ITEMS = [
   {
-    question: "\u00BFQu\u00E9 documentos de Seguridad Social se traducen con m\u00E1s frecuencia?",
+    question: "¿Qué documentos de Seguridad Social se traducen con más frecuencia?",
     answer:
-      "Certificados de cotizaci\u00F3n (CNSS, S\u00E9curit\u00E9 Sociale), n\u00F3minas, vidas laborales extranjeras, certificados de prestaciones por desempleo y certificados de pensi\u00F3n.",
+      "Certificados de cotización (CNSS, Sécurité Sociale), nóminas, vidas laborales extranjeras, certificados de prestaciones por desempleo y certificados de pensión.",
   },
   {
-    question: "\u00BFPara qu\u00E9 tr\u00E1mites se pide esta traducci\u00F3n?",
+    question: "¿Para qué trámites se pide esta traducción?",
     answer:
-      "Para permisos de residencia y trabajo, reagrupaci\u00F3n familiar, solicitud de prestaciones en Espa\u00F1a, teletrabajo desde Espa\u00F1a para empresas extranjeras, y tramitaci\u00F3n de pensiones.",
+      "Para permisos de residencia y trabajo, reagrupación familiar, solicitud de prestaciones en España, teletrabajo desde España para empresas extranjeras, y tramitación de pensiones.",
   },
   {
-    question: "\u00BFCu\u00E1nto cuesta la traducci\u00F3n de un certificado de Seguridad Social?",
+    question: "¿Cuánto cuesta la traducción de un certificado de Seguridad Social?",
     answer:
-      "Un certificado est\u00E1ndar (1-3 p\u00E1ginas) cuesta desde 35-50 \u20AC dependiendo del idioma. Las n\u00F3minas y vidas laborales extensas tienen precio por volumen.",
+      "Un certificado estándar (1-3 páginas) cuesta desde 35-50 € dependiendo del idioma. Las nóminas y vidas laborales extensas tienen precio por volumen.",
   },
   {
-    question: "\u00BFTambi\u00E9n traduc\u00EDs n\u00F3minas de la CNSS marroqu\u00ED?",
+    question: "¿También traducís nóminas de la CNSS marroquí?",
     answer:
-      "S\u00ED, traducimos habitualmente certificados y n\u00F3minas de la CNSS marroqu\u00ED para tr\u00E1mites de extranjer\u00EDa, reagrupaci\u00F3n familiar y teletrabajo desde Espa\u00F1a.",
+      "Sí, traducimos habitualmente certificados y nóminas de la CNSS marroquí para trámites de extranjería, reagrupación familiar y teletrabajo desde España.",
   },
 ];
 
@@ -44,14 +44,14 @@ export default function TraduccionJuradaCertificadoSeguridadSocialPage() {
     <main className="mx-auto max-w-4xl px-4 py-10 lg:py-12">
       <SchemaService
         id="service-seguridad-social"
-        serviceName="Traducci\u00F3n jurada de certificado de Seguridad Social"
-        serviceDescription="Traducci\u00F3n jurada oficial de certificados de Seguridad Social extranjeros: cotizaciones, n\u00F3minas, vidas laborales y prestaciones."
+        serviceName="Traducción jurada de certificado de Seguridad Social"
+        serviceDescription="Traducción jurada oficial de certificados de Seguridad Social extranjeros: cotizaciones, nóminas, vidas laborales y prestaciones."
         serviceUrl="https://www.traduccionesjuradas.net/traduccion-jurada-de-certificado-de-seguridad-social"
-        brand={{ "@type": "Brand", name: "HBTJ Consultores Ling\u00FC\u00EDsticos" }}
+        brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
           "@type": "Person",
           name: "Juan Silva Moreno",
-          jobTitle: "Traductor Jurado Oficial MAEC n\u00BA 3850",
+          jobTitle: "Traductor Jurado Oficial MAEC nº 3850",
         }}
       />
       <SchemaBreadcrumbs
@@ -59,7 +59,7 @@ export default function TraduccionJuradaCertificadoSeguridadSocialPage() {
         items={[
           { name: "Inicio", url: "https://www.traduccionesjuradas.net/" },
           {
-            name: "Traducci\u00F3n jurada certificado Seguridad Social",
+            name: "Traducción jurada certificado Seguridad Social",
             url: "https://www.traduccionesjuradas.net/traduccion-jurada-de-certificado-de-seguridad-social",
           },
         ]}
@@ -71,14 +71,14 @@ export default function TraduccionJuradaCertificadoSeguridadSocialPage() {
           Seguridad Social
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-encre sm:text-4xl">
-          Traducci\u00F3n jurada de certificado de Seguridad Social
+          Traducción jurada de certificado de Seguridad Social
         </h1>
         <p className="mt-3 text-sm text-sepia sm:text-base">
-          Los certificados de Seguridad Social extranjeros \u2014 n\u00F3minas, cotizaciones,
-          vidas laborales, prestaciones \u2014 necesitan{" "}
-          <strong>traducci\u00F3n jurada</strong> para muchos tr\u00E1mites de extranjer\u00EDa,
-          residencia y trabajo en Espa\u00F1a. Traducci\u00F3n firmada por traductor jurado
-          oficial MAEC n\u00BA 3850.
+          Los certificados de Seguridad Social extranjeros — nóminas, cotizaciones,
+          vidas laborales, prestaciones — necesitan{" "}
+          <strong>traducción jurada</strong> para muchos trámites de extranjería,
+          residencia y trabajo en España. Traducción firmada por traductor jurado
+          oficial MAEC nº 3850.
         </p>
       </header>
 
@@ -88,52 +88,52 @@ export default function TraduccionJuradaCertificadoSeguridadSocialPage() {
         </h2>
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            <strong>Certificados de cotizaci\u00F3n</strong> \u2014 CNSS (Marruecos),
-            S\u00E9curit\u00E9 Sociale (Francia), Sozialversicherung (Alemania).
+            <strong>Certificados de cotización</strong> — CNSS (Marruecos),
+            Sécurité Sociale (Francia), Sozialversicherung (Alemania).
           </li>
           <li>
-            <strong>N\u00F3minas</strong> \u2014 bulletins de paie, Gehaltsabrechnung,
+            <strong>Nóminas</strong> — bulletins de paie, Gehaltsabrechnung,
             payslips.
           </li>
           <li>
-            <strong>Vida laboral</strong> \u2014 certificados de historial laboral
-            emitidos por el organismo de Seguridad Social del pa\u00EDs.
+            <strong>Vida laboral</strong> — certificados de historial laboral
+            emitidos por el organismo de Seguridad Social del país.
           </li>
           <li>
-            <strong>Certificados de pensi\u00F3n</strong> \u2014 para cobrar pensi\u00F3n de
-            otro pa\u00EDs desde Espa\u00F1a.
+            <strong>Certificados de pensión</strong> — para cobrar pensión de
+            otro país desde España.
           </li>
           <li>
-            <strong>Certificados de prestaciones</strong> \u2014 desempleo, baja
-            m\u00E9dica, maternidad/paternidad.
+            <strong>Certificados de prestaciones</strong> — desempleo, baja
+            médica, maternidad/paternidad.
           </li>
         </ul>
       </section>
 
       <section className="mt-10 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          \u00BFPara qu\u00E9 tr\u00E1mites se necesita?
+          ¿Para qué trámites se necesita?
         </h2>
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            <strong>Residencia y trabajo</strong> \u2014 acreditar medios econ\u00F3micos
-            y situaci\u00F3n laboral.
+            <strong>Residencia y trabajo</strong> — acreditar medios económicos
+            y situación laboral.
           </li>
           <li>
-            <strong>Reagrupaci\u00F3n familiar</strong> \u2014 demostrar solvencia
-            econ\u00F3mica del reagrupante.
+            <strong>Reagrupación familiar</strong> — demostrar solvencia
+            económica del reagrupante.
           </li>
           <li>
-            <strong>Teletrabajo desde Espa\u00F1a</strong> \u2014 acreditar la relaci\u00F3n
+            <strong>Teletrabajo desde España</strong> — acreditar la relación
             laboral con empresa extranjera.
           </li>
           <li>
-            <strong>Jubilaci\u00F3n</strong> \u2014 tramitar el cobro de pensiones
-            extranjeras desde Espa\u00F1a.
+            <strong>Jubilación</strong> — tramitar el cobro de pensiones
+            extranjeras desde España.
           </li>
           <li>
-            <strong>Prestaciones sociales</strong> \u2014 acreditar cotizaciones previas
-            en otro pa\u00EDs para solicitar prestaciones en Espa\u00F1a.
+            <strong>Prestaciones sociales</strong> — acreditar cotizaciones previas
+            en otro país para solicitar prestaciones en España.
           </li>
         </ul>
       </section>
@@ -144,36 +144,36 @@ export default function TraduccionJuradaCertificadoSeguridadSocialPage() {
         </h2>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Certificado CNSS / S\u00E9curit\u00E9 Sociale (1-2 p\u00E1ginas):</strong>{" "}
-            desde 35 \u20AC
+            <strong>Certificado CNSS / Sécurité Sociale (1-2 páginas):</strong>{" "}
+            desde 35 €
           </li>
           <li>
-            <strong>N\u00F3mina (1 p\u00E1gina):</strong> desde 35 \u20AC
+            <strong>Nómina (1 página):</strong> desde 35 €
           </li>
           <li>
-            <strong>Vida laboral (varias p\u00E1ginas):</strong> desde 50 \u20AC
+            <strong>Vida laboral (varias páginas):</strong> desde 50 €
           </li>
           <li>
-            <strong>Lote de n\u00F3minas (3-6 meses):</strong> precio por volumen
+            <strong>Lote de nóminas (3-6 meses):</strong> precio por volumen
           </li>
         </ul>
       </section>
 
       <section className="mt-10 rounded-2xl border border-cream bg-parchment p-5 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          Documentos marroqu\u00EDes de Seguridad Social
+          Documentos marroquíes de Seguridad Social
         </h2>
         <p className="mt-2">
-          Traducimos habitualmente certificados de la <strong>CNSS marroqu\u00ED</strong>{" "}
-          (Caisse Nationale de S\u00E9curit\u00E9 Sociale) para tr\u00E1mites de extranjer\u00EDa
-          y reagrupaci\u00F3n familiar. Estos documentos est\u00E1n en franc\u00E9s y se traducen
-          al espa\u00F1ol con entrega en 24 horas.
+          Traducimos habitualmente certificados de la <strong>CNSS marroquí</strong>{" "}
+          (Caisse Nationale de Sécurité Sociale) para trámites de extranjería
+          y reagrupación familiar. Estos documentos están en francés y se traducen
+          al español con entrega en 1 día hábil (hasta 5 páginas).
         </p>
         <p className="mt-2">
-          Si necesitas traducir varios documentos marroqu\u00EDes a la vez, consulta
-          nuestra p\u00E1gina sobre{" "}
+          Si necesitas traducir varios documentos marroquíes a la vez, consulta
+          nuestra página sobre{" "}
           <Link href="/marruecos" className="text-bleu underline">
-            traducciones juradas de documentos marroqu\u00EDes
+            traducciones juradas de documentos marroquíes
           </Link>
           .
         </p>
@@ -181,11 +181,11 @@ export default function TraduccionJuradaCertificadoSeguridadSocialPage() {
 
       <section className="mt-12 rounded-2xl border border-cream bg-cream p-6 text-sm">
         <h2 className="text-lg font-semibold text-bleu">
-          \u00BFNecesitas traducir un certificado de Seguridad Social?
+          ¿Necesitas traducir un certificado de Seguridad Social?
         </h2>
         <p className="mt-1 text-encre">
-          Env\u00EDanos el documento en PDF o foto clara y te damos precio cerrado
-          al instante. Entrega r\u00E1pida en PDF firmado.
+          Envíanos el documento en PDF o foto clara y te damos precio cerrado
+          al instante. Entrega rápida en PDF firmado.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link
@@ -206,14 +206,14 @@ export default function TraduccionJuradaCertificadoSeguridadSocialPage() {
       </section>
 
       <p className="mt-6 text-xs text-sepia">
-        Ver tambi\u00E9n:{" "}
+        Ver también:{" "}
         <Link
           href="/documentos-oficiales/documentos-laborales"
           className="font-semibold text-bleu hover:underline"
         >
           Documentos laborales
         </Link>
-        {" \u00B7 "}
+        {" · "}
         <Link
           href="/teletrabajo"
           className="font-semibold text-bleu hover:underline"
