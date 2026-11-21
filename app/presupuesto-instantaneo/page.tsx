@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { PURPOSE_REGULARIZACION_2026 } from "@/lib/session-pricing";
 import Link from "next/link";
 import PuertaClient from "./PuertaClient";
-import PuertaV2 from "@/components/entrada/PuertaV2";
+import PuertaPortada from "@/components/entrada/PuertaPortada";
+import AsistentePanel from "@/components/home/AsistentePanel";
+import { HOME_HERO } from "@/lib/i18n/home-hero";
 import { puertaV2On } from "@/lib/entrada/flag";
 import { PUERTA_LANGS, WHATSAPP_HEAD, toPuertaLang } from "@/lib/i18n/whatsapp-arrival";
 
@@ -52,16 +54,24 @@ export default function PresupuestoInstantaneoPage({
 
   const v2 = puertaV2On();
 
-  if (v2 && source !== "whatsapp") {
+  // PUERTA_V2=on: la misma puerta que la portada (subida = paso 1, asistente al lado), también para el enlace de WhatsApp.
+  if (v2) {
+    const l = source === "whatsapp" ? lang : "es";
     return (
-      <section className="mx-auto max-w-3xl px-4 py-12">
-        <div className="mb-8 text-center">
-          <h1 className="font-baskerville text-3xl font-bold leading-tight text-bleu sm:text-4xl">Cuéntanos qué necesitas traducir</h1>
-          <p className="mx-auto mt-3 max-w-xl text-lg text-graphite">
-            Sube tus documentos, los revisamos juntos para que no falte nada y Juan te manda el presupuesto cerrado, normalmente en el día.
-          </p>
+      <section lang={l} className="border-b border-cream bg-parchment">
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:py-8">
+          <div className="mx-auto max-w-4xl text-center">
+            <h1 className="font-baskerville text-[1.4rem] font-bold leading-tight text-encre sm:text-[1.75rem] lg:text-[2.1rem]">
+              {l === "es" ? "Cuéntanos qué necesitas traducir" : HOME_HERO.h1[l]}
+            </h1>
+            {l === "es" && (
+              <p className="mx-auto mt-2 max-w-xl text-base text-graphite">
+                Sube tus documentos, los revisamos juntos para que no falte nada y Juan te manda el presupuesto cerrado, normalmente en el día.
+              </p>
+            )}
+          </div>
+          <PuertaPortada key={l} lang={l} source={source} asistente={<AsistentePanel lang={l} />} idiomaNav={source === "whatsapp"} />
         </div>
-        <PuertaV2 source={source} lang="es" />
       </section>
     );
   }
@@ -86,7 +96,7 @@ export default function PresupuestoInstantaneoPage({
         </nav>
         <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-base text-emerald-900">{head.banner}</p>
         <h1 className="mb-6 font-baskerville text-2xl font-bold leading-tight text-bleu sm:text-3xl">{head.title}</h1>
-        {v2 ? <PuertaV2 source={source} lang={lang} /> : <PuertaClient purpose={purpose} source={source} lang={lang} resumeToken={resumeToken} />}
+        <PuertaClient purpose={purpose} source={source} lang={lang} resumeToken={resumeToken} />
       </section>
     );
   }

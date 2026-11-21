@@ -14,6 +14,9 @@ import { HOME } from "@/lib/i18n/home";
 import { TRANSLATOR_DROPDOWN, t as tx } from "@/lib/i18n/nav";
 import { HOME_HERO, CHAT_LANGS } from "@/lib/i18n/home-hero";
 import type { Locale } from "@/lib/i18n/locales";
+import { puertaV2On } from "@/lib/entrada/flag";
+import PuertaPortada from "@/components/entrada/PuertaPortada";
+import PuertaPortadaFromParams from "@/components/entrada/PuertaPortadaFromParams";
 
 export default function HomeHero({ lang = "es" }: { lang?: Locale }) {
   const t = HOME_HERO;
@@ -53,16 +56,23 @@ export default function HomeHero({ lang = "es" }: { lang?: Locale }) {
           </a>
         </div>
 
-        <div className="mt-4 grid items-start gap-4 sm:mt-6 sm:gap-7 lg:grid-cols-2">
-          <div id="subir" className="order-1 scroll-mt-24 lg:order-2">
-            <Suspense fallback={<SubidaPanel source={null} lang={lang} />}>
-              <SubidaPanelFromParams lang={lang} />
-            </Suspense>
+        {/* PUERTA_V2=on: el panel de subida es el paso 1 de la puerta guiada (components/entrada/PuertaPortada). */}
+        {puertaV2On() ? (
+          <Suspense fallback={<PuertaPortada lang={lang} asistente={<AsistentePanel lang={lang} />} />}>
+            <PuertaPortadaFromParams lang={lang} asistente={<AsistentePanel lang={lang} />} />
+          </Suspense>
+        ) : (
+          <div className="mt-4 grid items-start gap-4 sm:mt-6 sm:gap-7 lg:grid-cols-2">
+            <div id="subir" className="order-1 scroll-mt-24 lg:order-2">
+              <Suspense fallback={<SubidaPanel source={null} lang={lang} />}>
+                <SubidaPanelFromParams lang={lang} />
+              </Suspense>
+            </div>
+            <div id="preguntar" className="order-2 scroll-mt-24 lg:order-1">
+              <AsistentePanel lang={lang} />
+            </div>
           </div>
-          <div id="preguntar" className="order-2 scroll-mt-24 lg:order-1">
-            <AsistentePanel lang={lang} />
-          </div>
-        </div>
+        )}
 
         <p className="mx-auto mt-6 max-w-3xl text-center text-base leading-relaxed text-graphite sm:mt-8 sm:text-lg">{t.lede[lang]}</p>
 
