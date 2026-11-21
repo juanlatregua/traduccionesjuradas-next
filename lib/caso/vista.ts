@@ -1,5 +1,6 @@
 // lib/caso/vista.ts — selects compartidos de la bandeja y la ficha del caso (solo servidor).
 
+import type { Prisma } from "@prisma/client";
 import { LAVORI_DIRECT } from "@/lib/lavori-directo";
 import type { QuotePaso, LprPaso } from "@/lib/caso/siguiente-paso";
 
@@ -57,5 +58,19 @@ export const ESTADO_LABEL: Record<string, string> = {
   SIN_JURADO: "Sin jurado",
   CANCELADO: "Cancelado",
 };
+
+const PAGABLE_DIAS = 14;
+
+/** Casos vivos de la bandeja de Casos y de la mesa «Hoy»: abiertos, en curso o perdidos con un presupuesto aún pagable. */
+export const casosVivosWhere = (ahora: Date): Prisma.CasoWhereInput => ({
+  OR: [
+    { estado: { in: ["ABIERTO", "EN_CURSO"] } },
+    // Perdido por silencio pero con presupuesto aún pagable: se espera al cliente.
+    {
+      estado: "PERDIDO",
+      quotes: { some: { deletedAt: null, supersededAt: null, expiredAt: null, status: { in: ["DRAFT", "SENT", "OPENED", "ACCEPTED"] }, sentAt: { gte: new Date(ahora.getTime() - PAGABLE_DIAS * 864e5) } } },
+    },
+  ],
+});
 
 export type { QuotePaso, LprPaso };

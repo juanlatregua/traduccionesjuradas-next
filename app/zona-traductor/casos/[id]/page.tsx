@@ -18,6 +18,7 @@ import {
   type GrupoPaso,
 } from "@/lib/caso/siguiente-paso";
 import { QUOTE_PASO_SELECT, LPR_PASO_SELECT, PEDIDO_PASO_SELECT, nombreMiembro, baseUrlStaff, ESTADO_PILL, ESTADO_LABEL } from "@/lib/caso/vista";
+import { hitosDelCaso, idsPosibles, sesionesDe } from "@/lib/caso/hitos";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Caso",
@@ -36,11 +37,6 @@ const PASO_CLS: Record<GrupoPaso, string> = {
   en_curso: "border-emerald-500/30 bg-emerald-500/5",
   cerrado: "border-slate-700 bg-slate-900/60",
 };
-
-type Hito = { at: Date; tipo: string; titulo: string; detalle?: string; href?: string };
-type Ev = { con?: string[]; regla?: string; entrada?: string; de?: string; a?: string; motivo?: string | null; solicitud?: string | null; docsNuevos?: string[]; refs?: string[] };
-
-const ENTRADA: Record<string, string> = { whatsapp: "WhatsApp", email: "email (hola@)", puerta: "puerta web" };
 
 export default async function CasoFichaPage({ params }: { params: { id: string } }) {
   await authZonaTraductorOrRedirect();
@@ -94,13 +90,7 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
 
   const ahora = new Date();
   const baseUrl = baseUrlStaff();
-  const sesiones = new Map<string, { at: Date; source: string | null; files: string[] }>();
-  for (const a of caso.analyses) {
-    const k = a.sessionToken || `suelto:${a.createdAt.toISOString()}`;
-    const s = sesiones.get(k) || { at: a.createdAt, source: a.source, files: [] };
-    s.files.push(a.fileName);
-    sesiones.set(k, s);
-  }
+  const sesiones = sesionesDe(caso.analyses);
   const ultimaSesion = [...sesiones.keys()].reverse().find((k) => !k.startsWith("suelto:") && !k.startsWith("exp:")) || null;
   const paso = siguientePaso({
     casoId: caso.id,
@@ -114,9 +104,9 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
     nombreDe: nombreMiembro,
   });
 
-  const idsPosibles = [...new Set(caso.eventos.filter((e) => e.tipo === "posible").flatMap((e) => (e.payload as Ev | null)?.con || []))];
-  const posibles = idsPosibles.length
-    ? await prisma.caso.findMany({ where: { id: { in: idsPosibles } }, select: { id: true, ref: true, estado: true } })
+  const posiblesIds = idsPosibles(caso.eventos);
+  const posibles = posiblesIds.length
+    ? await prisma.caso.findMany({ where: { id: { in: posiblesIds } }, select: { id: true, ref: true, estado: true } })
     : [];
 
   const canales = new Set<string>();
@@ -124,81 +114,15 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
   for (const m of caso.inbound) canales.add(m.channel === "WHATSAPP" ? "WhatsApp" : "email");
   if (caso.priceRequests.length) canales.add("lavori");
 
-  const hitos: Hito[] = [];
-  for (const s of sesiones.values()) {
-    hitos.push({
-      at: s.at,
-      tipo: "entrada",
-      titulo: `Entrada por ${s.source === "whatsapp" ? "WhatsApp" : s.source === "staff" ? "el constructor" : "la puerta web"}`,
-      detalle: `${s.files.length} documento${s.files.length === 1 ? "" : "s"}: ${s.files.slice(0, 4).join(", ")}${s.files.length > 4 ? "…" : ""}`,
-    });
-  }
-  for (const m of caso.inbound) {
-    hitos.push({ at: m.receivedAt, tipo: "entrada", titulo: `${m.channel === "WHATSAPP" ? "WhatsApp" : "Email"} de ${m.fromEmail}`, detalle: m.subject, href: `/admin/inbox?vista=todos&canal=${m.channel === "WHATSAPP" ? "whatsapp" : "email"}` });
-  }
-  for (const l of caso.priceRequests) {
-    hitos.push({
-      at: l.createdAt,
-      tipo: "lavori",
-      titulo: `Solicitud ${l.ref} a ${quienEspera(l, nombreMiembro)}`,
-      detalle: `${l.par} · ${l.docsCount} doc${l.words ? ` · ~${l.words} palabras` : ""} · ${l.status}`,
-      href: hrefSolicitud(l),
-    });
-    if (l.priceCents) {
-      hitos.push({
-        at: l.updatedAt,
-        tipo: "lavori",
-        titulo: `Precio de ${l.miembroNombre || "el jurado"}: ${eur(l.priceCents / 100)}${l.plazoDias ? ` · ${l.plazoDias} días` : ""}`,
-        detalle: `${l.ref} · ${l.status}`,
-        href: hrefSolicitud(l),
-      });
-    }
-  }
-  for (const q of caso.quotes) {
-    const href = hrefPresupuesto(q.id);
-    const total = eur(decimalToNumber(q.total));
-    hitos.push({ at: q.createdAt, tipo: "presupuesto", titulo: `Presupuesto ${q.quoteNumber} creado${q.autoPricedBy ? " (tarifario)" : ""}`, detalle: total, href });
-    if (q.sentAt) hitos.push({ at: q.sentAt, tipo: "presupuesto", titulo: `${q.quoteNumber} enviado al cliente`, detalle: total, href });
-    if (q.openedAt) hitos.push({ at: q.openedAt, tipo: "presupuesto", titulo: `${q.quoteNumber} abierto por el cliente`, href });
-    if (q.paymentFrozenAt) hitos.push({ at: q.paymentFrozenAt, tipo: "alerta", titulo: `${q.quoteNumber}: pago congelado`, href });
-    if (q.paidAt) hitos.push({ at: q.paidAt, tipo: "pedido", titulo: `${q.quoteNumber} pagado`, detalle: total, href });
-    if (q.expiredAt) hitos.push({ at: q.expiredAt, tipo: "presupuesto", titulo: `${q.quoteNumber} caducado`, href });
-    if (q.supersededAt) hitos.push({ at: q.supersededAt, tipo: "presupuesto", titulo: `${q.quoteNumber} sustituido`, href });
-    if (q.deletedAt) hitos.push({ at: q.deletedAt, tipo: "presupuesto", titulo: `${q.quoteNumber} eliminado`, href });
-  }
-  for (const o of caso.orders) {
-    const traductor = o.collaboratorAssignments[0]?.collaborator.fullName || o.assignedTo;
-    hitos.push({
-      at: o.createdAt,
-      tipo: "pedido",
-      titulo: `Pedido ${o.reference}`,
-      detalle: `${eur(o.amountCents / 100)} · ${o.status}${traductor ? ` · ${traductor}` : ""}`,
-      href: hrefPedido(o.reference),
-    });
-  }
-  for (const e of caso.eventos) {
-    const p = (e.payload || {}) as Ev;
-    const t =
-      e.tipo === "creado"
-        ? { titulo: `Caso creado (${ENTRADA[p.entrada || ""] || p.entrada || caso.origen})`, detalle: p.regla }
-        : e.tipo === "adjuntado"
-          ? { titulo: `Añadido al caso desde ${ENTRADA[p.entrada || ""] || p.entrada || "?"}`, detalle: p.regla }
-          : e.tipo === "posible"
-            ? { titulo: "Puede ser el mismo encargo que otro caso", detalle: p.regla }
-            : e.tipo === "transicion"
-              ? { titulo: `Estado ${ESTADO_LABEL[p.de || ""] || p.de} → ${ESTADO_LABEL[p.a || ""] || p.a}`, detalle: p.motivo || undefined }
-              : e.tipo === "aviso_humano"
-                ? { titulo: "Aviso a staff: pide presupuesto humano", detalle: p.solicitud ? `con ${p.solicitud}` : undefined }
-                : e.tipo === "aviso_humano_repetido"
-                  ? { titulo: "El cliente ha vuelto a pedir (aviso corto)" }
-                  : e.tipo === "backfill"
-                    ? { titulo: "Caso reconstruido desde el histórico", detalle: (p.refs || []).join(", ") }
-                    : e.tipo === "fallo_resolver"
-                      ? { titulo: "Fallo del resolver" }
-                      : { titulo: e.tipo };
-    hitos.push({ at: e.createdAt, tipo: "caso", ...t });
-  }
-  hitos.sort((a, b) => a.at.getTime() - b.at.getTime());
+  const hitos = hitosDelCaso({
+    origen: caso.origen,
+    sesiones,
+    inbound: caso.inbound,
+    priceRequests: caso.priceRequests,
+    quotes: caso.quotes,
+    orders: caso.orders.map((o) => ({ ...o, traductor: o.collaboratorAssignments[0]?.collaborator.fullName || o.assignedTo })),
+    eventos: caso.eventos,
+  });
 
   const lpr = caso.priceRequests[caso.priceRequests.length - 1];
   const vigente = quoteVigente(caso.id, caso.quotes) || caso.quotes.filter((q) => !q.deletedAt).slice(-1)[0] || null;
