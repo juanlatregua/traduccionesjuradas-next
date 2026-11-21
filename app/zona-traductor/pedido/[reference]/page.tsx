@@ -1,4 +1,5 @@
 import { deadlineLine, isUrgentDeadline } from "@/lib/needed-by";
+import { hrefCaso } from "@/lib/staff-links";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -473,7 +474,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               </a>
               {order.caso && (
                 <a
-                  href={`/zona-traductor/casos/${order.caso.id}`}
+                  href={hrefCaso(order.caso.id)}
                   className="rounded-md border border-[#D5DAE1] bg-[#F6F7F9] px-2 py-1 text-[#1A2E4A] hover:bg-[#F6F7F9]"
                   title="Toda la historia del cliente: entradas, solicitudes, presupuestos y pedido"
                 >

@@ -5,7 +5,7 @@ import { abs, hrefBandeja, hrefCaso, hrefCliente, hrefConstructor, hrefLectura, 
 test("enlaces de staff: mismas URLs que los literales de antes", () => {
   assert.equal(abs(hrefPedido("TJ-2026-0042")), "https://www.traduccionesjuradas.net/zona-traductor/pedido/TJ-2026-0042");
   assert.equal(abs(hrefPresupuesto("abc"), "http://x"), "http://x/zona-traductor/presupuestos/abc");
-  assert.equal(hrefCaso("c1"), "/zona-traductor/casos/c1");
+  assert.equal(hrefCaso("c1"), "/zona-traductor/caso/c1");
   assert.equal(hrefCliente("a+b@x.com"), "/zona-traductor/clientes/a%2Bb%40x.com");
   assert.equal(hrefConstructor(), "/zona-traductor/presupuesto");
   assert.equal(hrefConstructor({ lead: "L 1", exp: undefined }), "/zona-traductor/presupuesto?lead=L%201");

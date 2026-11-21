@@ -14,7 +14,7 @@ type Tab = { key: string; label: string; href: string; subs: Sub[]; owns: string
 
 const Z = "/zona-traductor";
 const TABS: Tab[] = [
-  { key: "hoy", label: "Hoy", href: `${Z}/hoy`, owns: [`${Z}/hoy`, `${Z}/caso`, `${Z}/vigia`], subs: [{ href: `${Z}/hoy`, label: "Mesa" }, { href: `${Z}/vigia`, label: "Agenda del vigía" }] },
+  { key: "hoy", label: "Hoy", href: `${Z}/hoy`, owns: [`${Z}/hoy`, `${Z}/caso`, `${Z}/vigia`], subs: [{ href: `${Z}/hoy`, label: "Hoy" }] },
   {
     key: "casos",
     label: "Casos",

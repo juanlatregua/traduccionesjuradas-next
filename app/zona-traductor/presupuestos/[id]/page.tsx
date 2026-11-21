@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hrefCaso } from "@/lib/staff-links";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Pencil } from "lucide-react";
@@ -94,7 +95,7 @@ export default async function PresupuestoFichaPage({ params, searchParams = {} }
             <h1 className="font-mono text-sm font-bold text-[#1A2E4A]">{numero}</h1>
             {congelacion?.caso && (
               <Link
-                href={`/zona-traductor/casos/${congelacion.caso.id}`}
+                href={hrefCaso(congelacion.caso.id)}
                 className="rounded-md border border-[#D5DAE1] bg-[#F6F7F9] px-2 py-0.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
               >
                 Ver caso {congelacion.caso.ref}

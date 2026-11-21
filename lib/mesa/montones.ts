@@ -5,7 +5,7 @@
 
 import { siguientePaso, quoteVigente, hrefPedido, ESPERA_JURADO_HORAS, type AccionPaso, type LprPaso, type PedidoPaso, type QuotePaso } from "../caso/siguiente-paso.ts";
 import { lprViva } from "../caso/estados.ts";
-import { hrefConstructor } from "../staff-links.ts";
+import { hrefCaso, hrefConstructor } from "../staff-links.ts";
 import { CLOSE_AFTER_HOURS, REMINDER_AFTER_HOURS, SEND_OVERDUE_HOURS } from "../cierre-math.ts";
 import { deadlineLine, isUrgentDeadline } from "../needed-by.ts";
 import type { SlaLead } from "../lead-sla-core.ts";
@@ -162,7 +162,7 @@ export function clasificarCaso(c: CasoMesa, ahora: Date, baseUrl: string, nombre
     urgente: isUrgentDeadline(deadline, ahora),
     dudoso: c.dudoso,
     accion: paso.accion,
-    ficha: `/zona-traductor/caso/${c.id}`,
+    ficha: hrefCaso(c.id),
     entro: c.createdAt,
     plegada: paso.clave === "pagable_cerrado",
   };
@@ -240,6 +240,15 @@ export function clasificarCaso(c: CasoMesa, ahora: Date, baseUrl: string, nombre
     }
   }
   return t;
+}
+
+/** «Qué toca» de la ficha: la tarjeta de la mesa y, si el caso no está en la mesa (cerrado, perdido…), el siguientePaso,
+ * para que la ficha nunca se quede sin el botón que daba la ficha antigua. */
+export function quePasoFicha(c: CasoMesa, ahora: Date, baseUrl: string, nombreDe?: (miembroId: string) => string | null | undefined): { tarjeta: Tarjeta | null; titulo: string; detalle?: string; accion: AccionPaso | null } {
+  const tarjeta = clasificarCaso(c, ahora, baseUrl, nombreDe);
+  if (tarjeta) return { tarjeta, titulo: tarjeta.titulo, detalle: tarjeta.detalle, accion: tarjeta.accion };
+  const paso = siguientePaso({ casoId: c.id, estado: c.estado, quotes: c.quotes, lprs: c.lprs, pedidos: c.pedidos, baseUrl, ahora, sesion: c.sesion, nombreDe });
+  return { tarjeta: null, titulo: paso.titulo, detalle: paso.detalle, accion: paso.accion };
 }
 
 const norm = (e: string | null | undefined) => (e || "").trim().toLowerCase();
