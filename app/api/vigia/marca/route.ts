@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hrefVigia } from "@/lib/staff-links";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getZonaTraductorStaffEmail } from "@/lib/zona-traductor-data";
 import { verifyVigiaMarkToken } from "@/lib/vigia-mark";
 import { MARK_POSPONER, MARK_TRATADO, POSTPONE_DAYS } from "@/lib/vigia-persona";
 
@@ -40,8 +41,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const ip = getClientIp(req);
-  const rl = await checkRateLimit({ key: `vigia-marca:${ip}`, limit: 30, windowMs: 60 * 60 * 1000 });
+  // Desde Hoy (staff con sesión) se marcan muchas filas seguidas; el clic anónimo del email sigue a 30/h por IP.
+  const staff = await getZonaTraductorStaffEmail().catch(() => null);
+  const rl = staff
+    ? await checkRateLimit({ key: `vigia-marca:staff:${staff}`, limit: 300, windowMs: 60 * 60 * 1000 })
+    : await checkRateLimit({ key: `vigia-marca:${getClientIp(req)}`, limit: 30, windowMs: 60 * 60 * 1000 });
   if (!rl.ok) return page("Demasiados intentos", "<p>Vuelve a intentarlo en unos minutos.</p>", 429);
   const p = parse(new URL(req.url));
   if (!p.ok) return page("Enlace no válido o caducado", "<p>No se ha guardado nada.</p>", 403);

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hrefCaso } from "@/lib/staff-links";
 import Link from "next/link";
 import DiscardLavoriLeadButton from "@/components/DiscardLavoriLeadButton";
 import RetireLavoriLeadButton from "@/components/RetireLavoriLeadButton";
@@ -221,7 +222,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                     <div className="flex items-center gap-2">
                       {lead.caso && (
                         <Link
-                          href={`/zona-traductor/casos/${lead.caso.id}`}
+                          href={hrefCaso(lead.caso.id)}
                           className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-sm font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                           title={lead.caso.ref}
                         >

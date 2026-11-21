@@ -5,6 +5,9 @@ import { deadlineLine } from "@/lib/needed-by";
 import { hrefPedido, hrefPresupuesto, hrefSolicitud, quienEspera, quoteVigente, urlPublicaQuote } from "@/lib/caso/siguiente-paso";
 import { quoteVivo } from "@/lib/caso/estados";
 import { ESTADO_LABEL, nombreMiembro } from "@/lib/caso/vista";
+import { costeDelPresupuesto, margenPedido } from "@/lib/caso/margen";
+import { hrefCaso, hrefConstructor, hrefDiscrepancias } from "@/lib/staff-links";
+import { sessionKeyOf } from "@/lib/entrada/store";
 import type { Hito } from "@/lib/caso/hitos";
 import { ETAPAS, canalDe, esPropio, etapasHechas, type PedidoMesa } from "@/lib/mesa/montones";
 import type { cargarFicha } from "@/lib/mesa/datos";
@@ -43,10 +46,33 @@ function Carril({ titulo, quien, children }: { titulo: string; quien?: React.Rea
   );
 }
 
+function ListaHitos({ hitos }: { hitos: Hito[] }) {
+  return (
+    <ol className="m-0 grid list-none gap-2 p-0">
+      {hitos.map((h, i) => (
+        <li key={i} className="grid grid-cols-[10px_1fr] gap-2 text-[15px]">
+          <span aria-hidden className={`mt-2 h-2.5 w-2.5 rounded-full ${DOT[h.tipo] || DOT.caso}`} />
+          <span className="min-w-0">
+            <span className="block text-[13px] text-[#52606D]">{fmtFecha(h.at)}</span>
+            {h.href ? (
+              <Link href={h.href} className="text-[#1F2933] underline-offset-2 hover:underline">
+                {h.titulo}
+              </Link>
+            ) : (
+              h.titulo
+            )}
+            {h.detalle && <span className="block text-[13px] text-[#52606D] [overflow-wrap:anywhere]">{h.detalle}</span>}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 const Vacio = ({ children }: { children: React.ReactNode }) => <p className="text-[#52606D]">{children}</p>;
 
 export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha: Ficha; hitos: Hito[]; posibles: { id: string; ref: string; estado: string }[]; baseUrl: string }) {
-  const { caso, entradas, mesa, tarjeta, ahora } = ficha;
+  const { caso, entradas, mesa, tarjeta, toca, ahora } = ficha;
   const pedidos = caso.orders.map((o, i) => ({ o, m: mesa.pedidos[i] as PedidoMesa }));
   const vivos = pedidos.filter(({ o }) => o.status !== "CANCELLED" && o.paymentStatus !== "REFUNDED");
   const quotes = caso.quotes.filter((q) => !q.deletedAt);
@@ -65,6 +91,11 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
     ...caso.orders.flatMap((o) => o.collaboratorAssignments.filter((a) => a.adminNotes).map((a) => ({ de: `Al jurado ${a.collaborator.fullName} (${o.reference})`, texto: a.adminNotes! }))),
     ...caso.orders.filter((o) => o.clientNotes).map((o) => ({ de: `Del cliente (${o.reference})`, texto: o.clientNotes! })),
   ];
+  const canales = new Set<string>();
+  for (const docs of sesiones.values()) canales.add(docs[0].source === "whatsapp" ? "WhatsApp" : "puerta web");
+  for (const m of caso.inbound) canales.add(m.channel === "WHATSAPP" ? "WhatsApp" : "email");
+  if (caso.priceRequests.length) canales.add("lavori");
+  const recientes = [...hitos].reverse();
   const estadoTono: Tono = caso.estado === "ABIERTO" ? "info" : caso.estado === "EN_CURSO" ? "ok" : "gris";
 
   return (
@@ -91,10 +122,13 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
               {caso.dudoso && <Marca tono="warn">dudoso: revisar a mano</Marca>}
               {caso.esAgencia && <Marca tono="gris">agencia</Marca>}
             </p>
-            {tarjeta && <p className="mt-2 font-semibold">{tarjeta.titulo}{tarjeta.detalle ? <span className="font-normal text-[#52606D]"> · {tarjeta.detalle}</span> : null}</p>}
+            <p className="mt-2 font-semibold">
+              {toca.titulo}
+              {toca.detalle ? <span className="font-normal text-[#52606D]"> · {toca.detalle}</span> : null}
+            </p>
           </div>
           <div className="flex w-full flex-wrap items-start gap-2 sm:w-auto">
-            {tarjeta?.accion && <MesaAccion {...tarjeta.accion} className="flex-1 sm:flex-none" />}
+            {toca.accion && <MesaAccion {...toca.accion} variante={tarjeta ? "pri" : "sec"} className="flex-1 sm:flex-none" />}
             <details className="relative">
               <summary className="inline-flex min-h-[44px] cursor-pointer list-none items-center rounded-[10px] border border-[#1A2E4A] bg-[#fff] px-4 font-semibold text-[#1A2E4A]">Más</summary>
               <ul className="absolute right-0 z-30 mt-1 grid min-w-[240px] list-none gap-0.5 rounded-[12px] border border-[#D5DAE1] bg-[#fff] p-1.5 shadow-lg">
@@ -119,11 +153,6 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
                     </Link>
                   </li>
                 )}
-                <li>
-                  <Link className="block min-h-[44px] rounded-lg px-3 py-2.5 text-[#1F2933] no-underline hover:bg-[#EEF2F7]" href={`/zona-traductor/casos/${caso.id}`}>
-                    Ficha antigua del caso
-                  </Link>
-                </li>
               </ul>
             </details>
           </div>
@@ -135,7 +164,7 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
             {posibles.map((c, i) => (
               <span key={c.id}>
                 {i > 0 && ", "}
-                <Link href={`/zona-traductor/caso/${c.id}`} className="font-semibold underline">
+                <Link href={hrefCaso(c.id)} className="font-semibold underline">
                   {c.ref}
                 </Link>{" "}
                 ({ESTADO_LABEL[c.estado] || c.estado})
@@ -178,13 +207,35 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
                   <p className="line-clamp-4 whitespace-pre-wrap text-[15px]">{m.bodyPreview}</p>
                 </div>
               ))}
-              {entradas
-                .filter((e) => e.organismo || e.pais)
-                .map((e) => (
-                  <p key={e.id} className="mb-2 text-[15px]">
-                    <Marca tono="info">Puerta</Marca> {[e.organismo && `para ${e.organismo}`, e.pais && `país ${e.pais}`].filter(Boolean).join(" · ")}
-                  </p>
-                ))}
+              {entradas.map((e) => {
+                const respuestas = Array.isArray(e.respuestasJson) ? (e.respuestasJson as { pregunta: string; respuesta: string }[]) : [];
+                const q = new URLSearchParams({ session: sessionKeyOf(e.id) });
+                if (e.email) q.set("customerEmail", e.email);
+                if (e.nombre) q.set("customerName", e.nombre);
+                if (e.phone9) q.set("customerPhone", e.phone9);
+                return (
+                  <div key={e.id} className="mb-3 text-[15px]">
+                    <p>
+                      <Marca tono="info">Puerta</Marca> {[e.organismo && `para ${e.organismo}`, e.pais && `país ${e.pais}`, e.source && `origen: ${e.source}`].filter(Boolean).join(" · ")}
+                    </p>
+                    <p className="text-[14px] text-[#52606D]">
+                      Abierta {fmtFecha(e.createdAt)} · {e.confirmedAt ? `confirmada ${fmtFecha(e.confirmedAt)}` : "sin confirmar"} · {e.estado}
+                    </p>
+                    {respuestas.length > 0 && (
+                      <ul className="m-0 mt-1 grid list-none gap-0.5 p-0">
+                        {respuestas.map((r, i) => (
+                          <li key={i}>
+                            {r.pregunta}: <b className="text-[#1A2E4A]">{r.respuesta}</b>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="mt-1.5">
+                      <MesaEnlace label="Montar presupuesto (documentos dentro)" href={hrefConstructor(q)} variante="sec" que="el constructor" />
+                    </div>
+                  </div>
+                );
+              })}
               {[...sesiones.entries()].map(([k, docs]) => (
                 <div key={k} className="mt-3">
                   <p className="mb-1 text-[15px] font-semibold">
@@ -207,7 +258,7 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
                   </ul>
                 </div>
               ))}
-              {!caso.inbound.length && !caso.analyses.length && <Vacio>No hay archivos ni mensajes atados a este caso.</Vacio>}
+              {!caso.inbound.length && !caso.analyses.length && !entradas.length && <Vacio>No hay archivos ni mensajes atados a este caso.</Vacio>}
               <div className="mt-3.5 flex flex-wrap gap-2">
                 {mesa.sesion && <MesaEnlace label="Abrir en el constructor" href={`/zona-traductor/presupuesto?session=${encodeURIComponent(mesa.sesion)}`} variante="sec" que="el constructor" />}
                 {caso.inbound.length > 0 && <MesaEnlace label="Ver en la bandeja" href="/admin/inbox?vista=todos" variante="sec" que="la bandeja" />}
@@ -326,14 +377,33 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
                   </div>
                 </div>
               )}
-              {vivos.map(({ o }) => (
-                <p key={o.id} className="mb-1.5">
-                  <Marca tono={o.paymentStatus === "PAID" ? "ok" : "warn"}>{o.paymentStatus === "PAID" ? "Pagado" : PEDIDO_LABEL[o.status] || o.status}</Marca> {o.reference} · {eur(o.amountCents / 100)}
-                  {o.paymentMethod ? ` · ${METODO[o.paymentMethod] || o.paymentMethod}` : ""}
-                  {o.paidAt ? ` · ${fmtFecha(o.paidAt)}` : ""}
-                  {o.paymentProofFileKey ? " · justificante subido (en el pedido)" : ""}
-                </p>
-              ))}
+              {vivos.map(({ o }) => {
+                const hermanos = o.quoteId ? vivos.filter((v) => v.o.quoteId === o.quoteId).map((v) => v.o) : [o];
+                const varios = hermanos.length > 1;
+                const coste = varios ? costeDelPresupuesto(hermanos) : o.supplierCostCents;
+                const { neto, margen } = margenPedido({ quoteTotal: o.quote ? n(o.quote.total) : null, quoteVat: o.quote ? n(o.quote.vatAmount) : null, supplierCostCents: coste });
+                return (
+                  <div key={o.id} className="mb-2">
+                    <p>
+                      <Marca tono={o.paymentStatus === "PAID" ? "ok" : "warn"}>{o.paymentStatus === "PAID" ? "Pagado" : PEDIDO_LABEL[o.status] || o.status}</Marca> {o.reference} · {eur(o.amountCents / 100)}
+                      {o.paymentMethod ? ` · ${METODO[o.paymentMethod] || o.paymentMethod}` : ""}
+                      {o.paidAt ? ` · ${fmtFecha(o.paidAt)}` : ""}
+                      {o.paymentProofFileKey ? " · justificante subido (en el pedido)" : ""}
+                    </p>
+                    <p className="text-[14px] text-[#52606D]">
+                      Cobro {eur(o.amountCents / 100)} · coste {o.supplierCostCents != null ? eur(o.supplierCostCents / 100) : "—"} ·{" "}
+                      {varios && hermanos[0] !== o ? (
+                        <span>margen: con {hermanos[0].reference} (presupuesto completo)</span>
+                      ) : (
+                        <b className={margen == null ? "text-[#52606D]" : margen <= 0 ? "text-[#A12B2B]" : "text-[#1F6B45]"}>
+                          {margen == null ? "margen: sin presupuesto o coste para calcularlo" : `margen ${eur(margen)} sobre ${eur(neto!)} netos`}
+                          {varios ? ` · margen del presupuesto completo (${hermanos.length} pedidos)` : ""}
+                        </b>
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
               {vivos.some(({ o }) => o.paymentStatus === "PAID") && <p className="mt-1 text-[14px] text-[#52606D]">El pago no abre ningún encargo nuevo: los jurados dieron su precio antes de cobrar.</p>}
             </Tarjeta>
 
@@ -443,6 +513,7 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
                   }
                 />
                 <Fila k="Entró por" v={`${canalDe(caso.origen)} · ${fmtFecha(caso.createdAt)}`} />
+                {canales.size > 0 && <Fila k="Canales" v={[...canales].join(" · ")} />}
                 <Fila k="Lo necesita" v={deadline ? deadline.replace(/^Lo necesita: /, "") : "Sin fecha: preguntarla"} />
                 {entradas.find((e) => e.organismo) && <Fila k="Organismo" v={entradas.find((e) => e.organismo)!.organismo} />}
                 {entradas.find((e) => e.pais) && <Fila k="País" v={entradas.find((e) => e.pais)!.pais} />}
@@ -453,31 +524,20 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
 
             <Tarjeta>
               <Titulo2>Historial</Titulo2>
-              <ol className="m-0 grid list-none gap-2 p-0">
-                {[...hitos]
-                  .reverse()
-                  .slice(0, 25)
-                  .map((h, i) => (
-                    <li key={i} className="grid grid-cols-[10px_1fr] gap-2 text-[15px]">
-                      <span aria-hidden className={`mt-2 h-2.5 w-2.5 rounded-full ${DOT[h.tipo] || DOT.caso}`} />
-                      <span className="min-w-0">
-                        <span className="block text-[13px] text-[#52606D]">{fmtFecha(h.at)}</span>
-                        {h.href ? (
-                          <Link href={h.href} className="text-[#1F2933] underline-offset-2 hover:underline">
-                            {h.titulo}
-                          </Link>
-                        ) : (
-                          h.titulo
-                        )}
-                        {h.detalle && <span className="block text-[13px] text-[#52606D] [overflow-wrap:anywhere]">{h.detalle}</span>}
-                      </span>
-                    </li>
-                  ))}
-              </ol>
-              {hitos.length > 25 && (
-                <Link href={`/zona-traductor/casos/${caso.id}`} className="mt-2 inline-block text-[14px] text-[#17477E] underline">
-                  Ver los {hitos.length} hitos en la ficha antigua
-                </Link>
+              <ListaHitos hitos={recientes.slice(0, 25)} />
+              {recientes.length > 25 && (
+                <details className="mt-2">
+                  <summary className="min-h-[44px] cursor-pointer py-2 text-[14px] font-semibold text-[#17477E]">Ver la historia completa ({hitos.length} hitos)</summary>
+                  <ListaHitos hitos={recientes.slice(25)} />
+                </details>
+              )}
+              {caso._count.eventos > 0 && (
+                <p className="mt-2 text-[14px] text-[#52606D]">
+                  {caso._count.eventos} {caso._count.eventos === 1 ? "comparación" : "comparaciones"} guarda↔resolver en este caso:{" "}
+                  <Link href={hrefDiscrepancias()} className="text-[#17477E] underline">
+                    ver discrepancias
+                  </Link>
+                </p>
               )}
             </Tarjeta>
 

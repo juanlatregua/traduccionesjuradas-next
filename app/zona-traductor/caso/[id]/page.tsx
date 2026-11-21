@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import FichaVista from "@/components/mesa/FichaVista";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
@@ -16,7 +16,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function FichaCasoPage({ params }: { params: { id: string } }) {
-  if (!mesaV2On()) notFound();
+  // Kill-switch MESA_V2=off: los enlaces (hrefCaso) apuntan aquí; se sirve la ficha antigua.
+  if (!mesaV2On()) redirect(`/zona-traductor/casos/${encodeURIComponent(params.id)}`);
   await authZonaTraductorOrRedirect();
   const ficha = await cargarFicha(params.id);
   if (!ficha) notFound();

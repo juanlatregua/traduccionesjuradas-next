@@ -115,3 +115,45 @@ export function MesaActualizar() {
 export function MesaAccion({ label, href, copiar, variante = "pri", className = "" }: { label: string; href: string; copiar?: boolean; variante?: Variante; className?: string }) {
   return copiar ? <MesaCopiar label={label} texto={href} variante={variante} className={className} /> : <MesaEnlace label={label} href={href} variante={variante} className={className} />;
 }
+
+/** «Ya lo traté» / «Posponer 7 d» del vigía: POST al enlace firmado de /api/vigia/marca (el mismo del email de las 8:00). */
+export function MesaMarca({ label, url, hecho }: { label: string; url: string; hecho: string }) {
+  const router = useRouter();
+  const [estado, setEstado] = useState<"" | "enviando" | "hecho" | "error">("");
+  const [, empezar] = useTransition();
+  const lento = useLento(estado === "enviando");
+  return (
+    <span className="inline-flex flex-col">
+      <button
+        type="button"
+        aria-busy={estado === "enviando"}
+        disabled={estado === "enviando" || estado === "hecho"}
+        className={cls("sec")}
+        onClick={async () => {
+          setEstado("enviando");
+          try {
+            const res = await fetch(url, { method: "POST" });
+            if (!res.ok) throw new Error(String(res.status));
+            setEstado("hecho");
+            empezar(() => router.refresh());
+          } catch {
+            setEstado("error");
+          }
+        }}
+      >
+        {estado === "enviando" && <Giro />}
+        {estado === "enviando" ? "Guardando…" : estado === "hecho" ? `${hecho} ✓` : label}
+      </button>
+      {lento && (
+        <span role="status" className="mt-1 text-[13px] text-[#52606D]">
+          Guardando la marca…
+        </span>
+      )}
+      {estado === "error" && (
+        <span role="alert" className="mt-1 text-[13px] font-semibold text-[#8B1E0F]">
+          No se ha guardado (enlace caducado o demasiados intentos). Vuelve a cargar la página.
+        </span>
+      )}
+    </span>
+  );
+}

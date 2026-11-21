@@ -124,7 +124,7 @@ const fila = (o: Partial<EntradaRow> = {}) =>
 
 test("staff links work with LECTURA_CONSTRUCTOR off: caso page and builder with the entrada's files", () => {
   const l = staffLinks(fila());
-  assert.equal(l.caso, "https://www.traduccionesjuradas.net/zona-traductor/casos/c1");
+  assert.equal(l.caso, "https://www.traduccionesjuradas.net/zona-traductor/caso/c1");
   assert.match(l.builder, /\/zona-traductor\/presupuesto\?session=entrada%3Ae1&customerEmail=ana%40x\.com&customerName=Ana\+L%C3%B3pez&customerPhone=600111222$/);
   assert.doesNotMatch(l.builder + l.caso, /lectura/);
   assert.doesNotMatch(entradaLeads([{ ...fila(), estado: "confirmada", createdAt: new Date(), files: [{ name: "a", sha256: "h" }] }])[0].link, /lectura/);
@@ -151,7 +151,7 @@ test("the router's staff email carries what the client said, the campaign and th
   assert.match(text, /1 documento\(s\) fuera del presupuesto/);
   assert.match(text, /2 idiomas de destino/);
   assert.match(text, /regularización 2026/);
-  assert.match(text, /zona-traductor\/casos\/c1/);
+  assert.match(text, /zona-traductor\/caso\/c1/);
 });
 
 test("routing pair: the entrada's languages, else the only one the reading found; never a guess", () => {

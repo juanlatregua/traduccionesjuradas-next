@@ -22,8 +22,8 @@ const withQs = (path: string, p?: Params) => {
 
 export const hrefZona = () => Z;
 export const hrefHoy = () => `${Z}/hoy`;
-/** Ficha del caso: una sola constante para decidir cuál de las dos fichas (casos / caso) gana. */
-export const CASO_BASE = `${Z}/casos`;
+/** Ficha del caso (la de la mesa). Con MESA_V2=off, /caso/[id] redirige a la ficha antigua /casos/[id]. */
+export const CASO_BASE = `${Z}/caso`;
 export const hrefCaso = (casoId: string) => `${CASO_BASE}/${casoId}`;
 export const hrefDiscrepancias = () => `${Z}/casos/discrepancias`;
 export const hrefPresupuesto = (quoteId: string) => `${Z}/presupuestos/${quoteId}`;

@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clasificarCaso, montarMesa, tarjetasDeLeads, etapasHechas, esPropio, duracion, type CasoMesa, type PedidoMesa, type LprMesa } from "../../lib/mesa/montones.ts";
-import type { QuotePaso } from "../../lib/caso/siguiente-paso.ts";
+import { clasificarCaso, montarMesa, tarjetasDeLeads, etapasHechas, esPropio, duracion, quePasoFicha, type CasoMesa, type PedidoMesa, type LprMesa } from "../../lib/mesa/montones.ts";
+import { siguientePaso, type QuotePaso } from "../../lib/caso/siguiente-paso.ts";
+import { consolidate } from "../../lib/vigia-persona.ts";
+import { accionesFueraDeLaPila, fueraDeLaPila, refsDeLaPila, relativo } from "../../lib/mesa/agenda.ts";
 import type { SlaLead } from "../../lib/lead-sla-core.ts";
 import { mesaV2On } from "../../lib/mesa/flag.ts";
 
@@ -274,4 +276,79 @@ test("duración legible", () => {
 test("interruptor MESA_V2: kill-switch, solo «off» exacto apaga", () => {
   for (const v of ["on", undefined, "", "ON", "1", "true"]) assert.equal(mesaV2On({ MESA_V2: v }), true);
   assert.equal(mesaV2On({ MESA_V2: "off" }), false);
+});
+
+// Fase 3: la ficha de la mesa sustituye a la antigua; ningún «qué toca» de siguientePaso se pierde.
+const CASOS_PASO: [string, Partial<CasoMesa>][] = [
+  ["congelado", { quotes: [quote({ paymentFrozenAt: antes(1) })] }],
+  ["pedido_sin_cobrar", { estado: "EN_CURSO", pedidos: [pedido({ status: "PENDING_PAYMENT", paymentStatus: "PENDING" })] }],
+  ["pedido_en_curso", { estado: "EN_CURSO", pedidos: [pedido()] }],
+  ["entregado", { estado: "ENTREGADO", pedidos: [pedido({ status: "DELIVERED", deliveryState: "TRADUCIDO" })] }],
+  ["cancelado", { estado: "CANCELADO", pedidos: [pedido({ status: "CANCELLED", paymentStatus: "REFUNDED" })] }],
+  ["borrador", { quotes: [quote({ status: "DRAFT", sentAt: null })] }],
+  ["presupuesto_enviado", { quotes: [quote()] }],
+  ["pagable_cerrado", { estado: "PERDIDO", quotes: [quote({ lostReason: "NO_RESPONSE", lostReasonNote: "auto:silencio" })] }],
+  ["presupuesto_muerto", { estado: "PERDIDO", quotes: [quote({ status: "EXPIRED", expiredAt: antes(1) })] }],
+  ["precio_recibido", { lprs: [lpr({ status: "PRICED", priceCents: 4500 })] }],
+  ["esperando_precio", { lprs: [lpr()] }],
+  ["jurado_no_responde", { lprs: [lpr({ createdAt: antes(30) })] }],
+  ["sin_nada", {}],
+  ["perdido", { estado: "PERDIDO" }],
+];
+
+test("ficha: cada caso de siguientePaso con botón sigue teniendo botón en la ficha nueva", () => {
+  const vistos = new Set<string>();
+  for (const [clave, o] of CASOS_PASO) {
+    const c = caso(o);
+    const paso = siguientePaso({ casoId: c.id, estado: c.estado, quotes: c.quotes, lprs: c.lprs, pedidos: c.pedidos, baseUrl: BASE, ahora: AHORA, sesion: c.sesion });
+    assert.equal(paso.clave, clave, `fixture de ${clave}`);
+    vistos.add(paso.clave);
+    const toca = quePasoFicha(c, AHORA, BASE);
+    assert.ok(toca.titulo, clave);
+    if (paso.accion) assert.ok(toca.accion, `${clave}: la ficha se queda sin botón`);
+    else assert.equal(toca.accion, null, clave);
+  }
+  assert.equal(vistos.size, CASOS_PASO.length);
+});
+
+test("ficha: si el caso no está en la mesa, enseña el siguientePaso (cerrados con «Ver pedido»/«Ir al presupuesto»)", () => {
+  for (const clave of ["entregado", "cancelado", "presupuesto_muerto"]) {
+    const c = caso(CASOS_PASO.find(([k]) => k === clave)![1]);
+    assert.equal(clasificarCaso(c, AHORA, BASE), null, clave);
+    const toca = quePasoFicha(c, AHORA, BASE);
+    assert.equal(toca.tarjeta, null);
+    assert.ok(toca.accion?.href, clave);
+  }
+  const enMesa = quePasoFicha(caso(), AHORA, BASE);
+  assert.equal(enMesa.tarjeta?.clave, "sin_nada");
+  assert.equal(enMesa.accion, enMesa.tarjeta?.accion);
+});
+
+test("agenda en Hoy: lo que ya está en «Me toca a mí» no se repite (clave: referencia del pedido)", () => {
+  const pila = [
+    tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ reference: "26_AAA", entregaJuradoAt: antes(2), traductor: "Morton", langPair: "de->es" })] })!,
+    tarjeta({ quotes: [quote({ status: "DRAFT", sentAt: null })] })!,
+  ];
+  assert.equal(pila[0].accion?.href, "/zona-traductor/pedido/26_AAA");
+  const refs = refsDeLaPila(pila);
+  assert.deepEqual([...refs], ["26_AAA"]);
+  assert.deepEqual(fueraDeLaPila([{ ref: "26_AAA" }, { ref: "26_BBB" }], refs).map((i) => i.ref), ["26_BBB"]);
+  const filas = accionesFueraDeLaPila([{ key: "o:26_AAA" }, { key: "o:26_BBB" }, { key: "q:26_AAA" }, { key: null }, {}], refs);
+  assert.deepEqual(filas, [{ key: "o:26_BBB" }, { key: "q:26_AAA" }, { key: null }, {}]);
+  assert.equal(relativo("https://www.traduccionesjuradas.net/zona-traductor/pedido/26_BBB"), "/zona-traductor/pedido/26_BBB");
+  assert.equal(relativo("/admin/inbox"), "/admin/inbox");
+});
+
+test("agenda en Hoy: una alerta de dinero (pagado SIN COSTE) de un pedido que está en «Me toca» no se oculta", () => {
+  const refs = refsDeLaPila([tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ reference: "26_AAA", traductor: null, langPair: "de->es" })] })!]);
+  assert.ok(refs.has("26_AAA"));
+  const filas = consolidate([
+    { stake: 90, urgencia: 5, que: "Pedido 26_AAA pagado SIN TRADUCTOR → asignar", link: "x", key: "o:26_AAA", tier: 0 },
+    { stake: 90, urgencia: 4, que: "Pedido 26_AAA pagado hace 2 d SIN COSTE registrado → ponlo en la ficha", link: "x", key: "o:26_AAA", tier: 0, alertaDinero: true },
+  ]);
+  assert.equal(filas.length, 1);
+  const visibles = accionesFueraDeLaPila(filas, refs);
+  assert.equal(visibles.length, 1);
+  assert.ok([visibles[0].que, ...(visibles[0].extras || [])].some((t) => /SIN COSTE/.test(t)));
+  assert.equal(accionesFueraDeLaPila([{ key: "o:26_AAA", que: "sin traductor" }], refs).length, 0);
 });

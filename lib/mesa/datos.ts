@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { loadLeadSla } from "@/lib/lead-sla";
 import { getTranslatorDeliveredAt } from "@/lib/zona-traductor-data";
 import { QUOTE_PASO_SELECT, LPR_PASO_SELECT, PEDIDO_PASO_SELECT, nombreMiembro, baseUrlStaff, casosVivosWhere } from "@/lib/caso/vista";
-import { clasificarCaso, montarMesa, type CasoMesa, type Mesa, type PedidoMesa } from "@/lib/mesa/montones";
+import { montarMesa, quePasoFicha, type CasoMesa, type Mesa, type PedidoMesa } from "@/lib/mesa/montones";
 import type { SlaLead } from "@/lib/lead-sla-core";
 
 const PEDIDO_MESA_SELECT = {
@@ -132,6 +132,9 @@ export async function cargarFicha(id: string) {
           createdAt: true,
           paidAt: true,
           amountCents: true,
+          supplierCostCents: true,
+          quoteId: true,
+          quote: { select: { total: true, vatAmount: true } },
           paymentMethod: true,
           paymentProofFileKey: true,
           deliveryType: true,
@@ -153,17 +156,19 @@ export async function cargarFicha(id: string) {
         take: 200,
         select: { tipo: true, actor: true, createdAt: true, payload: true },
       },
+      _count: { select: { eventos: { where: { tipo: "comparacion" } } } },
     },
   });
   if (!caso) return null;
   const entradas = await prisma.entrada.findMany({
     where: { casoId: caso.id, estado: { not: "prueba" } },
     orderBy: { createdAt: "asc" },
-    select: { id: true, canal: true, estado: true, organismo: true, pais: true, notas: true, lang: true, createdAt: true },
+    select: { id: true, canal: true, estado: true, casoId: true, email: true, nombre: true, phone9: true, organismo: true, pais: true, notas: true, lang: true, source: true, respuestasJson: true, confirmedAt: true, createdAt: true },
   });
   const { analyses, ...resto } = caso;
   const sesion = [...analyses].reverse().find((a) => a.sessionToken && !a.sessionToken.startsWith("exp:"))?.sessionToken ?? null;
   const mesa: CasoMesa = { ...resto, lprs: caso.priceRequests, pedidos: caso.orders.map(pedidoMesa), sesion };
   const ahora = new Date();
-  return { caso, entradas, mesa, tarjeta: clasificarCaso(mesa, ahora, baseUrlStaff(), nombreMiembro), ahora };
+  const { tarjeta, ...toca } = quePasoFicha(mesa, ahora, baseUrlStaff(), nombreMiembro);
+  return { caso, entradas, mesa, tarjeta, toca, ahora };
 }

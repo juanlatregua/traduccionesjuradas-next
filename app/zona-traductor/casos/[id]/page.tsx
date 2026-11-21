@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import CasoAccionPaso from "@/components/CasoAccionPaso";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
@@ -21,6 +21,8 @@ import { QUOTE_PASO_SELECT, LPR_PASO_SELECT, PEDIDO_PASO_SELECT, nombreMiembro, 
 import { idiomasTexto, plazoTexto, staffLinks } from "@/lib/entrada/aviso";
 import { sessionKeyOf } from "@/lib/entrada/store";
 import { hitosDelCaso, idsPosibles, sesionesDe } from "@/lib/caso/hitos";
+import { margenPedido } from "@/lib/caso/margen";
+import { mesaV2On } from "@/lib/mesa/flag";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Caso",
@@ -40,7 +42,9 @@ const PASO_CLS: Record<GrupoPaso, string> = {
   cerrado: "border-[#D5DAE1] bg-white",
 };
 
+// Ficha antigua: solo vive como kill-switch con MESA_V2=off; si no, la ficha es /zona-traductor/caso/[id].
 export default async function CasoFichaPage({ params }: { params: { id: string } }) {
+  if (mesaV2On()) redirect(`/zona-traductor/caso/${encodeURIComponent(params.id)}`);
   await authZonaTraductorOrRedirect();
 
   const caso = await prisma.caso.findFirst({
@@ -144,8 +148,11 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
   const vigente = quoteVigente(caso.id, caso.quotes) || caso.quotes.filter((q) => !q.deletedAt).slice(-1)[0] || null;
   const pedido = caso.orders[caso.orders.length - 1];
   const traductor = pedido ? pedido.collaboratorAssignments[0]?.collaborator.fullName || pedido.assignedTo : null;
-  const neto = pedido?.quote ? decimalToNumber(pedido.quote.total) - decimalToNumber(pedido.quote.vatAmount) : null;
-  const margen = neto != null && pedido?.supplierCostCents != null ? neto - pedido.supplierCostCents / 100 : null;
+  const { neto, margen } = margenPedido({
+    quoteTotal: pedido?.quote ? decimalToNumber(pedido.quote.total) : null,
+    quoteVat: pedido?.quote ? decimalToNumber(pedido.quote.vatAmount) : null,
+    supplierCostCents: pedido?.supplierCostCents ?? null,
+  });
 
   const DOT: Record<string, string> = { entrada: "bg-sky-400", lavori: "bg-emerald-400", presupuesto: "bg-cyan-400", pedido: "bg-violet-400", alerta: "bg-rose-500", caso: "bg-slate-500" };
 

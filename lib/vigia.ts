@@ -456,7 +456,7 @@ export async function buildVigia(days = 7): Promise<Vigia> {
   // El francés propio cuenta como coste 0 explícito (lib/cierre-math.ts hasCostGap), no como hueco.
   const sinCoste = await findCostGapOrders(NOW).catch((err) => { console.error("[vigia] sinCoste", err); return []; });
   for (const o of sinCoste) {
-    act(o.amountCents / 100, 4, `Pedido ${o.reference} ${eur(o.amountCents / 100)} ${o.langPair || "?"} pagado hace ${daysAgo(o.paidAt) ?? 0} d SIN COSTE registrado (ni coste ni asignación con precio) → ponlo en la ficha`, abs(hrefPedido(o.reference), SITE), { key: `o:${o.reference}`, tier: 0 });
+    act(o.amountCents / 100, 4, `Pedido ${o.reference} ${eur(o.amountCents / 100)} ${o.langPair || "?"} pagado hace ${daysAgo(o.paidAt) ?? 0} d SIN COSTE registrado (ni coste ni asignación con precio) → ponlo en la ficha`, abs(hrefPedido(o.reference), SITE), { key: `o:${o.reference}`, tier: 0, alertaDinero: true });
   }
 
   /* ───────── 4b. Facturas del mes de un mes YA CERRADO sin emitir ───────── */

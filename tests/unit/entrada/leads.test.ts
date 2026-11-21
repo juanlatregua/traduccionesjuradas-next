@@ -18,14 +18,14 @@ test("(c) one entrada is one lead, linked to its caso; sin jurado and empty entr
   assert.equal(leads.length, 1);
   assert.equal(leads[0].sessionToken, "entrada:e1");
   assert.equal(leads[0].fileName, "3 archivos");
-  assert.match(leads[0].link, /\/zona-traductor\/casos\/c1$/);
+  assert.match(leads[0].link, /\/zona-traductor\/caso\/c1$/);
 });
 
 test("(c) lead-sla sees the entrada once and sends Juan to its caso (works with LECTURA_CONSTRUCTOR off)", () => {
   const docs = entradaLeads([entrada()]).map((d) => ({ ...d, estimatedWords: null, quoteAmount: null }));
   const out = selectLeadSla({ now: NOW, docs, inbound: [], solicitudes: [], quotes: [], paidOrders: [] });
   assert.equal(out.length, 1);
-  assert.deepEqual(out[0].links, ["https://www.traduccionesjuradas.net/zona-traductor/casos/c1"]);
+  assert.deepEqual(out[0].links, ["https://www.traduccionesjuradas.net/zona-traductor/caso/c1"]);
 });
 
 test("Juan 2: SIN_JURADO is its own closed state, not a loss, and can reopen", () => {
