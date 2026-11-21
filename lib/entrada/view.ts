@@ -6,6 +6,7 @@ import { sessionKeyOf, type ArchivoRow, type EntradaRow } from "./store.ts";
 export const MAEC_URL = "https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Buscador-STIJ.aspx";
 
 type PartRef = { fileIndex: number; page: number };
+type Part = PartRef;
 export type ReadingExtras = {
   notToTranslate: { parts: PartRef[]; reason: string }[];
   duplicates: { parts: PartRef[] }[];
@@ -25,6 +26,8 @@ export type ClientDocument = {
   ilegible: boolean;
   incluido: boolean;
   motivo: string | null;
+  /** Its pages in reading order, pointing at the client's own files (for the thumbnails). */
+  partes: { archivoId: string; page: number; rol: "pagina" | "anexo" | "apostilla" }[];
 };
 
 export type ClientView = {
@@ -86,6 +89,25 @@ export function ownLote(e: Pick<EntradaRow, "id" | "regla">, lote: Pick<LoteRow,
   return lote.sessionKey === sessionKeyOf(e.id) && e.regla !== "huella" && e.regla !== "contacto";
 }
 
+/** Lote parts (file position + page) → the entrada's archivo ids; parts of files the client no longer has are dropped. */
+export function partesOf(d: Pick<WorkingDocument, "parts" | "annexes" | "apostille">, files: Pick<FileRow, "position" | "url">[], archivos: Pick<ArchivoRow, "id" | "url">[]): ClientDocument["partes"] {
+  const idOf = (fileIndex: number) => {
+    const url = files.find((f) => f.position === fileIndex)?.url;
+    return url ? archivos.find((a) => a.url === url)?.id ?? null : null;
+  };
+  const out: ClientDocument["partes"] = [];
+  const push = (parts: Part[], rol: ClientDocument["partes"][number]["rol"]) => {
+    for (const p of parts) {
+      const archivoId = idOf(p.fileIndex);
+      if (archivoId) out.push({ archivoId, page: p.page, rol });
+    }
+  };
+  push(d.parts, "pagina");
+  for (const a of d.annexes ?? []) push(a.parts, "anexo");
+  push(d.apostille?.parts ?? [], "apostilla");
+  return out;
+}
+
 export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: LoteData | null, extras: ReadingExtras | null, sinJurado: string | null): ClientView {
   const base: ClientView = {
     estado: entrada.estado,
@@ -108,6 +130,7 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
         id: d.id, titulo: labelOf(d), paginas: d.pageCount, apostilla: Boolean(d.apostille),
         faltan: extras?.missing[d.docKey] ?? [],
         ilegible: d.legibility === "illegible", incluido: d.included, motivo: d.included ? null : d.excludedReason,
+        partes: partesOf(d, files, archivos),
       }))
     : [];
   const noIncluidos = fase === "lista"

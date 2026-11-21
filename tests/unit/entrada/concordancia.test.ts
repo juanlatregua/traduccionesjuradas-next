@@ -10,3 +10,19 @@ test("resumen de la lectura: el verbo concuerda con el número de archivos en lo
     assert.match(HILO_T[l].resumenLectura(3, 1), many[l]);
   }
 });
+
+test("vista: cada documento apunta a las páginas de los archivos del cliente (miniaturas)", async () => {
+  const { partesOf } = await import("../../../lib/entrada/view.ts");
+  const files = [{ position: 1, url: "u/a.pdf" }, { position: 2, url: "u/b.jpg" }, { position: 3, url: "u/borrado.jpg" }];
+  const archivos = [{ id: "A", url: "u/a.pdf" }, { id: "B", url: "u/b.jpg" }];
+  const d = {
+    parts: [{ fileIndex: 1, page: 3 }, { fileIndex: 1, page: 4 }, { fileIndex: 3, page: 1 }],
+    annexes: [],
+    apostille: { parts: [{ fileIndex: 2, page: 1 }], onDocumentPage: false, number: null, matchedBy: "weak" as const },
+  };
+  assert.deepEqual(partesOf(d, files, archivos), [
+    { archivoId: "A", page: 3, rol: "pagina" },
+    { archivoId: "A", page: 4, rol: "pagina" },
+    { archivoId: "B", page: 1, rol: "apostilla" },
+  ]);
+});
