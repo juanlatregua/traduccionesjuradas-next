@@ -12,6 +12,7 @@ import {
   baseUrlStaff,
   ESTADO_PILL,
   ESTADO_LABEL,
+  casosVivosWhere,
 } from "@/lib/caso/vista";
 
 export const metadata: Metadata = {
@@ -36,8 +37,6 @@ const GRUPO_CLS: Record<GrupoPaso, string> = {
   cerrado: "border-l-slate-700",
 };
 
-const PAGABLE_DIAS = 14;
-
 const fmt = (d: Date) => d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 type Props = { searchParams?: { f?: string; ver?: string } };
@@ -51,16 +50,7 @@ export default async function CasosBandejaPage({ searchParams }: Props) {
   const casos = await prisma.caso.findMany({
     where: cerrados
       ? { estado: { notIn: ["ABIERTO", "EN_CURSO"] }, lastActivityAt: { gte: new Date(ahora.getTime() - 60 * 864e5) } }
-      : {
-          OR: [
-            { estado: { in: ["ABIERTO", "EN_CURSO"] } },
-            // Perdido por silencio pero con presupuesto aún pagable: se espera al cliente.
-            {
-              estado: "PERDIDO",
-              quotes: { some: { deletedAt: null, supersededAt: null, expiredAt: null, status: { in: ["DRAFT", "SENT", "OPENED", "ACCEPTED"] }, sentAt: { gte: new Date(ahora.getTime() - PAGABLE_DIAS * 864e5) } } },
-            },
-          ],
-        },
+      : casosVivosWhere(ahora),
     orderBy: { lastActivityAt: "desc" },
     take: cerrados ? 100 : 300,
     select: {
