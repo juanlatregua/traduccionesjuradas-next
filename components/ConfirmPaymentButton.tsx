@@ -39,7 +39,7 @@ export default function ConfirmPaymentButton({ reference }: Props) {
   }
 
   if (done) {
-    return <span className="text-xs font-semibold text-bleu-light">Confirmado</span>;
+    return <span className="text-xs font-semibold text-[#1F6B45]">Confirmado</span>;
   }
 
   return (
@@ -48,7 +48,7 @@ export default function ConfirmPaymentButton({ reference }: Props) {
         type="button"
         onClick={() => confirm("BIZUM")}
         disabled={confirming}
-        className="rounded-lg bg-cyan-600 px-2 py-1 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+        className="rounded-lg bg-[#1A2E4A] px-2 py-1 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
       >
         Bizum
       </button>
@@ -56,11 +56,11 @@ export default function ConfirmPaymentButton({ reference }: Props) {
         type="button"
         onClick={() => confirm("TRANSFER")}
         disabled={confirming}
-        className="rounded-lg bg-bleu px-2 py-1 text-xs font-semibold text-white hover:bg-parchment0 disabled:opacity-50"
+        className="rounded-lg bg-[#1A2E4A] px-2 py-1 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
       >
         Transf.
       </button>
-      {error && <span className="text-xs text-red-400">{error}</span>}
+      {error && <span className="text-xs text-[#A12B2B]">{error}</span>}
     </div>
   );
 }

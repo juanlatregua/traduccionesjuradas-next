@@ -78,26 +78,26 @@ export default function OrderWorkflowPanel({ reference, currentState }: Props) {
   if (!parsedCurrent) {
     return (
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">Workflow operativo</p>
-        <p className="mt-2 text-sm text-slate-400">No hay estado de workflow reconocido para este pedido.</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Workflow operativo</p>
+        <p className="mt-2 text-sm text-[#52606D]">No hay estado de workflow reconocido para este pedido.</p>
       </div>
     );
   }
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">Workflow operativo</p>
-      <p className="mt-2 text-xs text-slate-400">
-        Estado actual: <span className="font-semibold text-slate-200">{getWorkflowStateLabel(parsedCurrent)}</span>
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Workflow operativo</p>
+      <p className="mt-2 text-xs text-[#52606D]">
+        Estado actual: <span className="font-semibold text-[#1F2933]">{getWorkflowStateLabel(parsedCurrent)}</span>
       </p>
       {nextStates.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-400">No hay transiciones pendientes.</p>
+        <p className="mt-3 text-sm text-[#52606D]">No hay transiciones pendientes.</p>
       ) : (
         <div className="mt-3 space-y-2">
           <select
             value={nextState}
             onChange={(e) => setNextState(e.target.value as WorkflowState)}
-            className="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+            className="w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
           >
             {nextStates.map((state) => (
               <option key={state} value={state}>
@@ -109,15 +109,15 @@ export default function OrderWorkflowPanel({ reference, currentState }: Props) {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Motivo operativo de la transición"
-            className="h-16 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100"
+            className="h-16 w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]"
           />
           {canNotifyClient && (
-            <label className="flex items-center gap-2 text-xs text-slate-300">
+            <label className="flex items-center gap-2 text-xs text-[#1F2933]">
               <input
                 type="checkbox"
                 checked={notifyClient}
                 onChange={(e) => setNotifyClient(e.target.checked)}
-                className="rounded border-slate-500"
+                className="rounded border-[#D5DAE1]"
               />
               Notificar al cliente con enlace de pago
             </label>
@@ -126,13 +126,13 @@ export default function OrderWorkflowPanel({ reference, currentState }: Props) {
             type="button"
             onClick={submitTransition}
             disabled={loading || !nextState}
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-60"
+            className="rounded-lg bg-[#1A2E4A] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-60"
           >
             {loading ? "Guardando..." : "Aplicar transición"}
           </button>
         </div>
       )}
-      {message && <p className="mt-2 text-xs font-semibold text-slate-200">{message}</p>}
+      {message && <p className="mt-2 text-xs font-semibold text-[#1F2933]">{message}</p>}
     </div>
   );
 }

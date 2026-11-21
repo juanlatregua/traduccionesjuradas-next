@@ -113,12 +113,12 @@ export default function ClientMessageComposer({
   };
 
   const inputCls =
-    "w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
+    "w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]";
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-slate-400">
-        Se envía a <strong className="text-slate-200">{clientEmail || "(sin email)"}</strong>. Escribe
+      <p className="text-xs text-[#52606D]">
+        Se envía a <strong className="text-[#1F2933]">{clientEmail || "(sin email)"}</strong>. Escribe
         lo que necesites: pedir información, avisar de la entrega, reenviar enlaces…
       </p>
 
@@ -149,27 +149,27 @@ export default function ClientMessageComposer({
           onClick={improveWithAi}
           disabled={aiLoading}
           title="Reescribe el asunto y el cuerpo con IA usando los datos del pedido. No envía nada."
-          className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-60"
+          className="rounded-lg bg-[#1A2E4A] px-3 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-60"
         >
           {aiLoading ? "Generando…" : "Ajustar con IA"}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1.5">
-        <label className="flex items-center gap-2 text-xs text-slate-300">
+        <label className="flex items-center gap-2 text-xs text-[#1F2933]">
           <input
             type="checkbox"
             checked={attachFiles}
             onChange={(e) => setAttachFiles(e.target.checked)}
           />
           Adjuntar traducciones
-          {hasDeliveryFiles ? "" : <span className="text-amber-300"> — aún no hay traducción subida: saldría SIN PDF</span>}
+          {hasDeliveryFiles ? "" : <span className="text-[#7A5A10]"> — aún no hay traducción subida: saldría SIN PDF</span>}
         </label>
-        <label className="flex items-center gap-2 text-xs text-slate-300">
+        <label className="flex items-center gap-2 text-xs text-[#1F2933]">
           <input type="checkbox" checked={attachInvoice} onChange={(e) => setAttachInvoice(e.target.checked)} />
           Adjuntar factura (si está emitida)
         </label>
-        <label className="flex items-center gap-2 text-xs text-slate-300">
+        <label className="flex items-center gap-2 text-xs text-[#1F2933]">
           <input type="checkbox" checked={alsoSms} onChange={(e) => setAlsoSms(e.target.checked)} />
           Enviar también por SMS (si hay teléfono)
         </label>
@@ -181,7 +181,7 @@ export default function ClientMessageComposer({
           onClick={sendEmail}
           disabled={sending || isWaLead}
           title={isWaLead ? "Cliente sin email real (lead de WhatsApp)" : "Enviar por email (adjuntos y SMS según casillas)"}
-          className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {sending ? "Enviando…" : "Enviar email"}
         </button>
@@ -191,22 +191,22 @@ export default function ClientMessageComposer({
             href={waHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+            className="rounded-lg bg-[#1F6B45] px-4 py-2 text-sm font-semibold text-white hover:bg-[#185738]"
           >
             Abrir WhatsApp
           </a>
         ) : (
-          <span className="text-xs text-slate-500">Sin teléfono para WhatsApp.</span>
+          <span className="text-xs text-[#52606D]">Sin teléfono para WhatsApp.</span>
         )}
       </div>
 
       {isWaLead && (
-        <p className="text-[11px] text-amber-300">
+        <p className="text-[11px] text-[#7A5A10]">
           Este cliente no tiene email real (@whatsapp.local) → envíalo por WhatsApp (los PDF los adjuntas tú).
         </p>
       )}
       {feedback && (
-        <p className={`text-xs font-medium ${feedback.ok ? "text-emerald-300" : "text-amber-300"}`}>
+        <p className={`text-xs font-medium ${feedback.ok ? "text-[#1F6B45]" : "text-[#7A5A10]"}`}>
           {feedback.text}
         </p>
       )}

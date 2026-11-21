@@ -45,11 +45,11 @@ type Props = {
 };
 
 const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  REQUESTED: { label: "Enviado", cls: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-  QUOTED: { label: "Presupuestado", cls: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-  ACCEPTED: { label: "Aceptado", cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-  QUOTE_REVISION_REQUESTED: { label: "Revisión solicitada", cls: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
-  REJECTED: { label: "Rechazado", cls: "bg-red-500/20 text-red-300 border-red-500/30" },
+  REQUESTED: { label: "Enviado", cls: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]" },
+  QUOTED: { label: "Presupuestado", cls: "bg-[#FFF8E6] text-[#7A5A10] border-[#E9D8A6]" },
+  ACCEPTED: { label: "Aceptado", cls: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]" },
+  QUOTE_REVISION_REQUESTED: { label: "Revisión solicitada", cls: "bg-[#FFF8E6] text-[#7A5A10] border-[#E9D8A6]" },
+  REJECTED: { label: "Rechazado", cls: "bg-[#FDF2F2] text-[#A12B2B] border-[#F0C9C9]" },
   DELIVERED: { label: "Entregado", cls: "bg-lime-500/20 text-lime-300 border-lime-500/30" },
 };
 
@@ -374,7 +374,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       {/* Fase 2: comparativa de ofertas en concurso */}
       {quotedBids.length > 1 && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">
             Ofertas en concurso ({quotedBids.length})
           </p>
           <div className="mt-3 space-y-2">
@@ -385,22 +385,22 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                   key={`bid-${a.id}`}
                   className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 ${
                     isSuggested
-                      ? "border-emerald-500/50 bg-emerald-500/10"
-                      : "border-slate-700 bg-slate-950/70"
+                      ? "border-[#BFE0CC] bg-[#EEF7F1]"
+                      : "border-[#D5DAE1] bg-[#F6F7F9]"
                   }`}
                 >
                   <div>
-                    <p className="text-sm font-semibold text-slate-100">
+                    <p className="text-sm font-semibold text-[#1F2933]">
                       {a.collaborator.fullName}
                       {isSuggested && (
-                        <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300">
+                        <span className="ml-2 rounded-full bg-[#EEF7F1] px-2 py-0.5 text-[10px] font-bold uppercase text-[#1F6B45]">
                           Sugerida
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-[#52606D]">
                       {a.quotedPriceCents !== null && (
-                        <strong className="text-slate-200">{(a.quotedPriceCents / 100).toFixed(2)} €</strong>
+                        <strong className="text-[#1F2933]">{(a.quotedPriceCents / 100).toFixed(2)} €</strong>
                       )}
                       {a.quotedDeadline && (
                         <> · Plazo {new Date(a.quotedDeadline).toLocaleDateString("es-ES")}</>
@@ -411,7 +411,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                     type="button"
                     onClick={() => handleSelectBid(a.id, a.quotedPriceCents)}
                     disabled={selectingBidId !== null}
-                    className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                    className="rounded-lg bg-[#1F6B45] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#185738] disabled:opacity-50"
                   >
                     {selectingBidId === a.id ? "Procesando..." : "Elegir y calcular precio"}
                   </button>
@@ -425,7 +425,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       {/* Existing assignments */}
       {assignments.length > 0 && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#7A5A10]">
             Encargos enviados
           </p>
           <div className="mt-3 space-y-3">
@@ -434,14 +434,14 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
               return (
                 <div
                   key={a.id}
-                  className="rounded-xl border border-slate-700 bg-slate-950/70 p-4"
+                  className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-slate-100">
+                      <p className="text-sm font-semibold text-[#1F2933]">
                         {a.collaborator.fullName}
                       </p>
-                      <p className="text-xs text-slate-400">{a.collaborator.email}</p>
+                      <p className="text-xs text-[#52606D]">{a.collaborator.email}</p>
                     </div>
                     <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${statusInfo.cls}`}>
                       {statusInfo.label}
@@ -449,9 +449,9 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                   </div>
 
                   {a.adminNotes && (
-                    <div className="mt-2 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2">
-                      <span className="text-xs font-medium text-slate-400">Notas internas: </span>
-                      <span className="text-xs text-slate-300">{a.adminNotes}</span>
+                    <div className="mt-2 rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2">
+                      <span className="text-xs font-medium text-[#52606D]">Notas internas: </span>
+                      <span className="text-xs text-[#1F2933]">{a.adminNotes}</span>
                     </div>
                   )}
 
@@ -461,7 +461,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                         type="button"
                         onClick={() => handleResendEmail(a.id)}
                         disabled={actionLoading === a.id}
-                        className="rounded-lg border border-blue-500/40 px-3 py-1.5 text-xs font-semibold text-blue-300 hover:bg-blue-500/10 disabled:opacity-50"
+                        className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-50"
                       >
                         {actionLoading === a.id ? "Reenviando..." : "Reenviar email"}
                       </button>
@@ -469,15 +469,15 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                   )}
 
                   {a.status === "QUOTED" && a.quotedPriceCents !== null && (
-                    <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-                      <p className="text-sm text-amber-200">
+                    <div className="mt-3 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] p-3">
+                      <p className="text-sm text-[#7A5A10]">
                         Precio: <strong>{(a.quotedPriceCents / 100).toFixed(2)} €</strong>
                         {a.quotedDeadline && (
                           <> · Plazo: <strong>{new Date(a.quotedDeadline).toLocaleDateString("es-ES")}</strong></>
                         )}
                       </p>
                       {a.collaboratorNotes && (
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-[#52606D]">
                           Notas: {a.collaboratorNotes}
                         </p>
                       )}
@@ -486,7 +486,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                           type="button"
                           onClick={() => handleAction(a.id, "accept", undefined, a.quotedPriceCents)}
                           disabled={actionLoading === a.id}
-                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                          className="rounded-lg bg-[#1F6B45] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#185738] disabled:opacity-50"
                         >
                           Aceptar
                         </button>
@@ -495,14 +495,14 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                             <button
                               type="button"
                               onClick={() => { setRevisingId(a.id); setRejectingId(null); }}
-                              className="rounded-lg border border-orange-500/40 px-3 py-1.5 text-xs font-semibold text-orange-300 hover:bg-orange-500/10"
+                              className="rounded-lg border border-[#E9D8A6] px-3 py-1.5 text-xs font-semibold text-[#7A5A10] hover:bg-[#FFF8E6]"
                             >
                               Solicitar revisión
                             </button>
                             <button
                               type="button"
                               onClick={() => { setRejectingId(a.id); setRevisingId(null); }}
-                              className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/10"
+                              className="rounded-lg border border-[#F0C9C9] px-3 py-1.5 text-xs font-semibold text-[#A12B2B] hover:bg-[#FDF2F2]"
                             >
                               Rechazar
                             </button>
@@ -517,21 +517,21 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                             placeholder="Motivo de la revisión (opcional, se envía al colaborador)"
                             rows={2}
                             maxLength={500}
-                            className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs text-slate-200"
+                            className="w-full rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-xs text-[#1F2933]"
                           />
                           <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => handleRevisionRequest(a.id)}
                               disabled={actionLoading === a.id}
-                              className="rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-500 disabled:opacity-50"
+                              className="rounded-lg bg-[#7A5A10] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#654A0D] disabled:opacity-50"
                             >
                               Confirmar solicitud de revisión
                             </button>
                             <button
                               type="button"
                               onClick={() => { setRevisingId(null); setRevisionReason(""); }}
-                              className="text-xs text-slate-400 hover:text-slate-200"
+                              className="text-xs text-[#52606D] hover:text-[#1F2933]"
                             >
                               Cancelar
                             </button>
@@ -546,21 +546,21 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                             placeholder="Motivo del rechazo (opcional)"
                             rows={2}
                             maxLength={500}
-                            className="w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs text-slate-200"
+                            className="w-full rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-xs text-[#1F2933]"
                           />
                           <div className="flex gap-2">
                             <button
                               type="button"
                               onClick={() => handleAction(a.id, "reject", rejectReason)}
                               disabled={actionLoading === a.id}
-                              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+                              className="rounded-lg bg-[#A12B2B] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#8A2323] disabled:opacity-50"
                             >
                               Confirmar rechazo
                             </button>
                             <button
                               type="button"
                               onClick={() => { setRejectingId(null); setRejectReason(""); }}
-                              className="text-xs text-slate-400 hover:text-slate-200"
+                              className="text-xs text-[#52606D] hover:text-[#1F2933]"
                             >
                               Cancelar
                             </button>
@@ -571,32 +571,32 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                   )}
 
                   {a.status === "QUOTE_REVISION_REQUESTED" && (
-                    <div className="mt-3 rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
-                      <p className="text-sm text-orange-200">
+                    <div className="mt-3 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] p-3">
+                      <p className="text-sm text-[#7A5A10]">
                         Revisión de presupuesto solicitada
                       </p>
                       {a.quotedPriceCents !== null && (
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-[#52606D]">
                           Precio anterior: <strong>{(a.quotedPriceCents / 100).toFixed(2)} €</strong>
                         </p>
                       )}
                       {a.revisionReason && (
-                        <p className="mt-1 text-xs text-slate-400">
+                        <p className="mt-1 text-xs text-[#52606D]">
                           Motivo: {a.revisionReason}
                         </p>
                       )}
-                      <p className="mt-2 text-xs text-orange-300/70">
+                      <p className="mt-2 text-xs text-[#7A5A10]">
                         Esperando respuesta del colaborador...
                       </p>
                     </div>
                   )}
 
                   {a.status === "DELIVERED" && a.deliveredFileUrl && (
-                    <div className="mt-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2">
-                      <p className="text-xs text-emerald-300">
+                    <div className="mt-3 rounded-lg border border-[#BFE0CC] bg-[#EEF7F1] px-3 py-2">
+                      <p className="text-xs text-[#1F6B45]">
                         Archivo entregado por {a.collaborator.fullName}
                         {a.deliveredAt && (
-                          <span className="ml-2 text-emerald-400/60">
+                          <span className="ml-2 text-[#1F6B45]">
                             {new Date(a.deliveredAt).toLocaleString("es-ES")}
                           </span>
                         )}
@@ -606,14 +606,14 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                           href={a.deliveredFileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs font-semibold text-emerald-300 underline"
+                          className="text-xs font-semibold text-[#1F6B45] underline"
                         >
                           Descargar: {a.deliveredFilename || "Archivo entregado"}
                         </a>
-                        <span className="text-slate-500">·</span>
+                        <span className="text-[#52606D]">·</span>
                         <a
                           href={`/zona-traductor/pedido/${reference}`}
-                          className="text-xs font-semibold text-cyan-300 underline"
+                          className="text-xs font-semibold text-[#1A2E4A] underline"
                         >
                           Abrir pedido
                         </a>
@@ -622,7 +622,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                   )}
 
                   {a.status === "REJECTED" && a.rejectionReason && (
-                    <p className="mt-2 text-xs text-red-300/70">
+                    <p className="mt-2 text-xs text-[#A12B2B]">
                       Motivo: {a.rejectionReason}
                     </p>
                   )}
@@ -634,15 +634,15 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
       )}
 
       {/* Fase 2: broadcast competitivo — pedir presupuesto a todos los del idioma */}
-      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+      <div className="rounded-xl border border-[#BFE0CC] bg-[#EEF7F1] p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">
           Solicitar cotización a colaboradores
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-[#52606D]">
           Envía la petición de presupuesto a todos los colaboradores activos del idioma del pedido a la vez. El francés se asigna directo a Juan Silva.
         </p>
         {broadcastMsg && (
-          <p role="status" className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+          <p role="status" className="mt-2 rounded-lg border border-[#BFE0CC] bg-[#EEF7F1] px-3 py-2 text-xs text-[#1F6B45]">
             {broadcastMsg}
           </p>
         )}
@@ -650,7 +650,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
           type="button"
           onClick={handleBroadcast}
           disabled={broadcasting}
-          className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="mt-3 rounded-lg bg-[#1F6B45] px-4 py-2 text-sm font-semibold text-white hover:bg-[#185738] disabled:opacity-50"
         >
           {broadcasting ? "Solicitando..." : "Solicitar cotización a todos"}
         </button>
@@ -658,11 +658,11 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
 
       {/* Puente lavori: solicitud de precio dirigida (adenda 11-ago-2026) */}
       {lavoriRoute && (
-        <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">
+        <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">
             Solicitar precio vía lavori
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-[#52606D]">
             Envía los documentos del pedido a jurados de {lavoriRoute.par} en lavori como
             solicitud de precio: el traductor los ve en su encargo y propone su precio. El aviso
             le llega desde hola@lavori.es (el motor nunca escribe al traductor).
@@ -677,7 +677,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
             />
           </div>
           {lavoriMsg && (
-            <p role="status" className="mt-2 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-xs text-violet-300">
+            <p role="status" className="mt-2 rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-xs text-[#1A2E4A]">
               {lavoriMsg}
             </p>
           )}
@@ -685,7 +685,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
             type="button"
             onClick={handleLavoriPriceRequest}
             disabled={lavoriSending}
-            className="mt-3 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+            className="mt-3 rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
           >
             {lavoriSending ? "Enviando..." : "Solicitar precio vía lavori"}
           </button>
@@ -694,16 +694,16 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
 
       {/* New assignment form */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">
           Enviar nuevo encargo
         </p>
         <form onSubmit={handleSendAssignment} className="mt-3 space-y-3">
           <div>
-            <label htmlFor="collaborator-select" className="block text-xs font-medium text-slate-300">
+            <label htmlFor="collaborator-select" className="block text-xs font-medium text-[#1F2933]">
               Colaborador
             </label>
             {collaboratorsError ? (
-              <p role="alert" className="mt-1 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+              <p role="alert" className="mt-1 rounded-lg border border-[#F0C9C9] bg-[#FDF2F2] px-3 py-2 text-xs text-[#A12B2B]">
                 {collaboratorsError}
               </p>
             ) : (
@@ -711,7 +711,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
                 id="collaborator-select"
                 value={selectedId}
                 onChange={(e) => setSelectedId(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+                className="mt-1 block w-full rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-sm text-[#1F2933]"
               >
                 <option value="">Seleccionar colaborador...</option>
                 {collaborators.map((c) => (
@@ -724,7 +724,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
           </div>
 
           <div>
-            <label htmlFor="admin-notes" className="block text-xs font-medium text-slate-300">
+            <label htmlFor="admin-notes" className="block text-xs font-medium text-[#1F2933]">
               Notas para el colaborador (opcional)
             </label>
             <textarea
@@ -734,12 +734,12 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
               rows={2}
               maxLength={1000}
               placeholder="Instrucciones especiales, urgencia, etc."
-              className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+              className="mt-1 block w-full rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-sm text-[#1F2933]"
             />
           </div>
 
           <div>
-            <label htmlFor="agreed-price" className="block text-xs font-medium text-slate-300">
+            <label htmlFor="agreed-price" className="block text-xs font-medium text-[#1F2933]">
               Precio ya pactado (€ sin IVA, opcional)
             </label>
             <input
@@ -749,12 +749,12 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
               value={agreedPrice}
               onChange={(e) => setAgreedPrice(e.target.value)}
               placeholder="Si ya lo hablaste con el traductor: lo asigna directamente"
-              className="mt-1 block w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-slate-200"
+              className="mt-1 block w-full rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-sm text-[#1F2933]"
             />
           </div>
 
           {error && (
-            <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            <p role="alert" className="rounded-lg border border-[#F0C9C9] bg-[#FDF2F2] px-3 py-2 text-xs text-[#A12B2B]">
               {error}
             </p>
           )}
@@ -762,7 +762,7 @@ export default function CollaboratorAssignmentPanel({ reference, langPair, assig
           <button
             type="submit"
             disabled={sending || !selectedId || !!collaboratorsError}
-            className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
+            className="rounded-lg bg-[#7A5A10] px-4 py-2 text-sm font-semibold text-white hover:bg-[#654A0D] disabled:opacity-50"
           >
             {sending ? "Enviando..." : agreedPrice.trim() ? "Asignar con precio pactado" : "Enviar encargo (pedir precio)"}
           </button>

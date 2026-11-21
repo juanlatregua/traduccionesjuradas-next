@@ -45,17 +45,17 @@ type Props = {
   breakdown: PedidosBreakdown;
 };
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400";
-const CTRL = `rounded-lg border border-slate-600 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-100 hover:border-slate-400 ${FOCUS}`;
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2E4A]";
+const CTRL = `rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:border-[#52606D] ${FOCUS}`;
 const eur = (cents: number) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(cents / 100);
 
 function Delta({ label, metric, value, prev }: { label: string; metric: Metric; value: number; prev: number | undefined }) {
   const d = formatDelta(metric, value, prev);
-  if (!d) return <p className="mt-1 text-xs text-slate-500">Sin base de comparación</p>;
-  const tone = d.sign > 0 ? "text-emerald-400" : d.sign < 0 ? "text-red-400" : "text-slate-400";
+  if (!d) return <p className="mt-1 text-xs text-[#52606D]">Sin base de comparación</p>;
+  const tone = d.sign > 0 ? "text-[#1F6B45]" : d.sign < 0 ? "text-[#A12B2B]" : "text-[#52606D]";
   return (
     <p className={`mt-1 text-xs tabular-nums ${tone}`}>
-      {d.sign > 0 ? "▲" : d.sign < 0 ? "▼" : "■"} {d.text} <span className="text-slate-500">{label}</span>
+      {d.sign > 0 ? "▲" : d.sign < 0 ? "▼" : "■"} {d.text} <span className="text-[#52606D]">{label}</span>
     </p>
   );
 }
@@ -78,11 +78,11 @@ function Kpi({
       href={href}
       aria-current={active ? "true" : undefined}
       className={`min-w-0 rounded-2xl border p-4 transition-colors ${FOCUS} ${
-        active ? "border-cyan-400 bg-cyan-500/10" : "border-slate-700 bg-slate-800/60 hover:border-slate-500"
+        active ? "border-[#D5DAE1] bg-[#F6F7F9]" : "border-[#D5DAE1] bg-[#F6F7F9] hover:border-[#52606D]"
       }`}
     >
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-1 truncate text-2xl font-bold tabular-nums text-white">{value}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#52606D]">{label}</p>
+      <p className="mt-1 truncate text-2xl font-bold tabular-nums text-[#1A2E4A]">{value}</p>
       {children}
     </Link>
   );
@@ -102,9 +102,9 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
     { n: alerts.riesgo, text: `Riesgo financiero ${alerts.riesgo}`, f: "riesgo-financiero", tone: "red" },
   ].filter((c) => c.n > 0);
   const tones: Record<string, string> = {
-    rose: "border-rose-500/50 bg-rose-500/10 text-rose-300",
-    amber: "border-amber-500/50 bg-amber-500/10 text-amber-300",
-    red: "border-red-500/50 bg-red-500/10 text-red-300",
+    rose: "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]",
+    amber: "border-[#E9D8A6] bg-[#FFF8E6] text-[#7A5A10]",
+    red: "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]",
   };
 
   const bmetric = BREAKDOWN_METRICS.find((m) => m.key === breakdown.metric)!;
@@ -133,7 +133,7 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
               href={link({ p: g.value, d: g.value === "dia" ? todayMadrid() : anchor })}
               aria-current={g.value === p ? "page" : undefined}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${FOCUS} ${
-                g.value === p ? "bg-cyan-600 text-white" : "border border-slate-600 bg-slate-900 text-slate-100 hover:border-slate-400"
+                g.value === p ? "bg-[#1A2E4A] text-white" : "border border-[#D5DAE1] bg-[#fff] text-[#1F2933] hover:border-[#52606D]"
               }`}
             >
               {g.label}
@@ -146,7 +146,7 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
               <Link href={link({ p, d: shiftAnchor(p as Granularity, anchor, -1) })} aria-label="Periodo anterior" className={CTRL}>
                 ←
               </Link>
-              <span className="min-w-[8rem] text-center text-sm font-medium capitalize tabular-nums text-white" aria-live="polite">
+              <span className="min-w-[8rem] text-center text-sm font-medium capitalize tabular-nums text-[#1A2E4A]" aria-live="polite">
                 {period.label}
               </span>
               <Link href={link({ p, d: shiftAnchor(p as Granularity, anchor, 1) })} aria-label="Periodo siguiente" className={CTRL}>
@@ -154,13 +154,13 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
               </Link>
             </>
           ) : (
-            <span className="px-2 text-sm font-medium text-white">Todo el histórico</span>
+            <span className="px-2 text-sm font-medium text-[#1A2E4A]">Todo el histórico</span>
           )}
         </div>
         <Link
           href={link({ base: dateBase === "paid" ? "created" : "paid" })}
           className={`ml-auto rounded-lg border px-3 py-1.5 text-xs font-semibold ${FOCUS} ${
-            dateBase === "paid" ? "border-cyan-400 bg-cyan-500/10 text-cyan-300" : "border-slate-600 text-slate-300 hover:border-slate-400"
+            dateBase === "paid" ? "border-[#D5DAE1] bg-[#F6F7F9] text-[#1A2E4A]" : "border-[#D5DAE1] text-[#1F2933] hover:border-[#52606D]"
           }`}
           title="La tabla filtra por la fecha del pedido; con esto, por la fecha de cobro"
         >
@@ -177,7 +177,7 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
               <Delta label={cmp} metric="ingresos_netos" value={money.cobrado.value} prev={money.cobrado.prev} />
             </Kpi>
             <Kpi href={cobradoHref} active={false} label="Margen" value={formatValue("margen_eur", money.margenEur.value)}>
-              <p className="mt-1 text-xs tabular-nums text-slate-300">{formatValue("margen_pct", money.margenPct)}</p>
+              <p className="mt-1 text-xs tabular-nums text-[#1F2933]">{formatValue("margen_pct", money.margenPct)}</p>
               <Delta label={cmp} metric="margen_eur" value={money.margenEur.value} prev={money.margenEur.prev} />
             </Kpi>
           </>
@@ -186,13 +186,13 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
           <Delta label={cmp} metric="pedidos" value={kpis.nuevos.value} prev={kpis.nuevos.prev} />
         </Kpi>
         <Kpi href={stock("por-entregar")} active={filtro === "por-entregar"} label="Por entregar" value={String(kpis.porEntregar.count)}>
-          <p className="mt-1 text-xs text-slate-300">
+          <p className="mt-1 text-xs text-[#1F2933]">
             {kpis.porEntregar.vencenPronto} vence{kpis.porEntregar.vencenPronto === 1 ? "" : "n"} hoy o mañana
-            {kpis.porEntregar.vencidos > 0 && <span className="text-red-400"> · {kpis.porEntregar.vencidos} vencido{kpis.porEntregar.vencidos === 1 ? "" : "s"}</span>}
+            {kpis.porEntregar.vencidos > 0 && <span className="text-[#A12B2B]"> · {kpis.porEntregar.vencidos} vencido{kpis.porEntregar.vencidos === 1 ? "" : "s"}</span>}
           </p>
         </Kpi>
         <Kpi href={stock("por-cobrar")} active={filtro === "por-cobrar"} label="Por cobrar" value={String(kpis.porCobrar.count)}>
-          <p className="mt-1 text-xs tabular-nums text-slate-300">{eur(kpis.porCobrar.cents)} con IVA, pendientes y crédito</p>
+          <p className="mt-1 text-xs tabular-nums text-[#1F2933]">{eur(kpis.porCobrar.cents)} con IVA, pendientes y crédito</p>
         </Kpi>
       </div>
 
@@ -207,27 +207,27 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
       )}
 
       {money && (
-        <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Cobrado sin IVA {period ? `por ${p === "dia" ? "hora" : p === "semana" || p === "mes" ? "día" : "mes"}` : ""}</p>
+        <div className="rounded-2xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#52606D]">Cobrado sin IVA {period ? `por ${p === "dia" ? "hora" : p === "semana" || p === "mes" ? "día" : "mes"}` : ""}</p>
           <div className="mt-2">
-            {money.chart ? <MiniBars data={money.chart} title="Cobrado sin IVA" /> : <p className="py-6 text-center text-xs text-slate-500">Elige un periodo para ver la gráfica.</p>}
+            {money.chart ? <MiniBars data={money.chart} title="Cobrado sin IVA" /> : <p className="py-6 text-center text-xs text-[#52606D]">Elige un periodo para ver la gráfica.</p>}
           </div>
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-4">
+      <div className="rounded-2xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Ver por</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#52606D]">Ver por</p>
           <div className="flex flex-wrap gap-1" role="group" aria-label="Ver por">
             {SLICERS.map((s) => (
-              <Link key={s.key} href={link({ ver: s.key })} aria-current={s.key === breakdown.slicer ? "true" : undefined} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${FOCUS} ${s.key === breakdown.slicer ? "bg-cyan-600 text-white" : "border border-slate-600 text-slate-200 hover:border-slate-400"}`}>
+              <Link key={s.key} href={link({ ver: s.key })} aria-current={s.key === breakdown.slicer ? "true" : undefined} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${FOCUS} ${s.key === breakdown.slicer ? "bg-[#1A2E4A] text-white" : "border border-[#D5DAE1] text-[#1F2933] hover:border-[#52606D]"}`}>
                 {s.label}
               </Link>
             ))}
           </div>
           <div className="flex flex-wrap gap-1 sm:ml-auto" role="group" aria-label="Métrica">
             {BREAKDOWN_METRICS.filter((m) => breakdown.allowed.includes(m.key)).map((m) => (
-              <Link key={m.key} href={link({ met: m.key })} aria-current={m.key === breakdown.metric ? "true" : undefined} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${FOCUS} ${m.key === breakdown.metric ? "bg-emerald-600 text-white" : "border border-slate-600 text-slate-200 hover:border-slate-400"}`}>
+              <Link key={m.key} href={link({ met: m.key })} aria-current={m.key === breakdown.metric ? "true" : undefined} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${FOCUS} ${m.key === breakdown.metric ? "bg-[#1F6B45] text-white" : "border border-[#D5DAE1] text-[#1F2933] hover:border-[#52606D]"}`}>
                 {m.label}
               </Link>
             ))}
@@ -241,7 +241,7 @@ export default function PedidosHeader({ p, explicit, period, dateBase, filtro, q
             rows={rowViews}
           />
         </div>
-        <Link href="/zona-traductor/panel" className={`mt-3 inline-block text-xs font-semibold text-cyan-300 underline ${FOCUS}`}>
+        <Link href="/zona-traductor/panel" className={`mt-3 inline-block text-xs font-semibold text-[#1A2E4A] underline ${FOCUS}`}>
           Ver todo en el Panel
         </Link>
       </div>
