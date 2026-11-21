@@ -4,6 +4,7 @@ import { fmtNeededBy } from "../needed-by.ts";
 import { isRegularizacion } from "./fr-auto.ts";
 import { sessionKeyOf, type EntradaRow } from "./store.ts";
 import { langName } from "./view.ts";
+import { abs, hrefCaso, hrefConstructor } from "../staff-links.ts";
 
 const SITE = "https://www.traduccionesjuradas.net";
 
@@ -16,8 +17,8 @@ export function staffLinks(e: Pick<EntradaRow, "id" | "casoId" | "email" | "nomb
   if (e.nombre) q.set("customerName", e.nombre);
   if (e.phone9) q.set("customerPhone", e.phone9);
   return {
-    caso: e.casoId ? `${SITE}/zona-traductor/casos/${encodeURIComponent(e.casoId)}` : null,
-    builder: `${SITE}/zona-traductor/presupuesto?${q.toString()}`,
+    caso: e.casoId ? abs(hrefCaso(e.casoId), SITE) : null,
+    builder: abs(hrefConstructor(q), SITE),
   };
 }
 

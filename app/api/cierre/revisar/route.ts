@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { verifyCierreToken } from "@/lib/cierre-token";
+import { abs, hrefPresupuesto, hrefVigia } from "@/lib/staff-links";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,6 @@ export async function GET(req: Request) {
   const q = String(url.searchParams.get("q") || "").slice(0, 80);
   const t = String(url.searchParams.get("t") || "").slice(0, 120);
   const base = (process.env.NEXTAUTH_URL || url.origin).replace(/\/$/, "");
-  if (!verifyCierreToken(q, t)) return NextResponse.redirect(`${base}/zona-traductor/vigia`, 302);
-  return NextResponse.redirect(`${base}/zona-traductor/presupuestos/${encodeURIComponent(q)}`, 302);
+  if (!verifyCierreToken(q, t)) return NextResponse.redirect(abs(hrefVigia(), base), 302);
+  return NextResponse.redirect(abs(hrefPresupuesto(encodeURIComponent(q)), base), 302);
 }

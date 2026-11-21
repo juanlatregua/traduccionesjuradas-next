@@ -41,9 +41,9 @@ export default function ClientAccessLink({ email }: { email: string }) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-5">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Acceso del cliente</h2>
-      <p className="mt-1 text-sm text-slate-400">
+    <div className="rounded-2xl border border-[#D5DAE1] bg-white p-5">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Acceso del cliente</h2>
+      <p className="mt-1 text-sm text-[#52606D]">
         Enlace personal a su zona (presupuestos, pedidos, facturas y descargas). Cópialo para WhatsApp o envíalo por email.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -51,7 +51,7 @@ export default function ClientAccessLink({ email }: { email: string }) {
           type="button"
           onClick={() => fetchUrl(false)}
           disabled={busy}
-          className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+          className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
         >
           {busy ? "…" : "Copiar enlace de acceso"}
         </button>
@@ -60,7 +60,7 @@ export default function ClientAccessLink({ email }: { email: string }) {
             type="button"
             onClick={() => fetchUrl(true)}
             disabled={busy}
-            className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+            className="rounded-lg border border-[#D5DAE1] px-4 py-2 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50"
           >
             Enviar por email
           </button>
@@ -71,10 +71,10 @@ export default function ClientAccessLink({ email }: { email: string }) {
           readOnly
           value={url}
           onFocus={(e) => e.currentTarget.select()}
-          className="mt-3 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-300"
+          className="mt-3 w-full rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-xs text-[#1F2933]"
         />
       )}
-      {msg && <p className="mt-2 text-xs text-cyan-300">{msg}</p>}
+      {msg && <p className="mt-2 text-xs text-[#1A2E4A]">{msg}</p>}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { normEmail, primaryKey } from "./vigia-persona.ts";
 import { hasPaidOrder, type PaidOrderLike } from "./paid-orders.ts";
 import { deadlineOf, isUrgentDeadline, type Deadline } from "./needed-by.ts";
 import { noPresupuestable, type NoPresupuestable } from "./no-presupuestable.ts";
+import { abs, hrefBandeja, hrefConstructor } from "./staff-links.ts";
 
 export const SLA_STAGE1_MIN = 60;
 export const SLA_STAGE2_MIN = 150;
@@ -96,7 +97,7 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
       at: d.createdAt, kind: "puerta", name: d.clientName, email: d.clientEmail ? normEmail(d.clientEmail) : null, phone: d.clientPhone,
       pair: pairOf(d.sourceLanguage, d.targetLanguage), fileKey: `${d.fileName}|${d.sourceLanguage}|${d.targetLanguage}|${d.estimatedWords}`,
       motor: d.quoteAmount == null ? null : Number(d.quoteAmount),
-      link: d.link ?? `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(d.sessionToken || "")}`,
+      link: d.link ?? abs(hrefConstructor({ session: d.sessionToken || "" }), SITE),
       urgency: d.urgency ?? null, neededBy: d.neededBy ?? null,
       np: input.v2 ? noPresupuestable(d) : null,
     });
@@ -112,7 +113,7 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
     const wa = WA_LOCAL.exec(normEmail(m.fromEmail));
     arrivals.push({
       ...lead, at: m.receivedAt, kind: m.channel === "WHATSAPP" ? "whatsapp" : "email", name: m.fromName, email: wa ? null : normEmail(m.fromEmail),
-      phone: m.fromPhone || (wa ? `+${wa[1]}` : null), pair: null, fileKey: null, motor: null, link: `${SITE}/admin/inbox`,
+      phone: m.fromPhone || (wa ? `+${wa[1]}` : null), pair: null, fileKey: null, motor: null, link: abs(hrefBandeja(), SITE),
     });
   }
   for (const s of solicitudes) {
@@ -120,7 +121,7 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
     arrivals.push({
       clientEmail: null, clientName: null, clientPhone: null, sessionToken: null, fileHash: null,
       at: s.createdAt, kind: "lavori", name: s.customerHint, email: null, phone: null, pair: s.par, fileKey: null, motor: null,
-      link: `${SITE}/zona-traductor/presupuesto?lead=${encodeURIComponent(s.ref)}`,
+      link: abs(hrefConstructor({ lead: s.ref }), SITE),
     });
   }
 

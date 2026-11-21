@@ -33,11 +33,11 @@ const fmt = (d: Date) => d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", 
 const eur = (n: number) => `${n.toFixed(2).replace(".", ",")} €`;
 
 const PASO_CLS: Record<GrupoPaso, string> = {
-  accion: "border-amber-500/40 bg-amber-500/10",
-  jurado: "border-sky-500/30 bg-sky-500/5",
-  cliente: "border-violet-500/30 bg-violet-500/5",
-  en_curso: "border-emerald-500/30 bg-emerald-500/5",
-  cerrado: "border-slate-700 bg-slate-900/60",
+  accion: "border-[#E9D8A6] bg-[#FFF8E6]",
+  jurado: "border-[#D5DAE1] bg-[#F6F7F9]",
+  cliente: "border-[#D5DAE1] bg-[#F6F7F9]",
+  en_curso: "border-[#BFE0CC] bg-[#EEF7F1]",
+  cerrado: "border-[#D5DAE1] bg-white",
 };
 
 export default async function CasoFichaPage({ params }: { params: { id: string } }) {
@@ -150,43 +150,43 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
   const DOT: Record<string, string> = { entrada: "bg-sky-400", lavori: "bg-emerald-400", presupuesto: "bg-cyan-400", pedido: "bg-violet-400", alerta: "bg-rose-500", caso: "bg-slate-500" };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <Link href="/zona-traductor/casos" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white">
+        <Link href="/zona-traductor/casos" className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1F2933] hover:text-[#1A2E4A]">
           <ArrowLeft className="h-4 w-4" />
           Casos
         </Link>
 
-        <header className="mt-3 rounded-2xl border border-slate-700 bg-slate-900 p-5">
+        <header className="mt-3 rounded-2xl border border-[#D5DAE1] bg-white p-5">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-mono text-xl font-bold text-cyan-300">{caso.ref}</h1>
+            <h1 className="font-mono text-xl font-bold text-[#1A2E4A]">{caso.ref}</h1>
             {caso.pares.map((p) => (
-              <span key={p} className="rounded bg-slate-700/60 px-2 py-0.5 text-xs font-semibold text-slate-200">
+              <span key={p} className="rounded bg-[#F6F7F9] px-2 py-0.5 text-xs font-semibold text-[#1F2933]">
                 {p}
               </span>
             ))}
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${ESTADO_PILL[caso.estado] || ESTADO_PILL.PERDIDO}`}>{ESTADO_LABEL[caso.estado] || caso.estado}</span>
-            {caso.esAgencia && <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs text-slate-300">agencia</span>}
-            {caso.dudoso && <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300">dudoso: revisar a mano</span>}
+            {caso.esAgencia && <span className="rounded bg-[#F6F7F9] px-2 py-0.5 text-xs text-[#1F2933]">agencia</span>}
+            {caso.dudoso && <span className="rounded bg-[#FFF8E6] px-2 py-0.5 text-xs font-semibold text-[#7A5A10]">dudoso: revisar a mano</span>}
           </div>
-          <div className="mt-2 text-lg font-semibold text-white">{caso.nombre || "(sin nombre)"}</div>
-          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-300">
+          <div className="mt-2 text-lg font-semibold text-[#1A2E4A]">{caso.nombre || "(sin nombre)"}</div>
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#1F2933]">
             {caso.email && (
-              <Link href={`/zona-traductor/clientes/${encodeURIComponent(caso.email)}`} className="text-cyan-400 hover:underline">
+              <Link href={`/zona-traductor/clientes/${encodeURIComponent(caso.email)}`} className="text-[#1A2E4A] hover:underline">
                 {caso.email}
               </Link>
             )}
-            {caso.phone9 && <a href={`https://wa.me/34${caso.phone9}`} className="text-cyan-400 hover:underline">+34 {caso.phone9}</a>}
-            {canales.size > 0 && <span className="text-slate-400">Canales: {[...canales].join(" · ")}</span>}
-            <span className="text-slate-500">desde {fmt(caso.createdAt)} · origen {caso.origen}</span>
+            {caso.phone9 && <a href={`https://wa.me/34${caso.phone9}`} className="text-[#1A2E4A] hover:underline">+34 {caso.phone9}</a>}
+            {canales.size > 0 && <span className="text-[#52606D]">Canales: {[...canales].join(" · ")}</span>}
+            <span className="text-[#52606D]">desde {fmt(caso.createdAt)} · origen {caso.origen}</span>
           </div>
           {posibles.length > 0 && (
-            <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+            <p className="mt-3 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] px-3 py-2 text-sm text-[#7A5A10]">
               Puede ser el mismo encargo que{" "}
               {posibles.map((c, i) => (
                 <span key={c.id}>
                   {i > 0 && ", "}
-                  <Link href={hrefCaso(c.id)} className="font-mono underline hover:text-white">
+                  <Link href={hrefCaso(c.id)} className="font-mono underline hover:text-[#1A2E4A]">
                     {c.ref}
                   </Link>{" "}
                   ({ESTADO_LABEL[c.estado] || c.estado})
@@ -199,9 +199,9 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
 
         <section className={`mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-5 ${PASO_CLS[paso.grupo]}`}>
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Qué toca ahora</div>
-            <div className="mt-1 text-lg font-semibold text-white">{paso.titulo}</div>
-            {paso.detalle && <div className="text-sm text-slate-300">{paso.detalle}</div>}
+            <div className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Qué toca ahora</div>
+            <div className="mt-1 text-lg font-semibold text-[#1A2E4A]">{paso.titulo}</div>
+            {paso.detalle && <div className="text-sm text-[#1F2933]">{paso.detalle}</div>}
           </div>
           {paso.accion && <CasoAccionPaso {...paso.accion} />}
         </section>
@@ -210,46 +210,46 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
           const respuestas = Array.isArray(en.respuestasJson) ? (en.respuestasJson as { pregunta: string; respuesta: string }[]) : [];
           const archivos = archivosEntrada.filter((a) => a.sessionToken === sessionKeyOf(en.id));
           return (
-            <section key={en.id} className="mt-4 rounded-2xl border border-sky-500/30 bg-sky-500/5 p-5">
+            <section key={en.id} className="mt-4 rounded-2xl border border-[#D5DAE1] bg-[#F6F7F9] p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Entrada web · {en.estado}</div>
-                  <div className="mt-1 text-sm text-slate-200">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Entrada web · {en.estado}</div>
+                  <div className="mt-1 text-sm text-[#1F2933]">
                     {idiomasTexto(en)} · plazo: {plazoTexto(en)}
                     {en.organismo ? ` · organismo: ${en.organismo}` : ""}
                     {en.pais ? ` (${en.pais})` : ""}
                     {en.source ? ` · origen: ${en.source}` : ""}
                     {en.lang && en.lang !== "es" ? ` · idioma del cliente: ${en.lang}` : ""}
                   </div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[#52606D]">
                     Abierta {fmt(en.createdAt)}
                     {en.confirmedAt ? ` · confirmada ${fmt(en.confirmedAt)}` : " · sin confirmar"}
                   </div>
                 </div>
-                <a href={staffLinks(en).builder} className="rounded-lg bg-cyan-500/20 px-3 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/30">
+                <a href={staffLinks(en).builder} className="rounded-lg bg-[#F6F7F9] px-3 py-2 text-sm font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">
                   Montar presupuesto (documentos dentro)
                 </a>
               </div>
               {respuestas.length > 0 && (
-                <ul className="mt-3 space-y-1 text-sm text-slate-200">
+                <ul className="mt-3 space-y-1 text-sm text-[#1F2933]">
                   {respuestas.map((r, i) => (
                     <li key={i}>
-                      {r.pregunta}: <strong className="text-white">{r.respuesta}</strong>
+                      {r.pregunta}: <strong className="text-[#1A2E4A]">{r.respuesta}</strong>
                     </li>
                   ))}
                 </ul>
               )}
-              {en.notas && <p className="mt-2 text-sm italic text-slate-300">«{en.notas}»</p>}
+              {en.notas && <p className="mt-2 text-sm italic text-[#1F2933]">«{en.notas}»</p>}
               <ul className="mt-3 flex flex-wrap gap-2 text-xs">
                 {archivos.map((a) => (
                   <li key={a.id}>
                     {a.fileUrl.startsWith("http") ? (
-                      <a href={a.fileUrl} target="_blank" rel="noreferrer" className="rounded bg-slate-800 px-2 py-1 text-cyan-300 hover:underline">
+                      <a href={a.fileUrl} target="_blank" rel="noreferrer" className="rounded bg-[#F6F7F9] px-2 py-1 text-[#1A2E4A] hover:underline">
                         {a.fileName}
                         {a.pageCount ? ` · ${a.pageCount} pág.` : ""}
                       </a>
                     ) : (
-                      <span className="rounded bg-slate-800 px-2 py-1 text-slate-500">{a.fileName} (borrado)</span>
+                      <span className="rounded bg-[#F6F7F9] px-2 py-1 text-[#52606D]">{a.fileName} (borrado)</span>
                     )}
                   </li>
                 ))}
@@ -260,29 +260,29 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Historia del caso</h2>
-            <ol className="relative space-y-3 border-l border-slate-800 pl-5">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[#52606D]">Historia del caso</h2>
+            <ol className="relative space-y-3 border-l border-[#D5DAE1] pl-5">
               {hitos.map((h, i) => (
                 <li key={i} className="relative">
                   <span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${DOT[h.tipo] || DOT.caso}`} />
-                  <div className="text-xs text-slate-500">{fmt(h.at)}</div>
-                  <div className="text-sm text-slate-100">
+                  <div className="text-xs text-[#52606D]">{fmt(h.at)}</div>
+                  <div className="text-sm text-[#1F2933]">
                     {h.href ? (
-                      <Link href={h.href} className="hover:text-cyan-300 hover:underline">
+                      <Link href={h.href} className="hover:text-[#1A2E4A] hover:underline">
                         {h.titulo}
                       </Link>
                     ) : (
                       h.titulo
                     )}
                   </div>
-                  {h.detalle && <div className="text-xs text-slate-400">{h.detalle}</div>}
+                  {h.detalle && <div className="text-xs text-[#52606D]">{h.detalle}</div>}
                 </li>
               ))}
             </ol>
             {caso._count.eventos > 0 && (
-              <p className="mt-4 text-xs text-slate-500">
+              <p className="mt-4 text-xs text-[#52606D]">
                 {caso._count.eventos} comparación{caso._count.eventos === 1 ? "" : "es"} guarda↔resolver en este caso:{" "}
-                <Link href="/zona-traductor/casos/discrepancias" className="underline hover:text-slate-300">
+                <Link href="/zona-traductor/casos/discrepancias" className="underline hover:text-[#1A2E4A]">
                   ver discrepancias
                 </Link>
                 .
@@ -291,67 +291,67 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
           </section>
 
           <aside className="space-y-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Solicitud a lavori</h3>
+            <div className="rounded-xl border border-[#D5DAE1] bg-white p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">Solicitud a lavori</h3>
               {lpr ? (
-                <div className="mt-2 space-y-1 text-sm text-slate-200">
-                  <Link href={hrefSolicitud(lpr)} className="font-mono text-cyan-300 hover:underline">
+                <div className="mt-2 space-y-1 text-sm text-[#1F2933]">
+                  <Link href={hrefSolicitud(lpr)} className="font-mono text-[#1A2E4A] hover:underline">
                     {lpr.ref}
                   </Link>{" "}
-                  <span className="text-xs text-slate-400">· {lpr.par} · {lpr.status}</span>
-                  <div className="text-xs text-slate-400">A {quienEspera(lpr, nombreMiembro)} · {fmt(lpr.createdAt)}</div>
+                  <span className="text-xs text-[#52606D]">· {lpr.par} · {lpr.status}</span>
+                  <div className="text-xs text-[#52606D]">A {quienEspera(lpr, nombreMiembro)} · {fmt(lpr.createdAt)}</div>
                   <div>{lpr.priceCents ? `${eur(lpr.priceCents / 100)}${lpr.plazoDias ? ` · ${lpr.plazoDias} días` : ""}` : "Sin precio todavía"}</div>
-                  {caso.priceRequests.length > 1 && <div className="text-xs text-amber-300">{caso.priceRequests.length} solicitudes en este caso</div>}
+                  {caso.priceRequests.length > 1 && <div className="text-xs text-[#7A5A10]">{caso.priceRequests.length} solicitudes en este caso</div>}
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">Ninguna.</p>
+                <p className="mt-2 text-sm text-[#52606D]">Ninguna.</p>
               )}
             </div>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Presupuesto</h3>
+            <div className="rounded-xl border border-[#D5DAE1] bg-white p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Presupuesto</h3>
               {vigente ? (
-                <div className="mt-2 space-y-1 text-sm text-slate-200">
-                  <Link href={hrefPresupuesto(vigente.id)} className="font-mono text-cyan-300 hover:underline">
+                <div className="mt-2 space-y-1 text-sm text-[#1F2933]">
+                  <Link href={hrefPresupuesto(vigente.id)} className="font-mono text-[#1A2E4A] hover:underline">
                     {vigente.quoteNumber}
                   </Link>{" "}
-                  <span className="text-xs text-slate-400">· {vigente.status}</span>
+                  <span className="text-xs text-[#52606D]">· {vigente.status}</span>
                   <div>{eur(decimalToNumber(vigente.total))} IVA incl.</div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[#52606D]">
                     {vigente.sentAt ? `Enviado ${fmt(vigente.sentAt)}` : "Sin enviar"}
                     {vigente.openedAt ? ` · abierto ${fmt(vigente.openedAt)}` : vigente.sentAt ? " · sin abrir" : ""}
                   </div>
-                  {vigente.paymentFrozenAt && <div className="text-xs font-semibold text-rose-300">Pago congelado</div>}
+                  {vigente.paymentFrozenAt && <div className="text-xs font-semibold text-[#A12B2B]">Pago congelado</div>}
                   {vigente.sentAt && !vigente.deletedAt && (
                     <div className="pt-1">
                       <CasoAccionPaso label="Copiar enlace /q" href={urlPublicaQuote(baseUrl, vigente.publicToken)} copiar compacto />
                     </div>
                   )}
-                  {caso.quotes.length > 1 && <div className="text-xs text-slate-500">{caso.quotes.length} presupuestos en este caso (ver historia)</div>}
+                  {caso.quotes.length > 1 && <div className="text-xs text-[#52606D]">{caso.quotes.length} presupuestos en este caso (ver historia)</div>}
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">Ninguno.</p>
+                <p className="mt-2 text-sm text-[#52606D]">Ninguno.</p>
               )}
             </div>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-violet-300">Pedido</h3>
+            <div className="rounded-xl border border-[#D5DAE1] bg-white p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Pedido</h3>
               {pedido ? (
-                <div className="mt-2 space-y-1 text-sm text-slate-200">
-                  <Link href={hrefPedido(pedido.reference)} className="font-mono text-cyan-300 hover:underline">
+                <div className="mt-2 space-y-1 text-sm text-[#1F2933]">
+                  <Link href={hrefPedido(pedido.reference)} className="font-mono text-[#1A2E4A] hover:underline">
                     {pedido.reference}
                   </Link>{" "}
-                  <span className="text-xs text-slate-400">· {pedido.status} · {pedido.deliveryState}</span>
-                  <div className="text-xs text-slate-400">Traductor: {traductor || "sin asignar"}</div>
-                  <div className="text-xs text-slate-400">
+                  <span className="text-xs text-[#52606D]">· {pedido.status} · {pedido.deliveryState}</span>
+                  <div className="text-xs text-[#52606D]">Traductor: {traductor || "sin asignar"}</div>
+                  <div className="text-xs text-[#52606D]">
                     Cobro {eur(pedido.amountCents / 100)} · coste {pedido.supplierCostCents != null ? eur(pedido.supplierCostCents / 100) : "—"}
                   </div>
-                  <div className={`text-xs font-semibold ${margen == null ? "text-slate-500" : margen <= 0 ? "text-rose-300" : "text-emerald-300"}`}>
+                  <div className={`text-xs font-semibold ${margen == null ? "text-[#52606D]" : margen <= 0 ? "text-[#A12B2B]" : "text-[#1F6B45]"}`}>
                     {margen == null ? "Margen: sin presupuesto o coste para calcularlo" : `Margen ${eur(margen)} sobre ${eur(neto!)} netos`}
                   </div>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-500">Todavía no.</p>
+                <p className="mt-2 text-sm text-[#52606D]">Todavía no.</p>
               )}
             </div>
           </aside>

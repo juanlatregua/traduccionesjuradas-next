@@ -5,8 +5,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import AdminQuoteDetailPanel from "@/components/AdminQuoteDetailPanel";
 import RecurrentClientBadge from "@/components/RecurrentClientBadge";
 import OpenSiblingsBanner from "@/components/OpenSiblingsBanner";
-import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
-import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
 import { prisma } from "@/lib/prisma";
 import { serializeQuote } from "@/lib/quote-serializer";
@@ -28,7 +27,6 @@ export const metadata: Metadata = {
  */
 export default async function PresupuestoFichaPage({ params }: { params: { id: string } }) {
   await authZonaTraductorOrRedirect();
-  const expedientesPendientes = await countExpedientesPendientes();
 
   const quote = await getQuoteByIdForAdmin(params.id);
   if (!quote) notFound();
@@ -75,29 +73,23 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
     });
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <ZonaTraductorSubNav
-          tabs={[
-            { href: "/zona-traductor/presupuestos", label: "Carpeta" },
-            { href: "/zona-traductor/expedientes", label: "Expedientes", badge: expedientesPendientes },
-          ]}
-        />
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
               href="/zona-traductor/presupuestos"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1F2933] hover:text-[#1A2E4A]"
             >
               <ArrowLeft className="h-4 w-4" />
               Presupuestos
             </Link>
-            <span className="text-slate-600">·</span>
-            <h1 className="font-mono text-sm font-bold text-cyan-300">{numero}</h1>
+            <span className="text-[#52606D]">·</span>
+            <h1 className="font-mono text-sm font-bold text-[#1A2E4A]">{numero}</h1>
             {congelacion?.caso && (
               <Link
                 href={`/zona-traductor/casos/${congelacion.caso.id}`}
-                className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/20"
+                className="rounded-md border border-[#D5DAE1] bg-[#F6F7F9] px-2 py-0.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
               >
                 Ver caso {congelacion.caso.ref}
               </Link>
@@ -105,7 +97,7 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
           </div>
           <Link
             href={`/zona-traductor/presupuestos/${params.id}/editar`}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
           >
             <Pencil className="h-4 w-4" />
             Editar datos y líneas
@@ -128,14 +120,14 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
           />
         </div>
         {congelacion?.paymentFrozenAt && (
-          <div className="mb-4 rounded-lg border border-rose-500/50 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+          <div className="mb-4 rounded-lg border border-[#F0C9C9] bg-[#FDF2F2] px-3 py-2 text-sm text-[#A12B2B]">
             <strong>{congelacion.paidAt ? "Cobrado con el pago CONGELADO: no se ha asignado al jurado." : "Pago CONGELADO: el cliente no puede pagar."}</strong>{" "}
             La cifra del jurado llegó tras enviar el presupuesto y deja pérdida.
             {congelacion.paymentFrozenReason && <p className="mt-1 italic">{congelacion.paymentFrozenReason}</p>}
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <QuoteUnfreezeButton quoteId={params.id} estimatedCostZero={costeEstimadoCero} />
               {solicitud && (
-                <Link href={`/zona-traductor/presupuestos/${params.id}/editar`} className="underline hover:text-white">
+                <Link href={`/zona-traductor/presupuestos/${params.id}/editar`} className="underline hover:text-[#1A2E4A]">
                   Editar las líneas con la cifra del jurado
                 </Link>
               )}
@@ -143,12 +135,12 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
           </div>
         )}
         {pendiente && (
-          <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <div className="mb-4 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] px-3 py-2 text-sm text-[#7A5A10]">
             <strong>Pendiente de completar:</strong> el cliente dice que faltaban documentos y los ha subido. Envíale el presupuesto actualizado (puede pagar el viejo, pero la página se lo desaconseja).
             <ul className="mt-1 list-disc pl-5">
               {adjuntos.map((f) => (
                 <li key={f.url}>
-                  <a href={f.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">{f.name}</a>
+                  <a href={f.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-[#1A2E4A]">{f.name}</a>
                 </li>
               ))}
             </ul>
@@ -156,12 +148,12 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
           </div>
         )}
         {(serialized as any).status !== "EXPIRED" && (serialized as any).lostReasonNote === NO_RESPONSE_NOTE && (
-          <p className="mb-4 rounded-lg border border-slate-600 bg-slate-800/60 px-3 py-2 text-sm text-slate-200">
+          <p className="mb-4 rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-sm text-[#1F2933]">
             Cerrado sin respuesta tras 2º contacto. Sigue pudiendo pagar hasta que caduque; si paga, la marca se borra sola.
           </p>
         )}
         {solicitud && (
-          <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+          <p className="mb-4 rounded-lg border border-[#BFE0CC] bg-[#EEF7F1] px-3 py-2 text-sm text-[#1F6B45]">
             Solicitud lavori <span className="font-mono">{solicitud.ref}</span> · {solicitud.par} · {solicitud.status}
             {solicitud.priceCents
               ? ` · ${solicitud.miembroNombre || "el traductor"}: ${(solicitud.priceCents / 100).toFixed(2)} €${solicitud.plazoDias ? ` · ${solicitud.plazoDias} días` : ""}`
@@ -169,7 +161,7 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             . El pago de este presupuesto avisa a ese encargo; para cambiar algo, «Editar datos y líneas».
           </p>
         )}
-        <div className="rounded-2xl bg-cream p-1 shadow-xl">
+        <div className="rounded-[14px] border border-[#D5DAE1] bg-white p-1">
           <AdminQuoteDetailPanel initialQuote={serialized as any} />
         </div>
       </main>

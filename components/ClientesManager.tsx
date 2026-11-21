@@ -17,7 +17,7 @@ function eur(c: number) {
 }
 
 const FIELD =
-  "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
+  "rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]";
 
 function emptyForm() {
   return {
@@ -113,15 +113,15 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
             setMsg(null);
             setOpen((v) => !v);
           }}
-          className="shrink-0 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
+          className="shrink-0 rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66]"
         >
           {open ? "Cerrar" : "+ Nuevo cliente"}
         </button>
       </div>
 
       {open && (
-        <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
-          <h2 className="text-sm font-semibold text-white">Nuevo cliente</h2>
+        <div className="mt-4 rounded-xl border border-[#D5DAE1] bg-white p-4">
+          <h2 className="text-sm font-semibold text-[#1A2E4A]">Nuevo cliente</h2>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <input className={FIELD} placeholder="Nombre *" value={form.name} onChange={(e) => set("name", e.target.value)} />
             <input className={FIELD} placeholder="Email *" value={form.email} onChange={(e) => set("email", e.target.value)} />
@@ -133,7 +133,7 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
             value={form.intermediaryEmail}
             onChange={(e) => set("intermediaryEmail", e.target.value)}
           />
-          <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+          <label className="mt-3 flex items-center gap-2 text-sm text-[#1F2933]">
             <input type="checkbox" className="h-4 w-4" checked={form.isBusiness} onChange={(e) => set("isBusiness", e.target.checked)} />
             Cliente de empresa (B2B)
           </label>
@@ -145,7 +145,7 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
               <input className={FIELD} placeholder="Dirección" value={form.address} onChange={(e) => set("address", e.target.value)} />
               <input className={FIELD} placeholder="Ciudad" value={form.city} onChange={(e) => set("city", e.target.value)} />
               <input className={FIELD} placeholder="C.P." value={form.postalCode} onChange={(e) => set("postalCode", e.target.value)} />
-              <label className="flex items-center gap-2 text-sm text-slate-300 sm:col-span-3">
+              <label className="flex items-center gap-2 text-sm text-[#1F2933] sm:col-span-3">
                 <input type="checkbox" className="h-4 w-4" checked={form.autoConfirmPayment} onChange={(e) => set("autoConfirmPayment", e.target.checked)} />
                 Cliente de confianza: al subir el justificante se da el pago por bueno automáticamente
               </label>
@@ -156,20 +156,20 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
               type="button"
               onClick={create}
               disabled={busy}
-              className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+              className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
             >
               {busy ? "Creando…" : "Crear cliente"}
             </button>
-            {msg && <span className="text-xs text-cyan-300">{msg}</span>}
+            {msg && <span className="text-xs text-[#1A2E4A]">{msg}</span>}
           </div>
         </div>
       )}
 
-      {!open && msg && <p className="mt-3 text-xs text-cyan-300">{msg}</p>}
+      {!open && msg && <p className="mt-3 text-xs text-[#1A2E4A]">{msg}</p>}
 
-      <div className="mt-5 overflow-x-auto rounded-xl border border-slate-700">
-        <table className="w-full text-sm text-slate-200">
-          <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+      <div className="mt-5 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+        <table className="w-full text-sm text-[#1F2933]">
+          <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
             <tr>
               <th className="px-4 py-2">Cliente</th>
               <th className="px-4 py-2">Email</th>
@@ -180,10 +180,10 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-[#D5DAE1]">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-[#52606D]">
                   {q ? "Ningún cliente coincide con la búsqueda." : "No hay clientes todavía."}
                 </td>
               </tr>
@@ -191,17 +191,17 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
               filtered.map((c) => {
                 const isWhatsapp = c.email.endsWith("@whatsapp.local");
                 return (
-                  <tr key={c.email} className="hover:bg-slate-900/40">
-                    <td className="px-4 py-2 font-medium text-white">
+                  <tr key={c.email} className="hover:bg-[#F6F7F9]">
+                    <td className="px-4 py-2 font-medium text-[#1A2E4A]">
                       {c.name || "—"}
                       {c.isBusiness && (
-                        <span className="ml-2 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-200">B2B</span>
+                        <span className="ml-2 rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[10px] font-semibold text-[#1A2E4A]">B2B</span>
                       )}
                       {isWhatsapp && (
-                        <span className="ml-2 rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-200">WhatsApp</span>
+                        <span className="ml-2 rounded bg-[#EEF7F1] px-1.5 py-0.5 text-[10px] font-semibold text-[#1F6B45]">WhatsApp</span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-slate-400">{isWhatsapp ? "sin email (WhatsApp)" : c.email}</td>
+                    <td className="px-4 py-2 text-[#52606D]">{isWhatsapp ? "sin email (WhatsApp)" : c.email}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{c.orders}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{c.quotes}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{c.invoices}</td>
@@ -209,7 +209,7 @@ export default function ClientesManager({ clients }: { clients: ClientRow[] }) {
                     <td className="px-4 py-2 text-right">
                       <a
                         href={`/zona-traductor/clientes/${encodeURIComponent(c.email)}`}
-                        className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500"
+                        className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243F66]"
                       >
                         Abrir carpeta →
                       </a>

@@ -11,7 +11,6 @@ import PedidosViewToggle from "@/components/PedidosViewToggle";
 import TranslatorAgenda from "@/components/TranslatorAgenda";
 import PedidosHeader, { type PedidosBreakdown, type PedidosMoney } from "@/components/pedidos/PedidosHeader";
 import ZonaTraductorFilters from "@/components/ZonaTraductorFilters";
-import ZonaTraductorThemeToggle from "@/components/ZonaTraductorThemeToggle";
 import { getStaffRole } from "@/lib/staff-access";
 import { loadPanelData } from "@/lib/panel-data";
 import { aggregate, computeTotals } from "@/lib/panel-metrics";
@@ -94,18 +93,17 @@ export default async function ZonaTraductorPedidosPage({
   const { money, breakdown } = await loadPanel(period, slicers, searchParams.ver, searchParams.met, isAdmin);
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <main className="px-4 py-8">
         <AutoRefresh intervalMs={20000} idleMs={30000} />
 
-        <section className="mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
+        <section className="mx-auto max-w-6xl rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-xl sm:p-8">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Zona traductor</p>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">Pedidos</h1>
-              <p className="mt-1 text-sm text-slate-400">Sesión: {email}</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Zona traductor</p>
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#1A2E4A] sm:text-3xl">Pedidos</h1>
+              <p className="mt-1 text-sm text-[#52606D]">Sesión: {email}</p>
             </div>
-            <ZonaTraductorThemeToggle />
           </div>
 
           <PedidosHeader
@@ -124,13 +122,13 @@ export default async function ZonaTraductorPedidosPage({
             breakdown={breakdown}
           />
 
-          <p className="mt-4 text-xs text-slate-400">
+          <p className="mt-4 text-xs text-[#52606D]">
             Flujo WhatsApp: usa{" "}
-            <a href={getTrackedPresupuestoUrl("pm")} target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-300 underline">
+            <a href={getTrackedPresupuestoUrl("pm")} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#1A2E4A] underline">
               enlace presupuesto
             </a>{" "}
             y{" "}
-            <a href={getTrackedConsultaUrl(undefined, "pm")} target="_blank" rel="noopener noreferrer" className="font-semibold text-cyan-300 underline">
+            <a href={getTrackedConsultaUrl(undefined, "pm")} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#1A2E4A] underline">
               enlace consulta
             </a>{" "}
             para que el lead entre trazado como `src=wa`.
@@ -140,21 +138,21 @@ export default async function ZonaTraductorPedidosPage({
         <EstimationAccuracyCard />
 
         {criticalFinanceOrders.length > 0 && (
-          <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-red-500/30 bg-red-500/5 p-6 shadow-xl sm:p-8">
-            <h2 className="text-lg font-semibold text-red-200">Alertas críticas a resolver hoy</h2>
-            <ul className="mt-3 space-y-2 text-sm text-red-100">
+          <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#F0C9C9] bg-[#FDF2F2] p-6 shadow-xl sm:p-8">
+            <h2 className="text-lg font-semibold text-[#A12B2B]">Alertas críticas a resolver hoy</h2>
+            <ul className="mt-3 space-y-2 text-sm text-[#A12B2B]">
               {criticalFinanceOrders.map((order) => (
-                <li key={order.reference} className="rounded-xl border border-red-500/20 bg-slate-900/50 px-3 py-2">
+                <li key={order.reference} className="rounded-xl border border-[#F0C9C9] bg-[#F6F7F9] px-3 py-2">
                   <a
                     href={`/zona-traductor/pedido/${order.reference}`}
-                    className="font-mono text-xs font-bold text-cyan-300 hover:underline"
+                    className="font-mono text-xs font-bold text-[#1A2E4A] hover:underline"
                   >
                     {order.reference}
                   </a>
-                  <span className="mx-2 text-slate-500">·</span>
+                  <span className="mx-2 text-[#52606D]">·</span>
                   <span>{topFinancialAlert(order)}</span>
-                  <span className="mx-2 text-slate-500">·</span>
-                  <span className="text-slate-300">{order.clientEmail}</span>
+                  <span className="mx-2 text-[#52606D]">·</span>
+                  <span className="text-[#1F2933]">{order.clientEmail}</span>
                 </li>
               ))}
             </ul>
@@ -181,11 +179,11 @@ export default async function ZonaTraductorPedidosPage({
             }))}
         />
 
-        <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
+        <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-xl sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-[#1A2E4A]">
               Pedidos
-              <span className="ml-2 text-sm font-normal text-slate-400">({orders.length})</span>
+              <span className="ml-2 text-sm font-normal text-[#52606D]">({orders.length})</span>
             </h2>
             <Suspense fallback={null}>
               <PedidosViewToggle vista={vista} />
@@ -199,7 +197,7 @@ export default async function ZonaTraductorPedidosPage({
           />
 
           {orders.length === 0 ? (
-            <p className="mt-6 text-center text-sm text-slate-500">No hay pedidos con este filtro.</p>
+            <p className="mt-6 text-center text-sm text-[#52606D]">No hay pedidos con este filtro.</p>
           ) : vista === "cards" ? (
             <BandejaEntrada orders={bandejaOrders} staffEmail={email} />
           ) : (

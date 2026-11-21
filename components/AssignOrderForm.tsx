@@ -55,7 +55,7 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#7A5A10]">
         Asignar traductor y fecha limite
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -69,7 +69,7 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
           }}
           list="translator-profiles"
           placeholder="Nombre del traductor"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="rounded-xl border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
         />
         <datalist id="translator-profiles">
           {translatorProfiles.map((profile) => (
@@ -82,7 +82,7 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
           type="date"
           value={dueDate}
           onChange={(e) => setDueDate(e.target.value)}
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          className="rounded-xl border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-sm text-[#1F2933]"
         />
       </div>
       <input
@@ -91,10 +91,10 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
         value={costEur}
         onChange={(e) => setCostEur(e.target.value)}
         placeholder="Coste del traductor (€ sin IVA) — obligatorio si no es Juan Silva"
-        className={`mt-3 w-full rounded-xl border bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 ${needsCost ? "border-red-500" : "border-slate-600"}`}
+        className={`mt-3 w-full rounded-xl border bg-[#fff] px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3] ${needsCost ? "border-[#F0C9C9]" : "border-[#D5DAE1]"}`}
       />
       {selectedProfile && (
-        <p className="mt-2 text-xs text-amber-200">
+        <p className="mt-2 text-xs text-[#7A5A10]">
           {formatTranslatorCredential(selectedProfile)}
         </p>
       )}
@@ -103,11 +103,11 @@ export default function AssignOrderForm({ reference, currentAssignedTo, currentD
         onClick={submit}
         disabled={loading || (clearing && !currentAssignedTo)}
         title={clearing && !currentAssignedTo ? "Escribe el nombre del traductor" : undefined}
-        className="mt-3 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+        className="mt-3 rounded-xl bg-[#7A5A10] px-4 py-2 text-sm font-semibold text-white hover:bg-[#654A0D] disabled:opacity-60"
       >
         {loading ? "Guardando..." : clearing && currentAssignedTo ? "Quitar asignación" : "Guardar asignación"}
       </button>
-      {message && <p className="mt-2 text-xs font-semibold text-slate-200">{message}</p>}
+      {message && <p className="mt-2 text-xs font-semibold text-[#1F2933]">{message}</p>}
     </div>
   );
 }

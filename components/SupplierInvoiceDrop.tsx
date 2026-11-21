@@ -25,7 +25,7 @@ export type RegisteredSupplierInvoice = {
 };
 
 const eur = (cents: number) => `${(cents / 100).toFixed(2).replace(".", ",")} €`;
-const input = "w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-xs text-slate-100";
+const input = "w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-xs text-[#1F2933]";
 
 export default function SupplierInvoiceDrop({
   reference,
@@ -48,11 +48,11 @@ export default function SupplierInvoiceDrop({
   return (
     <div className="space-y-2">
       {registered.map((r) => (
-        <p key={r.id} className="rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+        <p key={r.id} className="rounded-lg border border-[#BFE0CC] bg-[#EEF7F1] px-3 py-2 text-xs text-[#1F6B45]">
           Registrada: {r.supplier || "proveedor"} {r.number ? `nº ${r.number}` : ""} · {eur(r.totalCents)}
-          {r.needsReview && <span className="ml-1 text-amber-300">(pendiente de revisar)</span>}
+          {r.needsReview && <span className="ml-1 text-[#7A5A10]">(pendiente de revisar)</span>}
           {r.attachmentUrl && (
-            <a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="ml-2 font-semibold text-cyan-300 hover:underline">
+            <a href={r.attachmentUrl} target="_blank" rel="noreferrer" className="ml-2 font-semibold text-[#1A2E4A] hover:underline">
               PDF
             </a>
           )}
@@ -60,13 +60,13 @@ export default function SupplierInvoiceDrop({
       ))}
 
       {pending.length === 0 && registered.length === 0 && (
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-[#52606D]">
           Sin coste devengado de un traductor en este pedido: asigna el traductor con su coste para registrar su factura aquí.
         </p>
       )}
 
       {pending.length > 0 && !canRegister && (
-        <p className="text-[11px] text-slate-400">Registrar facturas de traductor es de ADMIN/PM.</p>
+        <p className="text-[11px] text-[#52606D]">Registrar facturas de traductor es de ADMIN/PM.</p>
       )}
 
       {pending.length > 0 && canRegister && collaborator && (
@@ -207,7 +207,7 @@ function InvoiceForm({
   return (
     <div className="space-y-2">
       {existing && (
-        <p className="text-[11px] text-amber-300">
+        <p className="text-[11px] text-[#7A5A10]">
           La factura de arriba llegó por lavori sin régimen fiscal y aún no liquida el devengo: complétala aquí (no se crea otro gasto).
         </p>
       )}
@@ -224,7 +224,7 @@ function InvoiceForm({
           if (f) handleFile(f);
         }}
         className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-3 py-5 text-center text-xs ${
-          dragging ? "border-amber-400 bg-amber-500/10 text-amber-200" : "border-slate-600 text-slate-300 hover:border-amber-500"
+          dragging ? "border-[#E9D8A6] bg-[#FFF8E6] text-[#7A5A10]" : "border-[#D5DAE1] text-[#1F2933] hover:border-[#E9D8A6]"
         }`}
       >
         <input
@@ -239,19 +239,19 @@ function InvoiceForm({
         />
         {file ? (
           <span>
-            📎 {file.name} — <span className="text-slate-400">arrastra otra para cambiarla</span>
+            📎 {file.name} — <span className="text-[#52606D]">arrastra otra para cambiarla</span>
           </span>
         ) : (
           <span>
             Arrastra aquí la factura del traductor (PDF, foto o Word)
             <br />
-            <span className="text-slate-400">o pulsa para elegirla</span>
+            <span className="text-[#52606D]">o pulsa para elegirla</span>
           </span>
         )}
       </label>
 
-      <p className="text-xs text-slate-300">
-        Traductor: <span className="font-semibold text-slate-100">{collaborator.companyName || collaborator.fullName}</span> · devengado{" "}
+      <p className="text-xs text-[#1F2933]">
+        Traductor: <span className="font-semibold text-[#1F2933]">{collaborator.companyName || collaborator.fullName}</span> · devengado{" "}
         {eur(accrualCents)}
       </p>
 
@@ -273,10 +273,10 @@ function InvoiceForm({
         </select>
       </div>
 
-      <p className="text-[11px] text-slate-400">
+      <p className="text-[11px] text-[#52606D]">
         Total factura {eur(baseCents + vatCents)} · a transferir {eur(baseCents + vatCents - irpfCents)}
         {baseCents > 0 && baseCents !== accrualCents && (
-          <span className="ml-1 text-amber-300">· la base no cuadra con lo devengado ({eur(accrualCents)})</span>
+          <span className="ml-1 text-[#7A5A10]">· la base no cuadra con lo devengado ({eur(accrualCents)})</span>
         )}
       </p>
 
@@ -284,13 +284,13 @@ function InvoiceForm({
         type="button"
         onClick={() => save()}
         disabled={!!busy || !number.trim() || baseCents <= 0}
-        className="w-full rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+        className="w-full rounded-lg bg-[#7A5A10] px-3 py-2 text-xs font-semibold text-white hover:bg-[#654A0D] disabled:opacity-60"
       >
         {busy || (existing ? "Completar y liquidar la factura de lavori" : "Registrar factura en contabilidad")}
       </button>
 
-      {notice && <p className="text-[11px] text-slate-300">{notice}</p>}
-      {error && <p className="text-xs font-semibold text-rose-300">{error}</p>}
+      {notice && <p className="text-[11px] text-[#1F2933]">{notice}</p>}
+      {error && <p className="text-xs font-semibold text-[#A12B2B]">{error}</p>}
     </div>
   );
 }

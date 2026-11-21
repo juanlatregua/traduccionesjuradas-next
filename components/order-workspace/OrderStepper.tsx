@@ -42,8 +42,8 @@ export default function OrderStepper({
   const anchor = TAB_ANCHOR[nextAction.tab] || "#traduccion";
 
   return (
-    <div className="rounded-3xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-3xl border border-[#D5DAE1] bg-[#fff] p-5 shadow-sm">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#52606D]">
         Estado del pedido
       </p>
       <ol className="flex flex-wrap items-center gap-x-1 gap-y-2 text-xs">
@@ -54,39 +54,39 @@ export default function OrderStepper({
               <span
                 className={
                   state === "current"
-                    ? "rounded-full bg-cyan-600 px-3 py-1 font-semibold text-white"
+                    ? "rounded-full bg-[#1A2E4A] px-3 py-1 font-semibold text-white"
                     : state === "done"
-                      ? "rounded-full bg-emerald-500/15 px-3 py-1 font-medium text-emerald-300"
-                      : "rounded-full bg-slate-700/40 px-3 py-1 text-slate-500"
+                      ? "rounded-full bg-[#EEF7F1] px-3 py-1 font-medium text-[#1F6B45]"
+                      : "rounded-full bg-[#F6F7F9] px-3 py-1 text-[#52606D]"
                 }
               >
                 {state === "done" ? "✓ " : `${i + 1}. `}
                 {s.label}
               </span>
-              {i < STEPS.length - 1 && <span className="text-slate-600">→</span>}
+              {i < STEPS.length - 1 && <span className="text-[#52606D]">→</span>}
             </li>
           );
         })}
       </ol>
 
       {closed ? (
-        <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+        <div className="mt-4 rounded-2xl border border-[#BFE0CC] bg-[#EEF7F1] px-4 py-3 text-sm text-[#1F6B45]">
           <p className="font-semibold">✓ Pedido finalizado — sin acciones pendientes.</p>
-          <p className="mt-1 text-xs text-emerald-200/80">
+          <p className="mt-1 text-xs text-[#1F6B45]">
             ¿Corrección de la traducción? Sube la nueva versión en{" "}
             <a href="#traduccion" className="underline">Subir y entregar la traducción</a>: no hace falta reabrir el pedido.
           </p>
         </div>
       ) : (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-700/40 bg-cyan-500/10 px-4 py-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D5DAE1] bg-[#F6F7F9] px-4 py-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-400">Siguiente paso</p>
-            <p className="text-base font-bold text-slate-100">{nextAction.label}</p>
-            <p className="text-xs text-slate-400">{nextAction.reason}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Siguiente paso</p>
+            <p className="text-base font-bold text-[#1F2933]">{nextAction.label}</p>
+            <p className="text-xs text-[#52606D]">{nextAction.reason}</p>
           </div>
           <a
             href={anchor}
-            className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
+            className="rounded-xl bg-[#1A2E4A] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#243F66]"
           >
             Ir al paso →
           </a>

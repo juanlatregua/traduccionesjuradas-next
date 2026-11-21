@@ -4,6 +4,7 @@ import { isCasaPair } from "@/lib/lavori-bridge";
 import { getAcquisitionSource } from "@/lib/panel-slicers";
 import { isTestTitle, type PanelData } from "@/lib/panel-metrics";
 import { madridMidnightUtc, parseYmd, todayMadrid, type Period } from "@/lib/panel-period";
+import { hrefConstructor, hrefPedido, hrefPresupuesto } from "./staff-links.ts";
 
 /** `ordersOnly`: solo los cobros (recuentos para quien no ve dinero); se salta presupuestos, solicitudes, gastos y costes. */
 export async function loadPanelData(period: Period, opts: { ordersOnly?: boolean } = {}): Promise<{ current: PanelData; previous: PanelData }> {
@@ -117,7 +118,7 @@ export type PanelAgenda = {
 };
 
 const OPEN_STATUSES = ["PAID", "IN_PROGRESS"] as const;
-const pedidoHref = (ref: string) => `/zona-traductor/pedido/${ref}`;
+const pedidoHref = (ref: string) => hrefPedido(ref);
 const day = (d: Date) => new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(d);
 
 /** Agenda de HOY (independiente del periodo elegido). */
@@ -177,11 +178,11 @@ export async function loadPanelAgenda(now: Date = new Date()): Promise<PanelAgen
     dirigidosSinAceptar: directed
       .filter((o) => o.events[0]?.type === "lavori.solicitud_enviada")
       .map((o) => ({ ref: o.reference, text: `${o.reference} · ${who(o)}`, href: pedidoHref(o.reference) })),
-    caducan: quotes.map((q) => ({ ref: q.quoteNumber, text: `${q.quoteNumber} · ${q.customerName}`, href: `/zona-traductor/presupuestos/${q.id}`, note: day(q.validUntil) })),
+    caducan: quotes.map((q) => ({ ref: q.quoteNumber, text: `${q.quoteNumber} · ${q.customerName}`, href: hrefPresupuesto(q.id), note: day(q.validUntil) })),
     preciosSinPresupuesto: requests.map((r) => ({
       ref: r.ref,
       text: `${r.customerHint || r.ref} · ${r.par}`,
-      href: `/zona-traductor/presupuesto?lead=${encodeURIComponent(r.ref)}`,
+      href: hrefConstructor({ lead: r.ref }),
       note: r.priceCents != null ? `${(r.priceCents / 100).toLocaleString("es-ES")} €` : undefined,
     })),
   };

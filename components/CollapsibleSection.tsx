@@ -50,19 +50,19 @@ export default function CollapsibleSection({
 
   return (
     <section id={id} ref={ref} className="mt-4 scroll-mt-28">
-      <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3">
+      <div className="flex items-center gap-3 rounded-xl border border-[#D5DAE1] bg-white px-4 py-3">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           className="flex flex-1 items-center gap-3 text-left"
         >
-          <span className={`text-slate-400 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
+          <span className={`text-[#52606D] transition-transform ${open ? "rotate-90" : ""}`} aria-hidden>
             ▶
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-semibold text-white">{title}</span>
-            {subtitle && <span className="mt-0.5 block text-xs text-slate-400">{subtitle}</span>}
+            <span className="block text-sm font-semibold text-[#1A2E4A]">{title}</span>
+            {subtitle && <span className="mt-0.5 block text-xs text-[#52606D]">{subtitle}</span>}
           </span>
         </button>
         {right && <div className="shrink-0">{right}</div>}

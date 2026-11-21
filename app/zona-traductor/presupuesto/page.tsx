@@ -221,19 +221,19 @@ export default async function ZonaTraductorPresupuestoPage({
   const recurrentPhone = builderInitial.customerPhone || initialCustomer?.phone;
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <header className="mb-6">
-          <a href="/zona-traductor/expedientes" className="text-sm text-cyan-400 hover:text-cyan-300">
+          <a href="/zona-traductor/expedientes" className="text-sm text-[#1A2E4A] hover:text-[#1A2E4A]">
             ← Expedientes
           </a>
-          <h1 className="mt-2 text-2xl font-semibold text-white">
+          <h1 className="mt-2 text-2xl font-semibold text-[#1A2E4A]">
             Presupuesto{expRef ? ` de expediente · ${expRef}` : lead ? ` de solicitud lavori · ${lead.ref}` : ""}
           </h1>
           {lecturaConstructorOn() && (sessionKey || casoId) && (
             <a
               href={`/zona-traductor/lectura?${sessionKey ? `session=${encodeURIComponent(sessionKey)}` : `caso=${encodeURIComponent(casoId!)}`}`}
-              className="mt-2 inline-block rounded border border-cyan-500/40 px-3 py-1 text-sm text-cyan-300 hover:text-cyan-200"
+              className="mt-2 inline-block rounded border border-[#D5DAE1] px-3 py-1 text-sm text-[#1A2E4A] hover:text-[#1A2E4A]"
             >
               Leer el lote entero (lectura nueva)
             </a>
@@ -249,7 +249,7 @@ export default async function ZonaTraductorPresupuestoPage({
             casoId={casoId}
           />
           {lead && (
-            <p className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+            <p className="mt-2 rounded-lg border border-[#BFE0CC] bg-[#EEF7F1] px-3 py-2 text-sm text-[#1F6B45]">
               {lead.priceCents
                 ? `${lead.miembroNombre || "El traductor"} propuso ${(lead.priceCents / 100).toFixed(2)} €${lead.plazoDias ? ` · ${lead.plazoDias} días` : ""} (${lead.par}). Entra como coste de las líneas que cubre; el precio de venta es el del motor y solo sube si el margen no llega.`
                 : `Solicitud ${lead.par} enviada a lavori; el traductor aún no ha pasado precio.`}
@@ -258,7 +258,7 @@ export default async function ZonaTraductorPresupuestoPage({
             </p>
           )}
           {plazoTxt && (
-            <p className={`mt-2 rounded-lg border px-3 py-2 text-sm ${isUrgentDeadline(plazo) ? "border-rose-500/40 bg-rose-500/10 text-rose-100" : "border-amber-500/30 bg-amber-500/10 text-amber-100"}`}>
+            <p className={`mt-2 rounded-lg border px-3 py-2 text-sm ${isUrgentDeadline(plazo) ? "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]" : "border-[#E9D8A6] bg-[#FFF8E6] text-[#7A5A10]"}`}>
               {plazoTxt.replace("Lo necesita:", "El cliente lo necesita:")}
               {plazoFrPrefill?.hint ? ` · ${plazoFrPrefill.hint}` : ""}
             </p>
@@ -266,23 +266,23 @@ export default async function ZonaTraductorPresupuestoPage({
           {inboundEmail && (
             <details
               open
-              className="mt-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-100"
+              className="mt-2 rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-sm text-[#1A2E4A]"
             >
-              <summary className="cursor-pointer font-semibold text-sky-200">
+              <summary className="cursor-pointer font-semibold text-[#1A2E4A]">
                 {inboundEmail.channel === "WHATSAPP" ? "WhatsApp del cliente" : "Email del cliente"} · {inboundEmail.fromName || inboundEmail.fromPhone || inboundEmail.fromEmail} · {inboundEmail.subject}
-                <span className="ml-2 font-normal text-sky-300/80">
+                <span className="ml-2 font-normal text-[#1A2E4A]">
                   {inboundEmail.receivedAt.toLocaleString("es-ES")}
                 </span>
               </summary>
-              <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-sky-50/90">
+              <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-[#1F2933]">
                 {inboundEmail.bodyText || inboundEmail.bodyPreview}
               </p>
-              <p className="mt-2 text-xs text-sky-300/80">
+              <p className="mt-2 text-xs text-[#1A2E4A]">
                 Al enviar el presupuesto, la respuesta desde la bandeja ya lo citará (número, total y enlace de pago).
               </p>
             </details>
           )}
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-[#52606D]">
             {expRef
               ? "Expediente del cliente. Los documentos se están analizando automáticamente. Revisa la tabla y genera el presupuesto."
               : "Crea un presupuesto manual (lead de WhatsApp/teléfono) o suelta los documentos del cliente abajo para extraer tipo, idioma, palabras y precio automáticamente."}

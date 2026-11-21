@@ -12,6 +12,7 @@ import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { checkQuoteLinesMargin, verifyTranslatorChannelPrice, notifyMarginOverride, MARGIN_BLOCK_CODE, CHANNEL_BLOCK_CODE } from "@/lib/quote-margin";
+import { abs, hrefPresupuesto } from "./staff-links.ts";
 
 export class QuoteSendError extends Error {
   status: number;
@@ -171,7 +172,7 @@ export async function finalizeAndSendQuote(opts: {
         label: quote.quoteNumber,
         actorEmail: opts.actorEmail,
         detail: bloqueo.detail,
-        url: `${baseUrl}/zona-traductor/presupuestos/${quote.id}`,
+        url: abs(hrefPresupuesto(quote.id), baseUrl),
         action: "enviado",
         quoteId: quote.id,
       });

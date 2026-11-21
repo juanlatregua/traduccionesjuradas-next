@@ -1,6 +1,7 @@
 import { wrapClientEmailHtml } from "@/lib/email";
 import { SITE_BASE_URL } from "@/lib/contact";
 import { sendMail } from "@/lib/azure-mail";
+import { abs, hrefPedido } from "./staff-links.ts";
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net";
 
@@ -112,7 +113,7 @@ export async function sendQuoteNotificationToAdmin(payload: QuoteNotificationPay
   const ref = escapeHtml(payload.orderReference);
   const deadline = escapeHtml(payload.deadline);
   const notes = payload.collaboratorNotes ? escapeHtml(payload.collaboratorNotes) : null;
-  const panelUrl = `${SITE_BASE_URL}/zona-traductor/pedido/${encodeURIComponent(payload.orderReference)}`;
+  const panelUrl = abs(hrefPedido(payload.orderReference), SITE_BASE_URL);
   const html = `
     <p><strong>${name}</strong> ha enviado presupuesto para el pedido <strong>${ref}</strong>.</p>
     <table style="border-collapse:collapse; margin:12px 0;">
@@ -299,7 +300,7 @@ export async function sendDeliveryNotificationToAdmin(payload: DeliveryNotificat
   const ref = escapeHtml(payload.orderReference);
   const filename = escapeHtml(payload.filename);
   const fileUrl = sanitizeUrl(payload.fileUrl);
-  const workspaceUrl = `${SITE_BASE_URL}/zona-traductor/pedido/${payload.orderReference}`;
+  const workspaceUrl = abs(hrefPedido(payload.orderReference), SITE_BASE_URL);
   const now = new Date().toLocaleString("es-ES", { timeZone: "Europe/Madrid" });
   const html = `
     <p><strong>${name}</strong> ha entregado la traducción del pedido <strong>${ref}</strong>.</p>

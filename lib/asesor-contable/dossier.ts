@@ -10,6 +10,7 @@ import { parseFiscalPeriod, type FiscalPeriod } from "../fiscal-period.ts";
 import { madridParts } from "../period-grouping.ts";
 import { aggregateFiscal } from "../fiscal-aggregation.ts";
 import type { Servicio } from "./servicios.ts";
+import { hrefFacturas, hrefPedido } from "../staff-links.ts";
 
 export type RawInvoice = {
   id: string;
@@ -170,7 +171,7 @@ function groupBy<T>(xs: T[], key: (x: T) => string): Map<string, T[]> {
   return m;
 }
 
-const orderLink = (ref: string): Link => ({ label: `Pedido ${ref}`, url: `/zona-traductor/pedido/${encodeURIComponent(ref)}` });
+const orderLink = (ref: string): Link => ({ label: `Pedido ${ref}`, url: hrefPedido(ref) });
 const invoiceLink = (i: RawInvoice): Link => ({ label: `Factura ${i.number ?? "borrador"}`, url: `/api/invoices/${i.id}/pdf` });
 const expenseLink = (e: RawExpense): Link => ({
   label: `Gasto ${e.supplier ?? e.concept} (${madridDay(e.date)})`,
@@ -423,7 +424,7 @@ export function buildDossier(input: DossierInput) {
   const yy = p.tag.slice(2, 4);
   const num = checkNumbering(input.invoices.filter((i) => i.number?.startsWith(`${yy}_`)), yy);
   const fueraDeOrden = num.fueraDeOrden.filter(([a, b]) => inPeriod(invDate(a), p) || inPeriod(invDate(b), p));
-  for (const h of num.huecos) add("N", "hueco_numeracion", `Falta el número ${h} en la serie de facturas`, null, [{ label: "Facturas", url: "/zona-traductor/facturas" }]);
+  for (const h of num.huecos) add("N", "hueco_numeracion", `Falta el número ${h} en la serie de facturas`, null, [{ label: "Facturas", url: hrefFacturas() }]);
   for (const [a, b] of fueraDeOrden) add("O", "numeracion_fuera_de_orden", `La factura ${b.number} (${madridDay(invDate(b))}) tiene fecha anterior a la ${a.number} (${madridDay(invDate(a))})`, null, [invoiceLink(a), invoiceLink(b)]);
 
   const hallazgos = finalizeHallazgos(items);

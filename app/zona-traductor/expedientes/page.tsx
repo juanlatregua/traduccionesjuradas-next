@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
-import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { QUOTE_STATUS_LABELS } from "@/lib/quotes";
 import { FileText } from "lucide-react";
@@ -24,7 +23,6 @@ type Group = {
 
 export default async function ZonaTraductorExpedientesPage() {
   await authZonaTraductorOrRedirect();
-  const expedientesPendientes = await countExpedientesPendientes();
 
   const rows = await prisma.documentAnalysis.findMany({
     where: { sessionToken: { startsWith: "exp:" } },
@@ -82,25 +80,19 @@ export default async function ZonaTraductorExpedientesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <ZonaTraductorSubNav
-          tabs={[
-            { href: "/zona-traductor/presupuestos", label: "Carpeta" },
-            { href: "/zona-traductor/expedientes", label: "Expedientes", badge: expedientesPendientes },
-          ]}
-        />
-        <h1 className="text-2xl font-semibold text-white">Expedientes entrantes</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-[#1A2E4A]">Expedientes entrantes</h1>
+        <p className="mt-1 text-sm text-[#52606D]">
           Expedientes subidos por clientes desde la web. Ábrelos para analizar los documentos y enviar el presupuesto.
         </p>
 
         {groups.length === 0 ? (
-          <p className="mt-10 text-slate-500">No hay expedientes entrantes todavía.</p>
+          <p className="mt-10 text-[#52606D]">No hay expedientes entrantes todavía.</p>
         ) : (
-          <div className="mt-6 overflow-x-auto rounded-xl border border-slate-700">
-            <table className="w-full text-sm text-slate-200">
-              <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+          <div className="mt-6 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+            <table className="w-full text-sm text-[#1F2933]">
+              <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
                 <tr>
                   <th className="px-4 py-2">Expediente</th>
                   <th className="px-4 py-2">Cliente</th>
@@ -110,45 +102,45 @@ export default async function ZonaTraductorExpedientesPage() {
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-[#D5DAE1]">
                 {groups.map((g) => (
                   <tr key={g.ref}>
-                    <td className="px-4 py-3 font-mono text-cyan-300">{g.ref}</td>
+                    <td className="px-4 py-3 font-mono text-[#1A2E4A]">{g.ref}</td>
                     <td className="px-4 py-3">
-                      <div className="text-white">{g.clientName || "—"}</div>
-                      <div className="text-xs text-slate-400">{g.clientEmail}</div>
+                      <div className="text-[#1A2E4A]">{g.clientName || "—"}</div>
+                      <div className="text-xs text-[#52606D]">{g.clientEmail}</div>
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">
                       <span className="inline-flex items-center gap-1">
-                        <FileText className="h-3.5 w-3.5 text-slate-500" /> {g.count}
+                        <FileText className="h-3.5 w-3.5 text-[#52606D]" /> {g.count}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-400">
+                    <td className="px-4 py-3 text-[#52606D]">
                       {g.createdAt.toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
                     </td>
                     <td className="px-4 py-3">
                       {g.quote ? (
-                        <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs text-slate-200">
+                        <span className="rounded bg-[#F6F7F9] px-2 py-0.5 text-xs text-[#1F2933]">
                           {g.quote.quoteNumber} · {g.quote.closed ? "Cerrado" : QUOTE_STATUS_LABELS[g.quote.status]}
                         </span>
                       ) : g.analyzed < g.count ? (
-                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-300">Nuevo · sin presupuesto</span>
+                        <span className="rounded bg-[#FFF8E6] px-2 py-0.5 text-xs text-[#7A5A10]">Nuevo · sin presupuesto</span>
                       ) : (
-                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs text-amber-300">Sin presupuesto</span>
+                        <span className="rounded bg-[#FFF8E6] px-2 py-0.5 text-xs text-[#7A5A10]">Sin presupuesto</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {g.quote ? (
                         <a
                           href={`/zona-traductor/presupuestos/${g.quote.id}`}
-                          className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+                          className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
                         >
                           Ver presupuesto
                         </a>
                       ) : (
                         <a
                           href={`/zona-traductor/presupuesto?exp=${encodeURIComponent(g.ref)}`}
-                          className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500"
+                          className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243F66]"
                         >
                           Preparar presupuesto
                         </a>

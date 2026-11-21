@@ -23,8 +23,8 @@ type Card = {
 
 function StatusBadge({ status }: { status: Card["status"] }) {
   const map = {
-    cableado: { label: "Cableado en código", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
-    parcial: { label: "Parcial (env vars)", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
+    cableado: { label: "Cableado en código", cls: "bg-[#FFF8E6] text-[#7A5A10] border-[#E9D8A6]" },
+    parcial: { label: "Parcial (env vars)", cls: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]" },
   } as const;
   const info = map[status];
   return (
@@ -112,17 +112,17 @@ export default async function ZonaTraductorAjustesPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <h1 className="text-2xl font-semibold text-white">Ajustes</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-[#1A2E4A]">Ajustes</h1>
+        <p className="mt-1 text-sm text-[#52606D]">
           Lo que hoy define a esta instalación. Aún no se edita desde aquí: cada tarjeta muestra el valor real y dónde
           vive.
         </p>
 
-        <div className="mt-5 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-100">
-          <p className="font-semibold text-cyan-200">Esta pantalla es el mapa del trabajo pendiente</p>
-          <p className="mt-1 text-cyan-100/80">
+        <div className="mt-5 rounded-2xl border border-[#D5DAE1] bg-[#F6F7F9] px-4 py-3 text-sm text-[#1A2E4A]">
+          <p className="font-semibold text-[#1A2E4A]">Esta pantalla es el mapa del trabajo pendiente</p>
+          <p className="mt-1 text-[#1A2E4A]">
             Para que otro traductor jurado pueda usar esta herramienta, estos datos tienen que salir del código y
             pasar a ser configuración. Mientras sigan cableados, cada instalación nueva es una copia del repositorio en
             vez de un alta.
@@ -133,24 +133,24 @@ export default async function ZonaTraductorAjustesPage() {
           {cards.map((card) => (
             <section
               key={card.title}
-              className="rounded-2xl border border-slate-700 bg-slate-900/70 p-5 shadow-sm"
+              className="rounded-2xl border border-[#D5DAE1] bg-white p-5 shadow-sm"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-base font-semibold text-white">{card.title}</h2>
+                <h2 className="text-base font-semibold text-[#1A2E4A]">{card.title}</h2>
                 <StatusBadge status={card.status} />
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">{card.description}</p>
+              <p className="mt-1 text-xs leading-relaxed text-[#52606D]">{card.description}</p>
 
               <dl className="mt-3 space-y-1.5">
                 {card.values.map((v) => (
                   <div key={v.label} className="flex flex-wrap gap-x-2 text-xs">
-                    <dt className="shrink-0 text-slate-500">{v.label}:</dt>
-                    <dd className="font-medium text-slate-200">{v.value}</dd>
+                    <dt className="shrink-0 text-[#52606D]">{v.label}:</dt>
+                    <dd className="font-medium text-[#1F2933]">{v.value}</dd>
                   </div>
                 ))}
               </dl>
 
-              <p className="mt-3 border-t border-slate-800 pt-2 font-mono text-[10px] text-slate-500">
+              <p className="mt-3 border-t border-[#D5DAE1] pt-2 font-mono text-[10px] text-[#52606D]">
                 {card.sourceFile}
               </p>
             </section>

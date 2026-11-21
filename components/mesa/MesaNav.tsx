@@ -19,11 +19,12 @@ const TABS: Tab[] = [
     key: "casos",
     label: "Casos",
     href: `${Z}/casos`,
-    owns: [`${Z}/casos`, `${Z}/pedido`, `${Z}/control`, `${Z}/presupuestos`, `${Z}/presupuesto`, `${Z}/expedientes`, `${Z}/lectura`, `${Z}/workspace`, `${Z}/proyecto`, "/admin/inbox"],
+    owns: [`${Z}/casos`, `${Z}/pedido`, `${Z}/presupuestos`, `${Z}/presupuesto`, `${Z}/expedientes`, `${Z}/lectura`, "/admin/inbox"],
     subs: [
       { href: `${Z}/casos`, label: "Casos" },
       { href: Z, label: "Pedidos", badge: "pedidos" },
       { href: `${Z}/presupuestos`, label: "Presupuestos", badge: "presupuestos" },
+      { href: `${Z}/expedientes`, label: "Expedientes" },
       { href: `${Z}/presupuesto`, label: "Constructor" },
       { href: "/admin/inbox", label: "Bandeja" },
     ],
@@ -39,10 +40,11 @@ const TABS: Tab[] = [
       { href: `${Z}/facturas`, label: "Facturas" },
       { href: `${Z}/periodos`, label: "Periodos" },
       { href: `${Z}/recurrentes`, label: "Recurrentes" },
+      { href: `${Z}/contabilidad/bizum`, label: "Bizum" },
       { href: `${Z}/panel`, label: "Panel", admin: true },
     ],
   },
-  { key: "ajustes", label: "Ajustes", href: `${Z}/ajustes`, owns: [`${Z}/ajustes`, `${Z}/tarifario`, `${Z}/tablero`], subs: [{ href: `${Z}/ajustes`, label: "Ajustes" }, { href: `${Z}/tarifario`, label: "Tarifario" }] },
+  { key: "ajustes", label: "Ajustes", href: `${Z}/ajustes`, owns: [`${Z}/ajustes`, `${Z}/tarifario`], subs: [{ href: `${Z}/ajustes`, label: "Ajustes" }, { href: `${Z}/tarifario`, label: "Tarifario" }] },
 ];
 
 const bajo = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
@@ -59,7 +61,7 @@ export default function MesaNav({ pedidosAccionables, presupuestosAccionables, s
   const activa = TABS.find((t) => t.key === tabDe(pathname));
   const subs = (activa?.subs || []).filter((s) => !s.admin || staffRole === "ADMIN");
   const badge = (b?: Sub["badge"]) => (b === "pedidos" ? pedidosAccionables : b === "presupuestos" ? presupuestosAccionables : 0);
-  const subActiva = subs.filter((s) => (s.href === Z ? pathname === Z || bajo(pathname, `${Z}/pedido`) || bajo(pathname, `${Z}/control`) : bajo(pathname, s.href))).sort((a, b) => b.href.length - a.href.length)[0];
+  const subActiva = subs.filter((s) => (s.href === Z ? pathname === Z || bajo(pathname, `${Z}/pedido`) : bajo(pathname, s.href))).sort((a, b) => b.href.length - a.href.length)[0];
 
   return (
     <>
@@ -119,14 +121,14 @@ export default function MesaNav({ pedidosAccionables, presupuestosAccionables, s
       </header>
       <dialog
         ref={dialogRef}
-        className="m-auto w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl backdrop:bg-black/70"
+        className="m-auto w-full max-w-lg rounded-2xl border border-[#D5DAE1] bg-white p-6 text-[#1F2933] shadow-2xl backdrop:bg-black/40"
         onClick={(e) => {
           if (e.target === e.currentTarget) dialogRef.current?.close();
         }}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Nuevo pedido</h2>
-          <button type="button" onClick={() => dialogRef.current?.close()} aria-label="Cerrar" className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+          <h2 className="text-lg font-semibold text-[#1A2E4A]">Nuevo pedido</h2>
+          <button type="button" onClick={() => dialogRef.current?.close()} aria-label="Cerrar" className="rounded-lg p-1 text-[#52606D] hover:bg-[#F6F7F9] hover:text-[#1A2E4A]">
             ✕
           </button>
         </div>

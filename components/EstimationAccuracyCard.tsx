@@ -18,9 +18,9 @@ type AccuracyData = {
 };
 
 function accuracyColor(rate: number) {
-  if (rate >= 80) return "text-bleu-light border-bleu/30 bg-bleu/10";
-  if (rate >= 60) return "text-amber-400 border-amber-500/30 bg-amber-500/10";
-  return "text-red-400 border-red-500/30 bg-red-500/10";
+  if (rate >= 80) return "text-[#1F6B45] border-[#BFE0CC] bg-[#EEF7F1]";
+  if (rate >= 60) return "text-[#7A5A10] border-[#E9D8A6] bg-[#FFF8E6]";
+  return "text-[#A12B2B] border-[#F0C9C9] bg-[#FDF2F2]";
 }
 
 export default function EstimationAccuracyCard() {
@@ -41,7 +41,7 @@ export default function EstimationAccuracyCard() {
 
   if (loading) {
     return (
-      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cream/20 bg-encre/80 p-6 shadow-xl sm:p-8">
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#D5DAE1] bg-white p-6 shadow-xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-graphite">
           Precision del estimador
         </p>
@@ -52,18 +52,18 @@ export default function EstimationAccuracyCard() {
 
   if (error) {
     return (
-      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-red-500/30 bg-red-500/5 p-6 shadow-xl sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-red-300">
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#F0C9C9] bg-[#FDF2F2] p-6 shadow-xl sm:p-8">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#A12B2B]">
           Precision del estimador
         </p>
-        <p className="mt-3 text-sm text-red-400">{error}</p>
+        <p className="mt-3 text-sm text-[#A12B2B]">{error}</p>
       </section>
     );
   }
 
   if (!data || data.totalSamples === 0) {
     return (
-      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cream/20 bg-encre/80 p-6 shadow-xl sm:p-8">
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#D5DAE1] bg-white p-6 shadow-xl sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-graphite">
           Precision del estimador
         </p>
@@ -81,7 +81,7 @@ export default function EstimationAccuracyCard() {
     .sort((a, b) => b[1].samples - a[1].samples);
 
   return (
-    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cream/20 bg-encre/80 p-6 shadow-xl sm:p-8">
+    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#D5DAE1] bg-white p-6 shadow-xl sm:p-8">
       <p className="text-xs font-semibold uppercase tracking-wide text-graphite">
         Precision del estimador
       </p>
@@ -93,10 +93,10 @@ export default function EstimationAccuracyCard() {
             Precision global
           </p>
         </div>
-        <div className="text-sm text-cream">
+        <div className="text-sm text-[#1F2933]">
           <p>
-            <span className="font-semibold text-white">{data.accurateCount}</span> de{" "}
-            <span className="font-semibold text-white">{data.totalSamples}</span> estimaciones
+            <span className="font-semibold text-[#1A2E4A]">{data.accurateCount}</span> de{" "}
+            <span className="font-semibold text-[#1A2E4A]">{data.totalSamples}</span> estimaciones
             dentro del 10% del precio final.
           </p>
           <p className="mt-1 text-graphite">
@@ -117,9 +117,9 @@ export default function EstimationAccuracyCard() {
           return (
             <div
               key={band}
-              className="rounded-xl border border-cream/20 bg-encre/50 px-3 py-2 text-xs text-cream"
+              className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-xs text-[#1F2933]"
             >
-              <p className="font-semibold text-cream">{label}</p>
+              <p className="font-semibold text-[#1F2933]">{label}</p>
               <p className="mt-1">
                 {info.samples} muestras · {info.accuracyRate}% precision
               </p>

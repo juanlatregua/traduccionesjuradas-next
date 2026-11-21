@@ -4,6 +4,7 @@
 
 import { sendMail } from "@/lib/azure-mail";
 import { wrapClientEmailHtml } from "@/lib/email";
+import { abs, hrefConstructor, hrefPresupuesto } from "../staff-links.ts";
 
 const BASE_URL = "https://www.traduccionesjuradas.net";
 
@@ -51,8 +52,8 @@ export async function sendExpedienteStaffEmail(data: {
   }
   const quote = data.added?.quote ?? null;
   const presupuestoUrl = quote
-    ? `${BASE_URL}/zona-traductor/presupuestos/${quote.id}`
-    : `${BASE_URL}/zona-traductor/presupuesto?exp=${encodeURIComponent(data.ref)}`;
+    ? abs(hrefPresupuesto(quote.id), BASE_URL)
+    : abs(hrefConstructor({ exp: data.ref }), BASE_URL);
   const titulo = !data.added
     ? `Nuevo expediente recibido — ${data.ref}`
     : quote

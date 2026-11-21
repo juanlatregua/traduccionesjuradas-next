@@ -43,7 +43,7 @@ export default function RetireLavoriLeadButton({ id, leadRef }: { id: string; le
       disabled={busy}
       onClick={retire}
       title="Retira el encargo en lavori y cierra la solicitud en tj.net"
-      className="rounded-lg border border-rose-500/50 px-3 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/10 disabled:opacity-50"
+      className="rounded-lg border border-[#F0C9C9] px-3 py-2 text-xs font-semibold text-[#A12B2B] hover:bg-[#F6F7F9] disabled:opacity-50"
     >
       {busy ? "…" : "Retirar en lavori"}
     </button>

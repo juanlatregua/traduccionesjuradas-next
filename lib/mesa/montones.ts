@@ -5,6 +5,7 @@
 
 import { siguientePaso, quoteVigente, hrefPedido, ESPERA_JURADO_HORAS, type AccionPaso, type LprPaso, type PedidoPaso, type QuotePaso } from "../caso/siguiente-paso.ts";
 import { lprViva } from "../caso/estados.ts";
+import { hrefConstructor } from "../staff-links.ts";
 import { CLOSE_AFTER_HOURS, REMINDER_AFTER_HOURS, SEND_OVERDUE_HOURS } from "../cierre-math.ts";
 import { deadlineLine, isUrgentDeadline } from "../needed-by.ts";
 import type { SlaLead } from "../lead-sla-core.ts";
@@ -252,7 +253,7 @@ export function tarjetasDeLeads(leads: SlaLead[], yaEnMesa: Tarjeta[], ahora: Da
   return leads
     .filter((l) => !(l.email && emails.has(norm(l.email))) && !(l.phone && tels.has(nueve(l.phone))))
     .map((l) => {
-      const link = (l.links[0] || "").replace(SITE, "") || "/zona-traductor/presupuesto";
+      const link = (l.links[0] || "").replace(SITE, "") || hrefConstructor();
       return {
         key: `lead:${l.root}`,
         casoId: null,

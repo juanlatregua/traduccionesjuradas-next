@@ -228,17 +228,17 @@ const eur = (n: number) => `${n.toLocaleString("es-ES", { minimumFractionDigits:
 function PriorPricesHint({ matches, onUse }: { matches?: PriorPrice[]; onUse: (m: PriorPrice) => void }) {
   if (!matches?.length) return null;
   return (
-    <div className="mt-1 space-y-0.5 text-[11px] text-slate-400">
+    <div className="mt-1 space-y-0.5 text-[11px] text-[#52606D]">
       {matches.map((m) => {
         const dt = new Date(m.issuedAt);
         return (
           <p key={m.quoteNumber + m.unitPrice} className="flex flex-wrap items-center gap-x-1">
             <span>
-              {m.own ? "Ya presupuestado a este cliente" : "Ya presupuestado"}: <strong className="text-slate-200">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
+              {m.own ? "Ya presupuestado a este cliente" : "Ya presupuestado"}: <strong className="text-[#1F2933]">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
               {m.supplierUnitCost != null ? ` · traductor ${eur(m.supplierUnitCost)}` : ""}
               {m.status === "PAID" || m.status === "IN_PROGRESS" || m.status === "DELIVERED" ? " · pagado" : ""}
             </span>
-            <button type="button" onClick={() => onUse(m)} className="font-semibold text-cyan-400 underline hover:text-cyan-300">
+            <button type="button" onClick={() => onUse(m)} className="font-semibold text-[#1A2E4A] underline hover:text-[#1A2E4A]">
               Usar este precio
             </button>
           </p>
@@ -1425,14 +1425,14 @@ export default function StaffExpedienteIntake({
 
 
   return (
-    <div className="space-y-6 text-slate-200">
+    <div className="space-y-6 text-[#1F2933]">
       {/* Cliente ARRIBA: confirma QUIÉN antes de subir documentos / cotizar.
           (Selector de agenda + datos; el builder unificado funciona sin docs.) */}
-      <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-        <h3 className="text-sm font-semibold text-white">Cliente</h3>
+      <div className="space-y-3 rounded-xl border border-[#D5DAE1] bg-white p-4">
+        <h3 className="text-sm font-semibold text-[#1A2E4A]">Cliente</h3>
         {agenda.length > 0 && (
           <select
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-slate-200"
+            className="w-full rounded border border-[#D5DAE1] bg-white px-3 py-2 text-[#1F2933]"
             defaultValue=""
             onChange={(e) => {
               const c = agenda.find((x) => x.id === e.target.value);
@@ -1453,12 +1453,12 @@ export default function StaffExpedienteIntake({
           </select>
         )}
         <div className="grid gap-2 sm:grid-cols-3">
-          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Nombre del cliente" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
-          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Teléfono (opcional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+          <input className="w-full rounded border border-[#D5DAE1] bg-white px-3 py-2" placeholder="Nombre del cliente" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+          <input className="w-full rounded border border-[#D5DAE1] bg-white px-3 py-2" placeholder="Email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+          <input className="w-full rounded border border-[#D5DAE1] bg-white px-3 py-2" placeholder="Teléfono (opcional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
         </div>
         <input
-          className="mt-2 w-full rounded border border-slate-600 bg-slate-900 px-3 py-2"
+          className="mt-2 w-full rounded border border-[#D5DAE1] bg-white px-3 py-2"
           placeholder="Titulares de los certificados (opcional, p. ej. María García, Juan Pérez)"
           value={holderNames}
           onChange={(e) => setHolderNames(e.target.value)}
@@ -1466,60 +1466,60 @@ export default function StaffExpedienteIntake({
       </div>
 
       {emailContext && (
-        <div className="space-y-3 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+        <div className="space-y-3 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-sky-200">Lectura del email (IA)</h3>
-            {briefLoading && <Loader2 className="h-4 w-4 animate-spin text-sky-300" />}
+            <h3 className="text-sm font-semibold text-[#1A2E4A]">Lectura del email (IA)</h3>
+            {briefLoading && <Loader2 className="h-4 w-4 animate-spin text-[#1A2E4A]" />}
             <button
               type="button"
               onClick={() => void readEmail(docs)}
               disabled={briefLoading}
-              className="ml-auto rounded border border-sky-500/40 px-2 py-1 text-xs text-sky-200 hover:bg-sky-500/10 disabled:opacity-50"
+              className="ml-auto rounded border border-[#D5DAE1] px-2 py-1 text-xs text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-50"
             >
               Releer con los documentos
             </button>
           </div>
-          {briefError && <p className="text-xs text-amber-300">✗ {briefError}</p>}
+          {briefError && <p className="text-xs text-[#7A5A10]">✗ {briefError}</p>}
           {!brief && !briefError && briefLoading && (
-            <p className="text-xs text-sky-200/80">Leyendo qué pide el cliente…</p>
+            <p className="text-xs text-[#1A2E4A]">Leyendo qué pide el cliente…</p>
           )}
           {brief && (
             <div className="space-y-2 text-sm">
-              <p className="text-sky-50">{brief.summary}</p>
+              <p className="text-[#1F2933]">{brief.summary}</p>
               <div className="flex flex-wrap gap-1.5 text-xs">
                 {(brief.sourceLang || brief.targetLang) && (
-                  <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-200">
+                  <span className="rounded bg-[#F6F7F9] px-2 py-0.5 text-[#1F2933]">
                     Par: {(brief.sourceLang || "?").toUpperCase()} → {(brief.targetLang || "?").toUpperCase()}
                   </span>
                 )}
                 {brief.urgency && (
-                  <span className={`rounded px-2 py-0.5 ${brief.urgency === "urgent" ? "bg-amber-500/20 text-amber-200" : "bg-slate-800 text-slate-200"}`}>
+                  <span className={`rounded px-2 py-0.5 ${brief.urgency === "urgent" ? "bg-[#FFF8E6] text-[#7A5A10]" : "bg-[#F6F7F9] text-[#1F2933]"}`}>
                     {brief.urgency === "urgent" ? "Urgente" : "Plazo normal"}{brief.deadline ? ` · ${brief.deadline}` : ""}
                   </span>
                 )}
                 {brief.deliveryHint && (
-                  <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-200">
+                  <span className="rounded bg-[#F6F7F9] px-2 py-0.5 text-[#1F2933]">
                     {brief.deliveryHint === "PAPER_SHIP" ? "Pide papel" : "Pide PDF"}
                   </span>
                 )}
                 {brief.provisional && (
-                  <span className="rounded bg-rose-500/20 px-2 py-0.5 font-semibold text-rose-200">
+                  <span className="rounded bg-[#FDF2F2] px-2 py-0.5 font-semibold text-[#A12B2B]">
                     Documento provisional / incompleto
                   </span>
                 )}
               </div>
               {brief.provisional && brief.provisionalReason && (
-                <p className="text-xs text-rose-200/90">{brief.provisionalReason}</p>
+                <p className="text-xs text-[#A12B2B]">{brief.provisionalReason}</p>
               )}
               {brief.quoteNotes && (
-                <p className="text-xs text-sky-200/80">
+                <p className="text-xs text-[#1A2E4A]">
                   Nota añadida al presupuesto (editable abajo en «Notas legales»): <em>{brief.quoteNotes}</em>
                 </p>
               )}
               {brief.questions.length > 0 && (
-                <div className="rounded-lg border border-sky-500/20 bg-slate-900/50 p-3">
+                <div className="rounded-lg border border-[#D5DAE1] bg-white p-3">
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">Preguntas al cliente</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Preguntas al cliente</p>
                     <button
                       type="button"
                       onClick={() => {
@@ -1527,17 +1527,17 @@ export default function StaffExpedienteIntake({
                         setBriefCopied(true);
                         setTimeout(() => setBriefCopied(false), 1500);
                       }}
-                      className="ml-auto rounded border border-slate-600 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
+                      className="ml-auto rounded border border-[#D5DAE1] px-2 py-0.5 text-[11px] text-[#1F2933] hover:bg-[#F6F7F9]"
                     >
                       {briefCopied ? "Copiadas ✓" : "Copiar"}
                     </button>
                   </div>
-                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-slate-200">
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-[#1F2933]">
                     {brief.questions.map((q, i) => (
                       <li key={i}>{q}</li>
                     ))}
                   </ul>
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-[11px] text-[#52606D]">
                     Pégalas en la instrucción del borrador IA de la bandeja o en el email del presupuesto.
                   </p>
                 </div>
@@ -1550,25 +1550,25 @@ export default function StaffExpedienteIntake({
       {/* Idioma destino del expediente — elígelo ANTES de subir si traduces a
           un tercer idioma (p. ej. todo a inglés). Pre-rellena la dirección de
           cada documento detectado hacia ese idioma. */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3">
-        <label className="text-sm font-medium text-slate-200">Idioma destino del expediente</label>
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#D5DAE1] bg-white px-4 py-3">
+        <label className="text-sm font-medium text-[#1F2933]">Idioma destino del expediente</label>
         <select
           value={targetLang}
           onChange={(e) => setTargetLang(e.target.value)}
-          className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-200"
+          className="rounded border border-[#D5DAE1] bg-white px-2 py-1.5 text-sm text-[#1F2933]"
         >
           <option value="">Auto (al español)</option>
           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
         </select>
-        <span className="text-xs text-slate-500">Elígelo antes de subir si traduces a un tercer idioma (p. ej. todo a inglés). El precio final lo confirmas tú.</span>
+        <span className="text-xs text-[#52606D]">Elígelo antes de subir si traduces a un tercer idioma (p. ej. todo a inglés). El precio final lo confirmas tú.</span>
         {docs.some((d) => d.priceNote) && (
-          <span className="flex w-full items-center gap-1 text-xs text-amber-300">
+          <span className="flex w-full items-center gap-1 text-xs text-[#7A5A10]">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             Hay líneas sin precio automático (falta destino o par sin español): elige aquí el idioma de destino para recalcular, o pon el precio a mano.
           </span>
         )}
         {docs.some((d) => d.include && d.absorbedPages?.length) && (
-          <span className="flex w-full items-center gap-1 text-xs text-amber-300">
+          <span className="flex w-full items-center gap-1 text-xs text-[#7A5A10]">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             Hay documentos que incluyen páginas sin texto (firma o escaneo): comprueba que no sean otro documento — p. ej. una apostilla — antes de enviar.
           </span>
@@ -1576,7 +1576,7 @@ export default function StaffExpedienteIntake({
       </div>
 
       {/* P2: elegir si el conteo IA se lanza al soltar (tiene coste) o se pone a mano */}
-      <label className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-slate-200">
+      <label className="flex flex-wrap items-center gap-2 rounded-xl border border-[#D5DAE1] bg-white px-4 py-3 text-sm text-[#1F2933]">
         <input
           type="checkbox"
           checked={autoCount}
@@ -1584,7 +1584,7 @@ export default function StaffExpedienteIntake({
           className="h-4 w-4"
         />
         <span className="font-medium">Contar palabras automáticamente al soltar (IA)</span>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-[#52606D]">
           El conteo automático usa IA y tiene coste. Desactívalo para clientes con precio fijo por documento
           (p. ej. 30 €/doc): subes el archivo y pones el precio a mano, sin lanzar el conteo.
         </span>
@@ -1598,15 +1598,15 @@ export default function StaffExpedienteIntake({
           if (e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files);
         }}
         onClick={() => inputRef.current?.click()}
-        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-cyan-700/50 bg-slate-900/50 px-6 py-10 transition-colors hover:border-cyan-500"
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#D5DAE1] bg-white px-6 py-10 transition-colors hover:border-[#1A2E4A]"
         role="button"
         tabIndex={0}
       >
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/10">
-          <Upload className="h-6 w-6 text-cyan-400" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F6F7F9]">
+          <Upload className="h-6 w-6 text-[#1A2E4A]" />
         </div>
-        <p className="font-semibold text-white">Arrastra los documentos del expediente</p>
-        <p className="text-sm text-slate-400">PDF, foto o escaneo · varios a la vez · máx. 20 MB c/u</p>
+        <p className="font-semibold text-[#1A2E4A]">Arrastra los documentos del expediente</p>
+        <p className="text-sm text-[#52606D]">PDF, foto o escaneo · varios a la vez · máx. 20 MB c/u</p>
         <input
           ref={inputRef}
           type="file"
@@ -1625,18 +1625,18 @@ export default function StaffExpedienteIntake({
         <button
           type="button"
           onClick={addManualLine}
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
+          className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-sm text-[#1F2933] hover:bg-[#F6F7F9]"
         >
           + Añadir línea manual
         </button>
-        <span className="ml-2 text-xs text-slate-500">Para presupuestar sin subir documento, o añadir conceptos sueltos.</span>
+        <span className="ml-2 text-xs text-[#52606D]">Para presupuestar sin subir documento, o añadir conceptos sueltos.</span>
       </div>
 
       {/* Tabla de documentos */}
       {docs.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
+        <div className="overflow-x-auto rounded-xl border border-[#D5DAE1]">
           <table className="w-full text-sm">
-            <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+            <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
               <tr>
                 <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">Documento</th>
@@ -1648,7 +1648,7 @@ export default function StaffExpedienteIntake({
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-[#D5DAE1]">
               {docs.map((d, i) => (
                 <tr key={d.localId} className={d.include ? "" : "opacity-40"}>
                   <td className="px-3 py-2">
@@ -1657,7 +1657,7 @@ export default function StaffExpedienteIntake({
                       checked={d.include}
                       disabled={d.status === "uploading" || d.status === "analyzing"}
                       onChange={(e) => patch(d.localId, { include: e.target.checked })}
-                      className="h-4 w-4 rounded border-slate-600"
+                      className="h-4 w-4 rounded border-[#D5DAE1]"
                     />
                   </td>
                   <td className="max-w-[220px] px-3 py-2">
@@ -1668,19 +1668,19 @@ export default function StaffExpedienteIntake({
                           value={d.fileName}
                           onChange={(e) => patch(d.localId, { fileName: e.target.value })}
                           placeholder={d.status === "error" ? "Nombre / concepto del documento" : "Concepto de la línea"}
-                          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                          className="w-full rounded border border-[#D5DAE1] bg-white px-2 py-1 text-sm"
                         />
                         {d.blobUrl && (
                           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px]">
-                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ver</a>
-                            <span className="text-slate-600">·</span>
-                            <a href={docViewUrl(d, true)!} className="text-cyan-400 hover:underline">descargar</a>
-                            <span className="text-slate-600">·</span>
+                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">ver</a>
+                            <span className="text-[#52606D]">·</span>
+                            <a href={docViewUrl(d, true)!} className="text-[#1A2E4A] hover:underline">descargar</a>
+                            <span className="text-[#52606D]">·</span>
                             <button
                               type="button"
                               onClick={() => suggestName(d)}
                               disabled={namingId === d.localId}
-                              className="text-cyan-400 hover:underline disabled:opacity-50"
+                              className="text-[#1A2E4A] hover:underline disabled:opacity-50"
                               title="Sugerir el tipo de documento con IA (no cuenta palabras)"
                             >
                               {namingId === d.localId ? "nombrando…" : "sugerir nombre (IA)"}
@@ -1691,19 +1691,19 @@ export default function StaffExpedienteIntake({
                     ) : (
                       <div>
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+                          <FileText className="h-4 w-4 shrink-0 text-[#52606D]" />
                           <span className="truncate" title={d.fileName}>{d.fileName}</span>
                         </div>
                         {d.blobUrl && (
                           <div className="ml-6 mt-0.5 flex items-center gap-2 text-[11px]">
-                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ver</a>
-                            <span className="text-slate-600">·</span>
-                            <a href={docViewUrl(d, true)!} className="text-cyan-400 hover:underline">descargar</a>
+                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">ver</a>
+                            <span className="text-[#52606D]">·</span>
+                            <a href={docViewUrl(d, true)!} className="text-[#1A2E4A] hover:underline">descargar</a>
                           </div>
                         )}
                         {d.absorbedPages?.length ? (
                           <p
-                            className="ml-6 mt-0.5 text-[11px] text-amber-300"
+                            className="ml-6 mt-0.5 text-[11px] text-[#7A5A10]"
                             title="Página sin texto legible (firma o escaneo) unida a este documento. Si es otro documento (p. ej. una apostilla escaneada), sepárala y ponle precio."
                           >
                             incluye pág. {d.absorbedPages.join(", ")} sin texto
@@ -1716,7 +1716,7 @@ export default function StaffExpedienteIntake({
                                 <button
                                   type="button"
                                   onClick={() => detachAbsorbed(d.localId)}
-                                  className="font-semibold underline hover:text-amber-200"
+                                  className="font-semibold underline hover:text-[#7A5A10]"
                                 >
                                   separar
                                 </button>
@@ -1729,35 +1729,35 @@ export default function StaffExpedienteIntake({
                   </td>
                   <td className="px-3 py-2">
                     {d.status === "uploading" && (
-                      <span className="flex items-center gap-1 text-slate-400"><Loader2 className="h-3 w-3 animate-spin" /> Subiendo…</span>
+                      <span className="flex items-center gap-1 text-[#52606D]"><Loader2 className="h-3 w-3 animate-spin" /> Subiendo…</span>
                     )}
                     {d.status === "analyzing" && (
-                      <span className="flex items-center gap-1 text-cyan-400"><Loader2 className="h-3 w-3 animate-spin" /> Analizando y contando palabras…</span>
+                      <span className="flex items-center gap-1 text-[#1A2E4A]"><Loader2 className="h-3 w-3 animate-spin" /> Analizando y contando palabras…</span>
                     )}
                     {d.status === "error" && (
-                      <span className="flex items-center gap-1 text-amber-400" title={d.error}><AlertTriangle className="h-3 w-3" /> Error · precio a mano</span>
+                      <span className="flex items-center gap-1 text-[#7A5A10]" title={d.error}><AlertTriangle className="h-3 w-3" /> Error · precio a mano</span>
                     )}
                     {d.status === "manual" && (
-                      <span className="text-slate-400">Línea manual</span>
+                      <span className="text-[#52606D]">Línea manual</span>
                     )}
                     {d.status === "done" && (
                       <span className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        <CheckCircle2 className="h-3 w-3 text-[#1F6B45]" />
                         {d.documentTypeEs}
                         {d.mode === "text" && (
-                          <span className="ml-1 rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Analizado por texto (barato)">texto</span>
+                          <span className="ml-1 rounded bg-[#EEF7F1] px-1 text-[10px] text-[#1F6B45]" title="Analizado por texto (barato)">texto</span>
                         )}
                         {d.priceNote ? (
-                          <span className="ml-1 flex items-center gap-0.5 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>
+                          <span className="ml-1 flex items-center gap-0.5 rounded bg-[#FFF8E6] px-1 text-[10px] text-[#7A5A10]" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>
                             <AlertTriangle className="h-3 w-3" /> a mano: {d.priceNote}
                           </span>
                         ) : (
                           knownLangCode(d.targetLang) && d.targetLang !== "es" && (
-                            <span className="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
+                            <span className="ml-1 rounded bg-[#FFF8E6] px-1 text-[10px] text-[#7A5A10]" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
                           )
                         )}
                         {!d.priceNote && d.autoPriced !== false && d.minApplied && (
-                          <span className="ml-1 rounded bg-sky-500/15 px-1 text-[10px] text-sky-300" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — en expedientes con varios certificados cortos cada doc suma su mínimo: bájalo a mano si lo ves justo`}>mínimo aplicado</span>
+                          <span className="ml-1 rounded bg-[#F6F7F9] px-1 text-[10px] text-[#1A2E4A]" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — en expedientes con varios certificados cortos cada doc suma su mínimo: bájalo a mano si lo ves justo`}>mínimo aplicado</span>
                         )}
                       </span>
                     )}
@@ -1768,19 +1768,19 @@ export default function StaffExpedienteIntake({
                           value={d.documentTypeEs || ""}
                           onChange={(e) => patch(d.localId, { documentTypeEs: e.target.value })}
                           placeholder="Concepto / tipo"
-                          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
+                          className="w-full rounded border border-[#D5DAE1] bg-white px-2 py-1 text-xs"
                         />
                         <div className="flex flex-wrap items-center gap-1">
-                          <span className="rounded bg-cyan-500/15 px-1 text-[10px] text-cyan-300" title="Documento detectado dentro de un PDF con varios — revisa y ajusta">auto · varios</span>
+                          <span className="rounded bg-[#F6F7F9] px-1 text-[10px] text-[#1A2E4A]" title="Documento detectado dentro de un PDF con varios — revisa y ajusta">auto · varios</span>
                           {d.priceNote ? (
-                            <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>a mano: {d.priceNote}</span>
+                            <span className="rounded bg-[#FFF8E6] px-1 text-[10px] text-[#7A5A10]" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>a mano: {d.priceNote}</span>
                           ) : (
                             knownLangCode(d.targetLang) && d.targetLang !== "es" && (
-                              <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio">revisa precio</span>
+                              <span className="rounded bg-[#FFF8E6] px-1 text-[10px] text-[#7A5A10]" title="Destino no-español: revisa y ajusta el precio">revisa precio</span>
                             )
                           )}
                           {!d.priceNote && d.autoPriced !== false && d.minApplied && (
-                            <span className="rounded bg-sky-500/15 px-1 text-[10px] text-sky-300" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — bájalo a mano si lo ves justo`}>mínimo aplicado</span>
+                            <span className="rounded bg-[#F6F7F9] px-1 text-[10px] text-[#1A2E4A]" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — bájalo a mano si lo ves justo`}>mínimo aplicado</span>
                           )}
                         </div>
                       </div>
@@ -1792,17 +1792,17 @@ export default function StaffExpedienteIntake({
                       />
                     )}
                     {d.priorFrom && (
-                      <span className="mt-1 inline-block rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Precio y coste copiados de un presupuesto anterior de este cliente">
+                      <span className="mt-1 inline-block rounded bg-[#EEF7F1] px-1 text-[10px] text-[#1F6B45]" title="Precio y coste copiados de un presupuesto anterior de este cliente">
                         precedente {d.priorFrom}
                       </span>
                     )}
                     {isEngineCostRow(d, sourceLang, targetLang) && (
-                      <span className="mt-1 inline-block rounded bg-red-500/20 px-1 text-[10px] font-semibold text-red-300" title="El coste sale de la tarifa de la casa: ningún jurado lo ha dado y el cliente no lo pagó antes. Pide precio por lavori o ponlo a mano.">
+                      <span className="mt-1 inline-block rounded bg-[#FDF2F2] px-1 text-[10px] font-semibold text-[#A12B2B]" title="El coste sale de la tarifa de la casa: ningún jurado lo ha dado y el cliente no lo pagó antes. Pide precio por lavori o ponlo a mano.">
                         coste de motor, sin precio de jurado
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-slate-300">
+                  <td className="px-3 py-2 whitespace-nowrap text-[#1F2933]">
                     {/* Editable también tras el análisis: la IA lee la apostilla (título en
                         francés) como FR y el documento es ES (Juan, 6-oct-2026). */}
                     {d.status === "done" || d.status === "error" || d.status === "manual" || d.status === "split" ? (
@@ -1810,7 +1810,7 @@ export default function StaffExpedienteIntake({
                         <select
                           value={knownLangCode(d.sourceLang) || (d.status === "done" ? sourceLang : "") || ""}
                           onChange={(e) => patch(d.localId, { sourceLang: e.target.value || undefined, priceNote: undefined })}
-                          className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
+                          className="rounded border border-[#D5DAE1] bg-white px-1 py-1 text-xs"
                         >
                           <option value="">orig</option>
                           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.code.toUpperCase()}</option>)}
@@ -1819,7 +1819,7 @@ export default function StaffExpedienteIntake({
                         <select
                           value={knownLangCode(d.targetLang) || (d.status === "done" ? targetLang : "") || ""}
                           onChange={(e) => patch(d.localId, { targetLang: e.target.value || undefined, priceNote: undefined })}
-                          className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
+                          className="rounded border border-[#D5DAE1] bg-white px-1 py-1 text-xs"
                         >
                           <option value="">dest</option>
                           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.code.toUpperCase()}</option>)}
@@ -1829,7 +1829,7 @@ export default function StaffExpedienteIntake({
                       "—"
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-300">
+                  <td className="px-3 py-2 text-right tabular-nums text-[#1F2933]">
                     {/* Editable también tras el análisis: el recuento de la IA puede
                         salir inflado (Juan, 6-oct: 3.300 contadas vs 1.100 reales). */}
                     {d.status === "done" || d.status === "error" || d.status === "manual" || d.status === "split" ? (
@@ -1847,7 +1847,7 @@ export default function StaffExpedienteIntake({
                           );
                         }}
                         placeholder="palabras"
-                        className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                        className="w-20 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                       />
                     ) : (
                       "—"
@@ -1859,7 +1859,7 @@ export default function StaffExpedienteIntake({
                         <select
                           value={d.basis ?? "fixed"}
                           onChange={(e) => setRowBasis(d.localId, e.target.value === "fixed" ? undefined : (e.target.value as "word" | "unit"))}
-                          className="rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[11px] text-slate-300"
+                          className="rounded border border-[#D5DAE1] bg-white px-1 py-0.5 text-[11px] text-[#1F2933]"
                           title="Cómo se calcula el coste de esta línea"
                         >
                           <option value="fixed">Fijo</option>
@@ -1877,10 +1877,10 @@ export default function StaffExpedienteIntake({
                                 const r = Math.max(0, Number(e.target.value));
                                 patch(d.localId, { wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100, autoPriced: false, priceNote: undefined });
                               }}
-                              className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              className="w-20 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                               title="€ por palabra (coste del traductor) de esta línea"
                             />
-                            <span className="text-[11px] text-slate-400">€/pal.</span>
+                            <span className="text-[11px] text-[#52606D]">€/pal.</span>
                           </div>
                         ) : d.basis === "unit" ? (
                           <div className="flex items-center gap-1">
@@ -1893,10 +1893,10 @@ export default function StaffExpedienteIntake({
                                 const n = Math.max(1, Math.floor(Number(e.target.value) || 1));
                                 patch(d.localId, { unitCount: n, unitPrice: Math.round(n * (d.unitRate ?? docRate) * 100) / 100, autoPriced: false, priceNote: undefined });
                               }}
-                              className="w-14 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              className="w-14 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                               title="Nº de documentos de esta línea"
                             />
-                            <span className="text-[11px] text-slate-400">docs ×</span>
+                            <span className="text-[11px] text-[#52606D]">docs ×</span>
                             <input
                               type="number"
                               min={0}
@@ -1906,10 +1906,10 @@ export default function StaffExpedienteIntake({
                                 const r = Math.max(0, Number(e.target.value));
                                 patch(d.localId, { unitRate: r, unitPrice: Math.round((d.unitCount ?? 1) * r * 100) / 100, autoPriced: false, priceNote: undefined });
                               }}
-                              className="w-16 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              className="w-16 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                               title="€ por documento (coste del traductor) de esta línea"
                             />
-                            <span className="text-[11px] text-slate-400">€</span>
+                            <span className="text-[11px] text-[#52606D]">€</span>
                           </div>
                         ) : (
                           <input
@@ -1918,16 +1918,16 @@ export default function StaffExpedienteIntake({
                             step="0.01"
                             value={d.unitPrice}
                             onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value), clientPrice: undefined, autoPriced: false, priceNote: undefined })}
-                            className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                            className="w-24 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                           />
                         )}
-                        {d.basis && <span className="tabular-nums text-[11px] text-slate-400">= {(d.unitPrice || 0).toFixed(2)} €</span>}
+                        {d.basis && <span className="tabular-nums text-[11px] text-[#52606D]">= {(d.unitPrice || 0).toFixed(2)} €</span>}
                       </div>
                     ) : (
                       "—"
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-white">
+                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#1A2E4A]">
                     {isPriceable(d.status) ? `${rowClientPrice(d).toFixed(2)} €` : "—"}
                   </td>
                   <td className="px-3 py-2">
@@ -1937,7 +1937,7 @@ export default function StaffExpedienteIntake({
                           type="button"
                           onClick={() => mergeWithPrevious(d.localId)}
                           title="Unir con la línea anterior (páginas seguidas del mismo documento)"
-                          className="rounded p-1 text-cyan-400 hover:bg-slate-800"
+                          className="rounded p-1 text-[#1A2E4A] hover:bg-[#F6F7F9]"
                           aria-label="Unir con la anterior"
                         >
                           <Merge className="h-4 w-4" />
@@ -1948,7 +1948,7 @@ export default function StaffExpedienteIntake({
                           type="button"
                           onClick={() => splitRowByPages(d.localId)}
                           title="Separar en una línea por página (p. ej. 2 certificados en 2 páginas)"
-                          className="rounded p-1 text-cyan-400 hover:bg-slate-800"
+                          className="rounded p-1 text-[#1A2E4A] hover:bg-[#F6F7F9]"
                           aria-label="Dividir por páginas"
                         >
                           <Scissors className="h-4 w-4" />
@@ -1957,7 +1957,7 @@ export default function StaffExpedienteIntake({
                       <button
                         type="button"
                         onClick={() => setDocs((prev) => prev.filter((x) => x.localId !== d.localId))}
-                        className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                        className="rounded p-1 text-[#52606D] hover:bg-[#F6F7F9] hover:text-[#1A2E4A]"
                         aria-label="Quitar"
                       >
                         <X className="h-4 w-4" />
@@ -1973,63 +1973,63 @@ export default function StaffExpedienteIntake({
 
       {/* Configuración del presupuesto (al haber líneas; el Cliente va arriba). */}
       {docs.length > 0 && (
-          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-            <h3 className="text-sm font-semibold text-white">Presupuesto</h3>
+          <div className="space-y-3 rounded-xl border border-[#D5DAE1] bg-white p-4">
+            <h3 className="text-sm font-semibold text-[#1A2E4A]">Presupuesto</h3>
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Idioma origen
-                <select className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200" value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
+                <select className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]" value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
                   <option value="">—</option>
                   {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
                 </select>
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Idioma destino
-                <select className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200" value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
+                <select className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]" value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
                   <option value="">—</option>
                   {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
                 </select>
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Descuento volumen (%)
-                <input type="number" min={0} max={100} value={discountPct} onChange={(e) => { setDiscountTouched(true); setDiscountPct(Number(e.target.value)); }} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                <input type="number" min={0} max={100} value={discountPct} onChange={(e) => { setDiscountTouched(true); setDiscountPct(Number(e.target.value)); }} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Validez (días)
-                <input type="number" min={1} value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                <input type="number" min={1} value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Tipo de entrega
-                <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "DIGITAL_PDF" | "PAPER_SHIP")} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
+                <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "DIGITAL_PDF" | "PAPER_SHIP")} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]">
                   <option value="DIGITAL_PDF">PDF con certificado digital</option>
                   <option value="PAPER_SHIP">Envío en papel (+12 € + IVA)</option>
                 </select>
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Idioma del cliente (PDF y página de pago)
-                <select value={pdfLang} onChange={(e) => { setPdfLangTouched(true); setPdfLang(e.target.value); }} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
+                <select value={pdfLang} onChange={(e) => { setPdfLangTouched(true); setPdfLang(e.target.value); }} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]">
                   {QUOTE_PDF_LANGS.map((l) => (
                     <option key={l} value={l}>{QUOTE_PDF_LANG_LABELS[l]}</option>
                   ))}
                 </select>
                 {langSuggestion && (
-                  <span className="mt-1 block text-[11px] text-slate-500">
+                  <span className="mt-1 block text-[11px] text-[#52606D]">
                     Sugerido: {QUOTE_PDF_LANG_LABELS[langSuggestion.lang]} ({langSuggestion.reason})
                   </span>
                 )}
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Plazo de entrega
-                <input value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="ej. 3-4 días hábiles" className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                <input value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="ej. 3-4 días hábiles" className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
               </label>
             </div>
             {sourceLang && targetLang && docs.some((d) => (d.status === "done" || d.status === "split") && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
-              <p className="text-xs text-amber-400">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
+              <p className="text-xs text-[#7A5A10]">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
             )}
 
             {/* Base del coste: cada línea elige Fijo / Por palabra / Por documento en su fila; aquí se aplica a todas de golpe */}
-            <div className="border-t border-slate-700 pt-3">
-              <label className="text-xs text-slate-400">Aplicar a todas las líneas</label>
+            <div className="border-t border-[#D5DAE1] pt-3">
+              <label className="text-xs text-[#52606D]">Aplicar a todas las líneas</label>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <input
                   type="number"
@@ -2037,58 +2037,58 @@ export default function StaffExpedienteIntake({
                   step="0.001"
                   value={wordRate}
                   onChange={(e) => setWordRate(Math.max(0, Number(e.target.value)))}
-                  className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                  className="w-20 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                   title="€ por palabra (coste del traductor)"
                 />
-                <span className="text-xs text-slate-400">€/palabra</span>
+                <span className="text-xs text-[#52606D]">€/palabra</span>
                 <button
                   type="button"
                   onClick={applyWordRate}
-                  className="rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30"
+                  className="rounded border border-[#1A2E4A] bg-[#F6F7F9] px-2 py-1 text-xs text-[#1A2E4A] hover:bg-[#F6F7F9]"
                 >
                   Por palabra
                 </button>
-                <span className="mx-1 text-slate-600">·</span>
+                <span className="mx-1 text-[#52606D]">·</span>
                 <input
                   type="number"
                   min={0}
                   step="0.01"
                   value={docRate}
                   onChange={(e) => setDocRate(Math.max(0, Number(e.target.value)))}
-                  className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                  className="w-20 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                   title="€ por documento (coste del traductor)"
                 />
-                <span className="text-xs text-slate-400">€/documento</span>
+                <span className="text-xs text-[#52606D]">€/documento</span>
                 <button
                   type="button"
                   onClick={applyDocRate}
-                  className="rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30"
+                  className="rounded border border-[#1A2E4A] bg-[#F6F7F9] px-2 py-1 text-xs text-[#1A2E4A] hover:bg-[#F6F7F9]"
                 >
                   Por documento
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-1 text-[11px] text-[#52606D]">
                 Cada línea elige en su fila: coste fijo, palabras × €/palabra o nº de documentos × €/documento. Estos botones la aplican a todas; luego puedes ajustar cada una.
               </p>
             </div>
 
             {/* Margen sobre el coste del traductor (interno; el cliente solo ve su precio) */}
-            <div className="border-t border-slate-700 pt-3">
-              <label className="text-xs text-slate-400">Margen sobre coste del traductor (%)</label>
+            <div className="border-t border-[#D5DAE1] pt-3">
+              <label className="text-xs text-[#52606D]">Margen sobre coste del traductor (%)</label>
               <div className="mt-1 flex items-center gap-2">
-                <input type="number" min={0} value={marginPct ?? ""} placeholder="Auto" onChange={(e) => setMarginPct(e.target.value === "" ? null : Math.max(0, Number(e.target.value)))} className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-2" />
-                <button type="button" onClick={() => setMarginPct(null)} className={`rounded border px-2 py-1 text-xs ${marginPct === null ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}>Auto</button>
+                <input type="number" min={0} value={marginPct ?? ""} placeholder="Auto" onChange={(e) => setMarginPct(e.target.value === "" ? null : Math.max(0, Number(e.target.value)))} className="w-24 rounded border border-[#D5DAE1] bg-white px-2 py-2" />
+                <button type="button" onClick={() => setMarginPct(null)} className={`rounded border px-2 py-1 text-xs ${marginPct === null ? "border-[#1A2E4A] bg-[#F6F7F9] text-[#1A2E4A]" : "border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]"}`}>Auto</button>
                 {[30, 40].map((m) => (
-                  <button key={m} type="button" onClick={() => setMarginPct(m)} className={`rounded border px-2 py-1 text-xs ${marginPct === m ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}>{m}%</button>
+                  <button key={m} type="button" onClick={() => setMarginPct(m)} className={`rounded border px-2 py-1 text-xs ${marginPct === m ? "border-[#1A2E4A] bg-[#F6F7F9] text-[#1A2E4A]" : "border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]"}`}>{m}%</button>
                 ))}
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">Auto = margen por tramo de coste (30/25/20 %), francés sin margen. El cliente solo ve el precio final.</p>
+              <p className="mt-1 text-[11px] text-[#52606D]">Auto = margen por tramo de coste (30/25/20 %), francés sin margen. El cliente solo ve el precio final.</p>
             </div>
 
             {/* Formas de pago a mostrar en el PDF + WhatsApp del presupuesto */}
-            <div className="border-t border-slate-700 pt-3">
-              <label className="text-xs text-slate-400">Formas de pago en el presupuesto</label>
-              <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-300">
+            <div className="border-t border-[#D5DAE1] pt-3">
+              <label className="text-xs text-[#52606D]">Formas de pago en el presupuesto</label>
+              <div className="mt-1 flex flex-wrap gap-3 text-xs text-[#1F2933]">
                 {[
                   { id: "sabadell", label: "Banco Sabadell" },
                   { id: "openbank", label: "Openbank" },
@@ -2102,7 +2102,7 @@ export default function StaffExpedienteIntake({
                   </label>
                 ))}
               </div>
-              <input value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="WhatsApp para este presupuesto (opcional; por defecto 951 333 614)" className="mt-2 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm" />
+              <input value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="WhatsApp para este presupuesto (opcional; por defecto 951 333 614)" className="mt-2 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-sm" />
             </div>
           </div>
       )}
@@ -2112,7 +2112,7 @@ export default function StaffExpedienteIntake({
           respuesta llega por email y queda anclada al lead. Destinatarios: carril
           por defecto, toda la lengua o uno en concreto (21-ago-2026). */}
       {lavoriRoute && yaPedida && !volverAPedir && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-700/60 bg-violet-950/30 px-4 py-3 text-sm text-violet-200">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] px-4 py-3 text-sm text-[#1A2E4A]">
           <span>
             Ya pedido: <span className="font-mono">{yaPedida.ref}</span>
             {yaPedida.priceCents
@@ -2125,23 +2125,23 @@ export default function StaffExpedienteIntake({
               type="button"
               onClick={() => setVolverAPedir(true)}
               disabled={lavoriState.phase === "sending" || busy}
-              className="rounded-lg border border-violet-500/60 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-600/30 disabled:opacity-40"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-40"
             >
               Volver a pedir / cambiar jurado
             </button>
           )}
           {lavoriState.msg && (
-            <span className={`text-xs ${lavoriState.phase === "error" ? "text-amber-400" : "text-violet-300"}`}>{lavoriState.msg}</span>
+            <span className={`text-xs ${lavoriState.phase === "error" ? "text-[#7A5A10]" : "text-[#1A2E4A]"}`}>{lavoriState.msg}</span>
           )}
         </div>
       )}
 
       {lavoriRoute && lavoriDocs.length > 0 && (!yaPedida || volverAPedir) && (
-        <div className="space-y-2 rounded-xl border border-violet-700/60 bg-violet-950/30 p-4">
-          <h3 className="text-sm font-semibold text-violet-200">
+        <div className="space-y-2 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
+          <h3 className="text-sm font-semibold text-[#1A2E4A]">
             {yaPedida ? `Volver a pedir precio · ${yaPedida.ref} se retira en lavori` : `Solicitar precio vía lavori · ${lavoriRoute.par}`}
           </h3>
-          <p className="text-xs text-violet-300/80">
+          <p className="text-xs text-[#1A2E4A]">
             Manda {lavoriDocs.length === 1 ? "el documento" : `los ${lavoriDocs.length} documentos`} a
             jurados del par como encargo dirigido sin precio. Sin datos del cliente: solo tipo,
             volumen y los PDF. Útil antes de generar el presupuesto.
@@ -2163,7 +2163,7 @@ export default function StaffExpedienteIntake({
             maxLength={2000}
             rows={2}
             placeholder="Especificaciones del encargo (opcional): apostilla íntegra, plazo deseado, grafía de nombres… Sin datos del cliente."
-            className="w-full rounded-lg border border-violet-700/60 bg-violet-950/40 px-3 py-2 text-sm text-violet-100 placeholder:text-violet-400/60 focus:border-violet-500 focus:outline-none disabled:opacity-40"
+            className="w-full rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-sm text-[#1A2E4A] placeholder:text-[#1A2E4A] focus:border-violet-500 focus:outline-none disabled:opacity-40"
           />
           <div className="flex items-center gap-3">
             <button
@@ -2181,12 +2181,12 @@ export default function StaffExpedienteIntake({
                     : `Solicitar precio (${lavoriDocs.length} doc${lavoriDocs.length > 1 ? "s" : ""})`}
             </button>
             {yaPedida && (
-              <button type="button" onClick={() => setVolverAPedir(false)} className="text-xs text-violet-300 underline hover:text-white">
+              <button type="button" onClick={() => setVolverAPedir(false)} className="text-xs text-[#1A2E4A] underline hover:text-[#1A2E4A]">
                 Cancelar
               </button>
             )}
             {lavoriState.msg && (
-              <span className={`text-xs ${lavoriState.phase === "error" ? "text-amber-400" : "text-violet-300"}`}>
+              <span className={`text-xs ${lavoriState.phase === "error" ? "text-[#7A5A10]" : "text-[#1A2E4A]"}`}>
                 {lavoriState.msg}
               </span>
             )}
@@ -2196,31 +2196,31 @@ export default function StaffExpedienteIntake({
 
       {/* Totales + acción */}
       {includedDocs.length > 0 && (
-        <div className="flex flex-col items-end gap-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+        <div className="flex flex-col items-end gap-3 rounded-xl border border-[#D5DAE1] bg-white p-4">
           <div className="w-full max-w-xs space-y-1 text-sm">
-            <div className="flex justify-between text-slate-400"><span>Subtotal</span><span className="tabular-nums">{subtotal.toFixed(2)} €</span></div>
-            {discountPct > 0 && <div className="flex justify-between text-emerald-400"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>}
-            {shipping > 0 && <div className="flex justify-between text-slate-400"><span>Envío papel</span><span className="tabular-nums">{shipping.toFixed(2)} €</span></div>}
-            <div className="flex justify-between text-slate-400"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
-            <div className="flex justify-between border-t border-slate-700 pt-1 text-base font-semibold text-white"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
-            <div className="mt-1 flex justify-between border-t border-dashed border-slate-700 pt-1 text-[11px] text-slate-500" title="Solo visible para ti, no aparece en el presupuesto del cliente">
+            <div className="flex justify-between text-[#52606D]"><span>Subtotal</span><span className="tabular-nums">{subtotal.toFixed(2)} €</span></div>
+            {discountPct > 0 && <div className="flex justify-between text-[#1F6B45]"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>}
+            {shipping > 0 && <div className="flex justify-between text-[#52606D]"><span>Envío papel</span><span className="tabular-nums">{shipping.toFixed(2)} €</span></div>}
+            <div className="flex justify-between text-[#52606D]"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
+            <div className="flex justify-between border-t border-[#D5DAE1] pt-1 text-base font-semibold text-[#1A2E4A]"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
+            <div className="mt-1 flex justify-between border-t border-dashed border-[#D5DAE1] pt-1 text-[11px] text-[#52606D]" title="Solo visible para ti, no aparece en el presupuesto del cliente">
               <span>Interno · coste {costTotal.toFixed(2)} € · margen {marginPct === null ? "AUTO" : `${marginPct}%`}</span>
               <span className="tabular-nums">+{(subtotal - costTotal).toFixed(2)} €</span>
             </div>
           </div>
-          {costeJuradoAviso && <p className="text-sm text-amber-400">{costeJuradoAviso}</p>}
+          {costeJuradoAviso && <p className="text-sm text-[#7A5A10]">{costeJuradoAviso}</p>}
           {costTotal > 0 && subtotal - discountAmount - costTotal <= 0 && (
-            <p className="text-sm font-semibold text-rose-400">
+            <p className="text-sm font-semibold text-[#A12B2B]">
               Margen {(subtotal - discountAmount - costTotal).toFixed(2)} €: con este precio se pierde o no se gana. Sube el precio antes de generar.
             </p>
           )}
           {submitError && (
-            <p className="text-sm text-amber-400">
+            <p className="text-sm text-[#7A5A10]">
               {submitError}
               {existingQuoteId && (
                 <>
                   {" "}
-                  <a href={`/zona-traductor/presupuestos/${existingQuoteId}`} className="underline hover:text-white">
+                  <a href={`/zona-traductor/presupuestos/${existingQuoteId}`} className="underline hover:text-[#1A2E4A]">
                     Abrir ese presupuesto →
                   </a>
                 </>
@@ -2232,7 +2232,7 @@ export default function StaffExpedienteIntake({
               type="button"
               disabled={!canSubmit}
               onClick={() => handleSubmit()}
-              className="rounded-xl bg-cyan-600 px-5 py-2.5 font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-xl bg-[#1A2E4A] px-5 py-2.5 font-semibold text-white hover:bg-[#243F66] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {submitting ? "Creando…" : `Generar presupuesto (${includedDocs.length} doc${includedDocs.length > 1 ? "s" : ""})`}
             </button>
@@ -2241,7 +2241,7 @@ export default function StaffExpedienteIntake({
                 type="button"
                 disabled={!canSubmit || lavoriState.phase === "sending"}
                 onClick={handleAskThenDraft}
-                className="rounded-xl border border-violet-500/60 bg-violet-600/20 px-5 py-2.5 font-semibold text-violet-200 hover:bg-violet-600/30 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] px-5 py-2.5 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:cursor-not-allowed disabled:opacity-40"
                 title="Pide el precio a los jurados y deja el presupuesto en borrador, atado a esa solicitud. Cuando contesten, su cifra cae sola en el borrador."
               >
                 {lavoriState.phase === "sending" || submitting ? "Pidiendo…" : "Pedir precio y dejar en espera"}
@@ -2249,9 +2249,9 @@ export default function StaffExpedienteIntake({
             )}
           </div>
           {!canSubmit && !submitting && missing.length > 0 && (
-            <p className="text-xs text-amber-400">Falta: {missing.join(", ")}.</p>
+            <p className="text-xs text-[#7A5A10]">Falta: {missing.join(", ")}.</p>
           )}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#52606D]">
             Se crea como borrador en Presupuestos para revisar y enviar.
             {lavoriRoute && lavoriDocs.length > 0 && !lavoriLeadRefSent && !yaPedida
               ? " Si el precio lo pone el jurado, usa «Pedir precio y dejar en espera»: el borrador queda atado a la solicitud y su cifra cae sola cuando conteste."

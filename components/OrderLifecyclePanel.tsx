@@ -94,37 +94,37 @@ export default function OrderLifecyclePanel({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-rose-300">Control del pedido</p>
-      <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-300">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#A12B2B]">Control del pedido</p>
+      <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3 text-xs text-[#1F2933]">
         <p>
           Estado de archivo:{" "}
-          <span className={isArchived ? "font-semibold text-amber-300" : "font-semibold text-emerald-300"}>
+          <span className={isArchived ? "font-semibold text-[#7A5A10]" : "font-semibold text-[#1F6B45]"}>
             {isArchived ? "Archivado" : "Activo"}
           </span>
         </p>
         <p className="mt-1">
-          Stage canónico: <span className="font-semibold text-cyan-300">{canonicalStage}</span>
+          Stage canónico: <span className="font-semibold text-[#1A2E4A]">{canonicalStage}</span>
         </p>
-        <p className="mt-1 text-[11px] text-slate-400">
+        <p className="mt-1 text-[11px] text-[#52606D]">
           Archivar oculta el pedido de la operativa habitual. Eliminar lo borra de forma permanente.
         </p>
         <ul className="mt-3 space-y-1 text-[11px]">
-          <li className={gates.quoteReady ? "text-emerald-300" : "text-amber-300"}>
+          <li className={gates.quoteReady ? "text-[#1F6B45]" : "text-[#7A5A10]"}>
             {gates.quoteReady ? "OK" : "PEND"} quote + preview
           </li>
-          <li className={gates.paymentValidated ? "text-emerald-300" : "text-amber-300"}>
+          <li className={gates.paymentValidated ? "text-[#1F6B45]" : "text-[#7A5A10]"}>
             {gates.paymentValidated ? "OK" : "PEND"} pago validado
           </li>
-          <li className={gates.productionReady ? "text-emerald-300" : "text-amber-300"}>
+          <li className={gates.productionReady ? "text-[#1F6B45]" : "text-[#7A5A10]"}>
             {gates.productionReady ? "OK" : "PEND"} asignación producción
           </li>
-          <li className={gates.deliveryReady ? "text-emerald-300" : "text-amber-300"}>
+          <li className={gates.deliveryReady ? "text-[#1F6B45]" : "text-[#7A5A10]"}>
             {gates.deliveryReady ? "OK" : "PEND"} artefacto entrega final
           </li>
-          <li className={gates.deliveredReady ? "text-emerald-300" : "text-amber-300"}>
+          <li className={gates.deliveredReady ? "text-[#1F6B45]" : "text-[#7A5A10]"}>
             {gates.deliveredReady ? "OK" : "PEND"} notificación cliente enviada
           </li>
-          <li className={gates.closeReady ? "text-emerald-300" : "text-amber-300"}>
+          <li className={gates.closeReady ? "text-[#1F6B45]" : "text-[#7A5A10]"}>
             {gates.closeReady ? "OK" : "PEND"} cierre financiero y operativo
           </li>
         </ul>
@@ -135,7 +135,7 @@ export default function OrderLifecyclePanel({
           type="button"
           onClick={closeOrder}
           disabled={loading || !canClose}
-          className="rounded-lg bg-fuchsia-600 px-3 py-2 text-xs font-semibold text-white hover:bg-fuchsia-500 disabled:opacity-60"
+          className="rounded-lg bg-[#1A2E4A] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-60"
         >
           {loading ? "Cerrando..." : "Cerrar pedido"}
         </button>
@@ -143,7 +143,7 @@ export default function OrderLifecyclePanel({
           type="button"
           onClick={toggleArchive}
           disabled={loading}
-          className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+          className="rounded-lg bg-[#7A5A10] px-3 py-2 text-xs font-semibold text-white hover:bg-[#654A0D] disabled:opacity-60"
         >
           {loading ? "Guardando..." : isArchived ? "Restaurar pedido" : "Archivar pedido"}
         </button>
@@ -151,13 +151,13 @@ export default function OrderLifecyclePanel({
           type="button"
           onClick={deleteOrder}
           disabled={loading}
-          className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-500 disabled:opacity-60"
+          className="rounded-lg bg-[#A12B2B] px-3 py-2 text-xs font-semibold text-white hover:bg-[#8A2323] disabled:opacity-60"
         >
           {loading ? "Eliminando..." : "Eliminar definitivamente"}
         </button>
       </div>
 
-      {message && <p className="text-xs font-semibold text-slate-100">{message}</p>}
+      {message && <p className="text-xs font-semibold text-[#1F2933]">{message}</p>}
     </div>
   );
 }

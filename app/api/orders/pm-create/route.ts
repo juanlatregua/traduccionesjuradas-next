@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { sendOrderCreatedEmail } from "@/lib/email";
 import { buildSignedOrderUrl } from "@/lib/order-token";
+import { hrefConstructor, hrefPedido } from "@/lib/staff-links";
 
 export const runtime = "nodejs";
 
@@ -53,7 +54,7 @@ function buildPaymentUrl(reference: string, channel: "whatsapp" | "email" | "web
 
 function buildZonaTraductorUrl(reference: string) {
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-  const url = new URL(`/zona-traductor/pedido/${encodeURIComponent(reference)}`, baseUrl);
+  const url = new URL(hrefPedido(reference), baseUrl);
   return url.toString();
 }
 
@@ -73,7 +74,7 @@ function buildQuickQuoteUrl(params: {
   langPair?: string;
 }) {
   const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-  const url = new URL("/admin/quotes/new", baseUrl);
+  const url = new URL(hrefConstructor(), baseUrl);
   url.searchParams.set("customerEmail", params.clientEmail);
   if (params.clientName) url.searchParams.set("customerName", params.clientName);
   url.searchParams.set("lineDescription", params.title);

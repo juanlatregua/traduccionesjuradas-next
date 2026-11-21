@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hrefPresupuestos, hrefPresupuesto } from "@/lib/staff-links";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { verifyCierreToken } from "@/lib/cierre-token";
 import { RETENER_PURPOSE, recordRetenido } from "@/lib/autoenvio-150-holds";
@@ -23,7 +24,7 @@ function parse(url: URL) {
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  if (!parse(url).ok) return page("Enlace no válido o caducado", '<p>Abre <a href="/zona-traductor/presupuestos">los presupuestos</a>.</p>', 403);
+  if (!parse(url).ok) return page("Enlace no válido o caducado", `<p>Abre <a href="${hrefPresupuestos()}">los presupuestos</a>.</p>`, 403);
   const action = `${url.pathname}${url.search}`.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   return page("Retener el borrador", `<p>No saldrá solo a las 2,5 h: lo envías tú.</p><form method="post" action="${action}"><button type="submit">Retener</button></form>`);
 }
@@ -37,5 +38,5 @@ export async function POST(req: Request) {
   if (!quote) return page("Presupuesto no encontrado", "<p>No se ha guardado nada.</p>", 404);
   if (quote.sentAt || quote.status !== "DRAFT") return page("Ya enviado", `<p>${quote.quoteNumber} ya no es un borrador.</p>`, 409);
   await recordRetenido(quote.id, quote.quoteNumber);
-  return page("✓ Retenido", `<p>${quote.quoteNumber} no saldrá solo. <a href="/zona-traductor/presupuestos/${quote.id}">Abrir el presupuesto</a>.</p>`);
+  return page("✓ Retenido", `<p>${quote.quoteNumber} no saldrá solo. <a href="${hrefPresupuesto(quote.id)}">Abrir el presupuesto</a>.</p>`);
 }
