@@ -12,22 +12,22 @@ export default async function RecurrentClientBadge({ email, phone }: { email?: s
     match.kind === "recurrent" ? pickBillingToInherit(await billingHistoryForEmail(match.email).catch(() => [])) : null;
   const tone =
     match.kind === "recurrent"
-      ? "border-amber-400/40 bg-amber-400/10 text-amber-100"
-      : "border-slate-500/40 bg-slate-500/10 text-slate-200";
+      ? "border-[#E9D8A6] bg-[#FFF8E6] text-[#7A5A10]"
+      : "border-[#D5DAE1] bg-[#F6F7F9] text-[#1F2933]";
   return (
     <p className={`mt-2 rounded-lg border px-3 py-2 text-sm ${tone}`}>
       <strong>{recurrentLabel(match)}</strong>
       {" · "}
-      <Link href={`/zona-traductor/clientes/${encodeURIComponent(match.email)}`} className="underline hover:text-white">
+      <Link href={`/zona-traductor/clientes/${encodeURIComponent(match.email)}`} className="underline hover:text-[#1A2E4A]">
         Ver historial
       </Link>
       {titulares?.kind === "multiple" && (
-        <span className="mt-1 block font-semibold text-rose-200">
+        <span className="mt-1 block font-semibold text-[#A12B2B]">
           Varios titulares de facturación ({titulares.holders}): no se han copiado datos; confirma a quién se factura.
         </span>
       )}
       {titulares?.kind === "company" && (
-        <span className="mt-1 block font-semibold text-rose-200">
+        <span className="mt-1 block font-semibold text-[#A12B2B]">
           Posible titular: {titulares.name}. No se han copiado datos de facturación; confirma a quién se factura.
         </span>
       )}

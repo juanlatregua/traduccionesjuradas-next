@@ -29,7 +29,7 @@ export default function CasoVeredicto({ eventoId, actual }: { eventoId: string; 
       type="button"
       disabled={busy}
       onClick={() => votar(v)}
-      className={`rounded border px-2 py-0.5 text-[11px] ${actual === v ? "border-emerald-400 bg-emerald-500/20 text-emerald-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}
+      className={`rounded border px-2 py-0.5 text-[11px] ${actual === v ? "border-emerald-400 bg-[#EEF7F1] text-[#1F6B45]" : "border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]"}`}
     >
       {label}
     </button>

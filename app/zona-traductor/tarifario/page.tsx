@@ -52,30 +52,30 @@ export default async function TarifarioPage() {
   const usedAuto = rates.reduce((a, r) => a + r.sampleRows.filter((s) => s.kind === "auto_quote").length, 0);
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <header className="mb-6">
-          <Link href="/zona-traductor/presupuestos" className="text-sm text-cyan-400 hover:text-cyan-300">
+          <Link href="/zona-traductor/presupuestos" className="text-sm text-[#1A2E4A] hover:text-[#1A2E4A]">
             ← Presupuestos
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold text-white">Tarifario aprendido</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-400">
+          <h1 className="mt-2 text-2xl font-semibold text-[#1A2E4A]">Tarifario aprendido</h1>
+          <p className="mt-1 max-w-3xl text-sm text-[#52606D]">
             Lo que ya ha pasado, por tipo de documento y par: el coste que pidió el jurado en lavori y el precio que pagó el
-            cliente. Con una tarifa <strong className="text-emerald-300">aprobada</strong>, la puerta emite y envía el presupuesto sola,
+            cliente. Con una tarifa <strong className="text-[#1F6B45]">aprobada</strong>, la puerta emite y envía el presupuesto sola,
             sin volver a preguntar al traductor; al pagar, el encargo le llega con su cifra cerrada. Nunca francés.
           </p>
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-emerald-200">{approved} aprobadas</span>
-            <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-amber-200">{candidates} esperando tu OK</span>
-            <span className="rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1 text-slate-300">{usedAuto} presupuestos automáticos emitidos</span>
-            <span className={`rounded-full border px-3 py-1 ${isLearnedRatesLive() ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-200" : "border-rose-500/40 bg-rose-500/10 text-rose-200"}`}>
+            <span className="rounded-full border border-[#BFE0CC] bg-[#EEF7F1] px-3 py-1 text-[#1F6B45]">{approved} aprobadas</span>
+            <span className="rounded-full border border-[#E9D8A6] bg-[#FFF8E6] px-3 py-1 text-[#7A5A10]">{candidates} esperando tu OK</span>
+            <span className="rounded-full border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-1 text-[#1F2933]">{usedAuto} presupuestos automáticos emitidos</span>
+            <span className={`rounded-full border px-3 py-1 ${isLearnedRatesLive() ? "border-[#D5DAE1] bg-[#F6F7F9] text-[#1A2E4A]" : "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]"}`}>
               {isLearnedRatesLive() ? "agente activo" : "agente APAGADO (LEARNED_RATES_LIVE=off)"}
             </span>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-[#52606D]">
             Reglas: margen por tramos (30/25/20 % según coste, mínimo 10 €, tope +60 % sobre coste) si nadie ha pagado aún · suelo {(DOC_FLOOR_CENTS / 100).toFixed(0)} € netos por documento ·
             tope automático {(AUTO_QUOTE_MAX_CENTS / 100).toFixed(0)} € netos · tarifa por documento solo si el tamaño es parecido (±30 %) ·
-            por 1000 palabras desde 600 palabras · CLI: <code className="text-slate-400">scripts/tarifario.ts</code>.
+            por 1000 palabras desde 600 palabras · CLI: <code className="text-[#52606D]">scripts/tarifario.ts</code>.
           </p>
         </header>
 

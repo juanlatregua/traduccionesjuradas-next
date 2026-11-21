@@ -1,6 +1,6 @@
 // Monta el menú central (ZonaTraductorNav) en TODA la zona traductor para que
 // NUNCA se pierda al entrar en una pestaña. El nav se oculta solo en /verificar.
-// #zona-traductor-root mantiene el tema oscuro por defecto.
+// #zona-traductor-root: fondo claro de la mesa.
 import ZonaTraductorNav from "@/components/ZonaTraductorNav";
 import MesaNav from "@/components/mesa/MesaNav";
 import { mesaV2On } from "@/lib/mesa/flag";
@@ -33,7 +33,7 @@ export default async function ZonaTraductorLayout({ children }: { children: Reac
   }
 
   return (
-    <div id="zona-traductor-root">
+    <div id="zona-traductor-root" className="min-h-screen bg-[#F6F7F9] text-[#1F2933]">
       {mesaV2On() ? (
         <MesaNav
           pedidosAccionables={pedidosAccionables}

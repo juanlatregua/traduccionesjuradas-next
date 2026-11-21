@@ -43,9 +43,9 @@ const KIND: Record<string, string> = {
   auto_quote: "presupuesto automático",
 };
 const STATUS: Record<TarifarioRow["status"], { label: string; cls: string }> = {
-  APPROVED: { label: "Aprobada · actúa sola", cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-200" },
-  CANDIDATE: { label: "Candidata · espera tu OK", cls: "border-amber-500/40 bg-amber-500/10 text-amber-200" },
-  VETOED: { label: "Vetada", cls: "border-rose-500/40 bg-rose-500/10 text-rose-200" },
+  APPROVED: { label: "Aprobada · actúa sola", cls: "border-[#BFE0CC] bg-[#EEF7F1] text-[#1F6B45]" },
+  CANDIDATE: { label: "Candidata · espera tu OK", cls: "border-[#E9D8A6] bg-[#FFF8E6] text-[#7A5A10]" },
+  VETOED: { label: "Vetada", cls: "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]" },
 };
 
 export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
@@ -75,7 +75,7 @@ export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6 text-sm text-slate-300">
+      <div className="rounded-xl border border-[#D5DAE1] bg-white p-6 text-sm text-[#1F2933]">
         Todavía no hay tarifas. Se aprenden solas cuando un jurado pasa precio en lavori o cuando un cliente paga un presupuesto;
         también puedes sembrarlas con <code>scripts/tarifario.ts semillas</code> y <code>backfill</code>.
       </div>
@@ -86,13 +86,13 @@ export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
 
   return (
     <div className="space-y-8">
-      {error && <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>}
+      {error && <p className="rounded-lg border border-[#F0C9C9] bg-[#FDF2F2] px-3 py-2 text-sm text-[#A12B2B]">{error}</p>}
       {groups.map((status) => {
         const list = rows.filter((r) => r.status === status);
         if (list.length === 0) return null;
         return (
           <section key={status}>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[#52606D]">
               {STATUS[status].label} · {list.length}
             </h2>
             <div className="space-y-3">
@@ -104,27 +104,27 @@ export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
                 };
                 const setE = (patch: Partial<typeof e>) => setEdit((prev) => ({ ...prev, [r.id]: { ...e, ...patch } }));
                 return (
-                  <article key={r.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <article key={r.id} className="rounded-xl border border-[#D5DAE1] bg-white p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded bg-slate-700/60 px-2 py-0.5 font-mono text-xs font-semibold text-slate-100">{par(r)}</span>
-                          <span className="text-base font-semibold text-white">
+                          <span className="rounded bg-[#F6F7F9] px-2 py-0.5 font-mono text-xs font-semibold text-[#1F2933]">{par(r)}</span>
+                          <span className="text-base font-semibold text-[#1A2E4A]">
                             {r.docType === "any" ? "cualquier documento largo" : r.docType.replace(/_/g, " ")}
                             {r.apostille ? " + apostilla" : ""}
                           </span>
                           <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
                         </div>
-                        <p className="mt-1 text-sm text-slate-300">
-                          Coste del jurado <strong className="text-white">{eur(r.costCents)}</strong> · cliente{" "}
-                          <strong className="text-white">{r.clientCents != null ? eur(r.clientCents) : `${eur(Math.round(r.costCents * 1.12))} (coste + 12 %)`}</strong>{" "}
+                        <p className="mt-1 text-sm text-[#1F2933]">
+                          Coste del jurado <strong className="text-[#1A2E4A]">{eur(r.costCents)}</strong> · cliente{" "}
+                          <strong className="text-[#1A2E4A]">{r.clientCents != null ? eur(r.clientCents) : `${eur(Math.round(r.costCents * 1.12))} (coste + 12 %)`}</strong>{" "}
                           por {r.unit === "doc" ? "documento" : "1000 palabras"}
                           {r.wordsRef ? ` · ~${r.wordsRef} pal/doc` : ""}
                           {r.plazoDias ? ` · ${r.plazoDias} día${r.plazoDias === 1 ? "" : "s"}` : ""}
                           {" · "}
-                          {r.miembroNombre || <span className="text-amber-300">sin jurado (al pagar irá por el carril normal)</span>}
+                          {r.miembroNombre || <span className="text-[#7A5A10]">sin jurado (al pagar irá por el carril normal)</span>}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-[#52606D]">
                           {r.samples} muestra{r.samples === 1 ? "" : "s"} · última {fecha(r.lastSampleAt)}
                           {r.note ? ` · ${r.note}` : ""}
                         </p>
@@ -145,7 +145,7 @@ export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
                             type="button"
                             disabled={busy === r.id}
                             onClick={() => act(r.id, { action: "veto" })}
-                            className="rounded-lg border border-rose-500/50 px-3 py-1.5 text-sm font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
+                            className="rounded-lg border border-[#F0C9C9] px-3 py-1.5 text-sm font-semibold text-[#A12B2B] hover:bg-[#F6F7F9] disabled:opacity-50"
                           >
                             Vetar
                           </button>
@@ -155,7 +155,7 @@ export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
                             type="button"
                             disabled={busy === r.id}
                             onClick={() => act(r.id, { action: "candidate" })}
-                            className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+                            className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-sm text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50"
                           >
                             Pausar
                           </button>
@@ -164,32 +164,32 @@ export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
                     </div>
 
                     <details className="mt-3">
-                      <summary className="cursor-pointer text-xs text-cyan-400 hover:text-cyan-300">Corregir cifras · ver muestras</summary>
+                      <summary className="cursor-pointer text-xs text-[#1A2E4A] hover:text-[#1A2E4A]">Corregir cifras · ver muestras</summary>
                       <div className="mt-2 grid gap-2 sm:grid-cols-4">
-                        <label className="text-xs text-slate-400">
+                        <label className="text-xs text-[#52606D]">
                           Coste jurado (€)
-                          <input value={e.coste} onChange={(ev) => setE({ coste: ev.target.value })} inputMode="decimal" className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white" />
+                          <input value={e.coste} onChange={(ev) => setE({ coste: ev.target.value })} inputMode="decimal" className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-1.5 text-sm text-[#1A2E4A]" />
                         </label>
-                        <label className="text-xs text-slate-400">
+                        <label className="text-xs text-[#52606D]">
                           Cliente neto (€)
-                          <input value={e.cliente} onChange={(ev) => setE({ cliente: ev.target.value })} inputMode="decimal" placeholder="coste + 12 %" className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white" />
+                          <input value={e.cliente} onChange={(ev) => setE({ cliente: ev.target.value })} inputMode="decimal" placeholder="coste + 12 %" className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-1.5 text-sm text-[#1A2E4A]" />
                         </label>
-                        <label className="text-xs text-slate-400">
+                        <label className="text-xs text-[#52606D]">
                           Plazo (días)
-                          <input value={e.plazo} onChange={(ev) => setE({ plazo: ev.target.value })} inputMode="numeric" className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white" />
+                          <input value={e.plazo} onChange={(ev) => setE({ plazo: ev.target.value })} inputMode="numeric" className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-1.5 text-sm text-[#1A2E4A]" />
                         </label>
                         <div className="flex items-end">
                           <button
                             type="button"
                             disabled={busy === r.id}
                             onClick={() => act(r.id, { action: "update", costEur: e.coste, clientEur: e.cliente, plazoDias: e.plazo })}
-                            className="rounded-lg bg-cyan-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+                            className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
                           >
                             Guardar cifras
                           </button>
                         </div>
                       </div>
-                      <ul className="mt-3 space-y-1 text-xs text-slate-400">
+                      <ul className="mt-3 space-y-1 text-xs text-[#52606D]">
                         {r.sampleRows.map((s) => (
                           <li key={s.id}>
                             {fecha(s.createdAt)} · {KIND[s.kind] || s.kind} · coste {eur(s.costCents)} · cliente {eur(s.clientCents)}
@@ -197,7 +197,7 @@ export default function TarifarioTable({ rows }: { rows: TarifarioRow[] }) {
                             {s.quoteId ? (
                               <>
                                 {" · "}
-                                <a href={`/zona-traductor/presupuestos/${s.quoteId}`} className="text-cyan-400 hover:underline">presupuesto</a>
+                                <a href={`/zona-traductor/presupuestos/${s.quoteId}`} className="text-[#1A2E4A] hover:underline">presupuesto</a>
                               </>
                             ) : s.ref ? ` · ${s.ref}` : ""}
                             {s.note ? ` · ${s.note}` : ""}

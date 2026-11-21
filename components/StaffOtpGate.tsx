@@ -59,13 +59,13 @@ export default function StaffOtpGate({ initialEmail = "" }: StaffOtpGateProps) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Verificacion extra</p>
-      <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+      <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#1F2933] sm:text-3xl">
         Introduce tu codigo personal
       </h1>
-      <p className="mt-3 text-sm text-slate-700">
+      <p className="mt-3 text-sm text-[#1F2933]">
         Envia un codigo de 6 digitos a tu correo autorizado y usalo para entrar en zona traductor.
       </p>
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-[#52606D]">
         Si has iniciado sesion con otro correo, indica aqui el correo staff que debe recibir el codigo.
       </p>
 
@@ -82,7 +82,7 @@ export default function StaffOtpGate({ initialEmail = "" }: StaffOtpGateProps) {
           type="button"
           onClick={sendCode}
           disabled={loadingSend || !email.trim()}
-          className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-60"
         >
           {loadingSend ? "Enviando..." : "Enviar codigo"}
         </button>
@@ -106,7 +106,7 @@ export default function StaffOtpGate({ initialEmail = "" }: StaffOtpGateProps) {
       </div>
 
       {message && (
-        <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        <p className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-[#1F2933]">
           {message}
         </p>
       )}

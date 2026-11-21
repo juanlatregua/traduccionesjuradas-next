@@ -10,12 +10,12 @@ export default async function OpenSiblingsBanner(props: FindOpenSiblingsOpts & {
   return (
     <>
       {hilo.length > 0 && (
-        <p className="mt-2 text-xs text-slate-400">
+        <p className="mt-2 text-xs text-[#52606D]">
           Mismo caso:{" "}
           {hilo.slice(0, 4).map((s, i) => (
             <span key={`${s.kind}-${s.id}`}>
               {i > 0 ? " · " : ""}
-              <a href={s.url} className="underline hover:text-slate-200">
+              <a href={s.url} className="underline hover:text-[#1A2E4A]">
                 {s.ref}
               </a>
             </span>
@@ -25,7 +25,7 @@ export default async function OpenSiblingsBanner(props: FindOpenSiblingsOpts & {
       {otros.length > 0 && (
         <div
           className={`mt-2 rounded-lg border px-3 py-2 text-sm ${
-            bloquea ? "border-rose-400/50 bg-rose-500/10 text-rose-100" : "border-amber-400/40 bg-amber-400/10 text-amber-100"
+            bloquea ? "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]" : "border-[#E9D8A6] bg-[#FFF8E6] text-[#7A5A10]"
           }`}
         >
           <strong>{bloquea ? "Posible duplicado." : "Ojo."}</strong> Esta persona ya tiene abierto{props.casoId ? " en otro caso" : ""}:
@@ -34,7 +34,7 @@ export default async function OpenSiblingsBanner(props: FindOpenSiblingsOpts & {
               <li key={`${s.kind}-${s.id}`}>
                 {describeSibling(s)}
                 {!s.samePar && s.par ? ` · otro par (${s.par})` : ""}{" "}
-                <a href={s.url} className="underline hover:text-white">
+                <a href={s.url} className="underline hover:text-[#1A2E4A]">
                   continuar ahí →
                 </a>
               </li>

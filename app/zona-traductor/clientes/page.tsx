@@ -98,10 +98,10 @@ export default async function ClientesPage() {
     .map(({ last, ...rest }) => rest); // `last` solo servía para ordenar
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <h1 className="text-2xl font-semibold text-white">Clientes</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-[#1A2E4A]">Clientes</h1>
+        <p className="mt-1 text-sm text-[#52606D]">
           {clients.length} clientes. Busca uno, créalo, o abre su carpeta: documentos, traducciones, presupuestos y facturas.
         </p>
         <ClientesManager clients={clients} />

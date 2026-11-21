@@ -7,7 +7,7 @@ import { uploadStaffFile } from "@/lib/staff-upload-client";
 // una ENTREGA para un cliente sin pedido (presupuesto/WhatsApp). Compone los
 // chokepoints canónicos (no clona): /api/customers/deliver crea el pedido, lo sella
 // como entregado, y —si "ya ha pagado"— lo marca cobrado y dispara el aviso normal.
-const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
+const FIELD = "rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]";
 
 async function uploadFile(file: File): Promise<{ url: string; key: string; name: string }> {
   const up = await uploadStaffFile(file, "deliveries");
@@ -66,9 +66,9 @@ export default function ClientDeliverForm({ email }: { email: string }) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-5">
+    <div className="rounded-2xl border border-[#D5DAE1] bg-white p-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Entregar traducción</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Entregar traducción</h2>
         <button
           type="button"
           onClick={() => { setMsg(null); setOpen((v) => !v); }}
@@ -84,22 +84,22 @@ export default function ClientDeliverForm({ email }: { email: string }) {
             <input className={FIELD} placeholder="Idiomas (fr-es)" value={langPair} onChange={(e) => setLangPair(e.target.value)} />
             <input className={FIELD} placeholder="Importe € (cobrado)" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </div>
-          <label className="block text-xs text-slate-400">
+          <label className="block text-xs text-[#52606D]">
             Traducciones (PDF, una o varias) *
             <input
               type="file"
               multiple
               accept="application/pdf,image/*"
-              className="mt-1 block w-full text-sm text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-slate-100"
+              className="mt-1 block w-full text-sm text-[#1F2933] file:mr-3 file:rounded-md file:border-0 file:bg-[#F6F7F9] file:px-3 file:py-1.5 file:text-[#1A2E4A]"
               onChange={(e) => setTranslations(Array.from(e.target.files || []))}
             />
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-300">
+          <label className="flex items-center gap-2 text-sm text-[#1F2933]">
             <input type="checkbox" className="h-4 w-4" checked={alreadyPaid} onChange={(e) => setAlreadyPaid(e.target.checked)} />
             El cliente ya ha pagado (transferencia) — lo marca cobrado y dispara el aviso de traducción lista
           </label>
           {!isWhatsapp && alreadyPaid && (
-            <label className="flex items-center gap-2 text-sm text-slate-300">
+            <label className="flex items-center gap-2 text-sm text-[#1F2933]">
               <input type="checkbox" className="h-4 w-4" checked={notifyClient} onChange={(e) => setNotifyClient(e.target.checked)} />
               Enviar email al cliente con la traducción adjunta
             </label>
@@ -113,15 +113,15 @@ export default function ClientDeliverForm({ email }: { email: string }) {
             >
               {busy ? "Procesando…" : "Crear entrega"}
             </button>
-            {msg && <span className="text-xs text-cyan-300">{msg}</span>}
+            {msg && <span className="text-xs text-[#1A2E4A]">{msg}</span>}
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#52606D]">
             Crea un pedido entregado con los PDFs adjuntos; el cliente los descarga desde su zona (enlace de acceso).
             {isWhatsapp ? " Cliente de WhatsApp: mándale tú el enlace de acceso por WhatsApp." : ""}
           </p>
         </div>
       )}
-      {!open && msg && <p className="mt-2 text-xs text-cyan-300">{msg}</p>}
+      {!open && msg && <p className="mt-2 text-xs text-[#1A2E4A]">{msg}</p>}
     </div>
   );
 }
