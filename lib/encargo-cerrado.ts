@@ -11,7 +11,9 @@ import { isBlindPriceLang, priceDocWithRate } from "@/lib/learned-rates-math";
 import {
   ENCARGO_CERRADO_AUTO_PRICED_BY,
   ENCARGO_CERRADO_JURADOS,
+  ENCARGO_CERRADO_MAX_DOCS,
   CLOSED_RETIRE_STATUSES,
+  langsWithCollaborator,
   closedRetireWhere,
   closedCostFor,
   closedDeliveryTerm,
@@ -39,7 +41,17 @@ export type EncargoCerradoResult =
       regla: string;
       autoSendReasons: string[];
     }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; enCurso?: boolean };
+
+/** Lenguas de ENCARGO_CERRADO cuyo jurado tiene Collaborator; la que no, se loguea y sigue como hoy. */
+export async function activeEncargoCerradoLangs(): Promise<Set<string>> {
+  const pedidas = encargoCerradoLangs(process.env.ENCARGO_CERRADO);
+  if (pedidas.size === 0) return pedidas;
+  const { LAVORI_MEMBER_COLLABORATOR_EMAIL } = await import("@/lib/lavori-bridge");
+  const { activas, sinAlta } = langsWithCollaborator(pedidas, LAVORI_MEMBER_COLLABORATOR_EMAIL);
+  if (sinAlta.length) console.warn(`[encargo-cerrado] ${sinAlta.join(",")} en ENCARGO_CERRADO sin Collaborator del jurado: sigue como hoy`);
+  return activas;
+}
 
 /** Mediana de plazoDias que dio el jurado en sus solicitudes de precio (solo lectura). */
 export async function plazoDiasDeJurado(lang: string): Promise<number> {
@@ -61,17 +73,18 @@ export async function encargoCerradoFromPuertaSession(opts: {
   locale?: string | null;
   casoId?: string | null;
 }): Promise<EncargoCerradoResult> {
-  const langs = encargoCerradoLangs(process.env.ENCARGO_CERRADO);
+  const langs = await activeEncargoCerradoLangs();
   if (langs.size === 0) return { ok: false, reason: "ENCARGO_CERRADO apagado" };
   const expedienteRef = `puerta:${opts.sessionToken}`;
 
   const rows = await prisma.documentAnalysis.findMany({
     where: { sessionToken: opts.sessionToken, fileUrl: { not: "" } },
     orderBy: { createdAt: "asc" },
-    take: 10,
+    take: ENCARGO_CERRADO_MAX_DOCS + 1,
     select: { ...ANALYSIS_SELECT, clientName: true, clientEmail: true, clientPhone: true },
   });
   if (rows.length === 0) return { ok: false, reason: "sesión sin documentos" };
+  if (rows.length > ENCARGO_CERRADO_MAX_DOCS) return { ok: false, reason: `más de ${ENCARGO_CERRADO_MAX_DOCS} documentos` };
   const seen = new Set<string>();
   const uniqueRows = rows.filter((r) => {
     const k = `${r.fileName}|${r.estimatedWords}|${r.pageCount}`;
@@ -98,17 +111,50 @@ export async function encargoCerradoFromPuertaSession(opts: {
   const sourceLang = infos[0].direction === "to_es" ? lang : "es";
   const targetLang = infos[0].direction === "to_es" ? "es" : lang;
 
-  const docs: ClosedDoc[] = infos.map((info, i) => ({
-    docType: info.docType,
-    words: info.words,
-    apostille: info.apostille,
-    label: (uniqueRows[i].analysisJson as any)?.document_type?.specific_type_es ?? null,
-    fileName: info.fileName,
-  }));
+  const docs: ClosedDoc[] = infos.map((info, i) => {
+    const aj = (uniqueRows[i].analysisJson || {}) as any;
+    return {
+      docType: info.docType,
+      words: info.words,
+      apostille: info.apostille,
+      pages: info.pages,
+      combined: aj.segmented === true || (Array.isArray(aj.documents) && aj.documents.length > 1),
+      label: aj.document_type?.specific_type_es ?? null,
+    };
+  });
   const rule = closedCostFor(sourceLang, targetLang, docs);
   if (!rule.ok) return rule;
 
-  // Un presupuesto vivo de esta misma sesión: no se monta otro (el cliente repite la petición).
+  // Candado del hilo caso+par (como la puerta FR): dos peticiones simultáneas no montan dos borradores.
+  const par = `${sourceLang}>${targetLang}`.toUpperCase();
+  const casoId = opts.casoId ?? null;
+  const { reservarHilo, presupuestoVivoDelCaso } = await import("@/lib/caso/hilo-db");
+  const reserva = casoId ? await reservarHilo(casoId, par, "system:encargo-cerrado") : null;
+  if (reserva && !reserva.ok) return { ok: false, reason: reserva.error, enCurso: true };
+  try {
+    return await crearBorradorCerrado({ opts, rows, uniqueRows, infos, rule, sourceLang, targetLang, expedienteRef, casoId, par, presupuestoVivoDelCaso });
+  } finally {
+    if (reserva?.ok) await reserva.liberar();
+  }
+}
+
+async function crearBorradorCerrado(ctx: {
+  opts: Parameters<typeof encargoCerradoFromPuertaSession>[0];
+  rows: { clientEmail: string | null; clientPhone: string | null; clientName: string | null }[];
+  uniqueRows: { documentType: string | null; analysisJson: unknown }[];
+  infos: NonNullable<ReturnType<typeof docInfoFromAnalysis>>[];
+  rule: Extract<ReturnType<typeof closedCostFor>, { ok: true }>;
+  sourceLang: string;
+  targetLang: string;
+  expedienteRef: string;
+  casoId: string | null;
+  par: string;
+  presupuestoVivoDelCaso: (casoId: string | null | undefined, par: string | null | undefined) => Promise<{ id: string } | null>;
+}): Promise<EncargoCerradoResult> {
+  const { opts, rows, uniqueRows, infos, rule, sourceLang, targetLang, expedienteRef } = ctx;
+  const lang = rule.lang;
+
+  // Un presupuesto vivo de esta sesión o del caso+par: no se monta otro (el cliente repite la petición).
   const previo = await prisma.quote.findFirst({
     where: { expedienteRef, deletedAt: null, status: { in: ["DRAFT", "SENT", "OPENED", "ACCEPTED"] } },
     orderBy: { createdAt: "desc" },
@@ -118,6 +164,8 @@ export async function encargoCerradoFromPuertaSession(opts: {
     if (previo.autoPricedBy !== ENCARGO_CERRADO_AUTO_PRICED_BY) return { ok: false, reason: `ya hay presupuesto ${previo.quoteNumber} en esta sesión` };
     return { ok: true, repetido: true, quoteId: previo.id, quoteNumber: previo.quoteNumber, totalEur: Number(previo.total), subtotalEur: Number(previo.subtotal), costEur: 0, sent: false, payUrl: null, miembroNombre: rule.nombre, plazoDias: 0, regla: rule.regla, autoSendReasons: ["ya montado antes"] };
   }
+  const vivoCaso = await ctx.presupuestoVivoDelCaso(ctx.casoId, ctx.par).catch(() => null);
+  if (vivoCaso) return { ok: false, reason: `el caso ya tiene presupuesto vivo para ${ctx.par}` };
 
   // Tarifa APROBADA del documento: solo da el PRECIO AL CLIENTE (el coste es la regla). DE nunca.
   const tariffs = await Promise.all(

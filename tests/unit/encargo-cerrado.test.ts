@@ -11,14 +11,19 @@ import {
   isEncargoCerradoAutosend,
   isEncargoCerradoQuote,
   medianPlazoDias,
+  isClosedCostExempt,
+  unsealOnLineEdit,
+  shouldRetireBeforeClosedSend,
+  langsWithCollaborator,
 } from "../../lib/encargo-cerrado-math.ts";
 
-const doc = (docType: string, words: number | null, extra: Partial<{ apostille: boolean; label: string; fileName: string }> = {}) => ({
+const doc = (docType: string, words: number | null, extra: Partial<{ apostille: boolean; label: string; pages: number | null; combined: boolean }> = {}) => ({
   docType,
   words,
   apostille: extra.apostille ?? false,
   label: extra.label ?? null,
-  fileName: extra.fileName ?? null,
+  pages: extra.pages === undefined ? 1 : extra.pages,
+  combined: extra.combined ?? false,
 });
 
 test("flag apagado = comportamiento de siempre", () => {
@@ -135,4 +140,64 @@ test("anti-duplicado al pagar: retira SENT/PRICED del mismo caso y par (00413: L
   assert.deepEqual(w.status.in, ["SENT", "PRICED"], "ACCEPTED no se retira: lo frena el guarda de duplicado");
   assert.deepEqual(w.OR, [{ quoteId: "q1" }, { casoId: "cmwnffm72000pl208101b9y5x" }, { expedienteRef: "LEAD-4DA27E5651" }, { ref: "LEAD-4DA27E5651" }]);
   assert.deepEqual(closedRetireWhere({ id: "q2", casoId: null, expedienteRef: null }, "EN>ES").OR, [{ quoteId: "q2" }]);
+});
+
+test("revisión: un borrador editado pierde el sello y ya no manda encargo cerrado", () => {
+  const antes = [{ quantity: 1, unitPrice: 52.9, supplierUnitCost: 44.08, sourceFileUrl: "a" }];
+  assert.equal(unsealOnLineEdit("encargo-cerrado", antes, [{ quantity: "1", unitPrice: "52.90", supplierUnitCost: "44.08", sourceFileUrl: "a" }]), null, "guardar sin cambiar líneas no quita nada");
+  const sin = unsealOnLineEdit("regla-cristina-0,058", antes, [{ quantity: 1, unitPrice: 52.9, supplierUnitCost: 30, sourceFileUrl: "a" }]);
+  assert.deepEqual(sin, { autoPricedBy: null, lavoriMiembroId: null, lavoriMiembroNombre: null });
+  assert.equal(isEncargoCerradoQuote(sin!.autoPricedBy), false);
+  assert.ok(unsealOnLineEdit("encargo-cerrado", antes, [...antes, { quantity: 1, unitPrice: 10, supplierUnitCost: 5, sourceFileUrl: "b" }]));
+  assert.equal(unsealOnLineEdit("tarifario", antes, []), null, "otras marcas no se tocan aquí");
+});
+
+test("revisión: exención de procedencia exige coste en TODAS las líneas", () => {
+  const base = { sourceLang: "en", targetLang: "es", autoPricedBy: "encargo-cerrado" };
+  assert.equal(isClosedCostExempt({ ...base, lines: [{ supplierUnitCost: 35 }] }), true);
+  assert.equal(isClosedCostExempt({ ...base, lines: [{ supplierUnitCost: 35 }, { supplierUnitCost: 0 }] }), false, "una línea a 0 € deja de estar exenta");
+  assert.equal(isClosedCostExempt({ ...base, lines: [] }), false);
+  assert.equal(isClosedCostExempt({ sourceLang: "en", targetLang: "es", autoPricedBy: null, lines: [{ supplierUnitCost: 35 }] }), false);
+  assert.equal(isClosedCostExempt({ sourceLang: "pt", targetLang: "es", lines: [{ supplierUnitCost: 40 }, { supplierUnitCost: null }] }), false);
+});
+
+test("revisión: no se retira nada si el encargo ya salió o lo lleva un traductor externo", () => {
+  assert.equal(shouldRetireBeforeClosedSend({ events: [] }), true);
+  assert.equal(shouldRetireBeforeClosedSend({ events: [{ type: "lavori.solicitud_enviada" }] }), false);
+  assert.equal(shouldRetireBeforeClosedSend({ events: [], translatorName: "Fulana" }), false);
+  assert.equal(shouldRetireBeforeClosedSend({ events: [{ type: "lavori.precio_aceptado_enviado" }], translatorName: " " }), true);
+});
+
+test("revisión: lecturas dudosas EN/DE (sin palabras, >2 págs, PDF combinado, carnet por nombre de archivo)", () => {
+  assert.equal(closedCostFor("en", "es", [doc("birth_certificate", 300, { pages: 3 })]).ok, false);
+  assert.equal(closedCostFor("en", "es", [doc("birth_certificate", 300, { pages: null })]).ok, false);
+  assert.equal(closedCostFor("de", "es", [doc("criminal_record", null)]).ok, false);
+  assert.equal(closedCostFor("de", "es", [doc("criminal_record", 300, { pages: 3 })]).ok, false);
+  assert.equal(closedCostFor("de", "es", [doc("criminal_record", 600, { combined: true })]).ok, false, "penal + pasaporte + apostilla en un PDF");
+  assert.equal(closedCostFor("de", "es", [doc("expediente_combinado", 600)]).ok, false);
+  const conNombre = { ...doc("other", 100), fileName: "fuehrerschein.pdf" };
+  assert.equal(closedCostFor("de", "es", [conNombre]).ok, false, "el nombre de archivo no cuenta");
+  assert.equal(closedCostFor("pt", "es", [doc("transcript", 3000, { pages: 9 })]).ok, true, "PT sigue por palabra");
+});
+
+test("revisión: DE apostilla una sola vez; EN con apostilla va a borrador", () => {
+  const r = closedCostFor("de", "es", [doc("criminal_record", 300, { apostille: true }), doc("apostille", 80)]);
+  assert.ok(r.ok);
+  assert.deepEqual(r.costs, [1500, 1000]);
+  assert.equal(closedCostFor("en", "es", [doc("birth_certificate", 300, { apostille: true })]).ok, false);
+});
+
+test("revisión: más de 10 documentos no va por la regla", () => {
+  assert.equal(closedCostFor("pt", "es", Array.from({ length: 11 }, () => doc("degree", 400))).ok, false);
+  assert.ok(closedCostFor("pt", "es", Array.from({ length: 10 }, () => doc("degree", 400))).ok);
+});
+
+test("revisión: sin Collaborator del jurado la lengua no se activa (Cristina hoy)", () => {
+  const { activas, sinAlta } = langsWithCollaborator(encargoCerradoLangs("pt,en,de"), {
+    exwzhhwv5fyegllvblt76uvb: "info@lyltraduccionesprofesionales.com",
+    ngus1uku6x5uw2pqbmflpbbt: "morton.muenster@gmx.de",
+  });
+  assert.deepEqual([...activas].sort(), ["de", "en"]);
+  assert.deepEqual(sinAlta, ["pt"]);
+  assert.equal(isEncargoCerradoQuote("regla-otra-cosa"), false, "lista exacta, no prefijo");
 });

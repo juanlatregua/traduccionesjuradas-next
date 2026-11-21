@@ -6,6 +6,7 @@ import { computeQuoteTotals, calculateValidUntil, PAPER_SHIPPING_BASE_EUR } from
 import { parseUpdateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
 import { sealClosedPriceQuote } from "@/lib/lavori-directo";
+import { unsealOnLineEdit } from "@/lib/encargo-cerrado-math";
 import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
 
 export const runtime = "nodejs";
@@ -60,6 +61,7 @@ export async function PATCH(req: Request, { params }: Params) {
         status: true,
         issuedAt: true,
         autoPricedBy: true,
+        lines: { orderBy: { createdAt: "asc" }, select: { quantity: true, unitPrice: true, supplierUnitCost: true, sourceFileUrl: true } },
       },
     });
     if (!current) {
@@ -151,6 +153,8 @@ export async function PATCH(req: Request, { params }: Params) {
           // Editar líneas invalida la marca de tarifa por página: hay que volver a
           // verificar la procedencia del coste (canal o override) antes de enviar.
           ...(current.autoPricedBy === PAGE_TARIFF_MARK ? { autoPricedBy: null } : {}),
+          // Encargo cerrado: con las líneas cambiadas el coste ya no es el de la regla → sin sello ni jurado.
+          ...(unsealOnLineEdit(current.autoPricedBy, current.lines, totals.lines) ?? {}),
           marginPct: parsed.data.marginPct,
           paymentMethods: parsed.data.paymentMethods,
           contactWhatsapp: parsed.data.contactWhatsapp,

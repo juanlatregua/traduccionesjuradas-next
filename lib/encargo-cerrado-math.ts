@@ -4,7 +4,7 @@
 
 import { autoClientPriceCentsFromCost } from "./quote-math.ts";
 import { DOC_FLOOR_CENTS, roundUpEuro, roundDownEuro, canAutoQuote, marginPctOf, MIN_AUTO_MARGIN_PCT } from "./learned-rates-math.ts";
-import { DIRECT_AUTO_MAX_CENTS, spreadCents } from "./lavori-directo-math.ts";
+import { DIRECT_AUTO_MAX_CENTS, spreadCents, closedPriceLangOfPair } from "./lavori-directo-math.ts";
 
 export const ENCARGO_CERRADO_AUTO_PRICED_BY = "encargo-cerrado";
 
@@ -27,19 +27,35 @@ export function isEncargoCerradoAutosend(raw: string | null | undefined): boolea
   return String(raw || "").trim().toLowerCase() === "on";
 }
 
-/** Presupuesto con coste cerrado por regla (el carril, o el montado a mano con la regla, p. ej. 2026-00413). */
-export function isEncargoCerradoQuote(autoPricedBy: string | null | undefined): boolean {
-  const v = String(autoPricedBy || "");
-  return v === ENCARGO_CERRADO_AUTO_PRICED_BY || v.startsWith("regla-");
+/** ENCARGO_CERRADO solo vale para lenguas cuyo jurado tiene Collaborator (sin él, la aceptación no se asigna). */
+export function langsWithCollaborator(langs: Set<string>, collaboratorEmailByMiembro: Record<string, string>): { activas: Set<string>; sinAlta: string[] } {
+  const activas = new Set<string>();
+  const sinAlta: string[] = [];
+  for (const l of langs) {
+    if (collaboratorEmailByMiembro[ENCARGO_CERRADO_JURADOS[l].miembroId]) activas.add(l);
+    else sinAlta.push(l);
+  }
+  return { activas, sinAlta };
 }
+
+/** Marcas EXACTAS de presupuesto con coste cerrado por regla: el carril y el montado a mano con la regla de Cristina (2026-00413). */
+export const ENCARGO_CERRADO_MARKS: ReadonlySet<string> = new Set([ENCARGO_CERRADO_AUTO_PRICED_BY, "regla-cristina-0,058"]);
+
+export function isEncargoCerradoQuote(autoPricedBy: string | null | undefined): boolean {
+  return ENCARGO_CERRADO_MARKS.has(String(autoPricedBy || ""));
+}
+
+export const ENCARGO_CERRADO_MAX_DOCS = 10;
 
 export type ClosedDoc = {
   docType: string;
   words: number | null;
   apostille: boolean;
-  /** Tipo legible del análisis (specific_type_es) y nombre del archivo: solo para detectar el carnet de conducir. */
+  pages?: number | null;
+  /** El PDF lleva varios documentos (segmentado / expediente_combinado). */
+  combined?: boolean;
+  /** Tipo legible del análisis (specific_type_es): solo para detectar el carnet de conducir. */
   label?: string | null;
-  fileName?: string | null;
 };
 
 export type ClosedCostResult =
@@ -48,38 +64,48 @@ export type ClosedCostResult =
 
 const DRIVING_RE = /permiso de conducir|carn[eé] de conducir|licencia de conduc|f(ü|ue)hrerschein|driving licen[cs]e|driver'?s licen[cs]e/i;
 
-export function isDrivingLicence(d: Pick<ClosedDoc, "label" | "fileName">): boolean {
-  return DRIVING_RE.test(`${d.label || ""} ${d.fileName || ""}`);
+/** Carnet de conducir SOLO por la etiqueta del tipo del análisis, nunca por el nombre del archivo. */
+export function isDrivingLicence(d: Pick<ClosedDoc, "label">): boolean {
+  return DRIVING_RE.test(String(d.label || ""));
 }
 
 // PT>ES Cristina: documento suelto max(40 €, 0,09 €/pal.); lote con más de 4000 palabras, 0,058 €/pal. sobre el total.
 export const PT_WORD_CENTS = 9;
 export const PT_BATCH_WORD_CENTS = 5.8;
 export const PT_BATCH_MIN_WORDS = 4000;
-// EN>ES Lourdes: 35 € el documento corto, uno solo.
+// EN>ES Lourdes: 35 € el documento corto, uno solo, sin apostilla (hasta que ella lo confirme).
 export const EN_SHORT_DOC_CENTS = 3500;
 export const EN_SHORT_MAX_WORDS = 750;
 const EN_SHORT_TYPES = new Set(["birth_certificate", "marriage_certificate", "death_certificate", "criminal_record", "id_card", "passport", "degree"]);
 // DE>ES Morton: SOLO su lista del 3-sep; nunca por palabra.
 export const DE_LIST_CENTS = { criminal_record: 1500, id_card: 1000, passport: 1000, driving_licence: 1000, apostille: 1000 } as const;
 export const DE_MAX_WORDS = 1000; // por encima, un «penal» o un DNI es otra cosa: a ciegas
+export const SHORT_MAX_PAGES = 2; // EN y DE: más páginas = lectura dudosa, a mano
 
-function deListCents(d: ClosedDoc): number | null {
-  if (d.docType === "apostille") return DE_LIST_CENTS.apostille;
-  const base =
-    d.docType === "criminal_record" ? DE_LIST_CENTS.criminal_record
-    : d.docType === "id_card" || d.docType === "passport" ? DE_LIST_CENTS.id_card
-    : isDrivingLicence(d) ? DE_LIST_CENTS.driving_licence
-    : null;
-  if (base == null) return null;
-  return base + (d.apostille ? DE_LIST_CENTS.apostille : 0);
+const COMBINED_TYPES = new Set(["expediente_combinado"]);
+
+/** EN/DE: conteo leído, ≤2 páginas y un solo documento por PDF; si no, la regla no aplica. */
+function lecturaDudosa(lang: string, d: ClosedDoc): string | null {
+  if (d.combined || COMBINED_TYPES.has(d.docType)) return `${lang}: el PDF lleva varios documentos`;
+  if (!(d.words && d.words > 0)) return `${lang}: sin conteo de palabras`;
+  if (!(d.pages && d.pages > 0) || d.pages > SHORT_MAX_PAGES) return `${lang}: ${d.pages ?? "?"} págs (máx. ${SHORT_MAX_PAGES})`;
+  return null;
 }
 
-/** Coste BASE por documento según la regla del jurado del par; null-razón si el caso no la cumple. */
+function deBaseCents(d: ClosedDoc): number | null {
+  if (d.docType === "apostille") return DE_LIST_CENTS.apostille;
+  if (d.docType === "criminal_record") return DE_LIST_CENTS.criminal_record;
+  if (d.docType === "id_card" || d.docType === "passport") return DE_LIST_CENTS.id_card;
+  if (isDrivingLicence(d)) return DE_LIST_CENTS.driving_licence;
+  return null;
+}
+
+/** Coste BASE por documento según la regla del jurado del par; razón si el caso no la cumple. */
 export function closedCostFor(sourceLang: string | null | undefined, targetLang: string | null | undefined, docs: ClosedDoc[]): ClosedCostResult {
   const s = String(sourceLang || "").toLowerCase();
   const t = String(targetLang || "es").toLowerCase();
   if (docs.length === 0) return { ok: false, reason: "sin documentos" };
+  if (docs.length > ENCARGO_CERRADO_MAX_DOCS) return { ok: false, reason: `más de ${ENCARGO_CERRADO_MAX_DOCS} documentos` };
   if (t !== "es") return { ok: false, reason: `${s.toUpperCase()}>${t.toUpperCase()}: la regla solo cubre hacia español` };
   const j = ENCARGO_CERRADO_JURADOS[s];
   if (!j) return { ok: false, reason: `${s.toUpperCase()}>ES sin regla de encargo cerrado` };
@@ -98,26 +124,40 @@ export function closedCostFor(sourceLang: string | null | undefined, targetLang:
   if (s === "en") {
     if (docs.length !== 1) return { ok: false, reason: "EN: lote de 2+ documentos, precio de Lourdes" };
     const d = docs[0];
+    const dudosa = lecturaDudosa("EN", d);
+    if (dudosa) return { ok: false, reason: dudosa };
     if (!EN_SHORT_TYPES.has(d.docType) && !isDrivingLicence(d)) return { ok: false, reason: `EN: tipo ${d.docType} no es documento corto (certificado, identidad, título)` };
-    if (!(d.words && d.words > 0)) return { ok: false, reason: "EN: sin conteo de palabras" };
-    if (d.words > EN_SHORT_MAX_WORDS) return { ok: false, reason: `EN: ${d.words} pal. (> ${EN_SHORT_MAX_WORDS}), precio de Lourdes` };
+    if (d.apostille) return { ok: false, reason: "EN: con apostilla, precio de Lourdes" };
+    if ((d.words as number) > EN_SHORT_MAX_WORDS) return { ok: false, reason: `EN: ${d.words} pal. (> ${EN_SHORT_MAX_WORDS}), precio de Lourdes` };
     return { ok: true, ...base, costs: [EN_SHORT_DOC_CENTS], regla: "documento corto 35 €" };
   }
 
   if (s === "de") {
-    const costs: number[] = [];
+    const bases: number[] = [];
     for (const d of docs) {
-      const c = deListCents(d);
+      const dudosa = lecturaDudosa("DE", d);
+      if (dudosa) return { ok: false, reason: dudosa };
+      const c = deBaseCents(d);
       if (c == null) return { ok: false, reason: `DE: ${d.docType} fuera de la lista de Morton: a ciegas` };
-      if (d.words && d.words > DE_MAX_WORDS) return { ok: false, reason: `DE: ${d.words} pal. en ${d.docType}: a ciegas` };
-      costs.push(c);
+      if ((d.words as number) > DE_MAX_WORDS) return { ok: false, reason: `DE: ${d.words} pal. en ${d.docType}: a ciegas` };
+      bases.push(c);
     }
+    // La apostilla se cobra una vez: si viene en su propio archivo, el documento que la trae no suma otros 10 €.
+    let sueltas = docs.filter((d) => d.docType === "apostille").length;
+    const costs = docs.map((d, i) => {
+      if (d.docType === "apostille" || !d.apostille) return bases[i];
+      if (sueltas > 0) {
+        sueltas--;
+        return bases[i];
+      }
+      return bases[i] + DE_LIST_CENTS.apostille;
+    });
     return { ok: true, ...base, costs, regla: "lista de Morton (3-sep)" };
   }
   return { ok: false, reason: `${s.toUpperCase()}>ES sin regla` };
 }
 
-/** Precio al cliente por documento: tarifa APROBADA si la hay (nunca por debajo de la regla de margen), si no autoClientPriceFromCost. */
+/** Precio al cliente por documento: tarifa APROBADA si la hay (nunca por debajo de la regla de margen), si no autoClientPriceFromCost (suelo 40 €). */
 export function closedQuoteLines(costs: number[], tariffCents: (number | null | undefined)[] = []): { clientCents: number; costCents: number }[] {
   return costs.map((costCents, i) => {
     const minimo = roundUpEuro(autoClientPriceCentsFromCost(costCents, DOC_FLOOR_CENTS));
@@ -159,8 +199,34 @@ export function closedDeliveryTerm(plazoDias: number): string {
   return `${plazoDias}-${plazoDias + 1} días hábiles`;
 }
 
-/** Solicitudes de precio que siguen vivas sin adjudicar y que el encargo cerrado debe retirar al pagar. */
+/** Exención de procedencia (verifyTranslatorChannelPrice): NL/PT o encargo cerrado, y TODAS las líneas con coste. */
+export function isClosedCostExempt(input: { sourceLang: string | null | undefined; targetLang: string | null | undefined; autoPricedBy?: string | null; lines: { supplierUnitCost?: unknown }[] }): boolean {
+  if (!closedPriceLangOfPair(input.sourceLang, input.targetLang) && !isEncargoCerradoQuote(input.autoPricedBy)) return false;
+  return input.lines.length > 0 && input.lines.every((l) => Number(l.supplierUnitCost) > 0);
+}
+
+type EditLine = { quantity: unknown; unitPrice: unknown; supplierUnitCost?: unknown; sourceFileUrl?: string | null };
+const lineKey = (l: EditLine) => [Number(l.quantity) || 1, Math.round(Number(l.unitPrice || 0) * 100), Math.round(Number(l.supplierUnitCost || 0) * 100), l.sourceFileUrl || ""].join("|");
+
+/** Al guardar: un encargo cerrado cuyas líneas cambian pierde el sello (marca y jurado). null = no se toca. */
+export function unsealOnLineEdit(
+  autoPricedBy: string | null | undefined,
+  before: EditLine[],
+  after: EditLine[]
+): { autoPricedBy: null; lavoriMiembroId: null; lavoriMiembroNombre: null } | null {
+  if (!isEncargoCerradoQuote(autoPricedBy)) return null;
+  const same = before.length === after.length && before.every((l, i) => lineKey(l) === lineKey(after[i]));
+  return same ? null : { autoPricedBy: null, lavoriMiembroId: null, lavoriMiembroNombre: null };
+}
+
+/** Solicitudes de precio que siguen vivas sin adjudicar y que el encargo cerrado retira justo antes de enviar. */
 export const CLOSED_RETIRE_STATUSES = ["SENT", "PRICED"] as const;
+
+/** ¿Se retiran ya? No si el encargo ya salió (idempotencia) o si lo lleva un traductor externo (no saldrá). */
+export function shouldRetireBeforeClosedSend(input: { events: { type: string }[]; translatorName?: string | null }): boolean {
+  if (input.events.some((e) => e.type === "lavori.solicitud_enviada")) return false;
+  return !String(input.translatorName || "").trim();
+}
 
 /** Filtro de esas solicitudes: mismo par y mismo caso (presupuesto, caso, expediente o la ref del lead que lo originó). */
 export function closedRetireWhere(quote: { id: string; casoId: string | null; expedienteRef: string | null }, par: string) {

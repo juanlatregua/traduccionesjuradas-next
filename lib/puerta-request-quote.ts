@@ -338,6 +338,8 @@ export async function routePuertaQuoteRequest(input: {
         quote: { sent: cerrado.sent, draft: !cerrado.sent, number: cerrado.quoteNumber, payUrl: cerrado.sent ? cerrado.payUrl : null },
       });
     }
+    // Otra petición del mismo caso y par está montando el borrador ahora mismo: esta no hace nada más.
+    if ("enCurso" in cerrado && cerrado.enCurso) return out({ ok: true, lavori: { sent: false } });
     if (cerradoOn) console.log("[puerta:request-quote] encargo cerrado no aplica:", cerrado.reason);
 
     // AGENTE DE PRECIOS (27-ago-2026): documento ya conocido con tarifa APROBADA →
