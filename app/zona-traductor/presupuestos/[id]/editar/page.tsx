@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import QuoteEditForm from "@/components/QuoteEditForm";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
 import { serializeQuote } from "@/lib/quote-serializer";
+import { presupuestoPaginaUnicaOn } from "@/lib/quote-edit-hydrate";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Editar presupuesto",
@@ -21,12 +22,16 @@ export default async function PresupuestoEditarPage({
   searchParams: { nuevaLinea?: string };
 }) {
   await authZonaTraductorOrRedirect();
+  if (presupuestoPaginaUnicaOn()) {
+    redirect(`/zona-traductor/presupuestos/${params.id}${searchParams.nuevaLinea === "1" ? "?nuevaLinea=1" : ""}#editar`);
+  }
 
   const quote = await getQuoteByIdForAdmin(params.id);
   if (!quote) notFound();
   const serialized = serializeQuote(quote);
   if (!serialized) notFound();
   const numero = (serialized as any).quoteNumber || "";
+  const frozen = !!quote.paymentFrozenAt;
 
   return (
     <div className="min-h-screen bg-[#F6F7F9]">
@@ -43,7 +48,7 @@ export default async function PresupuestoEditarPage({
           <h1 className="font-mono text-sm font-bold text-[#1A2E4A]">{numero}</h1>
         </div>
         <div className="rounded-[14px] border border-[#D5DAE1] bg-white p-4">
-          <QuoteEditForm quote={serialized as any} nuevaLinea={searchParams.nuevaLinea === "1"} />
+          <QuoteEditForm quote={serialized as any} nuevaLinea={searchParams.nuevaLinea === "1"} frozen={frozen} />
         </div>
       </main>
     </div>

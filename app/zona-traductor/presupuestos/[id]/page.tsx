@@ -12,6 +12,9 @@ import { serializeQuote } from "@/lib/quote-serializer";
 import { NO_RESPONSE_NOTE } from "@/lib/cierre-math";
 import { COMPLETION_EVENT, isPendingCompletion } from "@/lib/q-journey";
 import QuoteUnfreezeButton from "@/components/QuoteUnfreezeButton";
+import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
+import { presupuestoPaginaUnicaOn } from "@/lib/quote-edit-hydrate";
+import { constructorDelPresupuesto } from "@/lib/quote-edit-db";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -25,8 +28,10 @@ export const metadata: Metadata = {
  * entrar. Ahora la ficha vive aquí, en la misma cáscara que la lista, y
  * /admin/quotes/[id] redirige. El panel es EL MISMO componente: no se duplica.
  */
-export default async function PresupuestoFichaPage({ params }: { params: { id: string } }) {
+export default async function PresupuestoFichaPage({ params, searchParams = {} }: { params: { id: string }; searchParams?: { nuevaLinea?: string } }) {
   await authZonaTraductorOrRedirect();
+  const paginaUnica = presupuestoPaginaUnicaOn();
+  const editarHref = paginaUnica ? "#editar" : `/zona-traductor/presupuestos/${params.id}/editar`;
 
   const quote = await getQuoteByIdForAdmin(params.id);
   if (!quote) notFound();
@@ -65,6 +70,7 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
   const costeEstimadoCero =
     !!congelacion?.paymentFrozenAt && congelacion.lines.every((l) => Number(l.supplierUnitCost || 0) <= 0);
   const pendiente = isPendingCompletion(docsEvents.map((e) => e.processedAt), lastSend?.sentAt);
+  const constructor = paginaUnica ? await constructorDelPresupuesto(quote, solicitud?.ref ?? null) : null;
   const adjuntos = docsEvents
     .filter((e) => !lastSend?.sentAt || e.processedAt > lastSend.sentAt)
     .flatMap((e) => {
@@ -96,7 +102,7 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             )}
           </div>
           <Link
-            href={`/zona-traductor/presupuestos/${params.id}/editar`}
+            href={editarHref}
             className="inline-flex items-center gap-1.5 rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
           >
             <Pencil className="h-4 w-4" />
@@ -127,7 +133,7 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <QuoteUnfreezeButton quoteId={params.id} estimatedCostZero={costeEstimadoCero} />
               {solicitud && (
-                <Link href={`/zona-traductor/presupuestos/${params.id}/editar`} className="underline hover:text-[#1A2E4A]">
+                <Link href={editarHref} className="underline hover:text-[#1A2E4A]">
                   Editar las líneas con la cifra del jurado
                 </Link>
               )}
@@ -164,6 +170,21 @@ export default async function PresupuestoFichaPage({ params }: { params: { id: s
         <div className="rounded-[14px] border border-[#D5DAE1] bg-white p-1">
           <AdminQuoteDetailPanel initialQuote={serialized as any} />
         </div>
+        {constructor && (
+          <section id="editar" className="mt-6 scroll-mt-4">
+            <h2 className="mb-3 text-lg font-bold text-[#1A2E4A]">Constructor · {numero}</h2>
+            <StaffExpedienteIntake
+              mode="edit"
+              quote={constructor.quote}
+              analysisDocs={constructor.analysisDocs}
+              expedienteRef={constructor.expedienteRef}
+              puertaSession={constructor.puertaSession}
+              casoId={constructor.casoId}
+              solicitudesVivas={constructor.solicitudesVivas}
+              nuevaLinea={searchParams.nuevaLinea === "1"}
+            />
+          </section>
+        )}
       </main>
     </div>
   );

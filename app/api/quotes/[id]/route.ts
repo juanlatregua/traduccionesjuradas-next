@@ -9,6 +9,9 @@ import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { unsealOnLineEdit } from "@/lib/encargo-cerrado-math";
 import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
 import { abs, hrefPresupuesto } from "@/lib/staff-links";
+import { patchPrecheck, STALE_EDIT_CODE, STALE_EDIT_ERROR } from "@/lib/quote-edit-hydrate";
+
+class StaleEditError extends Error {}
 
 export const runtime = "nodejs";
 
@@ -62,18 +65,14 @@ export async function PATCH(req: Request, { params }: Params) {
         status: true,
         issuedAt: true,
         autoPricedBy: true,
+        paymentFrozenAt: true,
+        total: true,
+        updatedAt: true,
         lines: { orderBy: { createdAt: "asc" }, select: { quantity: true, unitPrice: true, supplierUnitCost: true, sourceFileUrl: true } },
       },
     });
     if (!current) {
       return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
-    }
-
-    if (!["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(current.status)) {
-      return NextResponse.json(
-        { ok: false, error: `No se puede editar en estado ${current.status}.` },
-        { status: 400 }
-      );
     }
 
     const totals = computeQuoteTotals({
@@ -87,6 +86,20 @@ export async function PATCH(req: Request, { params }: Params) {
           ? parsed.data.shippingBase || PAPER_SHIPPING_BASE_EUR
           : 0,
     });
+
+    // Estado editable; obsoleto (expectedUpdatedAt ≠ updatedAt: p. ej. la cifra del jurado
+    // entró en las líneas después de abrir la página) → 409 «stale»; pago CONGELADO: líneas e
+    // importe solo desde la reparación con la cifra del jurado (frozenRepair). Sin escribir nada.
+    const pre = patchPrecheck({
+      status: current.status,
+      updatedAt: current.updatedAt,
+      expectedUpdatedAt: (body as any)?.expectedUpdatedAt,
+      frozen: !!current.paymentFrozenAt,
+      frozenRepair: (body as any)?.frozenRepair === true,
+      current: { lines: current.lines, total: current.total },
+      next: { lines: totals.lines, total: totals.total },
+    });
+    if (pre) return NextResponse.json(pre.body, { status: pre.status });
 
     const validUntil = calculateValidUntil(current.issuedAt, parsed.data.validityDays);
 
@@ -114,6 +127,11 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const quote = await prisma.$transaction(async (tx) => {
+      // Con token: nadie ha escrito entre la lectura y aquí (cifra del jurado, envío).
+      if ((body as any)?.expectedUpdatedAt) {
+        const claim = await tx.quote.updateMany({ where: { id: params.id, updatedAt: current.updatedAt }, data: { updatedAt: new Date() } });
+        if (claim.count === 0) throw new StaleEditError();
+      }
       const customer = await tx.customer.upsert({
         where: { email: parsed.data.customerEmail },
         update: {
@@ -209,8 +227,14 @@ export async function PATCH(req: Request, { params }: Params) {
         url: abs(hrefPresupuesto(params.id)),
       });
     }
-    return NextResponse.json({ ok: true, quote: serializeQuote(quote) });
+    // updatedAt tras el sellado: el token de la siguiente edición no debe chocar con lo que
+    // este mismo guardado escribió.
+    const fresh = await prisma.quote.findUnique({ where: { id: params.id }, select: { updatedAt: true } }).catch(() => null);
+    return NextResponse.json({ ok: true, quote: { ...serializeQuote(quote), ...(fresh ? { updatedAt: fresh.updatedAt } : {}) } });
   } catch (err: any) {
+    if (err instanceof StaleEditError) {
+      return NextResponse.json({ ok: false, code: STALE_EDIT_CODE, error: STALE_EDIT_ERROR }, { status: 409 });
+    }
     console.error("[quotes:update] error", err);
     return NextResponse.json(
       { ok: false, error: err?.message || "No se pudo actualizar el presupuesto." },

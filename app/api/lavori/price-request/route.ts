@@ -6,6 +6,7 @@ import { findLiveSiblingLeadRequest, sendLeadPriceRequest, validarAntesDeRetirar
 import { retireLeadRequest } from "@/lib/lavori-retire";
 import { freezeQuoteForRepricing } from "@/lib/precio-tras-envio";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
+import { attachDecision } from "@/lib/quote-edit-hydrate";
 import { sombraBloqueo } from "@/lib/caso/sombra";
 import { anclasDeExpediente } from "@/lib/caso/sombra-plan";
 import { decidirSolicitud, quotesACongelar, retirarEnOrden } from "@/lib/caso/hilo";
@@ -29,6 +30,31 @@ export const runtime = "nodejs";
 
 const s = (x: unknown, max: number) => (typeof x === "string" && x.trim() ? x.trim().slice(0, max) : null);
 const eur = (c: number) => `${(c / 100).toFixed(2)} €`;
+
+/**
+ * Página única: la solicitud pedida desde un presupuesto ya creado queda atada a ÉL si
+ * es del mismo par guardado y sigue editable. Devuelve si lo está (y por qué no).
+ */
+async function atarAlPresupuesto(quoteId: string | null | undefined, lpr: { ref: string; quoteId: string | null; par: string }) {
+  if (!quoteId) return {};
+  const q = await prisma.quote
+    .findFirst({ where: { id: quoteId, deletedAt: null }, select: { status: true, sourceLang: true, targetLang: true } })
+    .catch(() => null);
+  const d = attachDecision({
+    anchorQuoteId: quoteId,
+    lpr,
+    quote: q ? { par: parFromLangs(q.sourceLang, q.targetLang), editable: ["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status) } : null,
+  });
+  let atada = d.atada;
+  if (d.atar) {
+    const r = await prisma.lavoriPriceRequest.updateMany({ where: { ref: lpr.ref, quoteId: null }, data: { quoteId } }).catch((err) => {
+      console.error("[lavori-price-request] atar al presupuesto falló:", err);
+      return { count: 0 };
+    });
+    atada = r.count > 0;
+  }
+  return { quoteId, atada, ...(atada ? {} : { motivoNoAtada: d.motivo || "no se pudo atar" }) };
+}
 
 export async function POST(req: Request) {
   const staff = await requireStaffAccess(req);
@@ -110,7 +136,9 @@ export async function POST(req: Request) {
 
         if (d.accion === "reutilizar") {
           const v = d.viva;
+          const atado = await atarAlPresupuesto(anclas.quoteId, { ref: v.ref, quoteId: v.quoteId ?? null, par: v.par });
           return NextResponse.json({
+            ...atado,
             ok: true,
             existing: v.ref,
             ref: v.ref,
@@ -184,9 +212,10 @@ export async function POST(req: Request) {
               .updateMany({ where: { ref: result.ref, quoteId: null }, data: { quoteId: d.quoteId } })
               .catch((err) => console.error("[lavori-price-request] heredar presupuesto falló:", err));
           }
+          const atado = await atarAlPresupuesto(anclas.quoteId, { ref: result.ref, quoteId: d.quoteId ?? null, par: parSolicitado });
           await rastroHilo(casoId, "solicitud_reemplazada", actor, result.ref, { retiradas, nueva: result.ref, candidatos: result.candidatos, quoteId: d.quoteId, congelados });
           return NextResponse.json(
-            { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres, reemplaza: retiradas, congelados: congelados.length },
+            { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres, reemplaza: retiradas, congelados: congelados.length, ...atado },
             { status: 201 }
           );
         }
@@ -223,6 +252,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
       }
 
+      const atado = await atarAlPresupuesto(anclas.quoteId, { ref: result.ref, quoteId: null, par: parSolicitado || "" });
+
       // Acuse al cliente (12-ago SMS; 24-ago también email): al salir los documentos
       // hacia el traductor, el cliente recibe UN aviso — email si es real, SMS/WhatsApp
       // si es lead solo-WhatsApp. Con await: sin él, la lambda se congela al responder
@@ -237,7 +268,7 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json(
-        { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres },
+        { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres, ...atado },
         { status: result.repetido ? 200 : 201 }
       );
     };

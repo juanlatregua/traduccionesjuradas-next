@@ -101,6 +101,12 @@ export function toBuilderDocuments(
 
 export type BuilderDocument = ReturnType<typeof toBuilderDocuments>[number];
 
+/** Documentos del análisis YA guardado por el constructor, sin llamar a la IA; null si no lo hay. */
+export function savedBuilderDocuments(row: { id: string; fileName: string; fileUrl: string; status: string; analysisJson: unknown; pageCount: number }) {
+  const saved = row.status === "QUOTE_GENERATED" ? savedRun(row.analysisJson, row.pageCount) : null;
+  return saved ? { mode: saved.mode, documents: toBuilderDocuments(saved, { id: row.id, fileName: row.fileName, fileUrl: row.fileUrl }) } : null;
+}
+
 export type ExpedienteAnalyzeResult =
   | { ok: true; mode: SegmentedRun["mode"]; analysisMs: number; cached: boolean; split: boolean; documents: BuilderDocument[]; run: SegmentedRun }
   | { ok: false; status: 404 | 422; error: string; debug?: string };
