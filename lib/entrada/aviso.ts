@@ -56,3 +56,21 @@ export function routingPair(e: Pick<EntradaRow, "sourceLang" | "targetLang" | "t
   const target = known(e.targetLangs[0]) ?? known(e.targetLang) ?? known(read?.targetLang);
   return source && target && source !== target ? { sourceLang: source, targetLang: target } : null;
 }
+
+type Lectura = {
+  documents: { included: boolean; excludedReason: string | null; editedBy: string | null; parts: { fileIndex: number }[]; annexes: { parts: { fileIndex: number }[] }[] }[];
+  files: { position: number | null; name: string }[];
+};
+
+export const byClient = (d: { editedBy: string | null }) => Boolean(d.editedBy?.startsWith("cliente:"));
+
+/** Why this entrada must NOT go to lavori by itself (a juror would price files or pairs the client does not want). */
+export function staffOnlyReason(e: Pick<EntradaRow, "targetLang" | "targetLangs">, data: Lectura | null): string | null {
+  const targets = e.targetLangs.length ? e.targetLangs : e.targetLang ? [e.targetLang] : [];
+  if (targets.length > 1) return `pide ${targets.length} idiomas de destino`;
+  if (!data) return null;
+  if (data.documents.some((d) => !d.included && byClient(d))) return "el cliente ha quitado documentos";
+  const used = new Set(data.documents.filter((d) => d.included).flatMap((d) => [...d.parts, ...d.annexes.flatMap((a) => a.parts)].map((p) => p.fileIndex)));
+  const sobran = data.files.filter((f) => f.position === null || !used.has(f.position));
+  return sobran.length ? `${sobran.length} archivo(s) sin documento que traducir (${sobran.map((f) => f.name).join(", ").slice(0, 120)})` : null;
+}

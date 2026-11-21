@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { hasCronSecret } from "@/lib/cron-auth";
 import { sendMail } from "@/lib/azure-mail";
@@ -5,7 +6,10 @@ import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { isStaffEmail } from "@/lib/staff-access";
 import { puertaV2On } from "@/lib/entrada/flag";
 import { sessionKeyOf } from "@/lib/entrada/store";
-import { RECORDATORIO_HASTA_MS, RECORDATORIO_STEP, RECORDATORIO_TRAS_MS, recordatorioEmail, recordatorioHourOk, selectRecordatorios } from "@/lib/entrada/recordatorio";
+import { QUOTE_VIVOS } from "@/lib/caso/estados";
+import { RECORDATORIO_HASTA_MS, RECORDATORIO_STEP, RECORDATORIO_TRAS_MS, recordatorioEmail, recordatorioEmailKey, recordatorioHourOk, selectRecordatorios } from "@/lib/entrada/recordatorio";
+
+const hashOf = (email: string) => createHash("sha256").update(email.toLowerCase()).digest("hex").slice(0, 32);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,18 +40,24 @@ export async function GET(req: Request) {
   const sessions = rows.map((e) => sessionKeyOf(e.id));
   const emails = [...new Set(rows.map((e) => e.email!.toLowerCase()))];
   const since = new Date(now.getTime() - 3 * 864e5);
-  const [files, done, confirmed, quotes] = await Promise.all([
+  const emailKeys = emails.map((m) => recordatorioEmailKey(hashOf(m), now));
+  const [files, done, doneByEmail, confirmed, quotes] = await Promise.all([
     prisma.documentAnalysis.groupBy({ by: ["sessionToken"], where: { sessionToken: { in: sessions } }, _count: { _all: true } }),
     prisma.funnelEvent.findMany({ where: { step: RECORDATORIO_STEP, sessionId: { in: sessions } }, select: { sessionId: true } }),
+    prisma.funnelEvent.findMany({ where: { step: RECORDATORIO_STEP, sessionId: { in: emailKeys } }, select: { sessionId: true } }),
     prisma.entrada.findMany({ where: { email: { in: emails, mode: "insensitive" }, estado: { in: ["confirmada", "sin_jurado"] }, updatedAt: { gte: since } }, select: { email: true } }),
-    prisma.quote.findMany({ where: { customerEmail: { in: emails, mode: "insensitive" }, deletedAt: null, createdAt: { gte: since } }, select: { customerEmail: true } }),
+    // Ya tiene un presupuesto vivo (de cuando sea): no se le recuerda nada.
+    prisma.quote.findMany({ where: { customerEmail: { in: emails, mode: "insensitive" }, deletedAt: null, lostReason: null, status: { in: [...QUOTE_VIVOS] } }, select: { customerEmail: true } }),
   ]);
   const n = new Map(files.map((f) => [f.sessionToken, f._count._all]));
   const finished = new Set([...confirmed.map((c) => c.email!.toLowerCase()), ...quotes.map((q) => q.customerEmail.toLowerCase())]);
   const due = selectRecordatorios(
     rows.map((e) => ({ ...e, files: n.get(sessionKeyOf(e.id)) ?? 0 })),
     now,
-    { done: new Set(done.map((d) => d.sessionId.slice("entrada:".length))), finished, staff: (email) => isStaffEmail(email) },
+    {
+      done: new Set(done.map((d) => d.sessionId.slice("entrada:".length))),
+      doneEmails: new Set(emails.filter((m) => doneByEmail.some((d) => d.sessionId === recordatorioEmailKey(hashOf(m), now)))),
+      finished, staff: (email) => isStaffEmail(email) },
   );
 
   let sent = 0;
@@ -57,9 +67,13 @@ export async function GET(req: Request) {
     const to = e.email!.toLowerCase();
     if (seen.has(to)) continue;
     seen.add(to);
-    // Reclamo antes de enviar (único por entrada): dos ejecuciones a la vez no mandan dos.
-    const claimed = await prisma.funnelEvent
-      .create({ data: { sessionId: sessionKeyOf(e.id), reference: "entrada", step: RECORDATORIO_STEP, metadata: { lang: rows.find((r) => r.id === e.id)?.lang ?? null } } })
+    // Reclamo antes de enviar, único por entrada y por email (semana): dos ejecuciones a la vez no mandan dos.
+    const emailKey = recordatorioEmailKey(hashOf(to), now);
+    const claimed = await prisma
+      .$transaction([
+        prisma.funnelEvent.create({ data: { sessionId: emailKey, reference: "entrada", step: RECORDATORIO_STEP } }),
+        prisma.funnelEvent.create({ data: { sessionId: sessionKeyOf(e.id), reference: "entrada", step: RECORDATORIO_STEP, metadata: { lang: rows.find((r) => r.id === e.id)?.lang ?? null } } }),
+      ])
       .then(() => true)
       .catch(() => false);
     if (!claimed) continue;
@@ -70,7 +84,7 @@ export async function GET(req: Request) {
     } catch (err) {
       failed++;
       console.error("[entrada-recordatorio] envío falló", e.id, err);
-      await prisma.funnelEvent.deleteMany({ where: { sessionId: sessionKeyOf(e.id), step: RECORDATORIO_STEP } }).catch(() => {});
+      await prisma.funnelEvent.deleteMany({ where: { sessionId: { in: [sessionKeyOf(e.id), emailKey] }, step: RECORDATORIO_STEP } }).catch(() => {});
     }
   }
   return Response.json({ ok: true, candidates: rows.length, due: due.length, sent, failed });

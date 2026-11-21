@@ -67,14 +67,15 @@ async function notify(a: Aviso): Promise<void> {
   const respuestas = (e.respuestas ?? []).map((r) => `<li>${escapeHtml(r.pregunta)}: <strong>${escapeHtml(r.respuesta)}</strong></li>`).join("");
   const plazo = plazoTexto(e);
   const excluidos = a.kind === "confirmada" && a.excluidos?.length ? `<p>${a.excluidos.length} documento(s) fuera del presupuesto: ${escapeHtml(a.excluidos.join("; "))}</p>` : "";
+  const revisar = a.kind === "confirmada" && a.revisar ? `<p><strong>⚠ NO se ha pedido precio a lavori: ${escapeHtml(a.revisar)}.</strong> Presupuéstalo tú (o pide precio desde el constructor con los archivos que sí van).</p>` : "";
   const html = a.kind === "confirmada"
-    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p>${a.presupuesto ? `<p><strong>Presupuesto automático ${escapeHtml(a.presupuesto)}</strong> (PUERTA_FR): revísalo en el caso.</p>` : ""}<p>${a.documentos} documento(s) · ${escapeHtml(idiomas)} · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}${e.pais ? ` (${escapeHtml(e.pais)})` : ""}</p>${respuestas ? `<ul>${respuestas}</ul>` : ""}${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${excluidos}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir el caso (archivos y respuestas)</a> · <a href="${links.builder}">Montar el presupuesto con los documentos dentro</a></p>`
+    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p>${revisar}${a.presupuesto ? `<p><strong>Presupuesto automático ${escapeHtml(a.presupuesto)}</strong> (PUERTA_FR): revísalo en el caso.</p>` : ""}<p>${a.documentos} documento(s) · ${escapeHtml(idiomas)} · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}${e.pais ? ` (${escapeHtml(e.pais)})` : ""}</p>${respuestas ? `<ul>${respuestas}</ul>` : ""}${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${excluidos}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir el caso (archivos y respuestas)</a> · <a href="${links.builder}">Montar el presupuesto con los documentos dentro</a></p>`
     : `<h2>Idioma sin jurado: ${escapeHtml(langName(a.idioma))}</h2><p>${who}</p><p>Al cliente se le ha dado el buscador del MAEC y el caso queda en «Sin jurado» (no cuenta como perdido) si no tenía nada más.</p><p><a href="${link}">Ver el caso</a></p>`;
   const mail = sendMail({ to, subject, html });
   // frAuto ya manda su SMS cuando monta un presupuesto; si no, el SMS es el segundo canal del aviso.
   const sms = a.kind === "confirmada" && !a.presupuesto
     ? import("@/lib/sms")
-        .then(({ sendStaffAlertSMS }) => sendStaffAlertSMS(`Entrada web ${a.casoRef ?? ""} · ${idiomas} · ${a.documentos} doc · ${plazo} · ${e.email || e.phone9 || ""} · ${link}`.slice(0, 300), "entrada_confirmada"))
+        .then(({ sendStaffAlertSMS }) => sendStaffAlertSMS(`${a.kind === "confirmada" && a.revisar ? `⚠ ${a.revisar} · ` : ""}Entrada web ${a.casoRef ?? ""} · ${idiomas} · ${a.documentos} doc · ${plazo} · ${e.email || e.phone9 || ""} · ${link}`.slice(0, 300), "entrada_confirmada"))
         .catch((err) => console.error("[entrada] SMS staff falló", err))
     : Promise.resolve();
   await Promise.all([mail, sms]);
@@ -94,6 +95,7 @@ async function routeQuote(e: EntradaRow, data: FrAutoData | null, x: { casoRef: 
     locale: e.lang,
     deadline: urgency && !joinedExisting(e) ? { urgency, neededBy: e.neededBy } : null,
     extraLines: entradaResumen(e, x),
+    skipTariff: true,
   });
   const quote = r.body.quote as { sent?: boolean } | undefined;
   return { handled: r.status < 400 && r.body.ok === true, quoteSent: quote?.sent === true };
@@ -224,9 +226,9 @@ export const flowDeps: FlowDeps = {
   notify,
   frAuto: (e, data) => runFrAuto(frAutoIO, e, data),
   routeQuote,
-  ackClient: async (e) => {
+  ackClient: async (e, { enMarcha }) => {
     const { sendPriceRequestAckToClient } = await import("@/lib/quote-email");
-    await sendPriceRequestAckToClient({ name: e.nombre, email: e.email, phone: e.phone9, locale: e.lang, translatorLangName: null, askDeadline: !e.urgency });
+    await sendPriceRequestAckToClient({ name: e.nombre, email: e.email, phone: e.phone9, locale: e.lang, translatorLangName: null, askDeadline: !e.urgency, inReview: !enMarcha });
   },
   funnel: async (e, step) => {
     await prisma.funnelEvent

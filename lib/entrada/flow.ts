@@ -12,13 +12,14 @@ import { sessionKeyOf, type ArchivoRow, type EntradaRow, type EntradaStore } fro
 import { clientView, ownLote, type ClientView, type ReadingExtras } from "./view.ts";
 import type { FrAutoData, FrAutoResult } from "./fr-auto.ts";
 import { fingerprintOf } from "../lectura-constructor/run.ts";
+import { staffOnlyReason } from "./aviso.ts";
 
 export const MAX_ARCHIVOS = 40;
 export const EXCLUDED_BY_CLIENT = "el cliente indica que no hace falta traducirlo";
 
 export type Jurado = "si" | "no" | "desconocido";
 export type Aviso =
-  | { kind: "confirmada"; entrada: EntradaRow; casoRef: string | null; documentos: number; presupuesto?: string | null; excluidos?: string[] }
+  | { kind: "confirmada"; entrada: EntradaRow; casoRef: string | null; documentos: number; presupuesto?: string | null; excluidos?: string[]; revisar?: string | null }
   | { kind: "sin_jurado"; entrada: EntradaRow; casoRef: string | null; idioma: string };
 
 export type FlowDeps = {
@@ -47,8 +48,8 @@ export type FlowDeps = {
   /** Without a quote from frAuto: the old puerta path (lib/puerta-request-quote), which sends its own staff email, SMS and
    *  client ack. handled=false (it failed) → notify. quoteSent: a quote already reached the client. */
   routeQuote?(e: EntradaRow, data: FrAutoData | null, x: { casoRef: string | null; documentos: number; excluidos: string[] }): Promise<{ handled: boolean; quoteSent: boolean }>;
-  /** «Hemos recibido tu solicitud», in the entrada language; deduplicated per recipient (24 h). */
-  ackClient?(e: EntradaRow): Promise<void>;
+  /** «Hemos recibido tu solicitud», in the entrada language; deduplicated per recipient (24 h). enMarcha=false: Juan reviews it first. */
+  ackClient?(e: EntradaRow, x: { enMarcha: boolean }): Promise<void>;
   /** One FunnelEvent per entrada and step; never throws. */
   funnel?(e: EntradaRow, step: string): Promise<void>;
   /** linkToken: the one-time «Confirmar mi email» button, bound to this entrada. */
@@ -353,7 +354,8 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
   const casoRef = await deps.caso.ref(e.casoId);
   const motivos = excluidos.map((x) => x.motivo ?? "sin motivo");
   let routed = false;
-  if (!presupuesto && deps.routeQuote) {
+  const revisar = presupuesto ? null : staffOnlyReason(e, data);
+  if (!presupuesto && !revisar && deps.routeQuote) {
     try {
       const r = await deps.routeQuote(done, data, { casoRef, documentos, excluidos: motivos });
       routed = r.handled;
@@ -362,8 +364,8 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
       console.error("[entrada] routeQuote falló", e.id, err);
     }
   }
-  if (!routed) await deps.notify({ kind: "confirmada", entrada: done, casoRef, documentos, presupuesto, excluidos: motivos }).catch(console.error);
-  if (!presupuestoEnviado && deps.ackClient) await deps.ackClient(done).catch(console.error);
+  if (!routed) await deps.notify({ kind: "confirmada", entrada: done, casoRef, documentos, presupuesto, excluidos: motivos, revisar }).catch(console.error);
+  if (!presupuestoEnviado && deps.ackClient) await deps.ackClient(done, { enMarcha: routed || Boolean(presupuesto) }).catch(console.error);
   if (deps.funnel) await deps.funnel(done, "entrada_confirmada").catch(() => {});
   const view = await vistaEntrada(deps, done);
   return { ok: true, view: presupuestoEnviado ? { ...view, presupuestoEnviado: true } : view };

@@ -59,7 +59,8 @@ export function tariffFor(doc: WorkingDocument, targetLang: string, bankStatemen
       ...(doc.apostille ? { apostilles: apostilleCount(doc.apostille) } : {}),
       apostilleOnSeparatePage: false,
       bankStatementsInQuote,
-      regularization,
+      // Campaña después del tipo: una apostilla suelta no es un documento de 25 € (como apostille_only en la puerta vieja).
+      regularization: regularization && String(doc.type).trim().toLowerCase() !== "apostille",
     });
   } catch (err) {
     if (err instanceof RangeError) return { kind: "noTariff", reason: err.message };

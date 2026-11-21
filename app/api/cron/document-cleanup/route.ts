@@ -76,19 +76,40 @@ export async function GET(req: NextRequest) {
       createdAt: { lt: threshold },
       status: { in: [...UNPAID_STATUSES] },
     },
-    select: { id: true, fileUrl: true, sessionToken: true, casoId: true },
+    select: { id: true, fileUrl: true, sessionToken: true, casoId: true, createdAt: true },
   });
   // Los archivos de una entrada no cambian de estado (UPLOADED): se quedan mientras su caso tenga un
-  // presupuesto vivo o un pedido sin terminar, y hasta 30 días después de la entrega.
+  // presupuesto vivo reciente o un pedido sin terminar, hasta 30 días después de la entrega y nunca más de 180.
   const casoIds = [...new Set(candidates.filter((d) => isEntradaSession(d.sessionToken) && d.casoId).map((d) => d.casoId!))];
   const casos = casoIds.length
     ? await prisma.caso.findMany({
         where: { id: { in: casoIds } },
-        select: { id: true, quotes: { select: { status: true, deletedAt: true, lostReason: true } }, orders: { select: { status: true, updatedAt: true } } },
+        select: {
+          id: true,
+          quotes: { select: { status: true, deletedAt: true, lostReason: true, updatedAt: true } },
+          orders: {
+            select: {
+              status: true,
+              paymentStatus: true,
+              updatedAt: true,
+              events: { where: { type: "delivery.updated" }, orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+              documentItems: { where: { deliveredAt: { not: null } }, orderBy: { deliveredAt: "desc" }, take: 1, select: { deliveredAt: true } },
+            },
+          },
+        },
       })
     : [];
-  const vivos = new Set(casos.filter((c) => keepEntradaFiles(c, threshold)).map((c) => c.id));
-  const unpaid = candidates.filter((d) => !(isEntradaSession(d.sessionToken) && d.casoId && vivos.has(d.casoId)));
+  const vida = new Map(
+    casos.map((c) => [
+      c.id,
+      {
+        quotes: c.quotes,
+        orders: c.orders.map((o) => ({ status: o.status, paymentStatus: o.paymentStatus, updatedAt: o.updatedAt, deliveredAt: o.events[0]?.createdAt ?? o.documentItems[0]?.deliveredAt ?? null })),
+      },
+    ]),
+  );
+  const now = new Date();
+  const unpaid = candidates.filter((d) => !(isEntradaSession(d.sessionToken) && d.casoId && keepEntradaFiles(vida.get(d.casoId), { now, threshold, fileCreatedAt: d.createdAt })));
 
   for (const doc of unpaid) {
     try {

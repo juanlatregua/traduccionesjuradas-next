@@ -19,6 +19,18 @@ export type EntradaAMedias = {
   files: number;
 };
 
+/** One reminder per email and week, whatever the number of entradas (claim key of the FunnelEvent). */
+export const recordatorioEmailKey = (emailHash: string, now: Date) => `recordatorio:${emailHash}:${Math.floor(now.getTime() / (7 * 864e5))}`;
+
+/** LSSI 21.2: a simple way to stop commercial-ish emails, in every message. */
+const BAJA: Record<EntradaLang, string> = {
+  es: "Si no quieres recibir más correos nuestros, responde a este mensaje con la palabra BAJA.",
+  fr: "Si vous ne souhaitez plus recevoir nos e-mails, répondez à ce message avec le mot STOP.",
+  en: "If you do not want to receive any more emails from us, reply to this message with the word STOP.",
+  de: "Wenn Sie keine weiteren E-Mails von uns erhalten möchten, antworten Sie auf diese Nachricht mit dem Wort STOPP.",
+  pt: "Se não quiser receber mais e-mails nossos, responda a esta mensagem com a palavra STOP.",
+};
+
 export function madridHour(d: Date): number {
   return Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hourCycle: "h23" }).format(d));
 }
@@ -29,7 +41,7 @@ export const recordatorioHourOk = (now: Date) => {
 };
 
 /** Entradas due a reminder now; `done` = already reminded, `finished` = emails that confirmed another entrada or already have a quote. */
-export function selectRecordatorios(entradas: EntradaAMedias[], now: Date, skip: { done: Set<string>; finished: Set<string>; staff(email: string): boolean }): EntradaAMedias[] {
+export function selectRecordatorios(entradas: EntradaAMedias[], now: Date, skip: { done: Set<string>; doneEmails: Set<string>; finished: Set<string>; staff(email: string): boolean }): EntradaAMedias[] {
   const t = now.getTime();
   return entradas.filter(
     (e) =>
@@ -42,6 +54,7 @@ export function selectRecordatorios(entradas: EntradaAMedias[], now: Date, skip:
       t - e.updatedAt.getTime() >= RECORDATORIO_TRAS_MS &&
       t - e.updatedAt.getTime() <= RECORDATORIO_HASTA_MS &&
       !skip.done.has(e.id) &&
+      !skip.doneEmails.has(e.email.toLowerCase()) &&
       !skip.finished.has(e.email.toLowerCase()) &&
       !skip.staff(e.email),
   );
@@ -86,6 +99,6 @@ const T: Record<EntradaLang, { subject: string; body(url: string): string }> = {
 };
 
 export function recordatorioEmail(lang: string | null, url: string) {
-  const t = T[(lang && lang in T ? lang : "es") as EntradaLang];
-  return { subject: t.subject, text: t.body(url) };
+  const l = (lang && lang in T ? lang : "es") as EntradaLang;
+  return { subject: T[l].subject, text: `${T[l].body(`${url}?l=${l}`)}\n\n${BAJA[l]}` };
 }

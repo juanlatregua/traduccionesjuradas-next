@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { lecturaConstructorOn } from "@/lib/lectura-constructor/flag.ts";
-import { lecturaStore } from "@/lib/lectura-constructor/server.ts";
+import { lecturaStore, regularizationOfSession } from "@/lib/lectura-constructor/server.ts";
 import { viewOf } from "@/lib/lectura-constructor/api.ts";
 import LecturaConstructor, { type LecturaSource } from "@/components/lectura/LecturaConstructor";
 import { puertaV2On } from "@/lib/entrada/flag.ts";
@@ -73,6 +73,7 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
     phone: contact?.clientPhone || caso?.phone9 || "",
   };
   const expedienteRef = sessionKey.startsWith("exp:") ? sessionKey.slice(4) : null;
+  const regularization = data ? await regularizationOfSession(data.lote.sessionKey).catch(() => false) : false;
   const entradas = casoId && puertaV2On() ? await prisma.entrada.findMany({ where: { casoId }, orderBy: { createdAt: "asc" } }) : [];
   const entradaRefs = await casoRefs(entradas.flatMap((e) => [...e.posibles, ...e.relacionados]));
 
@@ -87,7 +88,7 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
           </p>
         </header>
         <EntradaResumen entradas={entradas} refs={entradaRefs} />
-        <LecturaConstructor source={source} initialView={data ? viewOf(data) : null} customer={customer} expedienteRef={expedienteRef} />
+        <LecturaConstructor source={source} initialView={data ? viewOf(data, { regularization }) : null} customer={customer} expedienteRef={expedienteRef} />
       </div>
     </div>
   );

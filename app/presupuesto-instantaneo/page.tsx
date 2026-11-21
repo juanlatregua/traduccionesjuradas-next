@@ -58,7 +58,8 @@ export default function PresupuestoInstantaneoPage({
 
   // PUERTA_V2=on: la misma puerta que la portada (subida = paso 1, asistente al lado), también para el enlace de WhatsApp.
   if (v2) {
-    const l = source === "whatsapp" ? lang : "es";
+    // ?l= (WhatsApp y el recordatorio de la entrada): la puerta en el idioma del cliente.
+    const l = source === "whatsapp" || searchParams?.l ? lang : "es";
     return (
       <section lang={l} className="border-b border-cream bg-parchment">
         <div className="mx-auto max-w-6xl px-4 py-5 sm:py-8">
