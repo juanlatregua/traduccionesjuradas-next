@@ -11,6 +11,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { buildExtensionLote } from "@/lib/order-case-logic";
+import { hrefConstructor } from "./staff-links.ts";
 
 export async function prepareOrderExtension(input: { reference: string; actorEmail: string }) {
   const order = await prisma.order.findUnique({
@@ -84,5 +85,5 @@ export async function prepareOrderExtension(input: { reference: string; actorEma
   if (order.deliveryType === "paper") q.set("deliveryType", "PAPER_SHIP");
   q.set("lineDescription", `Ampliación del pedido ${order.reference}`);
 
-  return { lote, docsCount: recent.length, builderUrl: `/zona-traductor/presupuesto?${q.toString()}` };
+  return { lote, docsCount: recent.length, builderUrl: hrefConstructor(q) };
 }

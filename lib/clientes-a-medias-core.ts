@@ -7,6 +7,8 @@ import { hasPaidOrder, type PaidOrderLike } from "./paid-orders.ts";
 import { clientDraft, langEs, mailtoDraft, noPresupuestable, type NoPresupuestable } from "./no-presupuestable.ts";
 import { madridParts } from "./panel-period.ts";
 import { AUTOENVIO_ORIGINS, autoSendAt, isFrPairLoose } from "./autoenvio-150-core.ts";
+import { abs, hrefConstructor, hrefLectura, hrefPresupuesto } from "./staff-links.ts";
+import { lecturaConstructorOn } from "./lectura-constructor/flag.ts";
 
 export const INFORME_WINDOW_HOURS = 6;
 export const DECISION_MIN = 180;
@@ -81,6 +83,8 @@ export type InformeInput = {
   /** AUTOENVIO_150=on: hora de salida y enlace «Retener» en los borradores que saldrían solos. */
   autoenvioOn?: boolean;
   retenerUrl?: (quoteId: string) => string | null;
+  /** LECTURA_CONSTRUCTOR=on (por defecto, el entorno): sin él /zona-traductor/lectura da 404 y el enlace cae al constructor. */
+  lecturaOn?: boolean;
 };
 
 export type InformeItem = {
@@ -136,7 +140,7 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
       pair: pairOf(src, tgt),
       words,
       price: prices.length ? Math.round(prices.reduce((s, p) => s + p, 0) * 100) / 100 : null,
-      link: `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(token)}`,
+      link: abs(hrefConstructor({ session: token }), SITE),
       noPresupuestable: noPresupuestable({ sourceLanguage: src, targetLanguage: tgt, estimatedWords: words, analyzed }),
       refs: [`puerta:${token}`, `puerta:exp:${token}`],
       casoId: rows.map((r) => r.casoId).find(Boolean) || null,
@@ -144,6 +148,7 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
     });
   }
 
+  const lecturaOn = input.lecturaOn ?? lecturaConstructorOn();
   for (const e of input.entradas) {
     if (e.estado === "prueba" || e.createdAt.getTime() < since) continue;
     if (isExcludedLeadEmail(e.email, staff)) continue;
@@ -159,7 +164,7 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
       pair: pairOf(e.sourceLang, e.targetLang),
       words: null,
       price: null,
-      link: e.casoId ? `${SITE}/zona-traductor/lectura?caso=${encodeURIComponent(e.casoId)}` : `${SITE}/zona-traductor/lectura?session=${encodeURIComponent(session)}`,
+      link: lecturaOn ? (e.casoId ? abs(hrefLectura({ caso: e.casoId }), SITE) : abs(hrefLectura({ session }), SITE)) : abs(hrefConstructor({ session }), SITE),
       noPresupuestable: noPresupuestable({ sourceLanguage: e.sourceLang, targetLanguage: e.targetLang, noJurado: e.estado === "sin_jurado", hasFiles: e.files > 0 }),
       refs: [session],
       casoId: e.casoId,
@@ -238,7 +243,7 @@ export function renderInforme(items: InformeItem[], day: DayCounter, fresh: Set<
   const row = (i: InformeItem) => {
     const who = esc(i.name || i.email || i.phone || "Anónimo");
     const draft = i.draft
-      ? `<br><a href="${SITE}/zona-traductor/presupuestos/${esc(i.draft.id)}">Borrador ${esc(i.draft.quoteNumber)}</a>${
+      ? `<br><a href="${abs(hrefPresupuesto(esc(i.draft.id)), SITE)}">Borrador ${esc(i.draft.quoteNumber)}</a>${
           i.draft.held
             ? ` — no sale solo: ${esc(i.draft.held.join("; "))}`
             : i.draft.autoAt

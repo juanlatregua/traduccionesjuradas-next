@@ -8,6 +8,7 @@
 
 import { AUTO_LOST_NOTES } from "./quote-lost-reasons.ts";
 import { phoneKey, realEmailKey, isPlaceholderEmailKey } from "./client-identity.ts";
+import { abs, hrefBandeja, hrefPresupuesto } from "./staff-links.ts";
 
 export type Pair = { email?: string | null; phone?: string | null };
 export type Identity = { emails: Set<string>; phones: Set<string> };
@@ -119,9 +120,9 @@ export type ReplyEvidence = { inboxEmailId?: string; webLink?: string };
 
 /** Enlace al mensaje del cliente: bandeja propia > Outlook web > presupuesto. `quoteUrl` va siempre aparte. */
 export function replyLink(i: { baseUrl: string; quoteId: string; evidence?: ReplyEvidence | null }): { url: string; quoteUrl: string; isMessage: boolean } {
-  const quoteUrl = `${i.baseUrl}/zona-traductor/presupuestos/${i.quoteId}`;
+  const quoteUrl = abs(hrefPresupuesto(i.quoteId), i.baseUrl);
   const ev = i.evidence;
-  if (ev?.inboxEmailId) return { url: `${i.baseUrl}/admin/inbox?id=${encodeURIComponent(ev.inboxEmailId)}`, quoteUrl, isMessage: true };
+  if (ev?.inboxEmailId) return { url: abs(hrefBandeja(ev.inboxEmailId), i.baseUrl), quoteUrl, isMessage: true };
   if (ev?.webLink) return { url: ev.webLink, quoteUrl, isMessage: true };
   return { url: quoteUrl, quoteUrl, isMessage: false };
 }

@@ -11,6 +11,7 @@ import { findCostGapOrders } from "@/lib/cierre";
 import { PersonIndex, personKeys } from "@/lib/vigia-persona";
 import { loadEntradaFunnel, loadEntradaLeads } from "@/lib/entrada/leads-db";
 import { ENTRADA_SESSION_PREFIX } from "@/lib/entrada/leads";
+import { abs, hrefCaso, hrefConstructor, hrefPedido, hrefPresupuesto } from "./staff-links.ts";
 
 export const FUNNEL_STAGES = [
   { key: "analizado", label: "Documento analizado" },
@@ -322,7 +323,7 @@ export function buildDigestHtml(d: StaffDigest): string {
         <ul style="margin:0; padding-left:18px; font-size:13px; color:#78350f;">${d.lostQuotes
           .map((q) => {
             const bits: string[] = [
-              `<a href="https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${encodeURIComponent(q.id)}" style="font-weight:600; color:#92400e;">${escapeHtml(q.quoteNumber)}</a> · ${q.totalEur.toFixed(2)} € · ${escapeHtml(q.langPair)} · ${escapeHtml(q.customerEmail)}`,
+              `<a href="${abs(hrefPresupuesto(encodeURIComponent(q.id)))}" style="font-weight:600; color:#92400e;">${escapeHtml(q.quoteNumber)}</a> · ${q.totalEur.toFixed(2)} € · ${escapeHtml(q.langPair)} · ${escapeHtml(q.customerEmail)}`,
             ];
             if (q.reason) bits.push(`Motivo del cliente: <strong>${escapeHtml(q.reason)}</strong>${q.reasonNote ? ` — «${escapeHtml(q.reasonNote)}»` : ""}`);
             if (q.findings.length) bits.push(`⚠ ${escapeHtml(q.findings.join(" · "))}`);
@@ -341,8 +342,8 @@ export function buildDigestHtml(d: StaffDigest): string {
             // Con ?session= el builder importa los documentos de la puerta; con solo
             // customerEmail abría vacío ("no hay documentos asociados", Juan 26-ago).
             const builderUrl = l.sessionToken
-              ? `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?session=${encodeURIComponent(l.sessionToken)}`
-              : `https://www.traduccionesjuradas.net/zona-traductor/presupuesto?customerEmail=${encodeURIComponent(l.email)}` +
+              ? abs(hrefConstructor({ session: l.sessionToken }))
+              : abs(hrefConstructor({ customerEmail: l.email })) +
                 (l.name ? `&customerName=${encodeURIComponent(l.name)}` : "") +
                 (l.phone ? `&customerPhone=${encodeURIComponent(l.phone)}` : "");
             const docsLine = l.docs
@@ -361,7 +362,7 @@ export function buildDigestHtml(d: StaffDigest): string {
     ? `<div style="margin:10px 0; padding:10px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px;">
         <p style="margin:0 0 6px; font-weight:600; color:#991b1b;">💸 ${d.costGaps.length} pedido(s) pagado(s) SIN COSTE registrado (más de 24 h)</p>
         <ul style="margin:0; padding-left:18px; font-size:13px; color:#7f1d1d;">${d.costGaps
-          .map((o) => `<li><a href="https://www.traduccionesjuradas.net/zona-traductor/pedido/${encodeURIComponent(o.reference)}" style="font-weight:600; color:#991b1b;">${escapeHtml(o.reference)}</a> · ${o.amountEur.toFixed(2)} € · ${escapeHtml(o.langPair || "—")} · pagado hace ${o.paidDays} d</li>`)
+          .map((o) => `<li><a href="${abs(hrefPedido(o.reference))}" style="font-weight:600; color:#991b1b;">${escapeHtml(o.reference)}</a> · ${o.amountEur.toFixed(2)} € · ${escapeHtml(o.langPair || "—")} · pagado hace ${o.paidDays} d</li>`)
           .join("")}</ul>
         <p style="margin:6px 0 0; font-size:12px; color:#7f1d1d;">Pon el coste del traductor en la ficha (el francés propio cuenta como coste 0, no como hueco).</p>
       </div>`
@@ -379,7 +380,7 @@ export function buildDigestHtml(d: StaffDigest): string {
   const casoHtml = casoTotal
     ? `<p style="margin:10px 0; font-size:13px; color:#6b7280;">🧭 Caso (modo sombra): ${casoDesacuerdos} desacuerdo(s) de ${casoTotal} comparaciones en ${d.windowHours} h — ${d.casoDiscrepancias
         .map((x) => `${escapeHtml(x.entrada)}: ${x.n}/${x.total}`)
-        .join(" · ")} · <a href="https://www.traduccionesjuradas.net/zona-traductor/casos/discrepancias">ver</a></p>`
+        .join(" · ")} · <a href="${abs(hrefCaso("discrepancias"))}">ver</a></p>`
     : "";
 
   return `

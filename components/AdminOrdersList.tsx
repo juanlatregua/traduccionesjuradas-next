@@ -287,7 +287,7 @@ export function AdminOrdersList() {
                       </td>
                       <td className="px-4 py-3">
                         <Link
-                          href={`/admin/orders/${order.reference}`}
+                          href={`/zona-traductor/pedido/${order.reference}`}
                           className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                         >
                           Abrir

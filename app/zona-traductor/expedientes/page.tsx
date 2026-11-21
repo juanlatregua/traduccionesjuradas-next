@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
-import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { QUOTE_STATUS_LABELS } from "@/lib/quotes";
 import { FileText } from "lucide-react";
@@ -24,7 +23,6 @@ type Group = {
 
 export default async function ZonaTraductorExpedientesPage() {
   await authZonaTraductorOrRedirect();
-  const expedientesPendientes = await countExpedientesPendientes();
 
   const rows = await prisma.documentAnalysis.findMany({
     where: { sessionToken: { startsWith: "exp:" } },
@@ -84,12 +82,6 @@ export default async function ZonaTraductorExpedientesPage() {
   return (
     <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <ZonaTraductorSubNav
-          tabs={[
-            { href: "/zona-traductor/presupuestos", label: "Carpeta" },
-            { href: "/zona-traductor/expedientes", label: "Expedientes", badge: expedientesPendientes },
-          ]}
-        />
         <h1 className="text-2xl font-semibold text-[#1A2E4A]">Expedientes entrantes</h1>
         <p className="mt-1 text-sm text-[#52606D]">
           Expedientes subidos por clientes desde la web. Ábrelos para analizar los documentos y enviar el presupuesto.

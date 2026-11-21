@@ -19,11 +19,12 @@ const TABS: Tab[] = [
     key: "casos",
     label: "Casos",
     href: `${Z}/casos`,
-    owns: [`${Z}/casos`, `${Z}/pedido`, `${Z}/control`, `${Z}/presupuestos`, `${Z}/presupuesto`, `${Z}/expedientes`, `${Z}/lectura`, `${Z}/workspace`, `${Z}/proyecto`, "/admin/inbox"],
+    owns: [`${Z}/casos`, `${Z}/pedido`, `${Z}/presupuestos`, `${Z}/presupuesto`, `${Z}/expedientes`, `${Z}/lectura`, "/admin/inbox"],
     subs: [
       { href: `${Z}/casos`, label: "Casos" },
       { href: Z, label: "Pedidos", badge: "pedidos" },
       { href: `${Z}/presupuestos`, label: "Presupuestos", badge: "presupuestos" },
+      { href: `${Z}/expedientes`, label: "Expedientes" },
       { href: `${Z}/presupuesto`, label: "Constructor" },
       { href: "/admin/inbox", label: "Bandeja" },
     ],
@@ -39,10 +40,11 @@ const TABS: Tab[] = [
       { href: `${Z}/facturas`, label: "Facturas" },
       { href: `${Z}/periodos`, label: "Periodos" },
       { href: `${Z}/recurrentes`, label: "Recurrentes" },
+      { href: `${Z}/contabilidad/bizum`, label: "Bizum" },
       { href: `${Z}/panel`, label: "Panel", admin: true },
     ],
   },
-  { key: "ajustes", label: "Ajustes", href: `${Z}/ajustes`, owns: [`${Z}/ajustes`, `${Z}/tarifario`, `${Z}/tablero`], subs: [{ href: `${Z}/ajustes`, label: "Ajustes" }, { href: `${Z}/tarifario`, label: "Tarifario" }] },
+  { key: "ajustes", label: "Ajustes", href: `${Z}/ajustes`, owns: [`${Z}/ajustes`, `${Z}/tarifario`], subs: [{ href: `${Z}/ajustes`, label: "Ajustes" }, { href: `${Z}/tarifario`, label: "Tarifario" }] },
 ];
 
 const bajo = (path: string, prefix: string) => path === prefix || path.startsWith(`${prefix}/`);
@@ -59,7 +61,7 @@ export default function MesaNav({ pedidosAccionables, presupuestosAccionables, s
   const activa = TABS.find((t) => t.key === tabDe(pathname));
   const subs = (activa?.subs || []).filter((s) => !s.admin || staffRole === "ADMIN");
   const badge = (b?: Sub["badge"]) => (b === "pedidos" ? pedidosAccionables : b === "presupuestos" ? presupuestosAccionables : 0);
-  const subActiva = subs.filter((s) => (s.href === Z ? pathname === Z || bajo(pathname, `${Z}/pedido`) || bajo(pathname, `${Z}/control`) : bajo(pathname, s.href))).sort((a, b) => b.href.length - a.href.length)[0];
+  const subActiva = subs.filter((s) => (s.href === Z ? pathname === Z || bajo(pathname, `${Z}/pedido`) : bajo(pathname, s.href))).sort((a, b) => b.href.length - a.href.length)[0];
 
   return (
     <>

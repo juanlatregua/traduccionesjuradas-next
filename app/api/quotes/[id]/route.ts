@@ -8,6 +8,7 @@ import { serializeQuote } from "@/lib/quote-serializer";
 import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { unsealOnLineEdit } from "@/lib/encargo-cerrado-math";
 import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
+import { abs, hrefPresupuesto } from "@/lib/staff-links";
 
 export const runtime = "nodejs";
 
@@ -205,7 +206,7 @@ export async function PATCH(req: Request, { params }: Params) {
         label: (quote as any).quoteNumber || params.id,
         actorEmail: access.email,
         detail: marginCheck.detail,
-        url: `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${params.id}`,
+        url: abs(hrefPresupuesto(params.id)),
       });
     }
     return NextResponse.json({ ok: true, quote: serializeQuote(quote) });

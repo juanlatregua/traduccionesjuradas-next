@@ -4,6 +4,7 @@
 // Sin adjuntos útiles: builder prerrellenado con el cliente, sin expediente.
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hrefConstructor } from "@/lib/staff-links";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { buildExpedienteFromInbound } from "@/lib/inbox";
 
@@ -26,7 +27,7 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ ok: false, error: "Email no encontrado." }, { status: 404 });
     }
     const result = await buildExpedienteFromInbound(inbound);
-    const builder = new URL("/zona-traductor/presupuesto", "http://local");
+    const builder = new URL(hrefConstructor(), "http://local");
     builder.searchParams.set("inbox", inbound.id);
     if (result.ref) {
       builder.searchParams.set("exp", result.ref);

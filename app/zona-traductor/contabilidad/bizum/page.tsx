@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import ContabilidadSubNav from "@/components/ContabilidadSubNav";
 import ExcludedOrdersPanel from "@/components/ExcludedOrdersPanel";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { listBizumLedger } from "@/lib/bizum-ledger";
@@ -32,7 +31,6 @@ export default async function BizumPage() {
   return (
     <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <ContabilidadSubNav />
         <h1 className="text-2xl font-semibold text-[#1A2E4A]">Bizum · fuera de contabilidad</h1>
         <p className="mt-1 max-w-3xl text-sm text-[#52606D]">
           Cobros por Bizum: no llevan factura y no entran en el libro, el 303, la conciliación bancaria ni los periodos

@@ -16,6 +16,7 @@ import {
   shouldFreeze,
   type SentPriceDecision,
 } from "@/lib/precio-tras-envio-math";
+import { abs, hrefPresupuesto } from "./staff-links.ts";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const RASTRO_PREFIX = "[precio-tras-envio]";
@@ -173,7 +174,7 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
     return { handled: false, reason };
   }
   const key = freezeKeyFor(lead.ref, lead.priceCents, lead.miembroId);
-  const ficha = `${SITE}/zona-traductor/presupuestos/${quote.id}`;
+  const ficha = abs(hrefPresupuesto(quote.id), SITE);
   const miembro = lead.miembroNombre || lead.miembroId || "el jurado";
   const cifra = baseCents === lead.priceCents ? eur(lead.priceCents) : `${eur(lead.priceCents)} (${eur(baseCents)} base)`;
   const resumen = [
@@ -270,7 +271,7 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
 export async function alertPaidWhileFrozen(input: { quoteId: string; via: string; amountEur?: number | null; reference?: string | null }): Promise<void> {
   const quote = await prisma.quote.findUnique({ where: { id: input.quoteId }, select: { quoteNumber: true, paymentFrozenReason: true } });
   if (!quote) return;
-  const ficha = `${SITE}/zona-traductor/presupuestos/${input.quoteId}`;
+  const ficha = abs(hrefPresupuesto(input.quoteId), SITE);
   const aviso = `COBRADO CONGELADO: ${quote.quoteNumber}${input.reference ? ` (pedido ${input.reference})` : ""} se ha cobrado por ${input.via}${input.amountEur ? ` (${input.amountEur.toFixed(2)} €)` : ""} con el pago congelado. NO se ha asignado al jurado: revisar. ${quote.paymentFrozenReason || ""} ${ficha}`;
   const logId = (await rastro(input.quoteId, `cobrado congelado ${quote.quoteNumber}`, aviso))?.id ?? null;
   await avisar({

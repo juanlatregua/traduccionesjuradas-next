@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import QuoteEditForm from "@/components/QuoteEditForm";
-import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
-import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getQuoteByIdForAdmin } from "@/lib/quote-db";
 import { serializeQuote } from "@/lib/quote-serializer";
 
@@ -22,7 +21,6 @@ export default async function PresupuestoEditarPage({
   searchParams: { nuevaLinea?: string };
 }) {
   await authZonaTraductorOrRedirect();
-  const expedientesPendientes = await countExpedientesPendientes();
 
   const quote = await getQuoteByIdForAdmin(params.id);
   if (!quote) notFound();
@@ -33,12 +31,6 @@ export default async function PresupuestoEditarPage({
   return (
     <div className="min-h-screen bg-[#F6F7F9]">
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <ZonaTraductorSubNav
-          tabs={[
-            { href: "/zona-traductor/presupuestos", label: "Carpeta" },
-            { href: "/zona-traductor/expedientes", label: "Expedientes", badge: expedientesPendientes },
-          ]}
-        />
         <div className="mb-5 flex items-center gap-3">
           <Link
             href={`/zona-traductor/presupuestos/${params.id}`}

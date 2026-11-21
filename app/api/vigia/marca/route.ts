@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hrefVigia } from "@/lib/staff-links";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { verifyVigiaMarkToken } from "@/lib/vigia-mark";
 import { MARK_POSPONER, MARK_TRATADO, POSTPONE_DAYS } from "@/lib/vigia-persona";
@@ -32,7 +33,7 @@ function parse(url: URL) {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const p = parse(url);
-  if (!p.ok) return page("Enlace no válido o caducado", '<p>Abre <a href="/zona-traductor/vigia">la gestión de hoy</a> y márcalo desde allí.</p>', 403);
+  if (!p.ok) return page("Enlace no válido o caducado", `<p>Abre <a href="${hrefVigia()}">la gestión de hoy</a> y márcalo desde allí.</p>`, 403);
   const what = p.a === "t" ? "Marcar como tratado (no vuelve a salir en 4 días)" : `Posponer ${POSTPONE_DAYS} días`;
   const action = `${url.pathname}${url.search}`.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
   return page(what, `<form method="post" action="${action}"><button type="submit">Confirmar</button></form>`);
@@ -66,5 +67,5 @@ export async function POST(req: Request) {
       }
     }
   }
-  return page(p.a === "t" ? "Hecho: tratado" : `Hecho: pospuesto ${POSTPONE_DAYS} días`, '<p>Ya no saldrá en la gestión de hoy. <a href="/zona-traductor/vigia">Ver lo que queda</a>.</p>');
+  return page(p.a === "t" ? "Hecho: tratado" : `Hecho: pospuesto ${POSTPONE_DAYS} días`, `<p>Ya no saldrá en la gestión de hoy. <a href="${hrefVigia()}">Ver lo que queda</a>.</p>`);
 }

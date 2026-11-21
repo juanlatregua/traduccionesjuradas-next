@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendStaffAlertSMS } from "@/lib/sms";
+import { abs, hrefPedido } from "../staff-links.ts";
 
 const ACCOUNT_ERROR_RE =
   /usage limits?|credit balance|billing|insufficient|invalid x-api-key|authentication_error|permission_error|rate_limit_error|overloaded_error/i;
@@ -147,7 +148,7 @@ export async function alertStaffMargin(input: {
           ? "Haces la gestión, adelantas el dinero y asumes el riesgo por cero."
           : "Queda muy poco para la gestión y el riesgo.",
       "El traductor ya tiene su cifra: si hay que mover algo, hay que hacerlo ahora.",
-      `https://www.traduccionesjuradas.net/zona-traductor/pedido/${ref}`,
+      abs(hrefPedido(ref)),
     ].join("\n");
     await Promise.all([
       sendMail({

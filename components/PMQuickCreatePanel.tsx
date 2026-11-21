@@ -115,7 +115,7 @@ export default function PMQuickCreatePanel() {
       );
       const quickQuotePath = toInternalPath(
         String(data.quickQuoteUrl || ""),
-        `/admin/quotes/new?customerEmail=${encodeURIComponent(
+        `/zona-traductor/presupuesto?customerEmail=${encodeURIComponent(
           clientEmail.trim().toLowerCase()
         )}&customerName=${encodeURIComponent(clientName.trim())}&lineDescription=${encodeURIComponent(
           title.trim()

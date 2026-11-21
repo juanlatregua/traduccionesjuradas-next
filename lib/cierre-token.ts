@@ -3,6 +3,7 @@
 // que lib/lavori-onetap.ts: HMAC con ORDER_TOKEN_SECRET, caducidad y espacio de
 // nombres propio («cierre-revisar:»). Abre el presupuesto (borrador ya montado).
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { abs, hrefPresupuesto } from "./staff-links.ts";
 
 const TTL_SECONDS = 7 * 24 * 60 * 60;
 const hmacHex = (message: string) => createHmac("sha256", process.env.ORDER_TOKEN_SECRET || "").update(message).digest("hex");
@@ -31,7 +32,7 @@ export function cierreReviewUrl(quoteId: string): string {
   try {
     return `${base}/api/cierre/revisar?q=${encodeURIComponent(quoteId)}&t=${generateCierreToken(quoteId)}`;
   } catch {
-    return `${base}/zona-traductor/presupuestos/${quoteId}`;
+    return abs(hrefPresupuesto(quoteId), base);
   }
 }
 

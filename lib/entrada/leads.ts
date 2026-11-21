@@ -1,6 +1,7 @@
 // Una entrada = un lead para el vigía y el aviso de SLA, cruzado con su caso. Sus archivos (DocumentAnalysis
 // «entrada:<id>») no cuentan como leads sueltos, y una entrada «sin jurado» no es un lead que recuperar.
 import { sessionKeyOf } from "./store.ts";
+import { abs, hrefCaso, hrefConstructor } from "../staff-links.ts";
 
 export const ENTRADA_SESSION_PREFIX = "entrada:";
 const SITE = "https://www.traduccionesjuradas.net";
@@ -63,7 +64,7 @@ export function entradaLeads(entradas: EntradaParaLead[], opts: { all?: boolean 
       neededBy: e.neededBy,
       noJurado: e.estado === "sin_jurado",
       hasFiles: e.files.length > 0,
-      link: e.casoId ? `${SITE}/zona-traductor/casos/${encodeURIComponent(e.casoId)}` : `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(sessionKeyOf(e.id))}`,
+      link: e.casoId ? abs(hrefCaso(e.casoId), SITE) : abs(hrefConstructor({ session: sessionKeyOf(e.id) }), SITE),
     }));
 }
 

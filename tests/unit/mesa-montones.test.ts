@@ -271,7 +271,7 @@ test("duración legible", () => {
   assert.equal(duracion(3 * 864e5), "3 días");
 });
 
-test("interruptor MESA_V2: solo «on» exacto", () => {
-  assert.equal(mesaV2On({ MESA_V2: "on" }), true);
-  for (const v of [undefined, "", "ON", " on", "1", "true", "off"]) assert.equal(mesaV2On({ MESA_V2: v }), false);
+test("interruptor MESA_V2: kill-switch, solo «off» exacto apaga", () => {
+  for (const v of ["on", undefined, "", "ON", "1", "true"]) assert.equal(mesaV2On({ MESA_V2: v }), true);
+  assert.equal(mesaV2On({ MESA_V2: "off" }), false);
 });
