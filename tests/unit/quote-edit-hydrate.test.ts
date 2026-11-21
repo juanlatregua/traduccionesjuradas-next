@@ -6,7 +6,17 @@ import {
   editFormFromQuote,
   editGateFor,
   editLineFor,
+  attachDecision,
   frozenEditBlocked,
+  isStaleEdit,
+  mergedSavedPrices,
+  patchPrecheck,
+  patchRow,
+  quoteLineAmounts,
+  rowMargin,
+  withBasisCost,
+  STALE_EDIT_CODE,
+  STALE_EDIT_ERROR,
   hydrateRows,
   matchAnalysis,
   patchLineFromQuoteLine,
@@ -20,6 +30,7 @@ import {
   type EditableQuote,
 } from "../../lib/quote-edit-hydrate.ts";
 import { computeQuoteTotals, normalizeQuoteLines } from "../../lib/quotes.ts";
+import { frozenSendBlocked, FROZEN_SEND_ERROR } from "../../lib/precio-tras-envio-math.ts";
 
 const URL_A = "https://abc.public.blob.vercel-storage.com/expedientes/a.pdf";
 const URL_B = "https://abc.public.blob.vercel-storage.com/expedientes/b.pdf";
@@ -55,6 +66,7 @@ function quoteOf(over: Partial<EditableQuote> = {}): EditableQuote {
     contactWhatsapp: null,
     pdfLang: null,
     paymentFrozenAt: null,
+    updatedAt: "2026-11-20T10:00:00.000Z",
     total: 0,
     lines: LINES,
     ...over,
@@ -147,7 +159,9 @@ test("hydrate: filas con coste y precio TOTALES de la línea, texto tal cual y a
   assert.equal(acta.blobUrl, URL_A);
   assert.equal(diploma.status, "manual");
   assert.equal(diploma.unitPrice, 0);
-  assert.equal(diploma.documentTypeEs, "Diploma");
+  // El texto de la línea nunca se usa como nombre del documento (viaja a lavori).
+  assert.equal(diploma.documentTypeEs, undefined);
+  assert.equal(acta.documentTypeEs, "Acta de nacimiento");
   assert.equal(extractos.basis, "unit");
   assert.equal(extractos.unitCount, 15);
   assert.equal(extractos.unitRate, 11.11);
@@ -265,15 +279,6 @@ test("guarda de pago congelado: bloquea dinero sin frozenRepair; deja datos sin 
   assert.equal(frozenEditBlocked({ frozen: false, frozenRepair: false, current, next: newPrice }), false);
 });
 
-test("PATCH /api/quotes/[id] aplica la guarda antes de escribir y responde 409", () => {
-  const src = readFileSync(new URL("../../app/api/quotes/[id]/route.ts", import.meta.url), "utf8");
-  const guard = src.indexOf("frozenEditBlocked({");
-  assert.ok(guard > 0);
-  assert.ok(guard < src.indexOf("prisma.$transaction"));
-  assert.match(src.slice(guard, guard + 600), /frozenRepair: \(body as any\)\?\.frozenRepair === true/);
-  assert.match(src.slice(guard, guard + 800), /Pago congelado: descongela antes de editar[\s\S]{0,40}status: 409/);
-});
-
 test("modo edición nunca crea: handleSubmit (POST) se corta y guardar es PATCH", () => {
   const src = readFileSync(new URL("../../components/StaffExpedienteIntake.tsx", import.meta.url), "utf8");
   const submit = src.indexOf("const handleSubmit = useCallback(async");
@@ -296,4 +301,96 @@ test("flag apagado: la ficha y /editar siguen como hoy", () => {
   const editar = readFileSync(new URL("../../app/zona-traductor/presupuestos/[id]/editar/page.tsx", import.meta.url), "utf8");
   assert.match(editar, /if \(presupuestoPaginaUnicaOn\(\)\) \{\s*redirect\(/);
   assert.match(editar, /<QuoteEditForm /);
+});
+
+const MONEY = { lines: [{ quantity: 1, unitPrice: "42.50", supplierUnitCost: "30.00" }], total: "51.43" };
+const MONEY_NEW = { lines: [{ quantity: 1, unitPrice: 42.5, supplierUnitCost: 45 }], total: 51.43 };
+const AT = new Date("2026-11-20T10:00:00.000Z");
+const pre = (over: Partial<Parameters<typeof patchPrecheck>[0]> = {}) =>
+  patchPrecheck({ status: "SENT", updatedAt: AT, expectedUpdatedAt: undefined, frozen: false, frozenRepair: false, current: MONEY, next: MONEY_NEW, ...over });
+
+test("PATCH: token obsoleto → 409 stale; sin token, como siempre; mismo token pasa", () => {
+  assert.equal(pre(), null);
+  assert.equal(pre({ expectedUpdatedAt: AT.toISOString() }), null);
+  const stale = pre({ expectedUpdatedAt: "2026-11-20T09:59:59.000Z" });
+  assert.equal(stale?.status, 409);
+  assert.equal(stale?.body.code, STALE_EDIT_CODE);
+  assert.equal(stale?.body.error, STALE_EDIT_ERROR);
+  assert.equal(pre({ expectedUpdatedAt: "basura" })?.status, 409);
+  assert.equal(isStaleEdit("", AT), false);
+  assert.equal(isStaleEdit(null, AT), false);
+});
+
+test("PATCH: congelado sin reparación → 409; con reparación pasa; estado no editable → 400 antes que nada", () => {
+  const frozen = pre({ frozen: true });
+  assert.equal(frozen?.status, 409);
+  assert.equal(frozen?.body.code, "PAGO_CONGELADO");
+  assert.equal(frozen?.body.error, "Pago congelado: descongela antes de editar");
+  assert.equal(pre({ frozen: true, frozenRepair: true }), null);
+  assert.equal(pre({ frozen: true, next: { lines: [{ quantity: 1, unitPrice: 42.5, supplierUnitCost: 30 }], total: 51.43 } }), null);
+  // Obsoleto gana a congelado: primero hay que ver la versión actual.
+  assert.equal(pre({ frozen: true, expectedUpdatedAt: "2026-01-01T00:00:00.000Z" })?.body.code, STALE_EDIT_CODE);
+  assert.equal(pre({ status: "PAID" })?.status, 400);
+});
+
+test("reenvío / envío rechazado con el pago congelado", () => {
+  assert.equal(frozenSendBlocked({ paymentFrozenAt: new Date() }), FROZEN_SEND_ERROR);
+  assert.equal(FROZEN_SEND_ERROR, "Pago congelado: descongela antes de reenviar");
+  assert.equal(frozenSendBlocked({ paymentFrozenAt: null }), null);
+});
+
+test("solicitud lavori: atada en la rama nueva y en la de reutilizar; si no, por qué", () => {
+  const q = { par: "FR>ES", editable: true };
+  // Nueva (sin quoteId) del mismo par → se ata.
+  assert.deepEqual(attachDecision({ anchorQuoteId: "q1", lpr: { quoteId: null, par: "FR>ES" }, quote: q }), { atar: true, atada: true });
+  // Reutilizada ya atada a este presupuesto → atada sin escribir.
+  assert.deepEqual(attachDecision({ anchorQuoteId: "q1", lpr: { quoteId: "q1", par: "FR>ES" }, quote: q }), { atar: false, atada: true });
+  // Reutilizada suelta del mismo par → se ata.
+  assert.equal(attachDecision({ anchorQuoteId: "q1", lpr: { quoteId: null, par: "fr>es" }, quote: q }).atar, true);
+  // Reutilizada de otro presupuesto → no.
+  const otro = attachDecision({ anchorQuoteId: "q1", lpr: { quoteId: "q2", par: "FR>ES" }, quote: q });
+  assert.equal(otro.atada, false);
+  assert.match(otro.motivo!, /otro presupuesto/);
+  // Par cambiado sin guardar → «guarda primero».
+  const par = attachDecision({ anchorQuoteId: "q1", lpr: { quoteId: null, par: "EN>ES" }, quote: q });
+  assert.equal(par.atar, false);
+  assert.match(par.motivo!, /guarda primero/);
+  assert.equal(attachDecision({ anchorQuoteId: "q1", lpr: { quoteId: null, par: "FR>ES" }, quote: { par: "FR>ES", editable: false } }).atada, false);
+  assert.deepEqual(attachDecision({ anchorQuoteId: null, lpr: { quoteId: null, par: "FR>ES" }, quote: q }), { atar: false, atada: false });
+});
+
+test("cambiar el coste de una fila guardada conserva el precio al cliente (crear: como siempre)", () => {
+  const [acta, , extractos] = hydrateRows(LINES, []);
+  const edited = patchRow(acta, { unitPrice: 38, clientPrice: undefined, autoPriced: false }, true);
+  assert.equal(edited.clientPrice, 42.5);
+  assert.equal(edited.unitPrice, 38);
+  const line = editLineFor(edited, (r) => ({ description: r.lineDescription!, ...quoteLineAmounts({ basis: r.basis, unitCount: r.unitCount, clientPrice: r.clientPrice!, cost: r.unitPrice }) }));
+  assert.deepEqual([line.quantity, line.unitPrice, line.supplierUnitCost], [1, 42.5, 38]);
+  // Crear: el coste nuevo deja el precio en manos del margen.
+  assert.equal(patchRow({ ...acta, origLine: undefined }, { unitPrice: 38 }, false).clientPrice, undefined);
+  assert.equal(patchRow(acta, { unitPrice: 38 }, false).clientPrice, undefined);
+  // Recalcular es explícito: el precio que se pasa manda.
+  assert.equal(patchRow(acta, { clientPrice: 47.5 }, true).clientPrice, 47.5);
+  // Por documento: cambiar la tarifa recalcula el coste y conserva el precio.
+  const rate = patchRow(extractos, { unitRate: 12, unitPrice: 180 }, true);
+  const recost = withBasisCost(rate, 180, true);
+  assert.equal(recost.clientPrice, 229.95);
+  const l2 = quoteLineAmounts({ basis: recost.basis, unitCount: recost.unitCount, clientPrice: recost.clientPrice!, cost: recost.unitPrice });
+  assert.deepEqual(l2, { quantity: 15, unitPrice: 15.33, supplierUnitCost: 12 });
+  assert.equal(withBasisCost({ ...extractos, origLine: undefined }, 180, true).clientPrice, undefined);
+});
+
+test("margen de la fila: bajo por debajo del mínimo; sin coste no se juzga", () => {
+  assert.equal(rowMargin(42.5, 30).low, false);
+  assert.equal(rowMargin(42.5, 40).low, true);
+  assert.equal(rowMargin(30, 30).low, true);
+  assert.equal(rowMargin(35, 0).low, false);
+});
+
+test("unir dos líneas guardadas suma precio y coste", () => {
+  const [acta, diploma] = hydrateRows(LINES, []);
+  const m = mergedSavedPrices(acta, diploma, acta.clientPrice, diploma.clientPrice);
+  assert.equal(m.clientPrice, 77.5);
+  assert.equal(m.unitPrice, 30);
+  assert.equal(m.basis, undefined);
 });

@@ -48,6 +48,7 @@ type Quote = {
   marginPct?: number | null;
   paymentMethods?: string[];
   contactWhatsapp?: string | null;
+  updatedAt?: string | Date | null;
   lines: Line[];
 };
 
@@ -120,6 +121,8 @@ export default function QuoteEditForm({ quote, nuevaLinea = false, frozen = fals
           ...(overrideLowMargin ? { overrideLowMargin: true } : {}),
           // Pago congelado: esta pantalla ES la reparación («Editar las líneas con la cifra del jurado»).
           ...(frozen ? { frozenRepair: true } : {}),
+          // Concurrencia: si la cifra del jurado entró después de abrir esta pantalla, 409 «stale».
+          ...(quote.updatedAt ? { expectedUpdatedAt: new Date(quote.updatedAt).toISOString() } : {}),
           customerName: customerName.trim(),
           customerEmail: customerEmail.trim(),
           customerPhone: customerPhone.trim() || undefined,

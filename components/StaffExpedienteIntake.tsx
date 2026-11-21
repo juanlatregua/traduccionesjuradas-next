@@ -21,8 +21,14 @@ import {
   editGateFor,
   editLineFor,
   hydrateRows,
+  mergedSavedPrices,
+  patchRow,
+  quoteLineAmounts,
+  rowMargin,
   shippingBaseFor,
+  withBasisCost,
   FROZEN_EDIT_CODE,
+  STALE_EDIT_CODE,
   type AnalysisDoc,
   type EditableLine,
   type EditableQuote,
@@ -431,9 +437,11 @@ export default function StaffExpedienteIntake({
   // está en cierre y NO debe salir en presupuestos nuevos.
   const [paymentMethods, setPaymentMethods] = useState<string[]>(ef ? ef.paymentMethods : ["sabadell", "bizum654"]);
   const [contactWhatsapp, setContactWhatsapp] = useState(ef ? ef.contactWhatsapp : "");
+  // Concurrencia: updatedAt con el que se abrió (o del último guardado propio).
+  const [editToken, setEditToken] = useState<string | null>(editQuote?.updatedAt ?? null);
   // Guardado en modo edición (PATCH): confirmación en página, freno de margen y reenvío.
   const [editSave, setEditSave] = useState<{
-    phase: "idle" | "confirm" | "saving" | "margin" | "saved" | "resending" | "resent";
+    phase: "idle" | "confirm" | "saving" | "margin" | "saved" | "resending" | "resent" | "stale";
     msg?: string;
   }>({ phase: "idle" });
   const [submitting, setSubmitting] = useState(false);
@@ -506,19 +514,13 @@ export default function StaffExpedienteIntake({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Precio al cliente de una fila (se asigna abajo, donde se define rowClientPrice).
+  const rowClientPriceRef = useRef<(d: DocRow) => number>((d) => d.clientPrice ?? 0);
+  // Filas del presupuesto guardado (modo edición): tocar el coste NO mueve el precio al cliente.
+  const keepPrice = !!editQuote;
   const patch = useCallback((localId: string, data: Partial<DocRow>) => {
-    setDocs((prev) =>
-      prev.map((d) =>
-        d.localId === localId
-          ? {
-              ...d,
-              ...data,
-              ...(["unitPrice", "sourceLang", "targetLang"].some((k) => k in data) && !("clientPrice" in data) ? { clientPrice: undefined } : {}),
-            }
-          : d
-      )
-    );
-  }, []);
+    setDocs((prev) => prev.map((d) => (d.localId === localId ? patchRow(d, data, keepPrice) : d)));
+  }, [keepPrice]);
 
   // Nombre-IA: llamada barata "solo nombre" (sin contar palabras) para filas que
   // se soltaron sin análisis o cuyo análisis falló. Rellena el nombre editable.
@@ -842,7 +844,10 @@ export default function StaffExpedienteIntake({
           autoPriced: keepB ? false : host.autoPriced,
           priceNote: keepB ? undefined : host.priceNote,
           absorbedPages: absorbed.length ? absorbed : undefined,
-          ...(a.origLine || b.origLine ? { lineDescription: undefined, origLine: undefined, hydratedSig: undefined } : {}),
+          // Dos líneas guardadas: el precio y el coste son la SUMA de las dos.
+          ...(a.origLine || b.origLine
+            ? { ...mergedSavedPrices(a, b, rowClientPriceRef.current(a), rowClientPriceRef.current(b)), lineDescription: undefined, origLine: undefined, hydratedSig: undefined }
+            : {}),
         };
         return [...prev.slice(0, idx - 1), merged, ...prev.slice(idx + 1)];
       });
@@ -912,11 +917,11 @@ export default function StaffExpedienteIntake({
     setDocs((prev) =>
       prev.map((d) =>
         isPriceable(d.status) && d.words && d.words > 0
-          ? { ...d, basis: "word", wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined }
+          ? { ...d, basis: "word", wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, clientPrice: keepPrice && d.origLine ? d.clientPrice : undefined, autoPriced: false, priceNote: undefined }
           : d
       )
     );
-  }, [wordRate]);
+  }, [wordRate, keepPrice]);
 
   // Tarifa por documento a todas las líneas: coste = nº de documentos × €/doc.
   const applyDocRate = useCallback(() => {
@@ -924,10 +929,10 @@ export default function StaffExpedienteIntake({
       prev.map((d) => {
         if (!isPriceable(d.status)) return d;
         const n = d.unitCount ?? 1;
-        return { ...d, basis: "unit", unitCount: n, unitRate: docRate, unitPrice: Math.round(n * (docRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined };
+        return { ...d, basis: "unit", unitCount: n, unitRate: docRate, unitPrice: Math.round(n * (docRate || 0) * 100) / 100, clientPrice: keepPrice && d.origLine ? d.clientPrice : undefined, autoPriced: false, priceNote: undefined };
       })
     );
-  }, [docRate]);
+  }, [docRate, keepPrice]);
 
   // Cambia la base del coste de UNA línea (fijo / por palabra / por documento).
   const setRowBasis = useCallback(
@@ -935,7 +940,7 @@ export default function StaffExpedienteIntake({
       setDocs((prev) =>
         prev.map((d) => {
           if (d.localId !== localId) return d;
-          const manual = { clientPrice: undefined, autoPriced: false, priceNote: undefined };
+          const manual = { clientPrice: keepPrice && d.origLine ? d.clientPrice : undefined, autoPriced: false, priceNote: undefined };
           if (basis === "word") {
             const r = d.wordRate ?? wordRate;
             return { ...d, ...manual, basis, wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100 };
@@ -949,7 +954,7 @@ export default function StaffExpedienteIntake({
         })
       );
     },
-    [wordRate, docRate]
+    [wordRate, docRate, keepPrice]
   );
 
   // Re-precio al cambiar el idioma destino del expediente: las filas cuyo
@@ -1058,11 +1063,11 @@ export default function StaffExpedienteIntake({
           d.basis === "unit"
             ? Math.round((d.unitCount ?? 1) * (d.unitRate ?? docRate) * 100) / 100
             : Math.round((d.words || 0) * (d.wordRate ?? wordRate) * 100) / 100;
-        return d.unitPrice === cost ? d : { ...d, unitPrice: cost, clientPrice: undefined };
+        return withBasisCost(d, cost, keepPrice);
       });
       return next.every((row, i) => row === prev[i]) ? prev : next;
     });
-  }, [docs, docRate, wordRate]);
+  }, [docs, docRate, wordRate, keepPrice]);
 
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
@@ -1080,6 +1085,7 @@ export default function StaffExpedienteIntake({
     (d: DocRow) => (d.clientPrice != null ? d.clientPrice : clientPriceOf(d.unitPrice, !!d.priceNote)),
     [clientPriceOf]
   );
+  rowClientPriceRef.current = rowClientPrice;
 
   // Línea del presupuesto a partir de una fila (crear y editar usan la misma).
   const composeLine = useCallback(
@@ -1100,19 +1106,14 @@ export default function StaffExpedienteIntake({
       if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
       // Por documento: la línea sale como cantidad × precio unitario (15 × 15 €)
       // si el total del cliente se reparte exacto entre los documentos.
-      const count = d.basis === "unit" && d.unitCount && d.unitCount > 1 ? d.unitCount : 1;
-      const client = rowClientPrice(d);
-      const perUnit = Math.round((client / count) * 100) / 100;
-      const asUnits = count > 1 && Math.round(perUnit * count * 100) === Math.round(client * 100);
+      const amounts = quoteLineAmounts({ basis: d.basis, unitCount: d.unitCount, clientPrice: rowClientPrice(d), cost: d.unitPrice });
       if (d.basis === "unit" && d.unitCount) parts.push(`${d.unitCount} documento${d.unitCount === 1 ? "" : "s"}`);
       else if (d.words) parts.push(`${d.words} palabras`);
       if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
       return {
         // Fila del presupuesto guardado: su texto tal cual (editable), sin recomponer.
         description: d.lineDescription !== undefined ? d.lineDescription.trim() || "Línea" : parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
-        quantity: asUnits ? count : 1,
-        unitPrice: asUnits ? perUnit : client, // precio CLIENTE = coste × (1+margen)
-        supplierUnitCost: asUnits ? Math.round((d.unitPrice / count) * 100) / 100 : d.unitPrice, // coste del traductor (interno), por unidad
+        ...amounts, // precio CLIENTE = coste × (1+margen); coste del traductor (interno) por unidad
         sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
         pageStart: d.pageStart,
         pageEnd: d.pageEnd,
@@ -1429,16 +1430,25 @@ export default function StaffExpedienteIntake({
         });
       }
       setVolverAPedir(false);
+      // Página única: decir la verdad sobre si la solicitud quedó atada a este presupuesto.
+      const parSinGuardar = !!editQuote && (sourceLang !== editQuote.sourceLang || targetLang !== editQuote.targetLang);
+      const atadaTxt = !editQuote
+        ? ""
+        : data.atada
+          ? `Queda atada a ${editQuote.quoteNumber}: cuando el jurado cotice, su cifra llega a este presupuesto.`
+          : `NO ha quedado atada a ${editQuote.quoteNumber}: ${parSinGuardar ? "cambiaste el par sin guardar, guarda primero" : data.motivoNoAtada || "motivo desconocido"}.`;
+      // Volver a pedir congela el pago (escribe en el presupuesto): se recarga para no guardar sobre lo viejo.
+      if (editQuote && data.congelados) setTimeout(() => window.location.reload(), 1500);
       const aQuien = describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros);
       const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       setLavoriState({
         phase: "done",
         msg: data.existing
-          ? `El caso ya tenía la solicitud ${data.existing}: no se ha pedido otra.`
+          ? `El caso ya tenía la solicitud ${data.existing}: no se ha pedido otra.${atadaTxt ? ` ${atadaTxt}` : ""}`
           : data.repetido
             ? `Esta solicitud ya estaba enviada (no se ha duplicado).`
             : editQuote
-              ? `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. Queda atada a ${editQuote.quoteNumber}: cuando el jurado cotice, su cifra llega a este presupuesto.`
+              ? `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. ${atadaTxt}`
               : `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador.`,
       });
       return refEnviada;
@@ -1525,9 +1535,13 @@ export default function StaffExpedienteIntake({
       const res = await fetch(`/api/quotes/${editQuote.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildQuotePatchPayload(editForm, editLines, { overrideLowMargin, frozenRepair: frozen })),
+        body: JSON.stringify(buildQuotePatchPayload(editForm, editLines, { overrideLowMargin, frozenRepair: frozen, expectedUpdatedAt: editToken })),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.code === STALE_EDIT_CODE) {
+        setEditSave({ phase: "stale", msg: data.error });
+        return;
+      }
       if (res.status === 409 && data?.code === "MARGEN_INSUFICIENTE") {
         setEditSave({ phase: "margin", msg: String(data.error || "").replace("MARGEN_INSUFICIENTE: ", "") });
         return;
@@ -1537,6 +1551,7 @@ export default function StaffExpedienteIntake({
         return;
       }
       if (Array.isArray(data.quote?.lines)) setDocs(hydrateRows(data.quote.lines, analysisDocs, () => uid()));
+      if (data.quote?.updatedAt) setEditToken(new Date(data.quote.updatedAt).toISOString());
       if (gate === "live") {
         setEditSave({ phase: "saved", msg: `Guardado: total ${Number(data.quote?.total ?? 0).toFixed(2)} €. El cliente aún tiene el PDF y el mensaje anteriores.` });
       } else {
@@ -1579,7 +1594,7 @@ export default function StaffExpedienteIntake({
           : "Borrador: todo editable. «Guardar cambios» actualiza este presupuesto; no crea otro."}
       {frozen && !readOnly && (
         <p className="mt-1 font-semibold text-[#A12B2B]">
-          Pago CONGELADO: guardar líneas aquí es la reparación con la cifra del jurado. Guardar no descongela: después, desbloquea arriba o reenvía.
+          Pago CONGELADO: guardar líneas aquí es la reparación con la cifra del jurado. Guardar no descongela ni reenvía: el reenvío se rechaza hasta desbloquear el pago arriba.
         </p>
       )}
     </div>
@@ -2116,6 +2131,7 @@ export default function StaffExpedienteIntake({
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#1A2E4A]">
                     {editQuote && isPriceable(d.status) ? (
+                      <div className="flex flex-col items-end gap-1">
                       <input
                         type="number"
                         min={0}
@@ -2125,6 +2141,26 @@ export default function StaffExpedienteIntake({
                         className="w-24 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right font-semibold tabular-nums"
                         title="Precio al cliente de la línea (sin IVA)"
                       />
+                      {(() => {
+                        const m = rowMargin(rowClientPrice(d), d.unitPrice || 0);
+                        return (
+                          <span className={`text-[11px] font-normal ${m.low ? "font-semibold text-[#A12B2B]" : "text-[#52606D]"}`}>
+                            margen {m.marginEur.toFixed(2)} €{m.pct != null ? ` (${Math.round(m.pct)} %)` : ""}
+                            {m.low ? " · margen bajo" : ""}
+                          </span>
+                        );
+                      })()}
+                      {d.clientPrice != null && (
+                        <button
+                          type="button"
+                          onClick={() => patch(d.localId, { clientPrice: clientPriceOf(d.unitPrice, !!d.priceNote) })}
+                          className="text-[11px] font-normal text-[#1A2E4A] underline-offset-2 hover:underline"
+                          title="Precio = coste × margen del presupuesto (Auto o el % fijado)"
+                        >
+                          Recalcular precio con el margen
+                        </button>
+                      )}
+                      </div>
                     ) : isPriceable(d.status) ? `${rowClientPrice(d).toFixed(2)} €` : "—"}
                   </td>
                   <td className="px-3 py-2">
@@ -2441,7 +2477,7 @@ export default function StaffExpedienteIntake({
                   <p className="font-semibold">
                     {gate === "live" ? "El cliente tiene el enlace vivo; el importe que paga cambia. Tras guardar, reenvía." : "Pago congelado: vas a guardar las líneas como reparación con la cifra del jurado."}
                   </p>
-                  {gate === "live" && frozen && <p className="mt-1">Pago congelado: esto guarda la reparación con la cifra del jurado; no descongela.</p>}
+                  {gate === "live" && frozen && <p className="mt-1">Pago congelado: esto guarda la reparación con la cifra del jurado; no descongela. Para reenviar, desbloquea antes el pago arriba.</p>}
                   <p className="mt-1">Total nuevo: {total.toFixed(2)} € (antes {editQuote.total.toFixed(2)} €).</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button type="button" onClick={() => saveEdit()} className="rounded-[10px] bg-[#1A2E4A] px-4 py-2 font-semibold text-white hover:bg-[#243F66]">
@@ -2466,12 +2502,23 @@ export default function StaffExpedienteIntake({
                   </div>
                 </div>
               )}
-              {editSave.msg && editSave.phase !== "margin" && (
+              {editSave.phase === "stale" && (
+                <div className="w-full rounded-[14px] border border-[#F0C9C9] bg-[#FDF2F2] p-3 text-sm text-[#A12B2B]">
+                  <p className="font-semibold">{editSave.msg}</p>
+                  <button type="button" onClick={() => window.location.reload()} className="mt-2 rounded-[10px] bg-[#1A2E4A] px-4 py-2 font-semibold text-white hover:bg-[#243F66]">
+                    Recargar
+                  </button>
+                </div>
+              )}
+              {editSave.msg && editSave.phase !== "margin" && editSave.phase !== "stale" && (
                 <p className={`text-sm ${editSave.phase === "idle" ? "text-[#A12B2B]" : "text-[#1F6B45]"}`}>{editSave.msg}</p>
               )}
               {!readOnly && (
                 <div className="flex flex-wrap justify-end gap-2">
-                  {(editSave.phase === "saved" || editSave.phase === "resending" || editSave.phase === "resent") && gate === "live" && (
+                  {(editSave.phase === "saved" || editSave.phase === "resending" || editSave.phase === "resent") && gate === "live" && frozen && (
+                    <span className="self-center text-sm text-[#A12B2B]">Pago congelado: desbloquea arriba antes de reenviar.</span>
+                  )}
+                  {(editSave.phase === "saved" || editSave.phase === "resending" || editSave.phase === "resent") && gate === "live" && !frozen && (
                     <button
                       type="button"
                       disabled={editSave.phase !== "saved"}
@@ -2489,7 +2536,7 @@ export default function StaffExpedienteIntake({
                   )}
                   <button
                     type="button"
-                    disabled={busy || missing.length > 0 || ["confirm", "saving", "resending", "resent"].includes(editSave.phase)}
+                    disabled={busy || missing.length > 0 || ["confirm", "saving", "resending", "resent", "stale"].includes(editSave.phase)}
                     onClick={() => (gate === "live" || frozen ? setEditSave({ phase: "confirm" }) : saveEdit())}
                     className="inline-flex items-center gap-2 rounded-[10px] bg-[#1A2E4A] px-5 py-2.5 font-semibold text-white hover:bg-[#243F66] disabled:cursor-not-allowed disabled:opacity-40"
                   >

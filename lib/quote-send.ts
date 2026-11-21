@@ -13,6 +13,7 @@ import { transitionWorkflowState } from "@/lib/workflow-server";
 import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { checkQuoteLinesMargin, verifyTranslatorChannelPrice, notifyMarginOverride, MARGIN_BLOCK_CODE, CHANNEL_BLOCK_CODE } from "@/lib/quote-margin";
 import { abs, hrefPresupuesto } from "./staff-links.ts";
+import { frozenSendBlocked } from "./precio-tras-envio-math.ts";
 
 export class QuoteSendError extends Error {
   status: number;
@@ -102,6 +103,8 @@ export async function finalizeAndSendQuote(opts: {
   if (["PAID", "IN_PROGRESS", "DELIVERED", "EXPIRED"].includes(quote.status)) {
     throw new QuoteSendError(`No se puede enviar en estado ${quote.status}.`, 400);
   }
+  const congelado = frozenSendBlocked(quote);
+  if (congelado) throw new QuoteSendError(congelado, 409);
 
   // Candado de envío (Juan, 18-sep-2026): entre generar el PDF y sellar el envío
   // hay segundos en los que el presupuesto sigue DRAFT; sin esta marca, la cifra

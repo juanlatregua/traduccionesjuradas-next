@@ -5,6 +5,7 @@
 // QuoteEditForm), qué deja hacer cada estado y la guarda del pago congelado.
 
 import { round2, PAPER_SHIPPING_BASE_EUR } from "./quote-math.ts";
+import { MIN_AUTO_MARGIN_PCT } from "./learned-rates-math.ts";
 
 export function presupuestoPaginaUnicaOn(env: Record<string, string | undefined> = process.env): boolean {
   return env.PRESUPUESTO_PAGINA_UNICA === "on";
@@ -44,6 +45,7 @@ export type EditableQuote = {
   contactWhatsapp: string | null;
   pdfLang: string | null;
   paymentFrozenAt: string | null;
+  updatedAt: string;
   total: number;
   lines: EditableLine[];
 };
@@ -183,7 +185,6 @@ export function rowSignature(r: SigRow): string {
   ]);
 }
 
-const stripParts = (description: string) => description.replace(/\s*\([^()]*\)\s*$/, "").trim() || description;
 const opt = <T,>(v: T | null | undefined): T | undefined => (v == null ? undefined : v);
 
 export function hydrateRows(lines: EditableLine[], docs: AnalysisDoc[], idOf: (i: number) => string = (i) => `q${i}`): HydratedRow[] {
@@ -212,7 +213,8 @@ export function hydrateRows(lines: EditableLine[], docs: AnalysisDoc[], idOf: (i
       pageStart: opt(line.pageStart),
       pageEnd: opt(line.pageEnd),
       documentType: opt(a?.documentType) ?? opt(line.docKind),
-      documentTypeEs: opt(a?.documentTypeEs) ?? stripParts(line.description),
+      // Solo el tipo del análisis: el texto de la línea (puede llevar nombres) no viaja a lavori.
+      documentTypeEs: opt(a?.documentTypeEs),
       category: opt(a?.category),
       sourceLang: opt(a?.sourceLang),
       sourceName: opt(a?.sourceName),
@@ -319,10 +321,15 @@ export function shippingBaseFor(form: Pick<EditForm, "deliveryType" | "shippingB
   return form.deliveryType === "PAPER_SHIP" ? form.shippingBase || PAPER_SHIPPING_BASE_EUR : 0;
 }
 
-export function buildQuotePatchPayload(form: EditForm, lines: PatchLine[], opts: { overrideLowMargin?: boolean; frozenRepair?: boolean } = {}) {
+export function buildQuotePatchPayload(
+  form: EditForm,
+  lines: PatchLine[],
+  opts: { overrideLowMargin?: boolean; frozenRepair?: boolean; expectedUpdatedAt?: string | null } = {}
+) {
   return {
     ...(opts.overrideLowMargin ? { overrideLowMargin: true } : {}),
     ...(opts.frozenRepair ? { frozenRepair: true } : {}),
+    ...(opts.expectedUpdatedAt ? { expectedUpdatedAt: opts.expectedUpdatedAt } : {}),
     customerName: form.customerName.trim(),
     customerEmail: form.customerEmail.trim(),
     customerPhone: form.customerPhone.trim() || undefined,
@@ -366,4 +373,103 @@ export function frozenEditBlocked(input: {
 }): boolean {
   if (!input.frozen || input.frozenRepair) return false;
   return moneyKey(input.current.lines, input.current.total) !== moneyKey(input.next.lines, input.next.total);
+}
+
+// ── Concurrencia optimista del PATCH ──
+export const STALE_EDIT_CODE = "stale";
+export const STALE_EDIT_ERROR =
+  "El presupuesto ha cambiado desde que lo abriste (p. ej. llegó la cifra del jurado). Recarga para ver la versión actual.";
+
+/** expectedUpdatedAt ausente → como siempre; presente y distinto (o ilegible) → obsoleto. */
+export function isStaleEdit(expected: unknown, actual: Date | string): boolean {
+  if (expected == null || expected === "") return false;
+  const t = new Date(String(expected)).getTime();
+  return !Number.isFinite(t) || t !== new Date(actual).getTime();
+}
+
+/** Decisión previa del PATCH /api/quotes/[id] antes de escribir (estado, obsoleto, congelado). */
+export function patchPrecheck(input: {
+  status: string;
+  updatedAt: Date | string;
+  expectedUpdatedAt: unknown;
+  frozen: boolean;
+  frozenRepair: boolean;
+  current: { lines: MoneyLine[]; total: unknown };
+  next: { lines: MoneyLine[]; total: unknown };
+}): { status: number; body: { ok: false; code?: string; error: string } } | null {
+  if (!["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(input.status)) {
+    return { status: 400, body: { ok: false, error: `No se puede editar en estado ${input.status}.` } };
+  }
+  if (isStaleEdit(input.expectedUpdatedAt, input.updatedAt)) {
+    return { status: 409, body: { ok: false, code: STALE_EDIT_CODE, error: STALE_EDIT_ERROR } };
+  }
+  if (frozenEditBlocked(input)) {
+    return { status: 409, body: { ok: false, code: FROZEN_EDIT_CODE, error: "Pago congelado: descongela antes de editar" } };
+  }
+  return null;
+}
+
+// ── Filas guardadas: el precio al cliente no se mueve solo ──
+type PriceRow = { unitPrice: number; clientPrice?: number; origLine?: EditableLine };
+
+/**
+ * Parche de una fila del constructor. En creación, cambiar coste o idioma deja el precio
+ * en manos del margen (como siempre). En una fila del presupuesto guardado (keepClientPrice),
+ * el precio al cliente se queda; recalcularlo es un botón explícito.
+ */
+export function patchRow<R extends PriceRow>(row: R, data: Partial<R>, keepClientPrice: boolean): R {
+  const touchesCost = ["unitPrice", "sourceLang", "targetLang"].some((k) => k in data);
+  if (keepClientPrice && row.origLine && touchesCost && data.clientPrice === undefined) return { ...row, ...data, clientPrice: row.clientPrice };
+  return { ...row, ...data, ...(touchesCost && !("clientPrice" in data) ? { clientPrice: undefined } : {}) };
+}
+
+/** Nuevo coste por base (por palabra / por documento): igual que patchRow para el precio. */
+export function withBasisCost<R extends PriceRow>(row: R, cost: number, keepClientPrice: boolean): R {
+  if (row.unitPrice === cost) return row;
+  return { ...row, unitPrice: cost, ...(keepClientPrice && row.origLine ? {} : { clientPrice: undefined }) };
+}
+
+/** Margen de una fila (precio − coste) y si queda por debajo del mínimo; sin coste no se juzga. */
+export function rowMargin(clientEur: number, costEur: number): { marginEur: number; pct: number | null; low: boolean } {
+  const marginEur = round2(clientEur - costEur);
+  if (!(costEur > 0)) return { marginEur, pct: null, low: false };
+  const pct = (marginEur / costEur) * 100;
+  return { marginEur, pct, low: marginEur <= 0 || pct < MIN_AUTO_MARGIN_PCT };
+}
+
+/** Unir dos filas guardadas: precio y coste son la suma de las dos (no los de una sola). */
+export function mergedSavedPrices(a: { unitPrice: number }, b: { unitPrice: number }, clientA: number, clientB: number) {
+  return { unitPrice: round2((a.unitPrice || 0) + (b.unitPrice || 0)), clientPrice: round2(clientA + clientB), basis: undefined, unitCount: undefined, unitRate: undefined };
+}
+
+/** Parte numérica de la línea (cantidad × unitario, coste por unidad) — la usa composeLine. */
+export function quoteLineAmounts(input: { basis?: string; unitCount?: number; clientPrice: number; cost: number }) {
+  const count = input.basis === "unit" && input.unitCount && input.unitCount > 1 ? input.unitCount : 1;
+  const perUnit = Math.round((input.clientPrice / count) * 100) / 100;
+  const asUnits = count > 1 && Math.round(perUnit * count * 100) === Math.round(input.clientPrice * 100);
+  return {
+    quantity: asUnits ? count : 1,
+    unitPrice: asUnits ? perUnit : input.clientPrice,
+    supplierUnitCost: asUnits ? Math.round((input.cost / count) * 100) / 100 : input.cost,
+  };
+}
+
+// ── Solicitud lavori pedida desde la página única: ¿queda atada al presupuesto? ──
+export type AttachDecision = { atar: boolean; atada: boolean; motivo?: string };
+
+export function attachDecision(input: {
+  anchorQuoteId: string | null | undefined;
+  lpr: { quoteId: string | null; par: string };
+  quote: { par: string | null; editable: boolean } | null;
+}): AttachDecision {
+  const { anchorQuoteId, lpr, quote } = input;
+  if (!anchorQuoteId) return { atar: false, atada: false };
+  if (lpr.quoteId === anchorQuoteId) return { atar: false, atada: true };
+  if (lpr.quoteId) return { atar: false, atada: false, motivo: "la solicitud ya está atada a otro presupuesto" };
+  if (!quote) return { atar: false, atada: false, motivo: "presupuesto no encontrado" };
+  if (!quote.editable) return { atar: false, atada: false, motivo: "el presupuesto ya no es editable" };
+  if (quote.par !== lpr.par.toUpperCase()) {
+    return { atar: false, atada: false, motivo: `el par guardado del presupuesto es ${quote.par || "—"} y la solicitud es ${lpr.par}: guarda primero` };
+  }
+  return { atar: true, atada: true };
 }

@@ -35,6 +35,7 @@ export function editableQuoteFrom(q: any): EditableQuote {
     contactWhatsapp: q.contactWhatsapp ?? null,
     pdfLang: q.pdfLang ?? null,
     paymentFrozenAt: q.paymentFrozenAt ? new Date(q.paymentFrozenAt).toISOString() : null,
+    updatedAt: new Date(q.updatedAt).toISOString(),
     total: n(q.total),
     lines: (q.lines || []).map((l: any) => ({
       description: l.description,

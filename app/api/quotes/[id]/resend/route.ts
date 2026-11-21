@@ -4,6 +4,7 @@ import { requireStaffAccess } from "@/lib/staff-auth";
 import { buildPayLinkEmail, buildWhatsAppPayText } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { buildAndUploadFinalQuotePdf, MAX_EMAIL_ATTACH_BYTES } from "@/lib/quote-send";
+import { frozenSendBlocked } from "@/lib/precio-tras-envio-math";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,8 @@ export async function POST(req: Request, { params }: Params) {
     if (!quote) {
       return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
     }
+    const congelado = frozenSendBlocked(quote);
+    if (congelado) return NextResponse.json({ ok: false, error: congelado }, { status: 409 });
 
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
     // Siempre /q: cobra el total vivo del presupuesto; el amountCents de un pedido
