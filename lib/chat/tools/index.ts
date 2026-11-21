@@ -8,7 +8,7 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
   {
     name: "get_quote_estimate",
     description:
-      "Calcula un presupuesto orientativo de traducción jurada basado en el motor de precios oficial del sitio. Úsala SIEMPRE que el usuario pregunte por precio, coste, tarifa o cuánto cuesta — nunca improvises cifras. Devuelve precio mínimo aplicable, precio base, precio con IVA, precio urgente (+25%) y plazo de entrega estimado. Si la información es parcial, usa valores por defecto y devuelve `partial_info: true` para que recomiendes el funnel.",
+      "Calcula un presupuesto orientativo de traducción jurada basado en el motor de precios oficial del sitio. Úsala SIEMPRE que el usuario pregunte por precio, coste, tarifa o cuánto cuesta — nunca improvises cifras. Devuelve precio mínimo aplicable, precio base, precio con IVA, precio urgente (con recargo; no lo cites como porcentaje) y plazo de entrega estimado (solo orientativo fuera del francés: el plazo real figura en el presupuesto). Si la información es parcial, usa valores por defecto y devuelve `partial_info: true` para que recomiendes el funnel.",
     input_schema: {
       type: "object",
       properties: {
