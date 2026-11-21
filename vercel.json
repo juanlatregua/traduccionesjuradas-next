@@ -94,6 +94,14 @@
     {
       "path": "/api/cron/lead-nudge",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/clientes-a-medias",
+      "schedule": "0 6-20 * * *"
+    },
+    {
+      "path": "/api/cron/autoenvio-150",
+      "schedule": "*/10 6-21 * * *"
     }
   ]
 }

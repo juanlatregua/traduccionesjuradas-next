@@ -1,0 +1,153 @@
+// Autoenvío a las 2,5 h (AUTOENVIO_150=on). Cron cada 10 min, solo de 08:00 a 22:00 Madrid.
+// Reclamo atómico ANTES de enviar (FunnelEvent «autoenvio_150», sessionId «autoenvio-150:{quoteId}»):
+// un presupuesto se intenta UNA vez, salga o falle. Retenidos: «autoenvio_150_hold» (lo lee el informe).
+// Decisión pura en lib/autoenvio-150-core.ts; el envío pasa por finalizeAndSendQuote con requireDraft.
+import { prisma } from "@/lib/prisma";
+import { sendStaffAlertSMS } from "@/lib/sms";
+import { decimalToNumber } from "@/lib/quotes";
+import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
+import { madridParts } from "@/lib/panel-period";
+import { AUTOENVIO_MAX_HOURS, AUTOENVIO_ORIGINS, autoenvio150On, autoenvioHourOk, autoenvioVerdict, type AutoenvioVerdict } from "@/lib/autoenvio-150-core";
+
+const STEP = "autoenvio_150";
+const HOLD_STEP = "autoenvio_150_hold";
+const ACTOR = "system:autoenvio-150";
+const SITE = "https://www.traduccionesjuradas.net";
+const MAX_PER_RUN = 5;
+
+type Origin = { leadAt: Date | null; consent: boolean; readingDoubt: string | null };
+
+async function originOf(q: { id: string; expedienteRef: string | null }): Promise<Origin> {
+  const ref = q.expedienteRef || "";
+  if (ref.startsWith("puerta:") && !ref.startsWith("puerta:exp:")) {
+    const rows = await prisma.documentAnalysis.findMany({
+      where: { sessionToken: ref.slice("puerta:".length) },
+      select: { fileName: true, createdAt: true, gdprConsent: true, marketingConsent: true, analysisJson: true },
+    });
+    if (rows.length) {
+      const doubts: string[] = [];
+      for (const r of rows) {
+        const a = r.analysisJson as any;
+        const persisted = Array.isArray(a?.price_risk?.reasons) ? a.price_risk.reasons : [];
+        const re = a?.document_type ? assessAutoPriceRisk({ analysis: a, fileName: r.fileName }) : { risky: false, reasons: [] };
+        if (persisted.length || a?.price_risk?.risky || re.risky || re.reasons.length) doubts.push(`${r.fileName} (${[...new Set([...persisted, ...re.reasons])].join(", ") || "riesgo"})`);
+        if (a?.document_metrics?.is_legible === false) doubts.push(`${r.fileName} poco legible`);
+      }
+      return {
+        leadAt: new Date(Math.min(...rows.map((r) => r.createdAt.getTime()))),
+        consent: rows.some((r) => r.gdprConsent && r.marketingConsent === true),
+        readingDoubt: doubts.length ? doubts.join("; ") : null,
+      };
+    }
+  }
+  if (ref.startsWith("entrada:")) {
+    const e = await prisma.entrada.findUnique({ where: { id: ref.slice("entrada:".length) }, select: { createdAt: true, emailVerifiedAt: true, marketingConsentAt: true } });
+    // La lectura nueva solo da «limpio» en francés: fuera de FR, sin revisar = dudosa.
+    if (e) return { leadAt: e.createdAt, consent: !!(e.emailVerifiedAt && e.marketingConsentAt), readingDoubt: "lectura de la entrada nueva sin revisar (fuera de FR nunca es limpia)" };
+  }
+  const inbound = await prisma.inboundEmail.findFirst({ where: { quoteId: q.id }, orderBy: { receivedAt: "asc" }, select: { receivedAt: true, channel: true } });
+  if (inbound) return { leadAt: inbound.receivedAt, consent: String(inbound.channel) === "EMAIL", readingDoubt: null };
+  return { leadAt: null, consent: false, readingDoubt: null };
+}
+
+async function otherLiveOf(q: { id: string; casoId: string | null; expedienteRef: string | null; customerEmail: string; sourceLang: string; targetLang: string }, leadAt: Date | null): Promise<string | null> {
+  const from = new Date((leadAt ?? new Date()).getTime() - 2 * 36e5);
+  const pair = { sourceLang: q.sourceLang, targetLang: q.targetLang };
+  const who = [
+    ...(q.expedienteRef ? [{ expedienteRef: q.expedienteRef }] : []),
+    ...(q.casoId ? [{ casoId: q.casoId, ...pair }] : []),
+    ...(q.customerEmail ? [{ customerEmail: { equals: q.customerEmail, mode: "insensitive" as const }, ...pair }] : []),
+  ];
+  if (who.length) {
+    const sent = await prisma.quote.findFirst({
+      where: { id: { not: q.id }, deletedAt: null, OR: who, AND: [{ OR: [{ sentAt: { gte: from } }, { status: { not: "DRAFT" }, createdAt: { gte: from } }] }] },
+      select: { quoteNumber: true },
+    });
+    if (sent) return `ya hay otro presupuesto enviado (${sent.quoteNumber})`;
+  }
+  if (q.casoId) {
+    const { presupuestoVivoDelCaso } = await import("@/lib/caso/hilo-db");
+    const vivo = await presupuestoVivoDelCaso(q.casoId, `${q.sourceLang}>${q.targetLang}`);
+    if (vivo && vivo.id !== q.id) return `el caso ya tiene el presupuesto vivo ${vivo.quoteNumber}`;
+  }
+  const order = await prisma.order.findFirst({
+    where: { createdAt: { gte: from }, OR: [...(q.casoId ? [{ casoId: q.casoId }] : []), ...(q.customerEmail ? [{ clientEmail: { equals: q.customerEmail, mode: "insensitive" as const } }] : [])] },
+    select: { reference: true },
+  });
+  return order ? `ya hay un pedido (${order.reference})` : null;
+}
+
+async function hold(q: { id: string; quoteNumber: string }, reasons: string[]) {
+  const data = { quoteId: q.id, quoteNumber: q.quoteNumber, reasons };
+  await prisma.funnelEvent
+    .upsert({ where: { sessionId_step: { sessionId: `autoenvio-150:${q.id}`, step: HOLD_STEP } }, create: { sessionId: `autoenvio-150:${q.id}`, reference: "autoenvio-150", step: HOLD_STEP, metadata: data }, update: { metadata: data } })
+    .catch((e) => console.error("[autoenvio-150] rastro retenido", q.id, e));
+}
+
+export async function runAutoenvio150(now = new Date()) {
+  if (!autoenvio150On()) return { mode: "off" as const };
+  if (!autoenvioHourOk(madridParts(now).h)) return { mode: "on" as const, skipped: "fuera de 08-22 Madrid" };
+  const drafts = await prisma.quote.findMany({
+    where: { status: "DRAFT", sentAt: null, deletedAt: null, adminCreatedBy: { in: Object.keys(AUTOENVIO_ORIGINS) }, createdAt: { gte: new Date(now.getTime() - AUTOENVIO_MAX_HOURS * 36e5) } },
+    include: { lines: true },
+    orderBy: { createdAt: "asc" },
+    take: 50,
+  });
+  if (!drafts.length) return { mode: "on" as const, borradores: 0, resultados: [] };
+  const claimed = new Set(
+    (await prisma.funnelEvent.findMany({ where: { step: STEP, sessionId: { in: drafts.map((d) => `autoenvio-150:${d.id}`) } }, select: { sessionId: true } })).map((r) => r.sessionId)
+  );
+  const { evaluateDraftAutoSend } = await import("@/lib/cierre");
+  const out: { quote: string; action: AutoenvioVerdict["action"]; detail?: string }[] = [];
+  let sent = 0;
+  for (const q of drafts) {
+    if (sent >= MAX_PER_RUN) break;
+    try {
+      const origin = await originOf(q);
+      const base = {
+        now,
+        quote: { ...q, customerEmail: q.customerEmail },
+        lines: q.lines.map((l) => ({ quantity: Number(l.quantity) || 1, unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) })),
+        discountCents: Math.round(decimalToNumber(q.discountAmount) * 100),
+        ...origin,
+        claimed: claimed.has(`autoenvio-150:${q.id}`),
+      };
+      // Barato primero: lo que se ignora o espera no consulta guardas.
+      const pre = autoenvioVerdict({ ...base, otherLive: null, guards: { action: "send" } });
+      if (pre.action === "ignore" || pre.action === "wait") {
+        if (pre.action === "wait") out.push({ quote: q.quoteNumber, action: "wait" });
+        continue;
+      }
+      const [otherLive, ev] = await Promise.all([otherLiveOf(q, origin.leadAt), evaluateDraftAutoSend(q.id)]);
+      const v = autoenvioVerdict({ ...base, otherLive, guards: ev.decision as never });
+      if (v.action === "hold") {
+        await hold(q, v.reasons);
+        out.push({ quote: q.quoteNumber, action: "hold", detail: v.reasons.join("; ").slice(0, 200) });
+        continue;
+      }
+      if (v.action !== "send") continue;
+      try {
+        await prisma.funnelEvent.create({ data: { sessionId: `autoenvio-150:${q.id}`, reference: "autoenvio-150", step: STEP, metadata: { result: "claimed" } } });
+      } catch {
+        continue;
+      }
+      try {
+        const { finalizeAndSendQuote } = await import("@/lib/quote-send");
+        await finalizeAndSendQuote({ quoteId: q.id, actorEmail: ACTOR, requireDraft: true, channelPriceSource: v.channel });
+        sent++;
+        await prisma.funnelEvent.update({ where: { sessionId_step: { sessionId: `autoenvio-150:${q.id}`, step: STEP } }, data: { metadata: { result: "sent" } } }).catch(() => {});
+        await sendStaffAlertSMS(`Autoenvío 2,5 h: ${q.quoteNumber} (${decimalToNumber(q.total).toFixed(2)} €) enviado a ${q.customerEmail}. Ficha: ${SITE}/zona-traductor/presupuestos/${q.id}`, `autoenvio_150 ${q.quoteNumber}`).catch(() => {});
+        out.push({ quote: q.quoteNumber, action: "send" });
+      } catch (err) {
+        const msg = String((err as Error)?.message || err).slice(0, 200);
+        await prisma.funnelEvent.update({ where: { sessionId_step: { sessionId: `autoenvio-150:${q.id}`, step: STEP } }, data: { metadata: { result: "error", detail: msg } } }).catch(() => {});
+        await hold(q, [`el envío automático falló: ${msg}`]);
+        await sendStaffAlertSMS(`Autoenvío 2,5 h: ${q.quoteNumber} NO salió (${msg.slice(0, 80)}). Queda en borrador: ${SITE}/zona-traductor/presupuestos/${q.id}`, `autoenvio_150_error ${q.quoteNumber}`).catch(() => {});
+        out.push({ quote: q.quoteNumber, action: "hold", detail: msg });
+      }
+    } catch (err) {
+      console.error("[autoenvio-150]", q.id, err);
+    }
+  }
+  return { mode: "on" as const, borradores: drafts.length, enviados: sent, resultados: out };
+}
