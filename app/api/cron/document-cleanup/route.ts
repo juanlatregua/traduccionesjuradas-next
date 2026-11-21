@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { del, list } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { hasCronSecret } from "@/lib/cron-auth";
+import { isEntradaSession, keepEntradaFiles } from "@/lib/entrada/retencion";
 
 const RETENTION_DAYS = 30;
 // Expedientes de clientes (carpeta expedientes-clientes/): suben ANTES de pulsar
@@ -70,13 +71,24 @@ export async function GET(req: NextRequest) {
   threshold.setDate(threshold.getDate() - RETENTION_DAYS);
 
   // Phase A — Unpaid documents: delete blob + delete DB record
-  const unpaid = await prisma.documentAnalysis.findMany({
+  const candidates = await prisma.documentAnalysis.findMany({
     where: {
       createdAt: { lt: threshold },
       status: { in: [...UNPAID_STATUSES] },
     },
-    select: { id: true, fileUrl: true },
+    select: { id: true, fileUrl: true, sessionToken: true, casoId: true },
   });
+  // Los archivos de una entrada no cambian de estado (UPLOADED): se quedan mientras su caso tenga un
+  // presupuesto vivo o un pedido sin terminar, y hasta 30 días después de la entrega.
+  const casoIds = [...new Set(candidates.filter((d) => isEntradaSession(d.sessionToken) && d.casoId).map((d) => d.casoId!))];
+  const casos = casoIds.length
+    ? await prisma.caso.findMany({
+        where: { id: { in: casoIds } },
+        select: { id: true, quotes: { select: { status: true, deletedAt: true, lostReason: true } }, orders: { select: { status: true, updatedAt: true } } },
+      })
+    : [];
+  const vivos = new Set(casos.filter((c) => keepEntradaFiles(c, threshold)).map((c) => c.id));
+  const unpaid = candidates.filter((d) => !(isEntradaSession(d.sessionToken) && d.casoId && vivos.has(d.casoId)));
 
   for (const doc of unpaid) {
     try {
@@ -135,6 +147,7 @@ export async function GET(req: NextRequest) {
 
   return Response.json({
     deleted: deletedResult.count,
+    keptEntrada: candidates.length - unpaid.length,
     updated: updatedResult.count,
     orphanExpedientes,
     threshold: threshold.toISOString(),

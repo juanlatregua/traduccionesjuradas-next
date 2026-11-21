@@ -30,6 +30,10 @@ export type FrAutoIO = {
 export type FrAutoResult = { action: "none" | "drafted" | "sent"; detail: string; quoteNumber?: string };
 const none = (detail: string): FrAutoResult => ({ action: "none", detail });
 
+/** ?p=regularizacion-2026 reaches the entrada as its source: the campaign tariff of lib/dinero (25 € per document up to 2 pages). */
+export const REGULARIZACION_SOURCE = "regularizacion-2026";
+export const isRegularizacion = (e: Pick<EntradaRow, "source">) => e.source === REGULARIZACION_SOURCE;
+
 /** Motivos por los que NO sale solo aunque haya líneas. Vacío = en verde. */
 export function frAutoReviewReasons(data: FrAutoData, warnings: number): string[] {
   const out: string[] = [];
@@ -51,7 +55,7 @@ export async function runFrAuto(io: FrAutoIO, e: EntradaRow, data: FrAutoData | 
   if (targets.length > 1) return none("varios destinos");
   const included = data.documents.filter((d) => d.included);
   if (included.length === 0 || target !== "es" || included.some((d) => d.sourceLang.trim().toLowerCase() !== "fr")) return none("no es fr>es (sin tarifa en lib/dinero: a mano)");
-  const lines = buildLines(data.documents, data.files, target);
+  const lines = buildLines(data.documents, data.files, target, { regularization: isRegularizacion(e) });
   const payload = quotePayload(lines);
   if (!payload) return none(`líneas sin resolver: ${lines.blockers.map((b) => b.detail).join("; ").slice(0, 160)}`);
   if (!ownLote(e, data.lote) || data.lote.quoteId) return none("lote ajeno o ya con presupuesto");

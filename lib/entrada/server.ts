@@ -10,18 +10,18 @@ import { fetchLavoriCartera, lavoriManualRoute } from "@/lib/lavori-bridge";
 import { aliasDesdeEnv } from "@/lib/caso/identidad";
 import { apiDeps as lecturaApi, download as lecturaDownload, lecturaStore, startDeps } from "@/lib/lectura-constructor/server.ts";
 import { startReading } from "@/lib/lectura-constructor/run.ts";
-import { fmtNeededBy } from "@/lib/needed-by";
 import type { EntradaApiDeps } from "./api.ts";
 import { puertaV2On } from "./flag.ts";
-import type { Aviso, FlowDeps, Jurado } from "./flow.ts";
+import { joinedExisting, type Aviso, type FlowDeps, type Jurado } from "./flow.ts";
+import { entradaResumen, idiomasTexto, plazoTexto, routingPair, staffLinks, staffTo } from "./aviso.ts";
 import { resolverEntrada, type GateDeps } from "./puerta.ts";
 import { filesWithoutHash, prismaEntradaStore, prismaGateTx, readingExtras, reusableLote } from "./prisma-store.ts";
 import { langName } from "./view.ts";
 import { codeEmail } from "./codigo.ts";
 import { DEFAULT_LIMITS, prepareBatch } from "@/lib/lectura/index.ts";
 import { explicitRssCeilingMb } from "@/lib/lectura-constructor/flag.ts";
-import { sessionKeyOf } from "./store.ts";
-import { runFrAuto, type FrAutoIO } from "./fr-auto.ts";
+import { sessionKeyOf, type EntradaRow } from "./store.ts";
+import { runFrAuto, type FrAutoData, type FrAutoIO } from "./fr-auto.ts";
 import { puertaFrMode } from "../puerta-fr-math.ts";
 
 const own = (url: string) => isOwnBlobUrl(url, process.env.BLOB_READ_WRITE_TOKEN);
@@ -54,21 +54,49 @@ let client: Anthropic | null = null;
 const conserjeClient = () => (client ??= new Anthropic({ maxRetries: 2, timeout: 30_000 }));
 
 async function notify(a: Aviso): Promise<void> {
-  const to = process.env.PRESUPUESTO_TO;
-  if (!to || !a.entrada.casoId) return;
+  if (!a.entrada.casoId) return;
+  const to = staffTo(process.env);
   const e = a.entrada;
-  const link = `${SITE}/zona-traductor/lectura?caso=${encodeURIComponent(e.casoId!)}`;
+  const links = staffLinks(e);
+  const link = links.caso!;
   const who = escapeHtml([e.nombre, e.email, e.phone9].filter(Boolean).join(" · "));
   const subject = a.kind === "confirmada"
     ? `Entrada web confirmada — ${a.casoRef ?? e.casoId} (${a.documentos} doc.)`
     : `Entrada web sin jurado (${langName(a.idioma)}) — ${a.casoRef ?? e.casoId}`;
-  const idiomas = `${e.sourceLang ? langName(e.sourceLang) : "?"} → ${(e.targetLangs.length ? e.targetLangs : e.targetLang ? [e.targetLang] : []).map(langName).join(", ") || "?"}`;
+  const idiomas = idiomasTexto(e);
   const respuestas = (e.respuestas ?? []).map((r) => `<li>${escapeHtml(r.pregunta)}: <strong>${escapeHtml(r.respuesta)}</strong></li>`).join("");
-  const plazo = e.urgency === "DATE" && e.neededBy ? `para el ${fmtNeededBy(e.neededBy)}` : e.urgency === "ASAP" ? "lo antes posible" : e.urgency === "FLEXIBLE" ? "sin prisa" : "sin indicar";
+  const plazo = plazoTexto(e);
+  const excluidos = a.kind === "confirmada" && a.excluidos?.length ? `<p>${a.excluidos.length} documento(s) fuera del presupuesto: ${escapeHtml(a.excluidos.join("; "))}</p>` : "";
   const html = a.kind === "confirmada"
-    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p>${a.presupuesto ? `<p><strong>Presupuesto automático ${escapeHtml(a.presupuesto)}</strong> (PUERTA_FR): revísalo en el caso.</p>` : ""}<p>${a.documentos} documento(s) · ${escapeHtml(idiomas)} · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}${e.pais ? ` (${escapeHtml(e.pais)})` : ""}</p>${respuestas ? `<ul>${respuestas}</ul>` : ""}${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir la lectura y presupuestar</a></p>`
+    ? `<h2>El cliente ha confirmado sus documentos</h2><p>${who}</p>${a.presupuesto ? `<p><strong>Presupuesto automático ${escapeHtml(a.presupuesto)}</strong> (PUERTA_FR): revísalo en el caso.</p>` : ""}<p>${a.documentos} documento(s) · ${escapeHtml(idiomas)} · plazo: ${escapeHtml(plazo)}${e.organismo ? ` · organismo: ${escapeHtml(e.organismo)}` : ""}${e.pais ? ` (${escapeHtml(e.pais)})` : ""}</p>${respuestas ? `<ul>${respuestas}</ul>` : ""}${e.notas ? `<p>«${escapeHtml(e.notas)}»</p>` : ""}${excluidos}${e.regla === "dudoso" ? "<p><strong>¿Mismo cliente que otro caso?</strong> Revísalo en el caso.</p>" : ""}${e.relacionados.length ? "<p><strong>Relacionado</strong> con un caso ya encargado o cerrado (mismo archivo).</p>" : ""}${e.source ? `<p>Origen: ${escapeHtml(e.source)}</p>` : ""}${e.lang && e.lang !== "es" ? `<p>Idioma del cliente: ${escapeHtml(e.lang)}</p>` : ""}<p><a href="${link}">Abrir el caso (archivos y respuestas)</a> · <a href="${links.builder}">Montar el presupuesto con los documentos dentro</a></p>`
     : `<h2>Idioma sin jurado: ${escapeHtml(langName(a.idioma))}</h2><p>${who}</p><p>Al cliente se le ha dado el buscador del MAEC y el caso queda en «Sin jurado» (no cuenta como perdido) si no tenía nada más.</p><p><a href="${link}">Ver el caso</a></p>`;
-  await sendMail({ to, subject, html });
+  const mail = sendMail({ to, subject, html });
+  // frAuto ya manda su SMS cuando monta un presupuesto; si no, el SMS es el segundo canal del aviso.
+  const sms = a.kind === "confirmada" && !a.presupuesto
+    ? import("@/lib/sms")
+        .then(({ sendStaffAlertSMS }) => sendStaffAlertSMS(`Entrada web ${a.casoRef ?? ""} · ${idiomas} · ${a.documentos} doc · ${plazo} · ${e.email || e.phone9 || ""} · ${link}`.slice(0, 300), "entrada_confirmada"))
+        .catch((err) => console.error("[entrada] SMS staff falló", err))
+    : Promise.resolve();
+  await Promise.all([mail, sms]);
+}
+
+/** The old puerta router (lib/puerta-request-quote) on the entrada's own files (DocumentAnalysis «entrada:<id>»). */
+async function routeQuote(e: EntradaRow, data: FrAutoData | null, x: { casoRef: string | null; documentos: number; excluidos: string[] }) {
+  const session = sessionKeyOf(e.id);
+  const pair = routingPair(e, data ? { documents: data.documents, targetLang: data.lote.targetLang } : null);
+  if (pair) await prisma.documentAnalysis.updateMany({ where: { sessionToken: session, orderId: null }, data: { sourceLanguage: pair.sourceLang, targetLanguage: pair.targetLang } });
+  const { routePuertaQuoteRequest } = await import("@/lib/puerta-request-quote");
+  const urgency = e.urgency === "ASAP" || e.urgency === "DATE" || e.urgency === "FLEXIBLE" ? e.urgency : null;
+  const r = await routePuertaQuoteRequest({
+    sessionToken: session,
+    email: e.email ?? "",
+    phone: e.phone9 ?? "",
+    locale: e.lang,
+    deadline: urgency && !joinedExisting(e) ? { urgency, neededBy: e.neededBy } : null,
+    extraLines: entradaResumen(e, x),
+  });
+  const quote = r.body.quote as { sent?: boolean } | undefined;
+  return { handled: r.status < 400 && r.body.ok === true, quoteSent: quote?.sent === true };
 }
 
 const frAutoIO: FrAutoIO = {
@@ -195,6 +223,16 @@ export const flowDeps: FlowDeps = {
   },
   notify,
   frAuto: (e, data) => runFrAuto(frAutoIO, e, data),
+  routeQuote,
+  ackClient: async (e) => {
+    const { sendPriceRequestAckToClient } = await import("@/lib/quote-email");
+    await sendPriceRequestAckToClient({ name: e.nombre, email: e.email, phone: e.phone9, locale: e.lang, translatorLangName: null, askDeadline: !e.urgency });
+  },
+  funnel: async (e, step) => {
+    await prisma.funnelEvent
+      .create({ data: { sessionId: sessionKeyOf(e.id), reference: (e.source ?? "entrada").slice(0, 60), step, metadata: { canal: e.canal, lang: e.lang, casoId: e.casoId } } })
+      .catch(() => {});
+  },
   inspect: async (file) => {
     const ceiling = explicitRssCeilingMb();
     if (ceiling === null) return null;
@@ -242,8 +280,7 @@ export const entradaApiDeps: EntradaApiDeps = {
     });
   },
   alertStaff: async (subject, text) => {
-    const to = process.env.PRESUPUESTO_TO;
-    if (to) await sendMail({ to, subject, html: `<p>${escapeHtml(text)}</p>` });
+    await sendMail({ to: staffTo(process.env), subject, html: `<p>${escapeHtml(text)}</p>` });
   },
   clientIp: getClientIp,
   ipHash: (ip) => createHash("sha256").update(ip).digest("hex").slice(0, 16),

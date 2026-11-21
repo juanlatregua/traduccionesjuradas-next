@@ -58,7 +58,7 @@ export function entradaLeads(entradas: EntradaParaLead[]): EntradaLead[] {
       createdAt: e.createdAt,
       urgency: e.urgency,
       neededBy: e.neededBy,
-      link: e.casoId ? `${SITE}/zona-traductor/lectura?caso=${encodeURIComponent(e.casoId)}` : `${SITE}/zona-traductor/lectura?session=${encodeURIComponent(sessionKeyOf(e.id))}`,
+      link: e.casoId ? `${SITE}/zona-traductor/casos/${encodeURIComponent(e.casoId)}` : `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(sessionKeyOf(e.id))}`,
     }));
 }
 

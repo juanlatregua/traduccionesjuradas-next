@@ -112,6 +112,8 @@ export async function routePuertaQuoteRequest(input: {
   phone?: string;
   locale?: string | null;
   deadline?: { urgency: DeadlineUrgency; neededBy: Date | null } | null;
+  /** Lo que el cliente ya contó (la puerta nueva: respuestas, organismo, documentos excluidos): encabeza cada aviso a staff. */
+  extraLines?: string[];
 }): Promise<PuertaQuoteResult> {
   const token = input.sessionToken;
   const email = input.email || "";
@@ -180,11 +182,11 @@ export async function routePuertaQuoteRequest(input: {
     const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
     if (recurrente.kind !== "none") recurrenteTxt += ` · Historial: ${baseUrl}/zona-traductor/clientes/${encodeURIComponent(recurrente.email)}`;
-    const lineas = docs.map((d) => {
+    const lineas = [...(input.extraLines ?? []), ...docs.map((d) => {
       const par = `${getLanguageName(d.sourceLanguage || "?")} → ${getLanguageName(d.targetLanguage || "?")}`;
       const ref = d.quoteAmount ? ` · motor (referencia interna): ${Number(d.quoteAmount).toFixed(2)} € netos` : "";
       return `· ${d.fileName} — ${documentTypeLabel(d.documentType) || "documento"} · ${par} · ${d.estimatedWords ?? "?"} palabras / ${d.pageCount ?? "?"} págs${ref}`;
-    });
+    })];
     // El builder importa los documentos de la puerta por sesión (25-ago-2026):
     // ya no hay que volver a soltar el PDF.
     const builderUrl =
