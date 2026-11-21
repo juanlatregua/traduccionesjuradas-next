@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#60a5fa]";
-const CTRL = `rounded-lg border border-[#232a35] bg-[#14181f] px-3 py-1.5 text-xs font-semibold text-[#e8ecf2] hover:border-[#93a0b4] ${FOCUS}`;
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2E4A]";
+const CTRL = `rounded-lg border border-[#D5DAE1] bg-[#ffffff] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:border-[#52606D] ${FOCUS}`;
 
 export default async function PanelPage({ searchParams }: { searchParams: { p?: string; d?: string } }) {
   const email = await authZonaTraductorOrRedirect();
@@ -29,7 +29,7 @@ export default async function PanelPage({ searchParams }: { searchParams: { p?: 
   const [{ current, previous }, agenda] = await Promise.all([loadPanelData(period), loadPanelAgenda()]);
 
   return (
-    <main className="min-h-screen bg-[#0b0d10] px-4 py-6 text-[#e8ecf2] sm:px-6">
+    <main className="min-h-screen bg-[#F6F7F9] px-4 py-6 text-[#1F2933] sm:px-6">
       <div className="mx-auto max-w-[1400px]">
         <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-xl font-semibold">Panel</h1>
@@ -40,7 +40,7 @@ export default async function PanelPage({ searchParams }: { searchParams: { p?: 
                   key={g.value}
                   href={href(g.value, period.anchor)}
                   aria-current={g.value === p ? "page" : undefined}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${FOCUS} ${g.value === p ? "bg-[#3ecf8e] text-[#0b0d10]" : "border border-[#232a35] bg-[#14181f] text-[#e8ecf2] hover:border-[#93a0b4]"}`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${FOCUS} ${g.value === p ? "bg-[#1F6B45] text-[#1A2E4A]" : "border border-[#D5DAE1] bg-[#ffffff] text-[#1F2933] hover:border-[#52606D]"}`}
                 >
                   {g.label}
                 </Link>
@@ -65,7 +65,7 @@ export default async function PanelPage({ searchParams }: { searchParams: { p?: 
               <label htmlFor="panel-d" className="sr-only">
                 Ir a la fecha
               </label>
-              <input id="panel-d" type="date" name="d" defaultValue={period.anchor} className={`rounded-lg border border-[#232a35] bg-[#14181f] px-2 py-1.5 text-xs text-[#e8ecf2] [color-scheme:dark] ${FOCUS}`} />
+              <input id="panel-d" type="date" name="d" defaultValue={period.anchor} className={`rounded-lg border border-[#D5DAE1] bg-[#ffffff] px-2 py-1.5 text-xs text-[#1F2933] [color-scheme:dark] ${FOCUS}`} />
               <button type="submit" className={CTRL}>
                 Ir
               </button>

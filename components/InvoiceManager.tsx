@@ -94,7 +94,7 @@ function emptyForm() {
 }
 
 const FIELD =
-  "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
+  "rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#52606D]";
 
 export default function InvoiceManager({
   invoices,
@@ -485,30 +485,30 @@ export default function InvoiceManager({
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-[#52606D]">
           Crea facturas libres (cliente de WhatsApp, sin pedido) o desde un pedido. Edita el borrador y emítelo cuando esté listo.
         </p>
         <button
           type="button"
           onClick={() => startCreate()}
-          className="shrink-0 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
+          className="shrink-0 rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66]"
         >
           + Nueva factura
         </button>
       </div>
 
       {open && (
-        <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+        <div className="mt-4 rounded-xl border border-[#D5DAE1] bg-white p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white">{editingId ? "Editar borrador" : "Nueva factura (borrador)"}</h2>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-400 hover:text-slate-200">
+            <h2 className="text-sm font-semibold text-[#1A2E4A]">{editingId ? "Editar borrador" : "Nueva factura (borrador)"}</h2>
+            <button type="button" onClick={() => setOpen(false)} className="text-xs text-[#52606D] hover:text-[#1A2E4A]">
               Cerrar
             </button>
           </div>
 
           {/* Marca / actividad emisora (numeración compartida) */}
           <div className="mt-3 flex flex-wrap gap-4">
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               Marca / actividad
               <select className={`mt-1 block w-64 ${FIELD}`} value={form.brand} onChange={(e) => set("brand", e.target.value)}>
                 {BRAND_OPTIONS.map((o) => (
@@ -518,14 +518,14 @@ export default function InvoiceManager({
                 ))}
               </select>
             </label>
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               Tipo de documento
               <select className={`mt-1 block w-64 ${FIELD}`} value={form.docKind} onChange={(e) => set("docKind", e.target.value)}>
                 <option value="invoice">Factura</option>
                 <option value="quote">Presupuesto (fuera de contabilidad)</option>
               </select>
               {form.docKind === "quote" && (
-                <span className="mt-1 block text-[11px] text-violet-300">
+                <span className="mt-1 block text-[11px] text-[#1A2E4A]">
                   Serie propia P·AA_NNN (p.ej. P26_001). NO cuenta en contabilidad, 303 ni gestoría.
                 </span>
               )}
@@ -534,7 +534,7 @@ export default function InvoiceManager({
 
           {/* Vínculo opcional con un pedido */}
           <div className="mt-3 flex flex-wrap items-end gap-2">
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               Referencia de pedido (opcional)
               <input
                 className={`mt-1 block w-48 ${FIELD} font-mono`}
@@ -547,7 +547,7 @@ export default function InvoiceManager({
               type="button"
               onClick={prefillFromOrder}
               disabled={busy}
-              className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-xs text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50"
             >
               Traer datos del pedido
             </button>
@@ -556,7 +556,7 @@ export default function InvoiceManager({
           {/* Cargar un cliente ya facturado (recurrente, sin pedido) */}
           {customers.length > 0 && (
             <div className="mt-3">
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Cliente recurrente
                 <select
                   className={`mt-1 block w-full sm:w-96 ${FIELD}`}
@@ -602,8 +602,8 @@ export default function InvoiceManager({
           {/* Líneas */}
           <div className="mt-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Líneas (importe = base, sin IVA)</p>
-              <button type="button" onClick={addLine} className="text-xs text-cyan-300 hover:text-cyan-200">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Líneas (importe = base, sin IVA)</p>
+              <button type="button" onClick={addLine} className="text-xs text-[#1A2E4A] hover:text-[#1A2E4A]">
                 + Añadir línea
               </button>
             </div>
@@ -629,7 +629,7 @@ export default function InvoiceManager({
                     value={l.amount}
                     onChange={(e) => setLine(i, { amount: e.target.value })}
                   />
-                  <label className="flex items-center gap-1 text-xs text-slate-400" title="Cabecera de bloque (p. ej. BACHELOR ES - Málaga)">
+                  <label className="flex items-center gap-1 text-xs text-[#52606D]" title="Cabecera de bloque (p. ej. BACHELOR ES - Málaga)">
                     <input type="checkbox" checked={Boolean(l.group)} onChange={(e) => setLine(i, { group: e.target.checked })} />
                     Bloque
                   </label>
@@ -637,7 +637,7 @@ export default function InvoiceManager({
                     type="button"
                     onClick={() => removeLine(i)}
                     disabled={form.lines.length === 1}
-                    className="rounded-lg border border-slate-700 px-2 py-2 text-xs text-slate-400 hover:bg-slate-800 disabled:opacity-40"
+                    className="rounded-lg border border-[#D5DAE1] px-2 py-2 text-xs text-[#52606D] hover:bg-[#F6F7F9] disabled:opacity-40"
                     aria-label="Quitar línea"
                   >
                     ✕
@@ -649,7 +649,7 @@ export default function InvoiceManager({
 
           {/* IVA + totales en vivo */}
           <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               IVA
               <select
                 className={`mt-1 block w-40 ${FIELD}`}
@@ -663,10 +663,10 @@ export default function InvoiceManager({
                 ))}
               </select>
             </label>
-            <div className="text-right text-sm text-slate-300">
+            <div className="text-right text-sm text-[#1F2933]">
               <div>Base: <span className="tabular-nums">{eur(totals.base)}</span></div>
               <div>IVA: <span className="tabular-nums">{eur(totals.vat)}</span></div>
-              <div className="text-base font-semibold text-white">Total: <span className="tabular-nums">{eur(totals.total)}</span></div>
+              <div className="text-base font-semibold text-[#1A2E4A]">Total: <span className="tabular-nums">{eur(totals.total)}</span></div>
             </div>
           </div>
 
@@ -675,7 +675,7 @@ export default function InvoiceManager({
               type="button"
               onClick={save}
               disabled={busy}
-              className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+              className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
             >
               {busy ? "Guardando…" : editingId ? "Guardar cambios" : "Guardar borrador"}
             </button>
@@ -685,11 +685,11 @@ export default function InvoiceManager({
                   href={`/api/invoices/${editingId}/pdf`}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                  className="rounded-lg border border-[#D5DAE1] px-4 py-2 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
                 >
                   Vista previa proforma
                 </a>
-                <label className="text-xs text-slate-400">
+                <label className="text-xs text-[#52606D]">
                   {form.docKind === "quote" ? "Nº presupuesto" : "Nº factura"}
                   <input
                     className={`mt-1 block w-28 ${FIELD} font-mono`}
@@ -697,7 +697,7 @@ export default function InvoiceManager({
                     onChange={(e) => setIssueNumber(e.target.value)}
                     placeholder={suggestionFor(form.docKind)}
                   />
-                  <span className="mt-1 block text-[11px] text-slate-500">
+                  <span className="mt-1 block text-[11px] text-[#52606D]">
                     sugerido por el sistema — la BD es el contador
                   </span>
                 </label>
@@ -705,7 +705,7 @@ export default function InvoiceManager({
                   type="button"
                   onClick={() => issue(editingId, issueNumber)}
                   disabled={busy}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
                 >
                   Emitir factura
                 </button>
@@ -713,21 +713,21 @@ export default function InvoiceManager({
             )}
           </div>
           {!editingId && (
-            <p className="mt-2 text-xs text-slate-500">Guarda el borrador para poder previsualizarlo y emitirlo.</p>
+            <p className="mt-2 text-xs text-[#52606D]">Guarda el borrador para poder previsualizarlo y emitirlo.</p>
           )}
-          {msg && <p className="mt-2 text-xs text-cyan-300">{msg}</p>}
+          {msg && <p className="mt-2 text-xs text-[#1A2E4A]">{msg}</p>}
         </div>
       )}
 
-      {!open && msg && <p className="mt-3 text-xs text-cyan-300">{msg}</p>}
+      {!open && msg && <p className="mt-3 text-xs text-[#1A2E4A]">{msg}</p>}
 
       {/* Tabla de facturas */}
       {invoices.length === 0 ? (
-        <p className="mt-8 text-slate-500">No hay facturas todavía.</p>
+        <p className="mt-8 text-[#52606D]">No hay facturas todavía.</p>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm text-slate-200">
-            <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+        <div className="mt-6 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+          <table className="w-full text-sm text-[#1F2933]">
+            <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
               <tr>
                 <th className="whitespace-nowrap px-3 py-2">Estado</th>
                 <th className="whitespace-nowrap px-3 py-2">Cobro</th>
@@ -741,45 +741,45 @@ export default function InvoiceManager({
                 <th className="whitespace-nowrap px-3 py-2 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-[#D5DAE1]">
               {invoices.map((inv) => {
                 const isDraft = inv.status !== "ISSUED";
                 const date = inv.issuedAt || inv.createdAt;
                 return (
-                  <tr key={inv.id} className={isDraft ? "bg-amber-500/5" : undefined}>
+                  <tr key={inv.id} className={isDraft ? "bg-[#FFF8E6]" : undefined}>
                     <td className="whitespace-nowrap px-3 py-3">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                          isDraft ? "bg-amber-500/20 text-amber-200" : "bg-emerald-500/20 text-emerald-200"
+                          isDraft ? "bg-[#FFF8E6] text-[#7A5A10]" : "bg-[#EEF7F1] text-[#1F6B45]"
                         }`}
                       >
                         {isDraft ? "Borrador" : "Emitida"}
                       </span>
                       {inv.docKind === "quote" && (
-                        <span className="ml-1 rounded-full bg-violet-500/20 px-2 py-0.5 text-[11px] font-semibold text-violet-300">
+                        <span className="ml-1 rounded-full bg-[#F6F7F9] px-2 py-0.5 text-[11px] font-semibold text-[#1A2E4A]">
                           Presupuesto
                         </span>
                       )}
                       {inv.invoiceType?.startsWith("R") && (
-                        <span className="ml-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-semibold text-amber-200" title={`Rectifica ${inv.rectifiesNumber || ""}`}>
+                        <span className="ml-1 rounded-full bg-[#FFF8E6] px-2 py-0.5 text-[11px] font-semibold text-[#7A5A10]" title={`Rectifica ${inv.rectifiesNumber || ""}`}>
                           Rectificativa{inv.rectifiesNumber ? ` de ${inv.rectifiesNumber}` : ""}
                         </span>
                       )}
                       {inv.annulledAt && (
-                        <span className="ml-1 rounded-full bg-rose-500/20 px-2 py-0.5 text-[11px] font-semibold text-rose-300">
+                        <span className="ml-1 rounded-full bg-[#FDF2F2] px-2 py-0.5 text-[11px] font-semibold text-[#A12B2B]">
                           Anulada
                         </span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3">
                       {isDraft ? (
-                        <span className="text-slate-600">—</span>
+                        <span className="text-[#52606D]">—</span>
                       ) : inv.paidAt ? (
                         <div className="space-y-1">
-                          <span className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-200">
+                          <span className="inline-block rounded-full bg-[#EEF7F1] px-2 py-0.5 text-[11px] font-semibold text-[#1F6B45]">
                             Cobrada
                           </span>
-                          <div className="text-[11px] text-slate-400">
+                          <div className="text-[11px] text-[#52606D]">
                             {new Date(inv.paidAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
                           </div>
                           {inv.paymentProofUrl ? (
@@ -788,7 +788,7 @@ export default function InvoiceManager({
                                 href={inv.paymentProofUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-[11px] text-cyan-300 hover:underline"
+                                className="text-[11px] text-[#1A2E4A] hover:underline"
                                 title={inv.paymentProofName || "Justificante"}
                               >
                                 📎 justificante
@@ -797,14 +797,14 @@ export default function InvoiceManager({
                                 type="button"
                                 onClick={() => removeProof(inv)}
                                 disabled={busy}
-                                className="text-[11px] text-rose-300 hover:underline disabled:opacity-50"
+                                className="text-[11px] text-[#A12B2B] hover:underline disabled:opacity-50"
                               >
                                 quitar
                               </button>
                             </div>
                           ) : (
                             // Cobrada sin justificante (p. ej. sellada por conciliación): permite adjuntarlo.
-                            <label className="block cursor-pointer text-[11px] text-cyan-300 hover:underline">
+                            <label className="block cursor-pointer text-[11px] text-[#1A2E4A] hover:underline">
                               + justificante
                               <input
                                 type="file"
@@ -822,11 +822,11 @@ export default function InvoiceManager({
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <span className="inline-block rounded-full bg-rose-500/20 px-2 py-0.5 text-[11px] font-semibold text-rose-200">
+                          <span className="inline-block rounded-full bg-[#FDF2F2] px-2 py-0.5 text-[11px] font-semibold text-[#A12B2B]">
                             Pendiente
                           </span>
                           <label
-                            className={`block text-[11px] ${busy ? "pointer-events-none opacity-50" : "cursor-pointer text-cyan-300 hover:underline"}`}
+                            className={`block text-[11px] ${busy ? "pointer-events-none opacity-50" : "cursor-pointer text-[#1A2E4A] hover:underline"}`}
                             aria-disabled={busy}
                           >
                             + justificante
@@ -845,15 +845,15 @@ export default function InvoiceManager({
                         </div>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 font-mono text-cyan-300">{inv.number || "—"}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-slate-400">
+                    <td className="whitespace-nowrap px-3 py-3 font-mono text-[#1A2E4A]">{inv.number || "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-[#52606D]">
                       {new Date(date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-3 font-mono text-slate-300">{inv.orderReference || "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-3 font-mono text-[#1F2933]">{inv.orderReference || "—"}</td>
                     <td className="px-3 py-3">
                       {inv.fiscalName}
                       {inv.brand !== "traduccionesjuradas" && (
-                        <span className="ml-2 rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-fuchsia-200">
+                        <span className="ml-2 rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[10px] font-semibold text-[#1A2E4A]">
                           {brandLabel(inv.brand)}
                         </span>
                       )}
@@ -867,7 +867,7 @@ export default function InvoiceManager({
                           <button
                             type="button"
                             onClick={() => startEdit(inv)}
-                            className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+                            className="rounded border border-[#D5DAE1] px-2 py-1 text-xs text-[#1F2933] hover:bg-[#F6F7F9]"
                           >
                             Editar
                           </button>
@@ -877,7 +877,7 @@ export default function InvoiceManager({
                             type="button"
                             onClick={() => issue(inv.id, undefined, inv.docKind)}
                             disabled={busy}
-                            className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                            className="rounded bg-[#1A2E4A] px-2 py-1 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
                           >
                             Emitir
                           </button>
@@ -886,7 +886,7 @@ export default function InvoiceManager({
                           href={`/api/invoices/${inv.id}/pdf`}
                           target="_blank"
                           rel="noreferrer"
-                          className="rounded border border-slate-600 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800"
+                          className="rounded border border-[#D5DAE1] px-2 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                         >
                           PDF
                         </a>
@@ -896,7 +896,7 @@ export default function InvoiceManager({
                             onClick={() => rectify(inv)}
                             disabled={busy}
                             title="Crea un borrador de factura rectificativa (R1) con las líneas negadas"
-                            className="rounded border border-amber-600 px-2 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
+                            className="rounded border border-[#E9D8A6] px-2 py-1 text-xs font-semibold text-[#7A5A10] hover:bg-[#FFF8E6] disabled:opacity-50"
                           >
                             Rectificar
                           </button>
@@ -907,7 +907,7 @@ export default function InvoiceManager({
                             onClick={() => annul(inv)}
                             disabled={busy}
                             title="Registro de anulación (ADMIN/PM). La factura se conserva."
-                            className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50"
+                            className="rounded border border-[#F0C9C9] px-2 py-1 text-xs font-semibold text-[#A12B2B] hover:bg-[#F6F7F9] disabled:opacity-50"
                           >
                             Anular
                           </button>
@@ -917,7 +917,7 @@ export default function InvoiceManager({
                             type="button"
                             onClick={() => remove(inv)}
                             disabled={busy}
-                            className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50"
+                            className="rounded border border-[#F0C9C9] px-2 py-1 text-xs font-semibold text-[#A12B2B] hover:bg-[#F6F7F9] disabled:opacity-50"
                           >
                             Borrar
                           </button>

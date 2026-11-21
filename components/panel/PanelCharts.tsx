@@ -3,10 +3,10 @@
 import { formatDelta, formatValue, METRICS, type Metric } from "@/lib/panel-metrics";
 import type { SeriesData } from "@/lib/panel-layout";
 
-export const SERIES_COLORS = ["#3ecf8e", "#2dd4bf", "#60a5fa", "#a78bfa", "#fbbf24"];
-const NEGATIVE = "#f87171";
-const MUTED = "#93a0b4";
-const GRID = "#232a35";
+export const SERIES_COLORS = ["#1F6B45", "#2A7F8F", "#1A2E4A", "#7A5FB0", "#7A5A10"];
+const NEGATIVE = "#A12B2B";
+const MUTED = "#52606D";
+const GRID = "#D5DAE1";
 
 const color = (i: number) => SERIES_COLORS[i % SERIES_COLORS.length];
 const fmtAt = (data: SeriesData, si: number, v: number) => formatValue(data.series[si].metric, v);
@@ -20,7 +20,7 @@ export function summaryText(title: string, data: SeriesData): string {
 export function Legend({ data }: { data: SeriesData }) {
   if (data.series.length < 2) return null;
   return (
-    <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#93a0b4]">
+    <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#52606D]">
       {data.series.map((s, i) => (
         <li key={s.metric} className="flex items-center gap-1.5">
           <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: color(i) }} />
@@ -34,14 +34,14 @@ export function Legend({ data }: { data: SeriesData }) {
 export function KpiCard({ metric, value, compare, compareText = "vs periodo anterior" }: { metric: Metric; value: number; compare?: number; compareText?: string }) {
   const delta = formatDelta(metric, value, compare);
   const neutral = METRICS[metric].costLike;
-  const deltaColor = !delta || delta.sign === 0 || neutral ? MUTED : delta.sign > 0 ? "#3ecf8e" : NEGATIVE;
+  const deltaColor = !delta || delta.sign === 0 || neutral ? MUTED : delta.sign > 0 ? "#1F6B45" : NEGATIVE;
   return (
     <div>
       <p className="text-3xl font-semibold tabular-nums" style={value < 0 ? { color: NEGATIVE } : undefined}>
         {formatValue(metric, value)}
       </p>
       <p className="mt-1 text-xs tabular-nums" style={{ color: deltaColor }}>
-        {delta ? `${delta.sign > 0 ? "▲" : delta.sign < 0 ? "▼" : "■"} ${delta.text} ${compareText}` : <span className="text-[#93a0b4]">Sin base de comparación</span>}
+        {delta ? `${delta.sign > 0 ? "▲" : delta.sign < 0 ? "▼" : "■"} ${delta.text} ${compareText}` : <span className="text-[#52606D]">Sin base de comparación</span>}
       </p>
     </div>
   );
@@ -55,7 +55,7 @@ export function BarsChart({ data }: { data: SeriesData }) {
       <ul className="space-y-2" aria-hidden>
         {data.labels.map((label, i) => (
           <li key={label} className="grid grid-cols-[minmax(5rem,9rem)_1fr] items-center gap-3 text-xs">
-            <span className="truncate text-[#93a0b4]" title={label}>
+            <span className="truncate text-[#52606D]" title={label}>
               {label}
             </span>
             <div className="space-y-1">
@@ -63,7 +63,7 @@ export function BarsChart({ data }: { data: SeriesData }) {
                 const v = s.values[i];
                 return (
                   <div key={s.metric} className="flex items-center gap-2">
-                    <div className="h-3 flex-1 rounded-sm bg-[#0b0d10]">
+                    <div className="h-3 flex-1 rounded-sm bg-[#F6F7F9]">
                       <div className="h-3 rounded-sm" style={{ width: `${(Math.abs(v) / max) * 100}%`, background: v < 0 ? NEGATIVE : color(si) }} />
                     </div>
                     <span className="w-24 shrink-0 text-right tabular-nums" style={v < 0 ? { color: NEGATIVE } : undefined}>
@@ -97,7 +97,7 @@ export function MiniBars({ data, title }: { data: SeriesData; title: string }) {
           </div>
         ))}
       </div>
-      <div className="mt-1 flex gap-px text-[10px] text-slate-400" aria-hidden>
+      <div className="mt-1 flex gap-px text-[10px] text-[#52606D]" aria-hidden>
         {data.labels.map((l, i) => (
           <span key={i} className="min-w-0 flex-1 overflow-visible whitespace-nowrap text-center">
             {i % step === 0 ? l : ""}
@@ -183,9 +183,9 @@ export function DonutChart({ data }: { data: SeriesData }) {
         {items.map((d, i) => (
           <li key={d.label} className="flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: color(i) }} />
-            <span className="min-w-0 flex-1 truncate text-[#93a0b4]">{d.label}</span>
+            <span className="min-w-0 flex-1 truncate text-[#52606D]">{d.label}</span>
             <span className="tabular-nums">{fmtAt(data, 0, d.value)}</span>
-            <span className="w-12 text-right tabular-nums text-[#93a0b4]">{Math.round((d.value / total) * 100)} %</span>
+            <span className="w-12 text-right tabular-nums text-[#52606D]">{Math.round((d.value / total) * 100)} %</span>
           </li>
         ))}
       </ul>
@@ -199,7 +199,7 @@ export function DataTable({ data, caption }: { data: SeriesData; caption: string
     <div className="max-h-96 overflow-auto">
       <table className="w-full text-left text-xs">
         <caption className="sr-only">{caption}</caption>
-        <thead className="sticky top-0 bg-[#14181f] text-[#93a0b4]">
+        <thead className="sticky top-0 bg-[#ffffff] text-[#52606D]">
           <tr>
             <th scope="col" className="py-1.5 pr-3 font-medium" />
             {data.series.map((s) => (
@@ -211,7 +211,7 @@ export function DataTable({ data, caption }: { data: SeriesData; caption: string
         </thead>
         <tbody>
           {data.labels.map((l, i) => (
-            <tr key={l} className="border-t border-[#232a35]">
+            <tr key={l} className="border-t border-[#D5DAE1]">
               <th scope="row" className="max-w-[12rem] truncate py-1.5 pr-3 font-normal">
                 {l}
               </th>
@@ -229,5 +229,5 @@ export function DataTable({ data, caption }: { data: SeriesData; caption: string
 }
 
 function Empty() {
-  return <p className="py-6 text-center text-xs text-[#93a0b4]">Sin datos en este periodo.</p>;
+  return <p className="py-6 text-center text-xs text-[#52606D]">Sin datos en este periodo.</p>;
 }

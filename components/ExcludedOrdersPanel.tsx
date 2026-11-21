@@ -41,14 +41,14 @@ export default function ExcludedOrdersPanel({ rows }: { rows: Row[] }) {
   const total = rows.reduce((s, r) => s + r.amountCents, 0);
 
   return (
-    <div className="mt-6 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-      <h2 className="text-sm font-semibold text-white">Excluidos de facturación · pendientes de conciliar</h2>
-      <p className="mt-1 text-xs text-slate-400">
+    <div className="mt-6 rounded-xl border border-[#D5DAE1] bg-white p-4">
+      <h2 className="text-sm font-semibold text-[#1A2E4A]">Excluidos de facturación · pendientes de conciliar</h2>
+      <p className="mt-1 text-xs text-[#52606D]">
         {rows.length} pedido(s) · {eur(total)}. Fuera del libro oficial por su motivo. Reversible.
       </p>
-      <div className="mt-3 overflow-x-auto rounded-lg border border-slate-700">
-        <table className="w-full text-sm text-slate-200">
-          <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+      <div className="mt-3 overflow-x-auto rounded-lg border border-[#D5DAE1]">
+        <table className="w-full text-sm text-[#1F2933]">
+          <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
             <tr>
               <th className="px-3 py-2">Pedido</th>
               <th className="px-3 py-2">Cliente</th>
@@ -57,21 +57,21 @@ export default function ExcludedOrdersPanel({ rows }: { rows: Row[] }) {
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-[#D5DAE1]">
             {rows.map((r) => (
               <tr key={r.reference}>
-                <td className="px-3 py-2 font-mono text-slate-300">{r.reference}</td>
+                <td className="px-3 py-2 font-mono text-[#1F2933]">{r.reference}</td>
                 <td className="px-3 py-2">{r.clientName || r.clientEmail}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{eur(r.amountCents)}</td>
                 <td className="px-3 py-2">
-                  <span className="rounded bg-slate-500/20 px-1.5 py-0.5 text-[11px] text-slate-300">{r.reason || "—"}</span>
+                  <span className="rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[11px] text-[#1F2933]">{r.reason || "—"}</span>
                 </td>
                 <td className="px-3 py-2 text-right">
                   <button
                     type="button"
                     onClick={() => reinclude(r.reference)}
                     disabled={busy === r.reference}
-                    className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+                    className="rounded border border-[#D5DAE1] px-2 py-1 text-xs text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50"
                   >
                     {busy === r.reference ? "…" : "Devolver a facturación"}
                   </button>
