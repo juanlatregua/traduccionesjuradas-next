@@ -119,7 +119,7 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
     : [];
   const incluidos = documentos.filter((d) => d.incluido).length;
   const resumen = fase === "lista"
-    ? `Has subido ${plural(archivos.length, "archivo", "archivos")} que corresponden a ${plural(incluidos, "documento", "documentos")}.`
+    ? `Has subido ${plural(archivos.length, "archivo que corresponde", "archivos que corresponden")} a ${plural(incluidos, "documento", "documentos")}.`
     : fase === "leyendo"
       ? "Estamos revisando el conjunto de tus archivos."
       : "Tus archivos los revisa Juan personalmente.";

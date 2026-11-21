@@ -18,9 +18,42 @@ const NUMBER_IN_TYPE = /(?:\b(?:n\.?\s*[º°o]|núm|num|no)\.?\s*)?\p{N}[\p{N}.\
 const DANGLING_END = /(?:\s+(?:con|y|e|de|del|más|n\.?\s*[º°])|\s*[-—–+,;:\/(\[.])+\s*$/iu;
 const DANGLING_START = /^\s*[-—–+,;:\/)\].]+\s*/u;
 
+const HOLE = "\u0001";
+/** Words that only introduce a value («curso 2021-2022», «semestres 1 y 2»): with the value gone, they go too. */
+const SLOT_WORDS = "cursos?|años?|semestres?|cuatrimestres?|trimestres?|periodos?|períodos?|niveles?|nivel|sesi[oó]n|sesiones|promoci[oó]n|convocatorias?|ejercicios?|tomos?|folios?|hojas?|p[aá]ginas?|p[aá]gs?\\.?|ediciones|edici[oó]n|n[uú]meros?|ann[ée]es?|ann[ée]e|sessions?|years?|terms?|levels?|semesters?";
+const CONNECTOR = "(?:y|e|o|u|a|al|et|and|und|ou|to|-|–|—|/|,)";
+const HOLE_LIST = new RegExp(`${HOLE}(?:\\s*${CONNECTOR}\\s*${HOLE})+`, "giu");
+const EMPTY_SLOT = new RegExp(`(?<![\\p{L}\\p{N}])(?:${SLOT_WORDS})(?![\\p{L}\\p{N}])\\s*(?:${HOLE}\\s*)?(?:(?:y|e|et|and|und)\\s*)?(?=[,;:)\\]]|$)`, "giu");
+const EMPTY_SLOT_HOLE = new RegExp(`(?<![\\p{L}\\p{N}])(?:${SLOT_WORDS})(?![\\p{L}\\p{N}])\\s*${HOLE}`, "giu");
+
+/** «curso 2021-2022», «semestres 1 y 2»: the value says WHICH document it is (one bulletin per semester), so it stays. */
+const KEPT_SLOT_WORDS = "cursos?|años?|semestres?|cuatrimestres?|trimestres?|periodos?|períodos?|niveles?|nivel|sesi[oó]n|sesiones|promoci[oó]n|convocatorias?|ann[ée]es?|ann[ée]e|sessions?|years?|terms?|levels?|semesters?";
+const VALUE = "\\p{N}+(?:[./-]\\p{N}+)*";
+const KEPT_SLOT = new RegExp(`(?<![\\p{L}\\p{N}])(?:${KEPT_SLOT_WORDS})(?![\\p{L}\\p{N}])\\s+${VALUE}(?:\\s*(?:,|y|e|et|and|und|a|al|to|-|–)\\s*${VALUE})*(?![\\p{L}\\p{N}])`, "giu");
+
+/** Removes what a stripped value leaves behind: «(…, curso , semestres y )» → «(…)». */
+function closeHoles(t: string): string {
+  let out = t.replace(HOLE_LIST, HOLE).replace(EMPTY_SLOT_HOLE, " ").replace(EMPTY_SLOT, " ").replace(new RegExp(HOLE, "g"), " ");
+  for (let prev = ""; prev !== out; ) {
+    prev = out;
+    out = out
+      .replace(/\s+([,;:)\]])/g, "$1")
+      .replace(/([(\[])\s+/g, "$1")
+      .replace(/([,;:])(?:\s*[,;:])+/g, "$1")
+      .replace(/([(\[])[,;:]\s*/g, "$1")
+      .replace(/[,;:]\s*([)\]])/g, "$1")
+      .replace(/\s*[(\[]\s*[)\]]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  return out;
+}
+
 /** The type alone: the apostille has its own part of the label and numbers belong to no type. */
 export function cleanTypeLabel(s: string | null | undefined): string {
-  let t = cleanLabelText(s).replace(APOSTILLE_IN_TYPE, " ").replace(NUMBER_IN_TYPE, " ").replace(/[(\[]\s*[)\]]/g, " ").replace(/\s+/g, " ").trim();
+  const kept: string[] = [];
+  const masked = cleanLabelText(s).replace(KEPT_SLOT, (m) => String.fromCharCode(0xe000 + kept.push(m) - 1));
+  let t = closeHoles(masked.replace(APOSTILLE_IN_TYPE, " ").replace(NUMBER_IN_TYPE, ` ${HOLE} `)).replace(/[\ue000-\ue0ff]/g, (c) => kept[c.charCodeAt(0) - 0xe000] ?? "");
   for (let prev = ""; prev !== t; ) {
     prev = t;
     t = t.replace(DANGLING_END, "").replace(DANGLING_START, "").trim();
