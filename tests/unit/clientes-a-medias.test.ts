@@ -7,6 +7,7 @@ import {
   newStates,
   renderInforme,
   selectClientesAMedias,
+  smsWorthy,
   type EntradaInforme,
   type InformeInput,
   type PuertaDocRow,
@@ -65,7 +66,7 @@ test("presupuesto enviado o pedido pagado lo sacan; un borrador se muestra (y si
   assert.equal(run({ docs: [doc()], quotes: [q({ sentAt: ago(5) })] }).length, 0);
   assert.equal(run({ docs: [doc()], paidOrders: [{ clientEmail: "ana@x.com", clientPhone: null, paidAt: ago(20) }] }).length, 0);
   const d = run({ docs: [doc()], quotes: [q()], held: [{ quoteId: "Q1", quoteNumber: "2026-0100", reasons: ["margen bajo"] }] })[0];
-  assert.deepEqual(d.draft, { id: "Q1", quoteNumber: "2026-0100", held: ["margen bajo"] });
+  assert.deepEqual(d.draft, { id: "Q1", quoteNumber: "2026-0100", held: ["margen bajo"], autoAt: null, retener: null });
   assert.equal(run({ entradas: [ent()], quotes: [q({ expedienteRef: null, customerEmail: "otro@x.com", casoId: "C1", sentAt: ago(1) })] }).length, 0, "por caso");
 });
 
@@ -115,4 +116,28 @@ test("render: contador del día, sección aparte de no presupuestables y SMS cor
   assert.match(r.html, /quedan 110 min/);
   assert.ok(r.sms.length <= 300);
   assert.match(r.subject, /1 sin presupuesto · 1 no presupuestable/);
+});
+
+test("AUTOENVIO_150: el borrador que saldría solo dice la hora y trae «Retener»; retenido, no", () => {
+  const q = { id: "Q1", quoteNumber: "2026-0100", sentAt: null, createdAt: ago(30), customerEmail: "ana@x.com", expedienteRef: "puerta:S1", casoId: null, adminCreatedBy: "system:tarifario", sourceLang: "en", targetLang: "es" };
+  const it = run({ docs: [doc()], quotes: [q], autoenvioOn: true, retenerUrl: (id) => `https://x/retener?q=${id}` })[0];
+  assert.equal(it.draft!.autoAt!.getTime(), ago(-80).getTime(), "max(llegada+150, borrador+60)");
+  const html = renderInforme([it], { entradas: 1, leads: 1, subidasSinEmail: 0, enviados: 0, pagados: 0 }, new Set()).html;
+  assert.match(html, /saldrá solo a las \d\d:\d\d si no lo retienes/);
+  assert.match(html, /retener\?q=Q1/);
+  assert.equal(run({ docs: [doc()], quotes: [q], autoenvioOn: false })[0].draft!.autoAt, null, "flag apagado");
+  assert.equal(run({ docs: [doc()], quotes: [q], autoenvioOn: true, held: [{ quoteId: "Q1", quoteNumber: "", reasons: ["retenido por Juan"] }] })[0].draft!.autoAt, null);
+  assert.equal(run({ docs: [doc()], quotes: [{ ...q, sourceLang: "fr" }], autoenvioOn: true })[0].draft!.autoAt, null, "francés: no");
+});
+
+test("SMS del informe solo con un estado nuevo «3h» o «np»; con lead-sla v2 solo los anónimos", () => {
+  const fresh = (items: ReturnType<typeof run>) => items.map(itemState);
+  const normal = run({ docs: [doc()] });
+  assert.equal(smsWorthy(normal, fresh(normal), false), false, "1 h: solo email");
+  const late = run({ docs: [doc({ createdAt: ago(185) })] });
+  assert.equal(smsWorthy(late, fresh(late), false), true);
+  assert.equal(smsWorthy(late, [], false), false, "ya contado: no repite");
+  assert.equal(smsWorthy(late, fresh(late), true), false, "lead-sla v2 ya manda su SMS de 3 h");
+  const np = run({ entradas: [ent({ files: 0, email: null, emailVerified: false })] });
+  assert.equal(smsWorthy(np, fresh(np), true), true, "anónimo no presupuestable");
 });

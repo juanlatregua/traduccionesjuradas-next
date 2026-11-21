@@ -8,6 +8,9 @@ import { wrapClientEmailHtml } from "@/lib/email";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { getStaffEmails } from "@/lib/staff-access";
 import { paidSince } from "@/lib/paid-orders";
+import { loadHolds, retenerUrl } from "@/lib/autoenvio-150-holds";
+import { autoenvio150On } from "@/lib/autoenvio-150-core";
+import { avisoNoPresupuestablesOn } from "@/lib/lead-sla-core";
 import { madridMidnightUtc, parseYmd, todayMadrid, madridParts } from "@/lib/panel-period";
 import {
   INFORME_WINDOW_HOURS,
@@ -15,6 +18,7 @@ import {
   informeOn,
   newStates,
   renderInforme,
+  smsWorthy,
   selectClientesAMedias,
   itemState,
   type DayCounter,
@@ -62,7 +66,7 @@ async function dayCounter(dayStart: Date): Promise<DayCounter> {
 export async function loadClientesAMedias(now: Date) {
   const since = new Date(now.getTime() - INFORME_WINDOW_HOURS * 36e5);
   const quotesSince = new Date(now.getTime() - (INFORME_WINDOW_HOURS + 24) * 36e5);
-  const [docs, entradas, quotes, paid, held] = await Promise.all([
+  const [docs, entradas, quotes, paid] = await Promise.all([
     prisma.documentAnalysis.findMany({
       where: { createdAt: { gte: since }, sessionToken: { not: null }, orderId: null, NOT: EXCLUDED_SESSION, AND: [NOT_LECTOR] },
       select: { sessionToken: true, createdAt: true, clientEmail: true, clientName: true, clientPhone: true, sourceLanguage: true, targetLanguage: true, estimatedWords: true, quoteAmount: true, status: true, casoId: true, fileHash: true },
@@ -71,11 +75,15 @@ export async function loadClientesAMedias(now: Date) {
     prisma.entrada.findMany({ where: { createdAt: { gte: since }, estado: { not: "prueba" } }, take: 300 }).catch(() => []),
     prisma.quote.findMany({
       where: { deletedAt: null, OR: [{ createdAt: { gte: quotesSince } }, { sentAt: { gte: quotesSince } }] },
-      select: { id: true, quoteNumber: true, sentAt: true, createdAt: true, customerEmail: true, expedienteRef: true, casoId: true },
+      select: { id: true, quoteNumber: true, sentAt: true, createdAt: true, customerEmail: true, expedienteRef: true, casoId: true, adminCreatedBy: true, sourceLang: true, targetLang: true },
     }),
     prisma.order.findMany({ where: { paymentStatus: "PAID", paidAt: { gte: paidSince(now) } }, select: { clientEmail: true, clientPhone: true, paidAt: true, documentAnalyses: { select: { fileHash: true } } } }),
-    prisma.funnelEvent.findMany({ where: { step: "autoenvio_150_hold", createdAt: { gte: quotesSince } }, select: { metadata: true } }),
   ]);
+  const holds = await loadHolds(quotes.filter((q) => !q.sentAt).map((q) => q.id));
+  const held: HeldDraft[] = [...holds].flatMap(([quoteId, h]) => {
+    const reasons = [...(h.retenido ? ["retenido por Juan"] : []), ...h.carril, ...h.hold];
+    return reasons.length ? [{ quoteId, quoteNumber: "", reasons: [...new Set(reasons)] }] : [];
+  });
   const files = entradas.length
     ? await prisma.documentAnalysis.findMany({ where: { sessionToken: { in: entradas.map((e) => `entrada:${e.id}`) } }, select: { sessionToken: true, fileHash: true } })
     : [];
@@ -93,7 +101,9 @@ export async function loadClientesAMedias(now: Date) {
     quotes,
     paidOrders: paid.map((o) => ({ clientEmail: o.clientEmail, clientPhone: o.clientPhone, paidAt: o.paidAt!, fileHashes: o.documentAnalyses.map((d) => d.fileHash) })),
     staffEmails: staffEmailList(),
-    held: held.map((h) => h.metadata as unknown as HeldDraft).filter((h) => h && h.quoteId),
+    held,
+    autoenvioOn: autoenvio150On(),
+    retenerUrl,
   });
 }
 
@@ -119,7 +129,14 @@ export async function runClientesAMedias(now = new Date()) {
   const { subject, html, sms: smsText } = renderInforme(items, day, new Set(fresh));
   const to = process.env.PRESUPUESTO_TO || "hola@traduccionesjuradas.net";
   const email = await sendMail({ to, subject, html: wrapClientEmailHtml(html) }).then(() => "ok", (e) => { console.error("[clientes-a-medias] email", e); return "fail"; });
-  const sms = await sendStaffAlertSMS(smsText, "clientes_a_medias").then(() => "ok", (e) => { console.error("[clientes-a-medias] sms", e); return "fail"; });
+  // Email fallido: el estado NO queda contado (se borra la fila y la próxima hora lo reintenta).
+  if (email === "fail") {
+    await prisma.funnelEvent.delete({ where: { sessionId_step: { sessionId: id, step: STEP } } }).catch((e) => console.error("[clientes-a-medias] rastro", e));
+  }
+  const sms = !smsWorthy(items, fresh, avisoNoPresupuestablesOn())
+    ? "none"
+    : await sendStaffAlertSMS(smsText, "clientes_a_medias").then(() => "ok", (e) => { console.error("[clientes-a-medias] sms", e); return "fail"; });
+  if (email === "fail") return { mode: "on" as const, items: items.length, nuevos: fresh.length, email, sms };
   await prisma.funnelEvent
     .update({ where: { sessionId_step: { sessionId: id, step: STEP } }, data: { metadata: { states: items.map(itemState), email, sms } } })
     .catch((e) => console.error("[clientes-a-medias] rastro", e));

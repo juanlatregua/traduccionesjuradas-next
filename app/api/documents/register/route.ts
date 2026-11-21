@@ -108,7 +108,8 @@ export async function POST(req: Request) {
       },
     });
 
-    if (!staff.ok && normalizedSource !== "lector") recordUploadStarted(token, "puerta", emailOk);
+    // Solo la puerta (un token por sesión: el primer archivo lo crea y los demás lo reutilizan); ni lector ni pruebas.
+    if (!staff.ok && gate === "puerta" && normalizedSource !== "lector" && source !== "prueba") recordUploadStarted(token, "puerta", emailOk);
 
     return NextResponse.json({
       ok: true,

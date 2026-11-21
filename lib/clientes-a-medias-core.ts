@@ -6,6 +6,7 @@ import { isExcludedLeadEmail } from "./lead-sla-core.ts";
 import { hasPaidOrder, type PaidOrderLike } from "./paid-orders.ts";
 import { clientDraft, langEs, mailtoDraft, noPresupuestable, type NoPresupuestable } from "./no-presupuestable.ts";
 import { madridParts } from "./panel-period.ts";
+import { AUTOENVIO_ORIGINS, autoSendAt, isFrPairLoose } from "./autoenvio-150-core.ts";
 
 export const INFORME_WINDOW_HOURS = 6;
 export const DECISION_MIN = 180;
@@ -61,6 +62,9 @@ export type InformeQuote = {
   customerEmail: string | null;
   expedienteRef: string | null;
   casoId: string | null;
+  adminCreatedBy?: string | null;
+  sourceLang?: string | null;
+  targetLang?: string | null;
 };
 
 export type HeldDraft = { quoteId: string; quoteNumber: string; reasons: string[] };
@@ -72,7 +76,11 @@ export type InformeInput = {
   quotes: InformeQuote[];
   paidOrders: PaidOrderLike[];
   staffEmails?: string[];
+  /** Retenciones del autoenvío (carril, «Retener», guardas): el borrador no saldrá solo. */
   held?: HeldDraft[];
+  /** AUTOENVIO_150=on: hora de salida y enlace «Retener» en los borradores que saldrían solos. */
+  autoenvioOn?: boolean;
+  retenerUrl?: (quoteId: string) => string | null;
 };
 
 export type InformeItem = {
@@ -88,7 +96,7 @@ export type InformeItem = {
   pair: string;
   words: number | null;
   price: number | null;
-  draft: { id: string; quoteNumber: string; held: string[] | null } | null;
+  draft: { id: string; quoteNumber: string; held: string[] | null; autoAt: Date | null; retener: string | null } | null;
   link: string;
   noPresupuestable: NoPresupuestable | null;
 };
@@ -100,7 +108,8 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
   const { now } = input;
   const since = now.getTime() - INFORME_WINDOW_HOURS * 36e5;
   const staff = input.staffEmails || [];
-  const held = new Map((input.held || []).map((h) => [h.quoteId, h.reasons]));
+  const held = new Map<string, string[]>();
+  for (const h of input.held || []) held.set(h.quoteId, [...(held.get(h.quoteId) || []), ...h.reasons]);
 
   const base: (Omit<InformeItem, "draft" | "minutes" | "minutesLeft"> & { refs: string[]; casoId: string | null; hashes: (string | null)[] })[] = [];
 
@@ -169,7 +178,14 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
     const d = ours.filter((q) => !q.sentAt).sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())[0];
     const minutes = Math.max(0, Math.floor((now.getTime() - b.firstAt.getTime()) / 60000));
     const { refs, casoId, hashes, ...item } = b;
-    out.push({ ...item, minutes, minutesLeft: DECISION_MIN - minutes, draft: d ? { id: d.id, quoteNumber: d.quoteNumber, held: held.get(d.id) ?? null } : null });
+    const h = d ? held.get(d.id) ?? null : null;
+    const auto = !!d && !h && !!input.autoenvioOn && !!AUTOENVIO_ORIGINS[String(d.adminCreatedBy || "")] && !isFrPairLoose(d.sourceLang, d.targetLang);
+    out.push({
+      ...item,
+      minutes,
+      minutesLeft: DECISION_MIN - minutes,
+      draft: d ? { id: d.id, quoteNumber: d.quoteNumber, held: h, autoAt: auto ? autoSendAt(b.firstAt, d.createdAt) : null, retener: auto ? input.retenerUrl?.(d.id) ?? null : null } : null,
+    });
   }
   return out.sort((a, b) => b.minutes - a.minutes);
 }
@@ -179,6 +195,20 @@ export function itemState(i: InformeItem): string {
   const phase = i.minutes >= DECISION_MIN ? "3h" : i.minutes >= 150 ? "2h30" : i.minutes >= 60 ? "1h" : "0";
   const what = i.noPresupuestable ? `np-${i.noPresupuestable.code}` : i.draft ? (i.draft.held ? "retenido" : "borrador") : i.email || i.phone ? "lead" : "anonimo";
   return `${i.key}|${what}|${phase}`;
+}
+
+/**
+ * SMS del informe: solo si entre lo nuevo hay «pierdes el cliente» (3 h) o un no presupuestable.
+ * Con lead-sla v2 (AVISO_NO_PRESUPUESTABLES=on) los leads con email/teléfono ya tienen su SMS: solo los anónimos.
+ */
+export function smsWorthy(items: InformeItem[], fresh: Iterable<string>, leadSlaV2: boolean): boolean {
+  const f = new Set(fresh);
+  return items.some((i) => {
+    const s = itemState(i);
+    if (!f.has(s)) return false;
+    if (leadSlaV2 && (i.email || i.phone)) return false;
+    return s.endsWith("|3h") || s.includes("|np-");
+  });
 }
 
 /** Estados no contados aún hoy. Vacío = no se envía nada. */
@@ -208,7 +238,13 @@ export function renderInforme(items: InformeItem[], day: DayCounter, fresh: Set<
   const row = (i: InformeItem) => {
     const who = esc(i.name || i.email || i.phone || "Anónimo");
     const draft = i.draft
-      ? `<br><a href="${SITE}/zona-traductor/presupuestos/${esc(i.draft.id)}">Borrador ${esc(i.draft.quoteNumber)}</a>${i.draft.held ? ` — no sale solo: ${esc(i.draft.held.join("; "))}` : " — revisa y envía"}`
+      ? `<br><a href="${SITE}/zona-traductor/presupuestos/${esc(i.draft.id)}">Borrador ${esc(i.draft.quoteNumber)}</a>${
+          i.draft.held
+            ? ` — no sale solo: ${esc(i.draft.held.join("; "))}`
+            : i.draft.autoAt
+            ? ` — <b>saldrá solo a las ${hhmm(i.draft.autoAt)} si no lo retienes</b>${i.draft.retener ? ` · <a href="${esc(i.draft.retener)}">Retener</a>` : ""}`
+            : " — revisa y envía"
+        }`
       : "";
     const np = i.noPresupuestable;
     const d = np ? mailtoDraft(i.email, clientDraft(np, i.name)) : null;
