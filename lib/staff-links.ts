@@ -25,6 +25,7 @@ export const hrefHoy = () => `${Z}/hoy`;
 /** Ficha del caso: una sola constante para decidir cuál de las dos fichas (casos / caso) gana. */
 export const CASO_BASE = `${Z}/casos`;
 export const hrefCaso = (casoId: string) => `${CASO_BASE}/${casoId}`;
+export const hrefDiscrepancias = () => `${Z}/casos/discrepancias`;
 export const hrefPresupuesto = (quoteId: string) => `${Z}/presupuestos/${quoteId}`;
 export const hrefPedido = (reference: string) => `${Z}/pedido/${encodeURIComponent(reference)}`;
 export const hrefCliente = (email: string) => `${Z}/clientes/${encodeURIComponent(email)}`;

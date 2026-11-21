@@ -11,7 +11,7 @@ import { findCostGapOrders } from "@/lib/cierre";
 import { PersonIndex, personKeys } from "@/lib/vigia-persona";
 import { loadEntradaFunnel, loadEntradaLeads } from "@/lib/entrada/leads-db";
 import { ENTRADA_SESSION_PREFIX } from "@/lib/entrada/leads";
-import { abs, hrefCaso, hrefConstructor, hrefPedido, hrefPresupuesto } from "./staff-links.ts";
+import { abs, hrefConstructor, hrefDiscrepancias, hrefPedido, hrefPresupuesto } from "./staff-links.ts";
 
 export const FUNNEL_STAGES = [
   { key: "analizado", label: "Documento analizado" },
@@ -380,7 +380,7 @@ export function buildDigestHtml(d: StaffDigest): string {
   const casoHtml = casoTotal
     ? `<p style="margin:10px 0; font-size:13px; color:#6b7280;">🧭 Caso (modo sombra): ${casoDesacuerdos} desacuerdo(s) de ${casoTotal} comparaciones en ${d.windowHours} h — ${d.casoDiscrepancias
         .map((x) => `${escapeHtml(x.entrada)}: ${x.n}/${x.total}`)
-        .join(" · ")} · <a href="${abs(hrefCaso("discrepancias"))}">ver</a></p>`
+        .join(" · ")} · <a href="${abs(hrefDiscrepancias())}">ver</a></p>`
     : "";
 
   return `
