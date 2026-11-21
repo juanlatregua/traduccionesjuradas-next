@@ -7,6 +7,7 @@ import {
   isRealClientEmail,
   puertaFrAction,
   puertaFrMode,
+  puertaFrRiskReasons,
   puertaSegmentsAreFrEs,
   puertaWaitVerdict,
   segmentsFromPuertaRows,
@@ -164,4 +165,13 @@ test("todas las filas deben tener destino es", () => {
   assert.equal(segmentsFromPuertaRows([row({ targetLanguage: null })]).ok, false);
   assert.equal(segmentsFromPuertaRows([row({ targetLanguage: "en" })]).ok, false);
   assert.equal(segmentsFromPuertaRows([row(), row({ id: "d2", fileHash: "h2", targetLanguage: "fr" })]).ok, false);
+});
+
+test("riesgo re-evaluado (fiscal_financial, bilingüe) deja el FR en borrador; un acta limpia no", () => {
+  const fiscal = { fileName: "1099.pdf", analysisJson: { document_type: { category: "financial", specific_type: "tax_return" }, document_metrics: {} } };
+  assert.match(puertaFrRiskReasons([fiscal]).join(" "), /fiscal_financial/);
+  const acta = { fileName: "acta.pdf", analysisJson: { document_type: { category: "civil_registry", specific_type: "birth_certificate" }, document_metrics: { pages: 1 } } };
+  assert.deepEqual(puertaFrRiskReasons([acta]), []);
+  const action = puertaFrAction({ mode: "fr", allTariffed: true, marketingConsent: true, decision: { action: "alert", reasons: puertaFrRiskReasons([fiscal]) } });
+  assert.equal(action.action, "draft");
 });
