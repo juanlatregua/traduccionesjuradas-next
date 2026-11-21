@@ -38,19 +38,19 @@ export default function BreakdownTable({ rows, valueHeader, compareHeader, capti
 
   const th = (key: SortKey, text: string, right = true) => (
     <th scope="col" aria-sort={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"} className={`py-1.5 font-medium ${right ? "px-2 text-right" : "pr-3"}`}>
-      <button type="button" onClick={() => setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: key === "label" ? 1 : -1 }))} className="hover:text-white">
+      <button type="button" onClick={() => setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: key === "label" ? 1 : -1 }))} className="hover:text-[#1A2E4A]">
         {text}
         {sort.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : ""}
       </button>
     </th>
   );
 
-  if (rows.length === 0) return <p className="py-4 text-center text-xs text-slate-500">Sin datos en este periodo.</p>;
+  if (rows.length === 0) return <p className="py-4 text-center text-xs text-[#52606D]">Sin datos en este periodo.</p>;
   return (
     <div className="max-h-80 overflow-auto">
       <table className="w-full text-left text-xs">
         <caption className="sr-only">{caption}</caption>
-        <thead className="sticky top-0 bg-slate-900 text-slate-400">
+        <thead className="sticky top-0 bg-white text-[#52606D]">
           <tr>
             {th("label", "", false)}
             {th("value", valueHeader)}
@@ -60,18 +60,18 @@ export default function BreakdownTable({ rows, valueHeader, compareHeader, capti
         </thead>
         <tbody>
           {sorted.map((r) => (
-            <tr key={r.label} onClick={() => router.push(r.href)} className="cursor-pointer border-t border-slate-700 hover:bg-slate-800/60">
+            <tr key={r.label} onClick={() => router.push(r.href)} className="cursor-pointer border-t border-[#D5DAE1] hover:bg-[#F6F7F9]">
               <th scope="row" className="max-w-[12rem] py-1.5 pr-3 font-normal">
-                <Link href={r.href} className="block truncate text-cyan-300 hover:underline" title={`Filtrar por ${r.label}`}>
+                <Link href={r.href} className="block truncate text-[#1A2E4A] hover:underline" title={`Filtrar por ${r.label}`}>
                   {r.label}
                 </Link>
-                <span className="mt-1 block h-1 rounded-full bg-slate-800" aria-hidden>
+                <span className="mt-1 block h-1 rounded-full bg-[#F6F7F9]" aria-hidden>
                   <span className="block h-1 rounded-full bg-emerald-400" style={{ width: `${r.share}%` }} />
                 </span>
               </th>
-              <td className="px-2 text-right tabular-nums text-white">{r.valueText}</td>
-              <td className="px-2 text-right tabular-nums text-slate-400">{r.prevText}</td>
-              <td className={`px-2 text-right tabular-nums ${r.deltaSign > 0 ? "text-emerald-400" : r.deltaSign < 0 ? "text-red-400" : "text-slate-400"}`}>
+              <td className="px-2 text-right tabular-nums text-[#1F2933]">{r.valueText}</td>
+              <td className="px-2 text-right tabular-nums text-[#52606D]">{r.prevText}</td>
+              <td className={`px-2 text-right tabular-nums ${r.deltaSign > 0 ? "text-[#1F6B45]" : r.deltaSign < 0 ? "text-[#A12B2B]" : "text-[#52606D]"}`}>
                 {r.deltaText ? `${r.deltaSign > 0 ? "▲" : r.deltaSign < 0 ? "▼" : "■"} ${r.deltaText}` : "—"}
               </td>
             </tr>

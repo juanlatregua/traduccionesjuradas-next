@@ -121,14 +121,14 @@ export default function MesaNav({ pedidosAccionables, presupuestosAccionables, s
       </header>
       <dialog
         ref={dialogRef}
-        className="m-auto w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl backdrop:bg-black/70"
+        className="m-auto w-full max-w-lg rounded-2xl border border-[#D5DAE1] bg-white p-6 text-[#1F2933] shadow-2xl backdrop:bg-black/40"
         onClick={(e) => {
           if (e.target === e.currentTarget) dialogRef.current?.close();
         }}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Nuevo pedido</h2>
-          <button type="button" onClick={() => dialogRef.current?.close()} aria-label="Cerrar" className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200">
+          <h2 className="text-lg font-semibold text-[#1A2E4A]">Nuevo pedido</h2>
+          <button type="button" onClick={() => dialogRef.current?.close()} aria-label="Cerrar" className="rounded-lg p-1 text-[#52606D] hover:bg-[#F6F7F9] hover:text-[#1A2E4A]">
             ✕
           </button>
         </div>
