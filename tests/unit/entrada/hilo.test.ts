@@ -81,6 +81,8 @@ test("progress never invents findings: files and pages it already counted, then 
 test("language questions are detected in the five languages the reading may use", () => {
   assert.equal(isLangQuestion("El testamento ya está en español: ¿a qué idioma necesita la traducción?"), true);
   assert.equal(isLangQuestion("¿Para qué organismo es?"), false);
+  assert.equal(isLangQuestion("¿Para qué trámite necesitas la traducción?"), false);
+  assert.equal(isLangQuestion("¿Quieres traducirlo al inglés o al francés?"), true);
 });
 
 test("every thread string exists in the five languages", () => {

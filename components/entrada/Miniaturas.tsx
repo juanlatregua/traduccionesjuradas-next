@@ -119,10 +119,10 @@ function Pagina({ h, width, className }: { h: Hoja; width: number; className: st
 export function Miniatura({ h, onOpen, size = "md", highlight = false, ariaLabel }: { h: Hoja; onOpen?: () => void; size?: "sm" | "md"; highlight?: boolean; ariaLabel: string }) {
   const box = size === "sm" ? "h-14 w-10" : "h-[104px] w-[76px]";
   return (
-    <figure className="flex w-min flex-col items-center gap-1">
+    <figure className={`flex shrink-0 flex-col items-center gap-1 ${size === "sm" ? "w-10" : "w-[76px]"}`}>
       <button type="button" onClick={onOpen} disabled={!onOpen} aria-label={ariaLabel}
         className={`overflow-hidden rounded-md border bg-white shadow-sm transition ${highlight ? "border-or ring-2 ring-or" : "border-graphite/20"} [@media(hover:hover)]:hover:border-bleu`}>
-        <Pagina h={h} width={size === "sm" ? 40 : 76} className={`block ${box}`} />
+        <Pagina h={h} width={size === "sm" ? 40 : 76} className={`block max-w-none ${box}`} />
       </button>
       {size === "md" && <figcaption className="max-w-[76px] truncate text-center text-[11px] text-graphite">{h.label}</figcaption>}
     </figure>

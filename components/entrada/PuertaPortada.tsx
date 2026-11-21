@@ -632,7 +632,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           <div className="flex items-center gap-3">
             <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white ${paso === "enviado" ? "bg-vert" : "bg-or"}`} aria-hidden>{paso === "enviado" ? <Check className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}</span>
             <div>
-              <h2 id="puerta-titulo" ref={headRef} tabIndex={-1} className="font-baskerville text-xl font-bold text-encre outline-none sm:text-2xl">{paso === "enviado" ? t.enviado.split(".")[0] : p.sinJuradoTitulo}</h2>
+              <h2 id="puerta-titulo" ref={headRef} tabIndex={-1} className="font-baskerville text-xl font-bold text-encre outline-none sm:text-2xl">{paso === "enviado" ? p.enviadoTitulo : p.sinJuradoTitulo}</h2>
               {paso === "enviado" && view?.email && <p className="text-sm text-graphite">{p.enviadoSub(view.email)}</p>}
             </div>
           </div>
@@ -643,7 +643,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
             </>
           ) : (
             <>
-              <Burbuja>{view?.presupuestoEnviado ? t.enviadoPresupuesto : t.enviado}</Burbuja>
+              <Burbuja>{(view?.presupuestoEnviado ? t.enviadoPresupuesto : t.enviado).replace(/^[^.!]+[.!]\s*/, "")}</Burbuja>
               {incluidos.length > 0 && (
                 <div className="rounded-xl border border-cream bg-parchment/50 p-4">
                   <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-or-dark">{p.loPedido}</p>
@@ -668,7 +668,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           )}
           <div className="flex flex-wrap gap-3">
             <button type="button" className={secondary} onClick={restart}>{t.otros}</button>
-            {paso === "enviado" && !verDuda && <button type="button" className={secondary} onClick={() => setVerDuda(true)}><MessageCircle className="h-4 w-4" aria-hidden />{p.tengoDuda}</button>}
+            {paso === "enviado" && !verDuda && local.dudas.length === 0 && <button type="button" className={secondary} onClick={() => setVerDuda(true)}><MessageCircle className="h-4 w-4" aria-hidden />{p.tengoDuda}</button>}
           </div>
         </section>
         {paso === "enviado" && (verDuda || local.dudas.length > 0) && <div className="mt-4">{dudaCard}</div>}
@@ -705,7 +705,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   ];
   const solicitudAside = (
     <section className={`${CARD} !p-5`} aria-labelledby="solicitud-title">
-      <h3 id="solicitud-title" className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-or-dark">{p.solicitud}</h3>
+      <h3 id="solicitud-title" className="mb-3 font-sans text-xs font-bold uppercase tracking-[0.12em] text-or-dark">{p.solicitud}</h3>
       <dl className="space-y-3">
         {solicitud.map((s) => (
           <div key={s.k} className="flex items-start justify-between gap-3">
@@ -866,14 +866,14 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
             return (
               <li key={d.id} className={`rounded-xl border p-4 ${!d.incluido ? "border-cream bg-parchment/40 opacity-80" : conAviso(d) ? "border-or bg-white" : "border-cream bg-parchment/30"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="min-w-0 flex-1 font-bold text-encre"><span className="text-or-dark">{n + 1}.</span> {d.titulo}</h3>
+                  <h3 className="min-w-0 flex-1 font-sans text-base font-bold text-encre"><span className="text-or-dark">{n + 1}.</span> {d.titulo}</h3>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${badge[1]}`}>{badge[0]}</span>
                 </div>
                 <p className="mt-0.5 break-words text-sm text-graphite">{[t.pages(d.paginas), d.apostilla ? t.conApostilla : null, nombres.length === 1 ? nombres[0] : null].filter(Boolean).join(" · ")}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {thumbs(hojas)}
                   {d.incluido && d.faltan.map((pg) => (
-                    <figure key={`f${pg}`} className="flex w-min flex-col items-center gap-1">
+                    <figure key={`f${pg}`} className="flex w-[76px] shrink-0 flex-col items-center gap-1">
                       <button type="button" onClick={pickFiles} disabled={!!busy || !l.editable} className="flex h-[104px] w-[76px] items-center justify-center rounded-md border-2 border-dashed border-or bg-or/5 text-or-dark disabled:opacity-50" aria-label={p.anadirPag(pg)}>
                         <Plus className="h-6 w-6" aria-hidden />
                       </button>
@@ -997,12 +997,9 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   }
 
   return (
-    <div className="mt-4 grid items-start gap-4 sm:mt-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-7">
-      <aside className="hidden flex-col gap-4 lg:flex">
-        {solicitudAside}
-        {dudaCard}
-      </aside>
-      <section id="subir" ref={cardRef} className={`${CARD} min-w-0 scroll-mt-24 space-y-5`} aria-labelledby="puerta-titulo" lang={lang}>
+    <div className="mt-4 grid items-start gap-4 sm:mt-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-7 lg:gap-y-4">
+      <aside className="hidden lg:col-start-1 lg:row-start-1 lg:block">{solicitudAside}</aside>
+      <section id="subir" ref={cardRef} className={`${CARD} min-w-0 scroll-mt-24 space-y-5 lg:col-start-2 lg:row-span-2 lg:row-start-1`} aria-labelledby="puerta-titulo" lang={lang}>
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-or text-white" aria-hidden><Upload className="h-5 w-5" /></span>
           <div className="min-w-0">
@@ -1027,7 +1024,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         {why && <p className="text-sm font-semibold text-rouge" role="alert">{why}</p>}
         {body}
       </section>
-      <div className="lg:hidden">{dudaCard}</div>
+      <div className="min-w-0 lg:col-start-1 lg:row-start-2">{dudaCard}</div>
       {visorEl}
     </div>
   );

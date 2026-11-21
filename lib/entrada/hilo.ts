@@ -50,7 +50,7 @@ export type Ask =
   | { kind: "lugar" }
   | { kind: "enviar" };
 
-const LANG_QUESTION = /idioma|lengua|language|langue|sprache|traduc/i;
+const LANG_QUESTION = /idioma|lengua|language|langue|sprache|traducir(?:lo|la|los|las)? al?\s|translate\w* (?:it )?into|tradui\w* (?:en|vers)\s/i;
 /** A reading question about the target language is answered with the language picker, not free text. */
 export const isLangQuestion = (text: string) => LANG_QUESTION.test(text) && /\?|¿/.test(text);
 
