@@ -17,6 +17,8 @@ export type EntradaApiDeps = FlowDeps & {
   clientIp(req: Request): string;
   ipHash(ip: string): string;
   isOwnBlobUrl(url: string): boolean;
+  /** Primera subida (FunnelEvent «upload_started», anónimo y contado una vez). Nunca lanza. */
+  uploadStarted?(entradaId: string, withEmail: boolean): void;
 };
 
 const HOUR = 36e5;
@@ -230,7 +232,9 @@ export async function handleAddFile(req: Request, token: string, deps: EntradaAp
       return json(429, { ok: false, error: "Hoy ya has subido muchos archivos desde aquí. Déjanos tu email y seguimos, o inténtalo mañana." });
     }
   }
-  return fromOutcome(await registrarArchivo(deps, g.entrada, parsed.data));
+  const outcome = await registrarArchivo(deps, g.entrada, parsed.data);
+  if (outcome.ok) deps.uploadStarted?.(g.entrada.id, !!g.entrada.email);
+  return fromOutcome(outcome);
 }
 
 export async function handleRemoveFile(req: Request, token: string, fileId: string, deps: EntradaApiDeps): Promise<ApiResponse> {
