@@ -16,7 +16,7 @@
 // Nunca francés (motor de reglas de Juan) ni pares sin español.
 
 import { prisma } from "@/lib/prisma";
-import { isBlindPriceLang } from "@/lib/learned-rates-math";
+import { hasAnalysisType, isBlindPriceLang } from "@/lib/learned-rates-math";
 import { casoIdEnSombra, tomarVigente } from "@/lib/caso/sombra";
 import { anclasDeExpediente, paresDe } from "@/lib/caso/sombra-plan";
 import { assessAutoPriceRisk } from "@/lib/ai/price-risk";
@@ -117,7 +117,8 @@ export function docInfoFromAnalysis(row: AnalysisRow): DocInfo | null {
   };
   const source = known(row.sourceLanguage);
   const target = known(row.targetLanguage) || "es";
-  if (!source) return null;
+  // Sin tipo no hay análisis (archivos de la puerta nueva «entrada:<id>»): ni se aprende ni se tarifica como «other».
+  if (!source || !hasAnalysisType(row.documentType)) return null;
   if (source !== "es" && target !== "es") return null;
   const lang = source === "es" ? target : source;
   if (lang === "es" || lang === "fr") return null;

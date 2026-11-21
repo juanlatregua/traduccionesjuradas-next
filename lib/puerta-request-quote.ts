@@ -112,6 +112,10 @@ export async function routePuertaQuoteRequest(input: {
   phone?: string;
   locale?: string | null;
   deadline?: { urgency: DeadlineUrgency; neededBy: Date | null } | null;
+  /** Lo que el cliente ya contó (la puerta nueva: respuestas, organismo, documentos excluidos): encabeza cada aviso a staff. */
+  extraLines?: string[];
+  /** Archivos sin análisis (puerta nueva): ni encargo cerrado ni tarifario, que leen tipo y palabras del análisis. */
+  skipTariff?: boolean;
 }): Promise<PuertaQuoteResult> {
   const token = input.sessionToken;
   const email = input.email || "";
@@ -180,11 +184,11 @@ export async function routePuertaQuoteRequest(input: {
     const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
     if (recurrente.kind !== "none") recurrenteTxt += ` · Historial: ${baseUrl}/zona-traductor/clientes/${encodeURIComponent(recurrente.email)}`;
-    const lineas = docs.map((d) => {
+    const lineas = [...(input.extraLines ?? []), ...docs.map((d) => {
       const par = `${getLanguageName(d.sourceLanguage || "?")} → ${getLanguageName(d.targetLanguage || "?")}`;
       const ref = d.quoteAmount ? ` · motor (referencia interna): ${Number(d.quoteAmount).toFixed(2)} € netos` : "";
       return `· ${d.fileName} — ${documentTypeLabel(d.documentType) || "documento"} · ${par} · ${d.estimatedWords ?? "?"} palabras / ${d.pageCount ?? "?"} págs${ref}`;
-    });
+    })];
     // El builder importa los documentos de la puerta por sesión (25-ago-2026):
     // ya no hay que volver a soltar el PDF.
     const builderUrl =
@@ -286,7 +290,7 @@ export async function routePuertaQuoteRequest(input: {
     // ENCARGO CERRADO (21-nov-2026, ENCARGO_CERRADO=pt,en,de): la regla de coste del
     // jurado presupuesta sin pedirle precio; al pagar le llega el encargo listo. Con una
     // solicitud viva del mismo cliente y par no se monta nada (sigue el flujo de siempre).
-    const cerradoOn = encargoCerradoLangs(process.env.ENCARGO_CERRADO).size > 0;
+    const cerradoOn = !input.skipTariff && encargoCerradoLangs(process.env.ENCARGO_CERRADO).size > 0;
     const hermanaCerrado = cerradoOn && parLead
       ? await findLiveSiblingLeadRequest({ email: contactEmail, phone: contactPhone, par: parLead }).catch(() => null)
       : null;
@@ -346,7 +350,9 @@ export async function routePuertaQuoteRequest(input: {
     // borrador listo para que Juan lo revise y envíe (21-sep-2026), sin molestar
     // al jurado; al pagar, el encargo le llega con su cifra cerrada. Si falta
     // tarifa, sigue el carril de lavori.
-    const auto = await autoQuoteFromPuertaSession({
+    const auto = input.skipTariff
+      ? ({ ok: false as const, reason: "archivos sin análisis (puerta nueva)" })
+      : await autoQuoteFromPuertaSession({
       sessionToken: token,
       contactEmail,
       contactPhone,

@@ -47,7 +47,7 @@ function fileRange(doc: WorkingDocument, files: readonly LectureFile[]) {
   return { sourceFileUrl: first.url, pageStart: Math.min(...pages), pageEnd: Math.max(...pages) };
 }
 
-export function tariffFor(doc: WorkingDocument, targetLang: string, bankStatementsInQuote: number): FrPrice | null {
+export function tariffFor(doc: WorkingDocument, targetLang: string, bankStatementsInQuote: number, regularization = false): FrPrice | null {
   if (!isFrEs(doc.sourceLang, targetLang)) return null;
   try {
     return priceFrToEs({
@@ -59,6 +59,8 @@ export function tariffFor(doc: WorkingDocument, targetLang: string, bankStatemen
       ...(doc.apostille ? { apostilles: apostilleCount(doc.apostille) } : {}),
       apostilleOnSeparatePage: false,
       bankStatementsInQuote,
+      // Campaña después del tipo: una apostilla suelta no es un documento de 25 € (como apostille_only en la puerta vieja).
+      regularization: regularization && String(doc.type).trim().toLowerCase() !== "apostille",
     });
   } catch (err) {
     if (err instanceof RangeError) return { kind: "noTariff", reason: err.message };
@@ -66,8 +68,10 @@ export function tariffFor(doc: WorkingDocument, targetLang: string, bankStatemen
   }
 }
 
+export const REGULARIZATION_LABEL = " (regularización 2026)";
+
 /** Included documents → quote lines. Amounts only from lib/dinero; a person confirms every line before it exists. */
-export function buildLines(documents: readonly WorkingDocument[], files: readonly LectureFile[], targetLang: string): LinesResult {
+export function buildLines(documents: readonly WorkingDocument[], files: readonly LectureFile[], targetLang: string, opts: { regularization?: boolean } = {}): LinesResult {
   const included = documents.filter((d) => d.included).sort((a, b) => a.position - b.position);
   const blockers: LineIssue[] = [];
   const warnings: LineIssue[] = [];
@@ -83,7 +87,7 @@ export function buildLines(documents: readonly WorkingDocument[], files: readonl
 
   for (const d of included) {
     const label = labelOf(d);
-    const tariff = tariffFor(d, target, bank);
+    const tariff = tariffFor(d, target, bank, opts.regularization === true);
     const tariffCents = tariff?.kind === "priced" ? tariff.cents : null;
     const tariffWhy = tariff?.kind === "priced" ? tariff.why : tariff ? [tariff.reason] : [];
     const unit = d.manualPriceCents ?? tariffCents;
@@ -103,7 +107,7 @@ export function buildLines(documents: readonly WorkingDocument[], files: readonl
     }
     lines.push({
       documentId: d.id,
-      description: label,
+      description: tariff?.kind === "priced" && tariff.rule === "regularization" && d.manualPriceCents === null ? `${label}${REGULARIZATION_LABEL}` : label,
       unitPriceCents: unit,
       priceSource: d.manualPriceCents !== null ? "manual" : "fr_tariff",
       tariffCents,

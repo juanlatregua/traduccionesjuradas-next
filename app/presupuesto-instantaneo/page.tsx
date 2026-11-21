@@ -52,11 +52,14 @@ export default function PresupuestoInstantaneoPage({
   const lang = toPuertaLang(searchParams?.l);
   const resumeToken = searchParams?.r || null;
 
-  const v2 = puertaV2On();
+  // Un enlace de reanudación (?r=) es de una sesión de la puerta vieja: solo PuertaClient la sabe abrir.
+  // ?p=regularizacion-2026 llega a la entrada como `source` y de ahí al presupuesto (lib/entrada/fr-auto).
+  const v2 = puertaV2On() && !resumeToken;
 
   // PUERTA_V2=on: la misma puerta que la portada (subida = paso 1, asistente al lado), también para el enlace de WhatsApp.
   if (v2) {
-    const l = source === "whatsapp" ? lang : "es";
+    // ?l= (WhatsApp y el recordatorio de la entrada): la puerta en el idioma del cliente.
+    const l = source === "whatsapp" || searchParams?.l ? lang : "es";
     return (
       <section lang={l} className="border-b border-cream bg-parchment">
         <div className="mx-auto max-w-6xl px-4 py-5 sm:py-8">

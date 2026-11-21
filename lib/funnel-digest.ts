@@ -25,7 +25,7 @@ export type StageCounts = Record<StageKey, number>;
 // Los expedientes (sessionToken exp:REF, N documentos por envío) y las subidas
 // del staff (staff:email) no pasan por la puerta: inflaban «analizado» y
 // «lead» con cada fichero. Van en una fila aparte, contando envíos, no ficheros.
-export type FunnelCounts = StageCounts & { expedientes: number };
+export type FunnelCounts = StageCounts & { expedientes: number; entradasConfirmadas: number };
 
 export async function funnelForWindow(days: number, source?: string): Promise<FunnelCounts> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -37,7 +37,7 @@ export async function funnelForWindow(days: number, source?: string): Promise<Fu
       { NOT: [{ sessionToken: { startsWith: "exp:" } }, { sessionToken: { startsWith: "staff:" } }, { sessionToken: { startsWith: ENTRADA_SESSION_PREFIX } }] },
     ],
   };
-  const [analizadoDocs, presupuesto, leadDocs, pedido, pagado, expGroups, entradas] = await Promise.all([
+  const [analizadoDocs, presupuesto, leadDocs, pedido, pagado, expGroups, entradas, entradasConfirmadas] = await Promise.all([
     prisma.documentAnalysis.count({ where: base }),
     prisma.documentAnalysis.count({ where: { ...base, quoteAmount: { not: null } } }),
     prisma.documentAnalysis.count({ where: { ...base, clientEmail: { not: null }, AND: [{ OR: [{ source: null }, { source: { notIn: ["lector", "prueba"] } }] }] } }),
@@ -48,8 +48,10 @@ export async function funnelForWindow(days: number, source?: string): Promise<Fu
       where: { createdAt: { gte: since }, ...(source ? { source } : {}), sessionToken: { startsWith: "exp:" } },
     }),
     loadEntradaFunnel(since, source),
+    // Puerta nueva: «Pedir mi presupuesto» (FunnelEvent de lib/entrada/server.ts; reference = origen ?p= o «entrada»).
+    prisma.funnelEvent.count({ where: { step: "entrada_confirmada", createdAt: { gte: since }, ...(source ? { reference: source } : {}) } }).catch(() => 0),
   ]);
-  return { analizado: analizadoDocs + entradas.analizado, presupuesto, lead: leadDocs + entradas.lead, pedido, pagado, expedientes: expGroups.length };
+  return { analizado: analizadoDocs + entradas.analizado, presupuesto, lead: leadDocs + entradas.lead, pedido, pagado, expedientes: expGroups.length, entradasConfirmadas };
 }
 
 export type StaffDigest = {

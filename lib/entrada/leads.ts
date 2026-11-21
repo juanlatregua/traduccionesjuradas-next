@@ -63,7 +63,7 @@ export function entradaLeads(entradas: EntradaParaLead[], opts: { all?: boolean 
       neededBy: e.neededBy,
       noJurado: e.estado === "sin_jurado",
       hasFiles: e.files.length > 0,
-      link: e.casoId ? `${SITE}/zona-traductor/lectura?caso=${encodeURIComponent(e.casoId)}` : `${SITE}/zona-traductor/lectura?session=${encodeURIComponent(sessionKeyOf(e.id))}`,
+      link: e.casoId ? `${SITE}/zona-traductor/casos/${encodeURIComponent(e.casoId)}` : `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(sessionKeyOf(e.id))}`,
     }));
 }
 

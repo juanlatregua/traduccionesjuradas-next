@@ -52,6 +52,12 @@ function FunnelTable({
               </td>
             </tr>
           ))}
+          <tr className="border-b border-slate-100">
+            <td className="py-2 pr-4 text-slate-500">Puerta nueva: «Pedir mi presupuesto» (entradas confirmadas)</td>
+            <td className="py-2 pr-4 tabular-nums text-slate-700">{data.entradasConfirmadas}</td>
+            <td className="py-2 pr-4 tabular-nums text-slate-700">{pct(data.entradasConfirmadas, base)}</td>
+            <td className="py-2 text-slate-400">—</td>
+          </tr>
           <tr>
             <td className="py-2 pr-4 text-slate-500">Expedientes recibidos (aparte, no cuentan arriba)</td>
             <td className="py-2 pr-4 tabular-nums text-slate-700">{data.expedientes}</td>

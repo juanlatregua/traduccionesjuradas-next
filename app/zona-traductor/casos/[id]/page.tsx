@@ -18,6 +18,8 @@ import {
   type GrupoPaso,
 } from "@/lib/caso/siguiente-paso";
 import { QUOTE_PASO_SELECT, LPR_PASO_SELECT, PEDIDO_PASO_SELECT, nombreMiembro, baseUrlStaff, ESTADO_PILL, ESTADO_LABEL } from "@/lib/caso/vista";
+import { idiomasTexto, plazoTexto, staffLinks } from "@/lib/entrada/aviso";
+import { sessionKeyOf } from "@/lib/entrada/store";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Caso",
@@ -91,6 +93,20 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
     },
   });
   if (!caso) notFound();
+
+  // Entradas de la puerta nueva: lo que el cliente subió y contó (la ficha funciona con LECTURA_CONSTRUCTOR apagado).
+  const entradas = await prisma.entrada.findMany({
+    where: { casoId: caso.id, estado: { not: "prueba" } },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, estado: true, email: true, nombre: true, phone9: true, casoId: true, sourceLang: true, targetLang: true, targetLangs: true, urgency: true, neededBy: true, organismo: true, pais: true, notas: true, respuestasJson: true, source: true, lang: true, confirmedAt: true, createdAt: true },
+  });
+  const archivosEntrada = entradas.length
+    ? await prisma.documentAnalysis.findMany({
+        where: { sessionToken: { in: entradas.map((e) => sessionKeyOf(e.id)) } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, sessionToken: true, fileName: true, fileUrl: true, pageCount: true },
+      })
+    : [];
 
   const ahora = new Date();
   const baseUrl = baseUrlStaff();
@@ -265,6 +281,58 @@ export default async function CasoFichaPage({ params }: { params: { id: string }
           </div>
           {paso.accion && <CasoAccionPaso {...paso.accion} />}
         </section>
+
+        {entradas.map((en) => {
+          const respuestas = Array.isArray(en.respuestasJson) ? (en.respuestasJson as { pregunta: string; respuesta: string }[]) : [];
+          const archivos = archivosEntrada.filter((a) => a.sessionToken === sessionKeyOf(en.id));
+          return (
+            <section key={en.id} className="mt-4 rounded-2xl border border-sky-500/30 bg-sky-500/5 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-sky-300">Entrada web · {en.estado}</div>
+                  <div className="mt-1 text-sm text-slate-200">
+                    {idiomasTexto(en)} · plazo: {plazoTexto(en)}
+                    {en.organismo ? ` · organismo: ${en.organismo}` : ""}
+                    {en.pais ? ` (${en.pais})` : ""}
+                    {en.source ? ` · origen: ${en.source}` : ""}
+                    {en.lang && en.lang !== "es" ? ` · idioma del cliente: ${en.lang}` : ""}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    Abierta {fmt(en.createdAt)}
+                    {en.confirmedAt ? ` · confirmada ${fmt(en.confirmedAt)}` : " · sin confirmar"}
+                  </div>
+                </div>
+                <a href={staffLinks(en).builder} className="rounded-lg bg-cyan-500/20 px-3 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-500/30">
+                  Montar presupuesto (documentos dentro)
+                </a>
+              </div>
+              {respuestas.length > 0 && (
+                <ul className="mt-3 space-y-1 text-sm text-slate-200">
+                  {respuestas.map((r, i) => (
+                    <li key={i}>
+                      {r.pregunta}: <strong className="text-white">{r.respuesta}</strong>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {en.notas && <p className="mt-2 text-sm italic text-slate-300">«{en.notas}»</p>}
+              <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+                {archivos.map((a) => (
+                  <li key={a.id}>
+                    {a.fileUrl.startsWith("http") ? (
+                      <a href={a.fileUrl} target="_blank" rel="noreferrer" className="rounded bg-slate-800 px-2 py-1 text-cyan-300 hover:underline">
+                        {a.fileName}
+                        {a.pageCount ? ` · ${a.pageCount} pág.` : ""}
+                      </a>
+                    ) : (
+                      <span className="rounded bg-slate-800 px-2 py-1 text-slate-500">{a.fileName} (borrado)</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
           <section>

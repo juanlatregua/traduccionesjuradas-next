@@ -31,9 +31,16 @@ export type FrAutoResult = { action: "none" | "drafted" | "sent"; detail: string
 const FISCAL_TYPES = new Set(["tax_return", "payslip", "company_registration", "bank_statement"]);
 const none = (detail: string): FrAutoResult => ({ action: "none", detail });
 
+/** ?p=regularizacion-2026 reaches the entrada as its source: the campaign tariff of lib/dinero (25 € per document up to 2 pages). */
+export const REGULARIZACION_SOURCE = "regularizacion-2026";
+export const isRegularizacion = (e: Pick<EntradaRow, "source">) => e.source === REGULARIZACION_SOURCE;
+
 /** Motivos por los que NO sale solo aunque haya líneas. Vacío = en verde. */
-export function frAutoReviewReasons(data: FrAutoData, warnings: number): string[] {
+export function frAutoReviewReasons(data: FrAutoData, warnings: number, e?: Pick<EntradaRow, "respuestas" | "notas">): string[] {
   const out: string[] = [];
+  // Lo que el cliente contestó, anotó o corrigió puede cambiar el presupuesto (p. ej. «todo en una traducción con una sola firma»),
+  // y el conserje le ha dicho que Juan lo confirma en el presupuesto: nunca sale solo.
+  if (e?.respuestas?.length || e?.notas?.trim() || data.documents.some((d) => d.editedBy?.startsWith("cliente:"))) out.push("el cliente ha respondido/anotado: revisa");
   if (data.lote.clean !== true) out.push("la lectura no está limpia");
   const reasons = Array.isArray(data.lote.reasons) ? data.lote.reasons : [];
   if (reasons.length > 0) out.push(`${reasons.length} motivo(s) de revisión en la lectura`);
@@ -55,7 +62,7 @@ export async function runFrAuto(io: FrAutoIO, e: EntradaRow, data: FrAutoData | 
   if (targets.length > 1) return none("varios destinos");
   const included = data.documents.filter((d) => d.included);
   if (included.length === 0 || target !== "es" || included.some((d) => d.sourceLang.trim().toLowerCase() !== "fr")) return none("no es fr>es (sin tarifa en lib/dinero: a mano)");
-  const lines = buildLines(data.documents, data.files, target);
+  const lines = buildLines(data.documents, data.files, target, { regularization: isRegularizacion(e) });
   const payload = quotePayload(lines);
   if (!payload) return none(`líneas sin resolver: ${lines.blockers.map((b) => b.detail).join("; ").slice(0, 160)}`);
   if (!ownLote(e, data.lote) || data.lote.quoteId) return none("lote ajeno o ya con presupuesto");
@@ -70,7 +77,7 @@ export async function runFrAuto(io: FrAutoIO, e: EntradaRow, data: FrAutoData | 
     return none(draft.error);
   }
   await io.link(e, data, draft, payload).catch((err) => console.error("[entrada] frAuto: lote no enlazado", e.id, err));
-  const review = frAutoReviewReasons(data, lines.warnings.length);
+  const review = frAutoReviewReasons(data, lines.warnings.length, e);
   const decision: SendDecisionLike = review.length > 0 ? { action: "alert", reasons: review } : draft.decision;
   const action = puertaFrAction({ mode, allTariffed: true, decision, marketingConsent: e.marketingConsentAt !== null });
   if (action.action !== "send") {

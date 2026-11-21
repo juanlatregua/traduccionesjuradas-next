@@ -4,7 +4,7 @@ import { sendClientNotification, formatPhoneSpain } from "@/lib/sms";
 import { smsAcuseSolicitudPrecio, type SmsLang } from "@/lib/sms-templates";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { findRecurrentClient } from "@/lib/recurrent-client-db";
-import { recurrentClientLine, trustLine } from "@/lib/recurrent-client";
+import { priceRequestAckText, ackLangOf } from "@/lib/price-request-ack";
 import { GOOGLE_RATING } from "@/lib/google-rating";
 
 export function isQuoteEmailConfigured() {
@@ -82,9 +82,11 @@ export async function sendPriceRequestAckToClient(opts: {
   translatorLangName?: string | null;
   /** No sabemos su fecha límite: se la pedimos (26-oct-2026). */
   askDeadline?: boolean;
+  /** Nada ha salido todavía hacia un jurado: Juan lo revisa antes (no decir «ya está en marcha»). */
+  inReview?: boolean;
 }): Promise<{ channel: "email" | "sms" | null }> {
-  const lang: SmsLang = opts.locale === "fr" ? "fr" : "es";
-  const tl = (opts.translatorLangName || "").trim().toLowerCase();
+  const lang = ackLangOf(opts.locale);
+  const smsLang: SmsLang = lang === "fr" ? "fr" : "es";
   const email = (opts.email || "").trim();
   const phone = (opts.phone || "").trim() || phoneFromPlaceholder(email);
   try {
@@ -98,31 +100,12 @@ export async function sendPriceRequestAckToClient(opts: {
       if (!first.ok) return { channel: null };
     }
     if (email && !isPlaceholderEmail(email)) {
-      const name = (opts.name || "").trim();
       // Solo coincidencia por EMAIL (el cliente que vuelve); va a su propio buzón, nunca a pantalla pública.
-      const recurrente = recurrentClientLine(await findRecurrentClient({ email, phone: null }), lang);
-      const body =
-        lang === "fr"
-          ? `Bonjour${name ? ` ${name}` : ""},\n` +
-            `Nous avons bien reçu votre demande de devis : ${tl ? `votre document est déjà entre les mains d'un traducteur assermenté (${tl}) nommé par le MAEC, qui` : "un traducteur assermenté nommé par le MAEC"} étudie vos documents et prépare sa proposition.\n` +
-            "C'est Juan Silva Moreno, traducteur assermenté nº 3850 (traduccionesjuradas.net), qui vous répondra : vous recevrez le devis avec le prix et le délai en général dans la journée. Vous n'avez rien d'autre à faire.\n" +
-            (opts.askDeadline ? "Avez-vous une date limite ? Répondez-nous à ce message en l'indiquant et nous adapterons le délai.\n" : "") +
-            "Merci de votre confiance." +
-            (recurrente ? `\n${recurrente}` : "") +
-            `\n${trustLine("fr", GOOGLE_RATING.reviews)}`
-          : `Hola${name ? ` ${name}` : ""},\n` +
-            `Hemos recibido tu solicitud de presupuesto y ya está en marcha: ${tl ? `tu documento ya está con un traductor jurado de ${tl} nombrado por el MAEC, que` : "un traductor jurado nombrado por el MAEC"} está estudiando tus documentos y preparando su propuesta.\n` +
-            "Te responde Juan Silva Moreno, traductor jurado nº 3850 (traduccionesjuradas.net): recibirás el presupuesto con el precio y el plazo normalmente en el día. No tienes que hacer nada más.\n" +
-            (opts.askDeadline ? "¿Tienes una fecha límite? Respóndenos a este correo con ella y ajustamos el plazo.\n" : "") +
-            "Gracias por tu confianza." +
-            (recurrente ? `\n${recurrente}` : "") +
-            `\n${trustLine("es", GOOGLE_RATING.reviews)}`;
+      const recurrent = (await findRecurrentClient({ email, phone: null })).kind === "recurrent";
+      const { subject, body } = priceRequestAckText(lang, { name: opts.name, translatorLangName: opts.translatorLangName, askDeadline: opts.askDeadline, inReview: opts.inReview, recurrent, reviews: GOOGLE_RATING.reviews });
       await sendMail({
         to: email,
-        subject:
-          lang === "fr"
-            ? "Votre demande est en cours — traduccionesjuradas.net"
-            : "Tu solicitud está en marcha — traduccionesjuradas.net",
+        subject,
         html: renderSimpleEmailHtml(body),
       });
       return { channel: "email" };
@@ -130,7 +113,7 @@ export async function sendPriceRequestAckToClient(opts: {
     if (phone) {
       const acuse = await sendClientNotification({
         to: formatPhoneSpain(phone),
-        body: smsAcuseSolicitudPrecio(lang),
+        body: smsAcuseSolicitudPrecio(smsLang),
       });
       if (!acuse.ok) {
         console.error("[price-request] acuse SMS al cliente fallo:", acuse.error);
