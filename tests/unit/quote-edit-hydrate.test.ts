@@ -6,7 +6,13 @@ import {
   editFormFromQuote,
   editGateFor,
   editLineFor,
+  attachAndApplyPrice,
   attachDecision,
+  lockedRecheck,
+  describeUnsavedChanges,
+  pricedAttachOutcome,
+  pricedAttachPlan,
+  pricedAttachRefusal,
   frozenEditBlocked,
   isStaleEdit,
   mergedSavedPrices,
@@ -31,6 +37,7 @@ import {
 } from "../../lib/quote-edit-hydrate.ts";
 import { computeQuoteTotals, normalizeQuoteLines } from "../../lib/quotes.ts";
 import { frozenSendBlocked, FROZEN_SEND_ERROR } from "../../lib/precio-tras-envio-math.ts";
+import { quoteContentVersion } from "../../lib/quote-content-version.ts";
 
 const URL_A = "https://abc.public.blob.vercel-storage.com/expedientes/a.pdf";
 const URL_B = "https://abc.public.blob.vercel-storage.com/expedientes/b.pdf";
@@ -66,7 +73,7 @@ function quoteOf(over: Partial<EditableQuote> = {}): EditableQuote {
     contactWhatsapp: null,
     pdfLang: null,
     paymentFrozenAt: null,
-    updatedAt: "2026-11-20T10:00:00.000Z",
+    version: "v1",
     total: 0,
     lines: LINES,
     ...over,
@@ -305,20 +312,78 @@ test("flag apagado: la ficha y /editar siguen como hoy", () => {
 
 const MONEY = { lines: [{ quantity: 1, unitPrice: "42.50", supplierUnitCost: "30.00" }], total: "51.43" };
 const MONEY_NEW = { lines: [{ quantity: 1, unitPrice: 42.5, supplierUnitCost: 45 }], total: 51.43 };
-const AT = new Date("2026-11-20T10:00:00.000Z");
 const pre = (over: Partial<Parameters<typeof patchPrecheck>[0]> = {}) =>
-  patchPrecheck({ status: "SENT", updatedAt: AT, expectedUpdatedAt: undefined, frozen: false, frozenRepair: false, current: MONEY, next: MONEY_NEW, ...over });
+  patchPrecheck({ status: "SENT", version: "abc", expectedVersion: undefined, frozen: false, frozenRepair: false, current: MONEY, next: MONEY_NEW, ...over });
 
-test("PATCH: token obsoleto → 409 stale; sin token, como siempre; mismo token pasa", () => {
+test("PATCH: versión obsoleta → 409 stale; sin versión, como siempre; misma versión pasa", () => {
   assert.equal(pre(), null);
-  assert.equal(pre({ expectedUpdatedAt: AT.toISOString() }), null);
-  const stale = pre({ expectedUpdatedAt: "2026-11-20T09:59:59.000Z" });
+  assert.equal(pre({ expectedVersion: "abc" }), null);
+  const stale = pre({ expectedVersion: "otra" });
   assert.equal(stale?.status, 409);
   assert.equal(stale?.body.code, STALE_EDIT_CODE);
   assert.equal(stale?.body.error, STALE_EDIT_ERROR);
-  assert.equal(pre({ expectedUpdatedAt: "basura" })?.status, 409);
-  assert.equal(isStaleEdit("", AT), false);
-  assert.equal(isStaleEdit(null, AT), false);
+  assert.equal(isStaleEdit("", "abc"), false);
+  assert.equal(isStaleEdit(null, "abc"), false);
+});
+
+const STORED = {
+  customerName: "Cliente", customerEmail: "c@example.com", customerPhone: null, sourceLang: "fr", targetLang: "es",
+  deliveryType: "DIGITAL_PDF", shippingBase: "0.00", vatRate: "0.2100", discountType: "NONE", discountValue: "0.00",
+  notesLegal: null, deliveryTerm: "2 días", holderNames: null, validityDays: 15, marginPct: null, paymentMethods: ["sabadell"],
+  contactWhatsapp: null, pdfLang: null, total: "51.43",
+  lines: [{ description: "Acta", quantity: "1.00", unitPrice: "42.50", supplierUnitCost: "30.00", sourceFileUrl: URL_A, pageStart: 1, pageEnd: 2, docKind: null }],
+};
+
+test("versión de contenido: abrir /q, congelar o regenerar el PDF no cuentan; la cifra del jurado sí", () => {
+  const v = quoteContentVersion(STORED);
+  // Prisma da Decimal/strings; la página, números: misma versión.
+  assert.equal(quoteContentVersion({ ...STORED, vatRate: 0.21, total: 51.43, lines: [{ ...STORED.lines[0], quantity: 1, unitPrice: 42.5, supplierUnitCost: 30 }] }), v);
+  // Campos fuera del contenido (actividad del cliente, congelación, PDF, estado).
+  assert.equal(quoteContentVersion({ ...STORED, status: "OPENED", openedAt: new Date(), paymentFrozenAt: new Date(), pdfUrl: "x", updatedAt: new Date() }), v);
+  // Cifra del jurado en las líneas, total, idioma del PDF o plazo → otra versión.
+  assert.notEqual(quoteContentVersion({ ...STORED, lines: [{ ...STORED.lines[0], supplierUnitCost: "45.00" }] }), v);
+  assert.notEqual(quoteContentVersion({ ...STORED, total: "60.00" }), v);
+  assert.notEqual(quoteContentVersion({ ...STORED, pdfLang: "fr" }), v);
+  assert.notEqual(quoteContentVersion({ ...STORED, deliveryTerm: "3-4 días hábiles" }), v);
+  assert.equal(pre({ version: v, expectedVersion: v }), null);
+  assert.equal(pre({ version: quoteContentVersion({ ...STORED, lines: [{ ...STORED.lines[0], supplierUnitCost: "45.00" }] }), expectedVersion: v })?.body.code, STALE_EDIT_CODE);
+});
+
+test("qué se pierde al recargar: campos y líneas cambiados, nada si no hay cambios", () => {
+  const q = quoteOf();
+  const lines = q.lines.map(patchLineFromQuoteLine);
+  const before = buildQuotePatchPayload(editFormFromQuote(q), lines);
+  assert.deepEqual(describeUnsavedChanges(before, before), []);
+  const after = buildQuotePatchPayload({ ...editFormFromQuote(q), deliveryTerm: "1 día" }, [{ ...lines[0], unitPrice: 50 }, ...lines.slice(1), { description: "Extra", quantity: 1, unitPrice: 10 }]);
+  const out = describeUnsavedChanges(before, after);
+  assert.equal(out.length, 3);
+  assert.match(out[0], /^Plazo: 2 días → 1 día$/);
+  assert.match(out[1], /^Línea 1: .*42\.50 €.* → .*50\.00 €/);
+  assert.match(out[2], /^Línea nueva: Extra/);
+});
+
+test("solicitud reutilizada CON cifra: borrador → relleno; enviado → precio tras envío; si no, no se ata", () => {
+  assert.equal(pricedAttachPlan("DRAFT"), "fill");
+  for (const st of ["SENT", "OPENED", "ACCEPTED"]) assert.equal(pricedAttachPlan(st), "sent");
+  for (const st of ["PAID", "EXPIRED", "LOST", "DELIVERED"]) assert.equal(pricedAttachPlan(st), "refuse");
+  assert.equal(pricedAttachRefusal(9000), "ya tiene cifra 90,00 €: ponla en las líneas");
+  // Borrador: relleno hecho → atada y dicho; relleno imposible → no atada y por qué.
+  const fillOk = pricedAttachOutcome("fill", { ok: true }, 9000);
+  assert.equal(fillOk.atada, true);
+  assert.match(fillOk.aplicado!, /90,00 €.*borrador/);
+  const fillKo = pricedAttachOutcome("fill", { ok: false, reason: "el borrador tiene líneas con cantidad distinta de 1: repártelo tú" }, 9000);
+  assert.equal(fillKo.atada, false);
+  assert.match(fillKo.motivo!, /^ya tiene cifra 90,00 €: ponla en las líneas \(el borrador tiene líneas/);
+  // Enviado: coste escrito / congelado por pérdida / no manejado.
+  assert.match(pricedAttachOutcome("sent", { ok: true, written: true }, 9000).aplicado!, /ya está como coste en las líneas/);
+  // Manejada sin repartir el coste: nunca dice que ya está en las líneas.
+  const sinReparto = pricedAttachOutcome("sent", { ok: true }, 9000).aplicado!;
+  assert.doesNotMatch(sinReparto, /ya está como coste/);
+  assert.match(sinReparto, /NO se ha repartido en las líneas: repártelo tú/);
+  assert.match(pricedAttachOutcome("sent", { ok: true, unchanged: true }, 9000).aplicado!, /coincide con el coste/);
+  assert.match(pricedAttachOutcome("sent", { ok: true, frozen: true }, 9000).aplicado!, /CONGELADO/);
+  assert.equal(pricedAttachOutcome("sent", { ok: false, reason: "presupuesto pagado" }, 9000).atada, false);
+  assert.equal(pricedAttachOutcome("refuse", null, 9000).atada, false);
 });
 
 test("PATCH: congelado sin reparación → 409; con reparación pasa; estado no editable → 400 antes que nada", () => {
@@ -329,7 +394,7 @@ test("PATCH: congelado sin reparación → 409; con reparación pasa; estado no 
   assert.equal(pre({ frozen: true, frozenRepair: true }), null);
   assert.equal(pre({ frozen: true, next: { lines: [{ quantity: 1, unitPrice: 42.5, supplierUnitCost: 30 }], total: 51.43 } }), null);
   // Obsoleto gana a congelado: primero hay que ver la versión actual.
-  assert.equal(pre({ frozen: true, expectedUpdatedAt: "2026-01-01T00:00:00.000Z" })?.body.code, STALE_EDIT_CODE);
+  assert.equal(pre({ frozen: true, expectedVersion: "vieja" })?.body.code, STALE_EDIT_CODE);
   assert.equal(pre({ status: "PAID" })?.status, 400);
 });
 
@@ -393,4 +458,64 @@ test("unir dos líneas guardadas suma precio y coste", () => {
   assert.equal(m.clientPrice, 77.5);
   assert.equal(m.unitPrice, 30);
   assert.equal(m.basis, undefined);
+});
+
+function fakeDeps(over: { status?: string; par?: string; before?: number | null; after?: number | null; leadQuoteId?: string | null; fill?: any; sent?: any } = {}) {
+  const calls: string[] = [];
+  let attached = false;
+  const deps = {
+    readQuote: async () => ({ status: over.status ?? "DRAFT", par: over.par ?? "FR>ES" }),
+    readLead: async () => ({ id: "lpr1", quoteId: attached ? "q1" : over.leadQuoteId ?? null, par: "FR>ES", priceCents: attached ? (over.after !== undefined ? over.after : over.before ?? null) : over.before ?? null }),
+    attach: async () => { calls.push("attach"); attached = true; return true; },
+    detach: async () => { calls.push("detach"); attached = false; },
+    fill: async () => { calls.push("fill"); return over.fill ?? { ok: true }; },
+    sent: async () => { calls.push("sent"); return over.sent ?? { handled: true, frozen: false, written: true }; },
+  };
+  return { deps, calls };
+}
+
+test("atar: la solicitud devuelta por la guarda de duplicados con cifra → se aplica (borrador)", async () => {
+  const { deps, calls } = fakeDeps({ before: 9000 });
+  const r = await attachAndApplyPrice(deps, "q1", "26_ABC");
+  assert.deepEqual(calls, ["attach", "fill"]);
+  assert.equal(r.atada, true);
+  assert.match(r.cifraAplicada!, /90,00 €.*borrador/);
+});
+
+test("atar: la cifra llega entre la lectura y el atado → se relee y se aplica (enviado)", async () => {
+  const { deps, calls } = fakeDeps({ status: "SENT", before: null, after: 9000, sent: { handled: true, frozen: false, written: false } });
+  const r = await attachAndApplyPrice(deps, "q1", "26_ABC");
+  assert.deepEqual(calls, ["attach", "sent"]);
+  assert.equal(r.atada, true);
+  assert.match(r.cifraAplicada!, /NO se ha repartido/);
+});
+
+test("atar: sin cifra solo se ata; cifra imposible de aplicar → se desata y se dice", async () => {
+  const sin = fakeDeps({ before: null, after: null });
+  assert.deepEqual(await attachAndApplyPrice(sin.deps, "q1", "r"), { quoteId: "q1", atada: true });
+  assert.deepEqual(sin.calls, ["attach"]);
+  const ko = fakeDeps({ before: 9000, fill: { ok: false, reason: "hay otra solicitud con precio atada a este presupuesto: repártelo tú" } });
+  const r = await attachAndApplyPrice(ko.deps, "q1", "r");
+  assert.deepEqual(ko.calls, ["attach", "fill", "detach"]);
+  assert.equal(r.atada, false);
+  assert.match(r.motivoNoAtada!, /^ya tiene cifra 90,00 €: ponla en las líneas/);
+  const sentKo = fakeDeps({ status: "OPENED", before: 9000, sent: { handled: false, reason: "presupuesto pagado entre la lectura y la escritura" } });
+  assert.equal((await attachAndApplyPrice(sentKo.deps, "q1", "r")).atada, false);
+  assert.deepEqual(sentKo.calls, ["attach", "sent", "detach"]);
+  // Ya atada a este presupuesto: ni se ata ni se aplica otra vez.
+  const ya = fakeDeps({ before: 9000, leadQuoteId: "q1" });
+  assert.deepEqual(await attachAndApplyPrice(ya.deps, "q1", "r"), { quoteId: "q1", atada: true });
+  assert.deepEqual(ya.calls, []);
+  // Presupuesto pagado: no se ata.
+  const paid = fakeDeps({ status: "PAID", before: 9000 });
+  assert.equal((await attachAndApplyPrice(paid.deps, "q1", "r")).atada, false);
+  assert.deepEqual(paid.calls, []);
+});
+
+test("PATCH bajo el candado: pagado entre medias → 400; versión cambiada → 409; si no, sigue", () => {
+  assert.equal(lockedRecheck({ status: "PAID", version: "a", expectedVersion: "a" })?.status, 400);
+  assert.equal(lockedRecheck({ status: "EXPIRED", version: "a", expectedVersion: undefined })?.status, 400);
+  assert.equal(lockedRecheck({ status: "SENT", version: "b", expectedVersion: "a" })?.body.code, STALE_EDIT_CODE);
+  assert.equal(lockedRecheck({ status: "SENT", version: "b", expectedVersion: undefined }), null);
+  assert.equal(lockedRecheck({ status: "DRAFT", version: "a", expectedVersion: "a" }), null);
 });

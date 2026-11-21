@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
+import { quoteContentVersion } from "@/lib/quote-content-version";
 import { savedBuilderDocuments } from "@/lib/expediente-analyze";
 import { solicitudesVivasDelHilo } from "@/lib/caso/hilo-db";
 import { nombreMiembro } from "@/lib/caso/vista";
@@ -35,7 +36,7 @@ export function editableQuoteFrom(q: any): EditableQuote {
     contactWhatsapp: q.contactWhatsapp ?? null,
     pdfLang: q.pdfLang ?? null,
     paymentFrozenAt: q.paymentFrozenAt ? new Date(q.paymentFrozenAt).toISOString() : null,
-    updatedAt: new Date(q.updatedAt).toISOString(),
+    version: quoteContentVersion(q),
     total: n(q.total),
     lines: (q.lines || []).map((l: any) => ({
       description: l.description,

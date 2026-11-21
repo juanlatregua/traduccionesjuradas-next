@@ -4,6 +4,7 @@ import { isAutoApplicablePrior } from "@/lib/prior-prices-match";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS } from "@/lib/quote-pdf-langs";
 import { upload } from "@vercel/blob/client";
+import { useRouter } from "next/navigation";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors, Merge } from "lucide-react";
 import { autoClientPriceForRow, clientPriceFromCost, isFrenchForeign, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
@@ -27,7 +28,9 @@ import {
   rowMargin,
   shippingBaseFor,
   withBasisCost,
+  describeUnsavedChanges,
   FROZEN_EDIT_CODE,
+  QUOTE_CHANGED_EVENT,
   STALE_EDIT_CODE,
   type AnalysisDoc,
   type EditableLine,
@@ -385,7 +388,8 @@ export default function StaffExpedienteIntake({
   nuevaLinea = false,
 }: Props = {}) {
   const editQuote = mode === "edit" && quote ? quote : null;
-  const [ef] = useState(() => (editQuote ? editFormFromQuote(editQuote) : null));
+  const router = useRouter();
+  const [ef, setEf] = useState(() => (editQuote ? editFormFromQuote(editQuote) : null));
   const gate = editQuote ? editGateFor(editQuote.status) : null;
   const readOnly = gate === "readonly";
   const frozen = !!editQuote?.paymentFrozenAt;
@@ -437,8 +441,8 @@ export default function StaffExpedienteIntake({
   // está en cierre y NO debe salir en presupuestos nuevos.
   const [paymentMethods, setPaymentMethods] = useState<string[]>(ef ? ef.paymentMethods : ["sabadell", "bizum654"]);
   const [contactWhatsapp, setContactWhatsapp] = useState(ef ? ef.contactWhatsapp : "");
-  // Concurrencia: updatedAt con el que se abrió (o del último guardado propio).
-  const [editToken, setEditToken] = useState<string | null>(editQuote?.updatedAt ?? null);
+  // Concurrencia: versión de contenido con la que se abrió (o la del último guardado propio).
+  const [editToken, setEditToken] = useState<string | null>(editQuote?.version ?? null);
   // Guardado en modo edición (PATCH): confirmación en página, freno de margen y reenvío.
   const [editSave, setEditSave] = useState<{
     phase: "idle" | "confirm" | "saving" | "margin" | "saved" | "resending" | "resent" | "stale";
@@ -1269,6 +1273,51 @@ export default function StaffExpedienteIntake({
       })
     : null;
   const shownTotals = editTotals ?? quoteTotals;
+
+  // Cambios sin guardar: lo que se mandaría ahora frente a lo que se abrió (o se guardó).
+  const payloadNow = editForm ? buildQuotePatchPayload(editForm, editLines) : null;
+  const payloadKey = payloadNow ? JSON.stringify(payloadNow) : "";
+  const baselineRef = useRef<string | null>(null);
+  if (editForm && baselineRef.current === null) baselineRef.current = payloadKey;
+  const dirty = !!editForm && payloadKey !== baselineRef.current;
+
+  // Acciones del panel de arriba (descongelar, idioma del PDF, enviar, marcar…) → la ficha se
+  // refresca; si el contenido cambió y aquí no hay cambios sin guardar, se vuelve a cargar del
+  // presupuesto (nuevo token). Con cambios sin guardar se deja: guardar dará «stale».
+  useEffect(() => {
+    if (!editQuote) return;
+    const onChanged = () => router.refresh();
+    window.addEventListener(QUOTE_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(QUOTE_CHANGED_EVENT, onChanged);
+  }, [editQuote ? editQuote.id : null, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  const propVersion = editQuote?.version ?? null;
+  const lastPropVersionRef = useRef(propVersion);
+  useEffect(() => {
+    if (!editQuote || propVersion === lastPropVersionRef.current) return;
+    lastPropVersionRef.current = propVersion;
+    if (propVersion === editToken || dirty) return;
+    const f = editFormFromQuote(editQuote);
+    setEf(f);
+    setDocs(hydrateRows(editQuote.lines, analysisDocs, () => uid()));
+    setCustomerName(f.customerName);
+    setCustomerEmail(f.customerEmail);
+    setCustomerPhone(f.customerPhone);
+    setSourceLang(f.sourceLang);
+    setTargetLang(f.targetLang);
+    setDiscountKind(f.discountType);
+    setDiscountPct(f.discountValue);
+    setValidityDays(f.validityDays);
+    setNotesLegal(f.notesLegal);
+    setHolderNames(f.holderNames);
+    setMarginPct(f.marginPct);
+    setPdfLang(f.pdfLang || "es");
+    setDeliveryType(f.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF");
+    setDeliveryNote(f.deliveryTerm);
+    setPaymentMethods(f.paymentMethods);
+    setContactWhatsapp(f.contactWhatsapp);
+    setEditToken(propVersion);
+    baselineRef.current = null;
+  }, [propVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const subtotal = shownTotals.subtotal;
   const shipping = shownTotals.shippingAmount;
   const discountAmount = shownTotals.discountAmount;
@@ -1437,14 +1486,15 @@ export default function StaffExpedienteIntake({
         : data.atada
           ? `Queda atada a ${editQuote.quoteNumber}: cuando el jurado cotice, su cifra llega a este presupuesto.`
           : `NO ha quedado atada a ${editQuote.quoteNumber}: ${parSinGuardar ? "cambiaste el par sin guardar, guarda primero" : data.motivoNoAtada || "motivo desconocido"}.`;
-      // Volver a pedir congela el pago (escribe en el presupuesto): se recarga para no guardar sobre lo viejo.
-      if (editQuote && data.congelados) setTimeout(() => window.location.reload(), 1500);
+      // La cifra entró en las líneas o el pago se congeló: se refresca la ficha (sin cambios
+      // pendientes, el constructor se resincroniza; con cambios, el guardado dará «stale»).
+      if (editQuote && (data.congelados || data.cifraAplicada)) router.refresh();
       const aQuien = describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros);
       const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       setLavoriState({
         phase: "done",
         msg: data.existing
-          ? `El caso ya tenía la solicitud ${data.existing}: no se ha pedido otra.${atadaTxt ? ` ${atadaTxt}` : ""}`
+          ? `El caso ya tenía la solicitud ${data.existing}: no se ha pedido otra.${atadaTxt ? ` ${atadaTxt}` : ""}${editQuote && data.cifraAplicada ? ` ${data.cifraAplicada}` : ""}`
           : data.repetido
             ? `Esta solicitud ya estaba enviada (no se ha duplicado).`
             : editQuote
@@ -1456,7 +1506,7 @@ export default function StaffExpedienteIntake({
       setLavoriState({ phase: "error", msg: "Error de conexión." });
       return null;
     }
-  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros, casoId, lavoriLeadRef, yaPedida, puertaSession, editQuote]);
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros, casoId, lavoriLeadRef, yaPedida, puertaSession, editQuote, router]);
 
   const handleSubmit = useCallback(async (leadRefRecienEnviada?: string) => {
     if (editQuote) return; // página única: nunca se crea otro presupuesto (guarda saveEdit con PATCH)
@@ -1535,7 +1585,7 @@ export default function StaffExpedienteIntake({
       const res = await fetch(`/api/quotes/${editQuote.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildQuotePatchPayload(editForm, editLines, { overrideLowMargin, frozenRepair: frozen, expectedUpdatedAt: editToken })),
+        body: JSON.stringify(buildQuotePatchPayload(editForm, editLines, { overrideLowMargin, frozenRepair: frozen, expectedVersion: editToken })),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 409 && data?.code === STALE_EDIT_CODE) {
@@ -1551,7 +1601,8 @@ export default function StaffExpedienteIntake({
         return;
       }
       if (Array.isArray(data.quote?.lines)) setDocs(hydrateRows(data.quote.lines, analysisDocs, () => uid()));
-      if (data.quote?.updatedAt) setEditToken(new Date(data.quote.updatedAt).toISOString());
+      if (data.contentVersion) setEditToken(data.contentVersion);
+      baselineRef.current = null; // lo guardado es el nuevo punto de partida
       if (gate === "live") {
         setEditSave({ phase: "saved", msg: `Guardado: total ${Number(data.quote?.total ?? 0).toFixed(2)} €. El cliente aún tiene el PDF y el mensaje anteriores.` });
       } else {
@@ -2502,14 +2553,38 @@ export default function StaffExpedienteIntake({
                   </div>
                 </div>
               )}
-              {editSave.phase === "stale" && (
-                <div className="w-full rounded-[14px] border border-[#F0C9C9] bg-[#FDF2F2] p-3 text-sm text-[#A12B2B]">
-                  <p className="font-semibold">{editSave.msg}</p>
-                  <button type="button" onClick={() => window.location.reload()} className="mt-2 rounded-[10px] bg-[#1A2E4A] px-4 py-2 font-semibold text-white hover:bg-[#243F66]">
-                    Recargar
-                  </button>
-                </div>
-              )}
+              {editSave.phase === "stale" && (() => {
+                const perdidos = baselineRef.current && payloadNow ? describeUnsavedChanges(JSON.parse(baselineRef.current), payloadNow) : [];
+                return (
+                  <div className="w-full rounded-[14px] border border-[#F0C9C9] bg-[#FDF2F2] p-3 text-sm text-[#A12B2B]">
+                    <p className="font-semibold">{editSave.msg}</p>
+                    {perdidos.length > 0 && (
+                      <>
+                        <p className="mt-2 text-[#1F2933]">Al recargar se pierden estos cambios tuyos (cópialos para volver a ponerlos):</p>
+                        <ul className="mt-1 list-disc break-words pl-5 text-[#1F2933]">
+                          {perdidos.map((t, i) => (
+                            <li key={i}>{t}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {perdidos.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => void navigator.clipboard?.writeText(perdidos.join("\n"))}
+                          className="rounded-[10px] border border-[#D5DAE1] bg-white px-4 py-2 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
+                        >
+                          Copiar cambios
+                        </button>
+                      )}
+                      <button type="button" onClick={() => window.location.reload()} className="rounded-[10px] bg-[#1A2E4A] px-4 py-2 font-semibold text-white hover:bg-[#243F66]">
+                        {perdidos.length > 0 ? "Recargar (se pierden)" : "Recargar"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
               {editSave.msg && editSave.phase !== "margin" && editSave.phase !== "stale" && (
                 <p className={`text-sm ${editSave.phase === "idle" ? "text-[#A12B2B]" : "text-[#1F6B45]"}`}>{editSave.msg}</p>
               )}

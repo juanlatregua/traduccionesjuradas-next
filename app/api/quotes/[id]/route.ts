@@ -9,9 +9,14 @@ import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { unsealOnLineEdit } from "@/lib/encargo-cerrado-math";
 import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
 import { abs, hrefPresupuesto } from "@/lib/staff-links";
-import { patchPrecheck, STALE_EDIT_CODE, STALE_EDIT_ERROR } from "@/lib/quote-edit-hydrate";
+import { lockedRecheck, patchPrecheck, QUOTE_VERSION_SELECT } from "@/lib/quote-edit-hydrate";
+import { quoteContentVersion } from "@/lib/quote-content-version";
 
-class StaleEditError extends Error {}
+class LockedRecheckError extends Error {
+  constructor(public readonly result: NonNullable<ReturnType<typeof lockedRecheck>>) {
+    super(result.body.error);
+  }
+}
 
 export const runtime = "nodejs";
 
@@ -66,9 +71,7 @@ export async function PATCH(req: Request, { params }: Params) {
         issuedAt: true,
         autoPricedBy: true,
         paymentFrozenAt: true,
-        total: true,
-        updatedAt: true,
-        lines: { orderBy: { createdAt: "asc" }, select: { quantity: true, unitPrice: true, supplierUnitCost: true, sourceFileUrl: true } },
+        ...QUOTE_VERSION_SELECT,
       },
     });
     if (!current) {
@@ -87,13 +90,15 @@ export async function PATCH(req: Request, { params }: Params) {
           : 0,
     });
 
-    // Estado editable; obsoleto (expectedUpdatedAt ≠ updatedAt: p. ej. la cifra del jurado
-    // entró en las líneas después de abrir la página) → 409 «stale»; pago CONGELADO: líneas e
-    // importe solo desde la reparación con la cifra del jurado (frozenRepair). Sin escribir nada.
+    // Estado editable; obsoleto (expectedVersion ≠ versión de contenido: p. ej. la cifra del
+    // jurado entró en las líneas después de abrir la página; abrir /q o descongelar no cuenta)
+    // → 409 «stale»; pago CONGELADO: líneas e importe solo desde la reparación con la cifra
+    // del jurado (frozenRepair). Sin escribir nada.
+    const expectedVersion = (body as any)?.expectedVersion;
     const pre = patchPrecheck({
       status: current.status,
-      updatedAt: current.updatedAt,
-      expectedUpdatedAt: (body as any)?.expectedUpdatedAt,
+      version: quoteContentVersion(current),
+      expectedVersion,
       frozen: !!current.paymentFrozenAt,
       frozenRepair: (body as any)?.frozenRepair === true,
       current: { lines: current.lines, total: current.total },
@@ -127,11 +132,14 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const quote = await prisma.$transaction(async (tx) => {
-      // Con token: nadie ha escrito entre la lectura y aquí (cifra del jurado, envío).
-      if ((body as any)?.expectedUpdatedAt) {
-        const claim = await tx.quote.updateMany({ where: { id: params.id, updatedAt: current.updatedAt }, data: { updatedAt: new Date() } });
-        if (claim.count === 0) throw new StaleEditError();
-      }
+      // Bajo candado de fila: el estado sigue siendo editable (un pago entre la lectura y aquí
+      // → 400) y, con versión, nadie ha cambiado el contenido (los rellenos de la cifra del
+      // jurado actualizan la fila Quote en su transacción).
+      await tx.$queryRaw`SELECT id FROM "Quote" WHERE id = ${params.id} FOR UPDATE`;
+      const locked = await tx.quote.findUnique({ where: { id: params.id }, select: { status: true, ...QUOTE_VERSION_SELECT } });
+      if (!locked) throw new LockedRecheckError({ status: 400, body: { ok: false, error: "Presupuesto no encontrado." } });
+      const again = lockedRecheck({ status: locked.status, version: quoteContentVersion(locked), expectedVersion });
+      if (again) throw new LockedRecheckError(again);
       const customer = await tx.customer.upsert({
         where: { email: parsed.data.customerEmail },
         update: {
@@ -227,13 +235,13 @@ export async function PATCH(req: Request, { params }: Params) {
         url: abs(hrefPresupuesto(params.id)),
       });
     }
-    // updatedAt tras el sellado: el token de la siguiente edición no debe chocar con lo que
+    // Versión tras el sellado: el token de la siguiente edición no debe chocar con lo que
     // este mismo guardado escribió.
-    const fresh = await prisma.quote.findUnique({ where: { id: params.id }, select: { updatedAt: true } }).catch(() => null);
-    return NextResponse.json({ ok: true, quote: { ...serializeQuote(quote), ...(fresh ? { updatedAt: fresh.updatedAt } : {}) } });
+    const fresh = await prisma.quote.findUnique({ where: { id: params.id }, select: QUOTE_VERSION_SELECT }).catch(() => null);
+    return NextResponse.json({ ok: true, quote: serializeQuote(quote), contentVersion: fresh ? quoteContentVersion(fresh) : null });
   } catch (err: any) {
-    if (err instanceof StaleEditError) {
-      return NextResponse.json({ ok: false, code: STALE_EDIT_CODE, error: STALE_EDIT_ERROR }, { status: 409 });
+    if (err instanceof LockedRecheckError) {
+      return NextResponse.json(err.result.body, { status: err.result.status });
     }
     console.error("[quotes:update] error", err);
     return NextResponse.json(
