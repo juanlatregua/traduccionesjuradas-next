@@ -287,7 +287,8 @@ export function tarjetasDeLeads(leads: SlaLead[], yaEnMesa: Tarjeta[], ahora: Da
     });
 }
 
-const orden = (a: Tarjeta, b: Tarjeta) => (a.reloj?.vence.getTime() ?? Infinity) - (b.reloj?.vence.getTime() ?? Infinity) || b.entro.getTime() - a.entro.getTime();
+// Lo más nuevo arriba (orden de Juan, 21-nov): un lead recién entrado es el que aún se puede ganar.
+const orden = (a: Tarjeta, b: Tarjeta) => b.entro.getTime() - a.entro.getTime();
 
 export function montarMesa(i: { casos: CasoMesa[]; leads: SlaLead[]; ahora: Date; baseUrl: string; nombreDe?: (miembroId: string) => string | null | undefined }): Mesa {
   const deCasos = i.casos.map((c) => clasificarCaso(c, i.ahora, i.baseUrl, i.nombreDe)).filter((t): t is Tarjeta => !!t);

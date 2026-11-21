@@ -236,7 +236,7 @@ test("leads sueltos: entran en me toca con reloj de 3 h y enlace relativo; los q
   assert.equal(ts[0].ficha, null);
 });
 
-test("montarMesa: reparte, ordena por reloj y cuenta vencidos y entregas de hoy", () => {
+test("montarMesa: reparte, lo más nuevo arriba y cuenta vencidos y entregas de hoy", () => {
   const m = montarMesa({
     casos: [
       caso({ id: "a", createdAt: antes(1) }),
@@ -250,7 +250,7 @@ test("montarMesa: reparte, ordena por reloj y cuenta vencidos y entregas de hoy"
     ahora: AHORA,
     baseUrl: BASE,
   });
-  assert.deepEqual(m.yo.map((t) => t.key), ["b", "a", "lead:r1", "c"]);
+  assert.deepEqual(m.yo.map((t) => t.key), ["lead:r1", "a", "c", "b"]);
   assert.deepEqual(m.espera.map((t) => t.key), ["d"]);
   assert.deepEqual(m.marcha.map((t) => t.key), ["e"]);
   assert.equal(m.vencidos, 1);
