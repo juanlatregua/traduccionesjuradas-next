@@ -6,7 +6,9 @@ import {
   editFormFromQuote,
   editGateFor,
   editLineFor,
+  attachAndApplyPrice,
   attachDecision,
+  lockedRecheck,
   describeUnsavedChanges,
   pricedAttachOutcome,
   pricedAttachPlan,
@@ -373,7 +375,12 @@ test("solicitud reutilizada CON cifra: borrador → relleno; enviado → precio 
   assert.equal(fillKo.atada, false);
   assert.match(fillKo.motivo!, /^ya tiene cifra 90,00 €: ponla en las líneas \(el borrador tiene líneas/);
   // Enviado: coste escrito / congelado por pérdida / no manejado.
-  assert.match(pricedAttachOutcome("sent", { ok: true }, 9000).aplicado!, /precio al cliente no cambia/);
+  assert.match(pricedAttachOutcome("sent", { ok: true, written: true }, 9000).aplicado!, /ya está como coste en las líneas/);
+  // Manejada sin repartir el coste: nunca dice que ya está en las líneas.
+  const sinReparto = pricedAttachOutcome("sent", { ok: true }, 9000).aplicado!;
+  assert.doesNotMatch(sinReparto, /ya está como coste/);
+  assert.match(sinReparto, /NO se ha repartido en las líneas: repártelo tú/);
+  assert.match(pricedAttachOutcome("sent", { ok: true, unchanged: true }, 9000).aplicado!, /coincide con el coste/);
   assert.match(pricedAttachOutcome("sent", { ok: true, frozen: true }, 9000).aplicado!, /CONGELADO/);
   assert.equal(pricedAttachOutcome("sent", { ok: false, reason: "presupuesto pagado" }, 9000).atada, false);
   assert.equal(pricedAttachOutcome("refuse", null, 9000).atada, false);
@@ -451,4 +458,64 @@ test("unir dos líneas guardadas suma precio y coste", () => {
   assert.equal(m.clientPrice, 77.5);
   assert.equal(m.unitPrice, 30);
   assert.equal(m.basis, undefined);
+});
+
+function fakeDeps(over: { status?: string; par?: string; before?: number | null; after?: number | null; leadQuoteId?: string | null; fill?: any; sent?: any } = {}) {
+  const calls: string[] = [];
+  let attached = false;
+  const deps = {
+    readQuote: async () => ({ status: over.status ?? "DRAFT", par: over.par ?? "FR>ES" }),
+    readLead: async () => ({ id: "lpr1", quoteId: attached ? "q1" : over.leadQuoteId ?? null, par: "FR>ES", priceCents: attached ? (over.after !== undefined ? over.after : over.before ?? null) : over.before ?? null }),
+    attach: async () => { calls.push("attach"); attached = true; return true; },
+    detach: async () => { calls.push("detach"); attached = false; },
+    fill: async () => { calls.push("fill"); return over.fill ?? { ok: true }; },
+    sent: async () => { calls.push("sent"); return over.sent ?? { handled: true, frozen: false, written: true }; },
+  };
+  return { deps, calls };
+}
+
+test("atar: la solicitud devuelta por la guarda de duplicados con cifra → se aplica (borrador)", async () => {
+  const { deps, calls } = fakeDeps({ before: 9000 });
+  const r = await attachAndApplyPrice(deps, "q1", "26_ABC");
+  assert.deepEqual(calls, ["attach", "fill"]);
+  assert.equal(r.atada, true);
+  assert.match(r.cifraAplicada!, /90,00 €.*borrador/);
+});
+
+test("atar: la cifra llega entre la lectura y el atado → se relee y se aplica (enviado)", async () => {
+  const { deps, calls } = fakeDeps({ status: "SENT", before: null, after: 9000, sent: { handled: true, frozen: false, written: false } });
+  const r = await attachAndApplyPrice(deps, "q1", "26_ABC");
+  assert.deepEqual(calls, ["attach", "sent"]);
+  assert.equal(r.atada, true);
+  assert.match(r.cifraAplicada!, /NO se ha repartido/);
+});
+
+test("atar: sin cifra solo se ata; cifra imposible de aplicar → se desata y se dice", async () => {
+  const sin = fakeDeps({ before: null, after: null });
+  assert.deepEqual(await attachAndApplyPrice(sin.deps, "q1", "r"), { quoteId: "q1", atada: true });
+  assert.deepEqual(sin.calls, ["attach"]);
+  const ko = fakeDeps({ before: 9000, fill: { ok: false, reason: "hay otra solicitud con precio atada a este presupuesto: repártelo tú" } });
+  const r = await attachAndApplyPrice(ko.deps, "q1", "r");
+  assert.deepEqual(ko.calls, ["attach", "fill", "detach"]);
+  assert.equal(r.atada, false);
+  assert.match(r.motivoNoAtada!, /^ya tiene cifra 90,00 €: ponla en las líneas/);
+  const sentKo = fakeDeps({ status: "OPENED", before: 9000, sent: { handled: false, reason: "presupuesto pagado entre la lectura y la escritura" } });
+  assert.equal((await attachAndApplyPrice(sentKo.deps, "q1", "r")).atada, false);
+  assert.deepEqual(sentKo.calls, ["attach", "sent", "detach"]);
+  // Ya atada a este presupuesto: ni se ata ni se aplica otra vez.
+  const ya = fakeDeps({ before: 9000, leadQuoteId: "q1" });
+  assert.deepEqual(await attachAndApplyPrice(ya.deps, "q1", "r"), { quoteId: "q1", atada: true });
+  assert.deepEqual(ya.calls, []);
+  // Presupuesto pagado: no se ata.
+  const paid = fakeDeps({ status: "PAID", before: 9000 });
+  assert.equal((await attachAndApplyPrice(paid.deps, "q1", "r")).atada, false);
+  assert.deepEqual(paid.calls, []);
+});
+
+test("PATCH bajo el candado: pagado entre medias → 400; versión cambiada → 409; si no, sigue", () => {
+  assert.equal(lockedRecheck({ status: "PAID", version: "a", expectedVersion: "a" })?.status, 400);
+  assert.equal(lockedRecheck({ status: "EXPIRED", version: "a", expectedVersion: undefined })?.status, 400);
+  assert.equal(lockedRecheck({ status: "SENT", version: "b", expectedVersion: "a" })?.body.code, STALE_EDIT_CODE);
+  assert.equal(lockedRecheck({ status: "SENT", version: "b", expectedVersion: undefined }), null);
+  assert.equal(lockedRecheck({ status: "DRAFT", version: "a", expectedVersion: "a" }), null);
 });

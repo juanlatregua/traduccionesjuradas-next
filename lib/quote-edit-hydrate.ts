@@ -568,9 +568,11 @@ export function pricedAttachRefusal(priceCents: number): string {
 }
 
 /** Resultado de aplicar la cifra al atar: si no se aplicó, se desata y se dice por qué. */
+export type AppliedPrice = { ok: boolean; frozen?: boolean; written?: boolean; unchanged?: boolean; reason?: string };
+
 export function pricedAttachOutcome(
   plan: PricedAttachPlan,
-  applied: { ok: boolean; frozen?: boolean; reason?: string } | null,
+  applied: AppliedPrice | null,
   priceCents: number
 ): { atada: boolean; motivo?: string; aplicado?: string } {
   if (plan === "refuse" || !applied?.ok) {
@@ -584,6 +586,79 @@ export function pricedAttachOutcome(
         ? `La cifra del jurado (${eur}) ya está en las líneas del borrador.`
         : applied.frozen
           ? `La cifra del jurado (${eur}) deja pérdida: el pago queda CONGELADO.`
-          : `La cifra del jurado (${eur}) ya está como coste en las líneas; el precio al cliente no cambia.`,
+          : applied.written
+            ? `La cifra del jurado (${eur}) ya está como coste en las líneas; el precio al cliente no cambia.`
+            : applied.unchanged
+              ? `La cifra del jurado (${eur}) coincide con el coste que ya llevan las líneas; el precio al cliente no cambia.`
+              : `La cifra del jurado (${eur}) está atada, pero el coste NO se ha repartido en las líneas: repártelo tú. El precio al cliente no cambia.`,
   };
+}
+
+/** Lecturas/escrituras que necesita attachAndApplyPrice (la ruta las da con Prisma). */
+export type AttachDeps = {
+  readQuote: (quoteId: string) => Promise<{ status: string; par: string | null } | null>;
+  readLead: (ref: string) => Promise<{ id: string; quoteId: string | null; par: string; priceCents: number | null } | null>;
+  attach: (ref: string, quoteId: string) => Promise<boolean>;
+  detach: (ref: string, quoteId: string) => Promise<void>;
+  fill: (leadId: string) => Promise<{ ok: boolean; reason?: string }>;
+  sent: (leadId: string) => Promise<{ handled: boolean; frozen?: boolean; written?: boolean; repetido?: boolean; reason?: string }>;
+};
+
+/**
+ * Atar la solicitud (nueva, reutilizada o devuelta por la guarda de duplicados) al
+ * presupuesto de la página única. Si tiene cifra —leída otra vez DESPUÉS de atar, por si el
+ * evento de precio llegó entre medias— se aplica por el camino de siempre; si no se puede,
+ * se desata.
+ */
+export async function attachAndApplyPrice(
+  deps: AttachDeps,
+  quoteId: string | null | undefined,
+  ref: string
+): Promise<{ quoteId?: string; atada?: boolean; motivoNoAtada?: string; cifraAplicada?: string }> {
+  if (!quoteId) return {};
+  const [q, lead] = await Promise.all([deps.readQuote(quoteId), deps.readLead(ref)]);
+  if (!lead) return { quoteId, atada: false, motivoNoAtada: "solicitud no encontrada" };
+  const d = attachDecision({
+    anchorQuoteId: quoteId,
+    lpr: { quoteId: lead.quoteId, par: lead.par },
+    quote: q ? { par: q.par, editable: ["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(q.status) } : null,
+  });
+  if (!d.atar) return { quoteId, atada: d.atada, ...(d.atada ? {} : { motivoNoAtada: d.motivo || "no se pudo atar" }) };
+  const plan = pricedAttachPlan(q!.status);
+  if (lead.priceCents && lead.priceCents > 0 && plan === "refuse") return { quoteId, atada: false, motivoNoAtada: pricedAttachRefusal(lead.priceCents) };
+
+  if (!(await deps.attach(ref, quoteId))) return { quoteId, atada: false, motivoNoAtada: "no se pudo atar" };
+  const after = await deps.readLead(ref);
+  const priced = after?.priceCents && after.priceCents > 0 ? after.priceCents : null;
+  if (!priced) return { quoteId, atada: true };
+
+  let applied: AppliedPrice;
+  try {
+    if (plan === "fill") {
+      const f = await deps.fill(lead.id);
+      applied = f.ok ? { ok: true } : { ok: false, reason: f.reason };
+    } else {
+      const h = await deps.sent(lead.id);
+      applied = h.handled ? { ok: true, frozen: h.frozen, written: h.written, unchanged: h.repetido && !h.frozen } : { ok: false, reason: h.reason };
+    }
+  } catch (err: any) {
+    applied = { ok: false, reason: String(err?.message || err) };
+  }
+  const out = pricedAttachOutcome(plan, applied, priced);
+  if (!out.atada) {
+    await deps.detach(ref, quoteId);
+    return { quoteId, atada: false, motivoNoAtada: out.motivo };
+  }
+  return { quoteId, atada: true, cifraAplicada: out.aplicado };
+}
+
+/** Bajo el candado de la fila: el estado puede haber cambiado (pagado) y la versión también. */
+export function lockedRecheck(input: { status: string; version: string; expectedVersion: unknown }): { status: number; body: { ok: false; code?: string; error: string } } | null {
+  if (!["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(input.status)) {
+    return { status: 400, body: { ok: false, error: `No se puede editar en estado ${input.status}.` } };
+  }
+  if (isStaleEdit(input.expectedVersion, input.version)) {
+    return { status: 409, body: { ok: false, code: STALE_EDIT_CODE, error: STALE_EDIT_ERROR } };
+  }
+  return null;
 }

@@ -9,10 +9,14 @@ import { sealClosedPriceQuote } from "@/lib/lavori-directo";
 import { unsealOnLineEdit } from "@/lib/encargo-cerrado-math";
 import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
 import { abs, hrefPresupuesto } from "@/lib/staff-links";
-import { patchPrecheck, QUOTE_VERSION_SELECT, STALE_EDIT_CODE, STALE_EDIT_ERROR } from "@/lib/quote-edit-hydrate";
+import { lockedRecheck, patchPrecheck, QUOTE_VERSION_SELECT } from "@/lib/quote-edit-hydrate";
 import { quoteContentVersion } from "@/lib/quote-content-version";
 
-class StaleEditError extends Error {}
+class LockedRecheckError extends Error {
+  constructor(public readonly result: NonNullable<ReturnType<typeof lockedRecheck>>) {
+    super(result.body.error);
+  }
+}
 
 export const runtime = "nodejs";
 
@@ -128,13 +132,14 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const quote = await prisma.$transaction(async (tx) => {
-      // Con versión: bajo candado de fila, nadie ha cambiado el contenido entre la lectura y
-      // aquí (los rellenos de la cifra del jurado actualizan la fila Quote en su transacción).
-      if (expectedVersion) {
-        await tx.$queryRaw`SELECT id FROM "Quote" WHERE id = ${params.id} FOR UPDATE`;
-        const locked = await tx.quote.findUnique({ where: { id: params.id }, select: QUOTE_VERSION_SELECT });
-        if (!locked || quoteContentVersion(locked) !== String(expectedVersion)) throw new StaleEditError();
-      }
+      // Bajo candado de fila: el estado sigue siendo editable (un pago entre la lectura y aquí
+      // → 400) y, con versión, nadie ha cambiado el contenido (los rellenos de la cifra del
+      // jurado actualizan la fila Quote en su transacción).
+      await tx.$queryRaw`SELECT id FROM "Quote" WHERE id = ${params.id} FOR UPDATE`;
+      const locked = await tx.quote.findUnique({ where: { id: params.id }, select: { status: true, ...QUOTE_VERSION_SELECT } });
+      if (!locked) throw new LockedRecheckError({ status: 400, body: { ok: false, error: "Presupuesto no encontrado." } });
+      const again = lockedRecheck({ status: locked.status, version: quoteContentVersion(locked), expectedVersion });
+      if (again) throw new LockedRecheckError(again);
       const customer = await tx.customer.upsert({
         where: { email: parsed.data.customerEmail },
         update: {
@@ -235,8 +240,8 @@ export async function PATCH(req: Request, { params }: Params) {
     const fresh = await prisma.quote.findUnique({ where: { id: params.id }, select: QUOTE_VERSION_SELECT }).catch(() => null);
     return NextResponse.json({ ok: true, quote: serializeQuote(quote), contentVersion: fresh ? quoteContentVersion(fresh) : null });
   } catch (err: any) {
-    if (err instanceof StaleEditError) {
-      return NextResponse.json({ ok: false, code: STALE_EDIT_CODE, error: STALE_EDIT_ERROR }, { status: 409 });
+    if (err instanceof LockedRecheckError) {
+      return NextResponse.json(err.result.body, { status: err.result.status });
     }
     console.error("[quotes:update] error", err);
     return NextResponse.json(
