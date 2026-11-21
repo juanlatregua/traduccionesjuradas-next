@@ -213,6 +213,13 @@ export default async function PaginaCiudad({
             Administración General del Estado, universidades y cualquier
             organismo público en España.
           </p>
+          <p className="mt-3 text-sm leading-relaxed text-sepia">
+            ¿Tu documento está en francés? Lo traduce y firma directamente{" "}
+            <Link href="/traductor-jurado-frances" className="text-bleu underline">
+              Juan Silva, traductor jurado de francés (MAEC nº 3850)
+            </Link>
+            .
+          </p>
           {ciudad.slug === "malaga" && (
             <p className="mt-3 text-sm leading-relaxed text-sepia">
               Somos una empresa de traducción jurada basada en Málaga. El

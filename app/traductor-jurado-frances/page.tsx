@@ -51,7 +51,7 @@ function SeccionesFrances() {
         </div>
         <p className="mt-3 text-sm text-sepia">
           <strong className="text-encre">Plazo:</strong> 1 día hábil hasta 5 páginas, en PDF con firma electrónica
-          cualificada. Si lo necesitas en el día, pregúntanos: se puede con un recargo del 40 %. El precio es cerrado y
+          cualificada. Si tienes prisa, dinos tu fecha límite: la urgencia lleva un recargo que verás en el presupuesto. El precio es cerrado y
           lo ves antes de pagar.
         </p>
       </section>
@@ -92,7 +92,7 @@ function SeccionesFrances() {
 export const metadata: Metadata = {
   title: { absolute: "Traductor jurado de francés · MAEC nº 3850 · desde 30 €" },
   description:
-    "30 € + IVA por página. Traductor jurado de francés MAEC nº 3850: francés-español y español-francés. Antecedentes penales, actas, títulos.",
+    "30 € + IVA por página, 1 día hábil hasta 5 páginas. Traductor jurado de francés MAEC nº 3850: francés-español y español-francés. Actas, antecedentes, títulos.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-frances",
   },
@@ -134,7 +134,7 @@ export default function TraductorJuradoFrancesPage() {
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de francés?",
           answer:
-            "En 1 día hábil para documentos de hasta 5 páginas, en PDF con firma electrónica cualificada. Si lo necesitas en el día, se puede con un recargo del 40 %.",
+            "En 1 día hábil para documentos de hasta 5 páginas, en PDF con firma electrónica cualificada. Si tienes prisa, dinos tu fecha límite: la urgencia lleva un recargo que verás en el presupuesto, antes de pagar.",
         },
         {
           question: "¿Necesito apostillar la traducción jurada de francés?",
@@ -164,7 +164,7 @@ export default function TraductorJuradoFrancesPage() {
         {
           question: "¿Puedo recibir la traducción jurada en papel?",
           answer:
-            "Sí. Además del PDF firmado digitalmente, podemos enviarte la traducción jurada en papel, con firma y sello originales, por mensajería.",
+            "Sí. Además del PDF firmado digitalmente, podemos enviarte la traducción jurada en papel, con firma y sello originales, por mensajería; el envío en papel se cobra aparte y se suma al presupuesto.",
         },
       ]}
       documentosHabituales={[
