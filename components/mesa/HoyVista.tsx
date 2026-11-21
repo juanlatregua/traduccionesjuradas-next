@@ -2,7 +2,7 @@ import Link from "next/link";
 import { MONTONES, type Mesa, type Tarjeta as T } from "@/lib/mesa/montones";
 import { MesaAccion, MesaActualizar, MesaEnlace } from "./MesaBoton";
 import { Marca, Par, RelojMarca, fmtFecha } from "./piezas";
-import AgendaVista, { type AgendaHoy } from "./AgendaVista";
+import AgendaVista, { AgendaTarda, type AgendaHoy } from "./AgendaVista";
 
 function Fila({ t }: { t: T }) {
   return (
@@ -53,7 +53,7 @@ function Lista({ filas }: { filas: T[] }) {
   );
 }
 
-export default function HoyVista({ mesa, ahora, agenda }: { mesa: Mesa & { avisos: string[] }; ahora: Date; agenda: AgendaHoy | null }) {
+export default function HoyVista({ mesa, ahora, agenda }: { mesa: Mesa & { avisos: string[] }; ahora: Date; agenda: AgendaHoy | "tarda" | null }) {
   const hoy = ahora.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid", weekday: "long", day: "numeric", month: "long" });
   const resumen = [hoy.charAt(0).toUpperCase() + hoy.slice(1), `${mesa.yo.length} te ${mesa.yo.length === 1 ? "toca" : "tocan"}`];
   if (mesa.vencidos) resumen.push(`${mesa.vencidos} con el reloj pasado`);
@@ -104,7 +104,7 @@ export default function HoyVista({ mesa, ahora, agenda }: { mesa: Mesa & { aviso
             </section>
           );
         })}
-        {agenda && <AgendaVista agenda={agenda} />}
+        {agenda === "tarda" ? <AgendaTarda /> : agenda && <AgendaVista agenda={agenda} />}
       </main>
     </div>
   );

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { AgendaItem } from "@/lib/vigia";
-import { hrefPedido } from "@/lib/staff-links";
+import { hrefPedido, hrefVigia } from "@/lib/staff-links";
 import { MesaMarca } from "./MesaBoton";
 import { Marca, Par, eur } from "./piezas";
 
@@ -67,6 +67,18 @@ function Bloque({ titulo, sub, children }: { titulo: string; sub?: string; child
   );
 }
 
+export function AgendaTarda() {
+  return (
+    <p role="status" className="mb-3 rounded-[10px] border border-[#E9D8A6] bg-[#FFF8E6] px-3 py-2 text-[#7A5A10]">
+      La agenda tarda; ábrela aparte:{" "}
+      <Link href={hrefVigia()} className="font-semibold text-[#1A2E4A] underline">
+        agenda del vigía
+      </Link>
+      .
+    </p>
+  );
+}
+
 export default function AgendaVista({ agenda }: { agenda: AgendaHoy }) {
   const a = agenda;
   return (
@@ -104,8 +116,8 @@ export default function AgendaVista({ agenda }: { agenda: AgendaHoy }) {
             <span className="ml-2 font-normal text-[#52606D]">una fila por persona o pedido; «Ya lo traté» la oculta 4 días, «Posponer 7 d» una semana{a.ocultos ? ` · ${a.ocultos} ocultas` : ""}</span>
           </summary>
           <ol className="m-0 grid list-none gap-0 p-0">
-            {a.acciones.map((x, i) => (
-              <li key={i} className="grid gap-2 border-b border-[#E8EBEF] py-2.5 last:border-b-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+            {a.acciones.map((x) => (
+              <li key={x.tratado ?? `${x.href}|${x.que}`} className="grid gap-2 border-b border-[#E8EBEF] py-2.5 last:border-b-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
                 <div className="min-w-0 [overflow-wrap:anywhere]">
                   <Link href={x.href} className="font-semibold text-[#1F2933] underline-offset-2 hover:underline">
                     {x.que}

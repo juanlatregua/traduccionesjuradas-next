@@ -133,6 +133,7 @@ export async function cargarFicha(id: string) {
           paidAt: true,
           amountCents: true,
           supplierCostCents: true,
+          quoteId: true,
           quote: { select: { total: true, vatAmount: true } },
           paymentMethod: true,
           paymentProofFileKey: true,

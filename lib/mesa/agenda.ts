@@ -19,8 +19,9 @@ export function refsDeLaPila(tarjetas: Pick<Tarjeta, "accion">[]): Set<string> {
 /** Filas de la agenda (AgendaItem.ref) que no están ya en la pila. */
 export const fueraDeLaPila = <T extends { ref: string }>(items: T[], refs: Set<string>): T[] => items.filter((i) => !refs.has(i.ref));
 
-/** Filas de gestión del vigía: las de pedido («o:REF») que ya están en la pila sobran. */
-export const accionesFueraDeLaPila = <T extends { key?: string | null }>(rows: T[], refs: Set<string>): T[] => rows.filter((r) => !(r.key?.startsWith("o:") && refs.has(r.key.slice(2))));
+/** Filas de gestión del vigía: las de pedido («o:REF») que ya están en la pila sobran, salvo si llevan una alerta de dinero. */
+export const accionesFueraDeLaPila = <T extends { key?: string | null; alertaDinero?: boolean }>(rows: T[], refs: Set<string>): T[] =>
+  rows.filter((r) => r.alertaDinero || !(r.key?.startsWith("o:") && refs.has(r.key.slice(2))));
 
 /** Enlace del vigía (absoluto a la web pública) como ruta relativa de la zona. */
 export const relativo = (href: string) => href.replace(SITE, "") || "/";

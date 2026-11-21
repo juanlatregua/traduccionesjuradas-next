@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { clasificarCaso, montarMesa, tarjetasDeLeads, etapasHechas, esPropio, duracion, quePasoFicha, type CasoMesa, type PedidoMesa, type LprMesa } from "../../lib/mesa/montones.ts";
 import { siguientePaso, type QuotePaso } from "../../lib/caso/siguiente-paso.ts";
+import { consolidate } from "../../lib/vigia-persona.ts";
 import { accionesFueraDeLaPila, fueraDeLaPila, refsDeLaPila, relativo } from "../../lib/mesa/agenda.ts";
 import type { SlaLead } from "../../lib/lead-sla-core.ts";
 import { mesaV2On } from "../../lib/mesa/flag.ts";
@@ -336,4 +337,18 @@ test("agenda en Hoy: lo que ya está en «Me toca a mí» no se repite (clave: r
   assert.deepEqual(filas, [{ key: "o:26_BBB" }, { key: "q:26_AAA" }, { key: null }, {}]);
   assert.equal(relativo("https://www.traduccionesjuradas.net/zona-traductor/pedido/26_BBB"), "/zona-traductor/pedido/26_BBB");
   assert.equal(relativo("/admin/inbox"), "/admin/inbox");
+});
+
+test("agenda en Hoy: una alerta de dinero (pagado SIN COSTE) de un pedido que está en «Me toca» no se oculta", () => {
+  const refs = refsDeLaPila([tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ reference: "26_AAA", traductor: null, langPair: "de->es" })] })!]);
+  assert.ok(refs.has("26_AAA"));
+  const filas = consolidate([
+    { stake: 90, urgencia: 5, que: "Pedido 26_AAA pagado SIN TRADUCTOR → asignar", link: "x", key: "o:26_AAA", tier: 0 },
+    { stake: 90, urgencia: 4, que: "Pedido 26_AAA pagado hace 2 d SIN COSTE registrado → ponlo en la ficha", link: "x", key: "o:26_AAA", tier: 0, alertaDinero: true },
+  ]);
+  assert.equal(filas.length, 1);
+  const visibles = accionesFueraDeLaPila(filas, refs);
+  assert.equal(visibles.length, 1);
+  assert.ok([visibles[0].que, ...(visibles[0].extras || [])].some((t) => /SIN COSTE/.test(t)));
+  assert.equal(accionesFueraDeLaPila([{ key: "o:26_AAA", que: "sin traductor" }], refs).length, 0);
 });

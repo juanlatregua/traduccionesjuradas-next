@@ -5,3 +5,9 @@ export function margenPedido(i: { quoteTotal: number | null; quoteVat: number | 
   const margen = neto != null && i.supplierCostCents != null ? neto - i.supplierCostCents / 100 : null;
   return { neto, margen };
 }
+
+/** Varios pedidos vivos de un mismo presupuesto: el neto es del presupuesto entero, así que el coste es la suma
+ * (null si a alguno le falta) y el margen se enseña una sola vez, en el primero. */
+export function costeDelPresupuesto(pedidos: { supplierCostCents: number | null }[]): number | null {
+  return pedidos.some((p) => p.supplierCostCents == null) ? null : pedidos.reduce((s, p) => s + (p.supplierCostCents as number), 0);
+}

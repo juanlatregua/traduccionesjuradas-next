@@ -5,7 +5,7 @@ import { deadlineLine } from "@/lib/needed-by";
 import { hrefPedido, hrefPresupuesto, hrefSolicitud, quienEspera, quoteVigente, urlPublicaQuote } from "@/lib/caso/siguiente-paso";
 import { quoteVivo } from "@/lib/caso/estados";
 import { ESTADO_LABEL, nombreMiembro } from "@/lib/caso/vista";
-import { margenPedido } from "@/lib/caso/margen";
+import { costeDelPresupuesto, margenPedido } from "@/lib/caso/margen";
 import { hrefCaso, hrefConstructor, hrefDiscrepancias } from "@/lib/staff-links";
 import { sessionKeyOf } from "@/lib/entrada/store";
 import type { Hito } from "@/lib/caso/hitos";
@@ -378,7 +378,10 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
                 </div>
               )}
               {vivos.map(({ o }) => {
-                const { neto, margen } = margenPedido({ quoteTotal: o.quote ? n(o.quote.total) : null, quoteVat: o.quote ? n(o.quote.vatAmount) : null, supplierCostCents: o.supplierCostCents });
+                const hermanos = o.quoteId ? vivos.filter((v) => v.o.quoteId === o.quoteId).map((v) => v.o) : [o];
+                const varios = hermanos.length > 1;
+                const coste = varios ? costeDelPresupuesto(hermanos) : o.supplierCostCents;
+                const { neto, margen } = margenPedido({ quoteTotal: o.quote ? n(o.quote.total) : null, quoteVat: o.quote ? n(o.quote.vatAmount) : null, supplierCostCents: coste });
                 return (
                   <div key={o.id} className="mb-2">
                     <p>
@@ -389,9 +392,14 @@ export default function FichaVista({ ficha, hitos, posibles, baseUrl }: { ficha:
                     </p>
                     <p className="text-[14px] text-[#52606D]">
                       Cobro {eur(o.amountCents / 100)} · coste {o.supplierCostCents != null ? eur(o.supplierCostCents / 100) : "—"} ·{" "}
-                      <b className={margen == null ? "text-[#52606D]" : margen <= 0 ? "text-[#A12B2B]" : "text-[#1F6B45]"}>
-                        {margen == null ? "margen: sin presupuesto o coste para calcularlo" : `margen ${eur(margen)} sobre ${eur(neto!)} netos`}
-                      </b>
+                      {varios && hermanos[0] !== o ? (
+                        <span>margen: con {hermanos[0].reference} (presupuesto completo)</span>
+                      ) : (
+                        <b className={margen == null ? "text-[#52606D]" : margen <= 0 ? "text-[#A12B2B]" : "text-[#1F6B45]"}>
+                          {margen == null ? "margen: sin presupuesto o coste para calcularlo" : `margen ${eur(margen)} sobre ${eur(neto!)} netos`}
+                          {varios ? ` · margen del presupuesto completo (${hermanos.length} pedidos)` : ""}
+                        </b>
+                      )}
                     </p>
                   </div>
                 );
