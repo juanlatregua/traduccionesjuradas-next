@@ -1458,6 +1458,9 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           sourceLang: true,
           targetLang: true,
           autoPricedBy: true,
+          casoId: true,
+          expedienteRef: true,
+          deliveryTerm: true,
           lines: { select: { supplierUnitCost: true, unitPrice: true, quantity: true } },
         },
       });
@@ -1501,6 +1504,59 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       ]);
       const paraTiCents = baseToChannelPriceCents(costeBaseCents, priceBasisForMember(q?.lavoriMiembroId));
       if (q?.lavoriMiembroId && parsed && paraTiCents > 0) {
+        // Encargo cerrado (21-nov-2026): las solicitudes de precio vivas del mismo caso
+        // se retiran ANTES de mandar el encargo; si una no se puede retirar, no sale.
+        const { isEncargoCerradoQuote } = await import("@/lib/encargo-cerrado-math");
+        if (isEncargoCerradoQuote(q.autoPricedBy)) {
+          const { retireOpenRequestsForClosedQuote } = await import("@/lib/encargo-cerrado");
+          const ret = await retireOpenRequestsForClosedQuote({
+            quote: { id: order.quoteId, casoId: q.casoId, expedienteRef: q.expedienteRef },
+            par: parsed.par,
+            reference: options.reference,
+            actorEmail: options.actorEmail || null,
+          });
+          if (!ret.ok) {
+            await prisma.orderEvent.create({
+              data: {
+                orderId: order.id,
+                type: "lavori.pactado_abortado",
+                message: `Encargo cerrado NO enviado: la solicitud ${ret.ref} sigue viva y no se pudo retirar (${ret.error}).`,
+                payload: { ref: ret.ref, error: ret.error },
+              },
+            });
+            await staffMailLines(`⚠ Pedido ${parsed.par} pagado: encargo cerrado NO enviado (${options.reference})`, [
+              `El pedido ${options.reference} está pagado y la solicitud ${ret.ref} del mismo caso no se pudo retirar: ${ret.error}.`,
+              `No se ha mandado el encargo a ${q.lavoriMiembroNombre || "el jurado"} para no duplicarlo. Decide en la ficha.`,
+              `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${options.reference}`,
+            ]);
+            const { sendStaffAlertSMS } = await import("@/lib/sms");
+            await sendStaffAlertSMS(`${options.reference} (${parsed.par}) pagado: encargo cerrado NO enviado, ${ret.ref} sigue viva. Revisa la ficha.`, `cerrado_no_retirada ${options.reference}`).catch(console.error);
+            return { changed: false };
+          }
+          if (ret.retiradas.length) {
+            await prisma.orderEvent.create({
+              data: {
+                orderId: order.id,
+                type: "lavori.solicitudes_retiradas_encargo_cerrado",
+                message: `Retiradas antes del encargo cerrado: ${ret.retiradas.join(", ")}.`,
+                payload: { refs: ret.retiradas },
+              },
+            });
+          }
+          return await routePactadoToMiembro({
+            order,
+            reference: options.reference,
+            actorEmail: options.actorEmail || null,
+            lang: parsed.lang,
+            par: parsed.par,
+            miembroId: q.lavoriMiembroId,
+            miembroNombre: q.lavoriMiembroNombre,
+            paraTiCents,
+            acordadoTexto: `Encargo listo, precio cerrado (presupuesto ${q.quoteNumber}${q.deliveryTerm ? `, plazo ${q.deliveryTerm}` : ""})`,
+            origenTexto: `presupuesto ${q.quoteNumber}`,
+            quoteNumber: q.quoteNumber,
+          });
+        }
         return await routePactadoToMiembro({
           order,
           reference: options.reference,
