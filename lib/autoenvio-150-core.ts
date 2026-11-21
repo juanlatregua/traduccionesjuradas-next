@@ -6,6 +6,8 @@
 import { MIN_AUTO_MARGIN_PCT } from "./learned-rates-math.ts";
 
 export const AUTOENVIO_MIN = 150;
+/** Además, el borrador lleva al menos esto creado: Juan tiene margen para verlo. */
+export const AUTOENVIO_MIN_DRAFT_AGE_MIN = 60;
 export const AUTOENVIO_MAX_HOURS = 24;
 export const AUTOENVIO_MAX_NET_CENTS = 30000;
 /** Una edición posterior a esto tras la creación = Juan (o alguien) lo ha tocado. */
@@ -21,6 +23,13 @@ export const AUTOENVIO_ORIGINS: Record<string, { autoPricedBy: string; channel: 
   "system:encargo-cerrado": { autoPricedBy: "encargo-cerrado", channel: "lavori-directo", fuente: "regla del encargo cerrado" },
   "system:lavori-directo": { autoPricedBy: "lavori-directo", channel: "lavori-directo", fuente: "cifra del jurado (directo)" },
 };
+
+/** Hora a la que saldría solo: 150 min tras la llegada y 60 min tras crear el borrador. */
+export function autoSendAt(leadAt: Date, draftCreatedAt: Date): Date {
+  return new Date(Math.max(leadAt.getTime() + AUTOENVIO_MIN * 60_000, draftCreatedAt.getTime() + AUTOENVIO_MIN_DRAFT_AGE_MIN * 60_000));
+}
+
+export const isFrPairLoose = (s: string | null | undefined, t: string | null | undefined) => FR(s, t);
 
 const FR = (s: string | null | undefined, t: string | null | undefined) => [s, t].some((x) => String(x || "").toLowerCase() === "fr");
 
@@ -48,6 +57,14 @@ export type AutoenvioInput = {
   /** Otro presupuesto/pedido vivo o enviado para ese caso+par o esa persona. */
   otherLive: string | null;
   claimed: boolean;
+  /** Frenos que dio el carril al crear el borrador (avisos del cierre, tarifario, encargo cerrado, bandeja). */
+  carrilReasons: string[];
+  /** Juan pulsó «Retener». */
+  retained: boolean;
+  /** Interruptor de rodaje del carril: tarifario = LEARNED_RATES_AUTOSEND=on y tarifario vivo; encargo cerrado = ENCARGO_CERRADO_AUTOSEND=on. */
+  carrilOn: { ok: true } | { ok: false; reason: string };
+  /** Tarifario: las LearnedRate del presupuesto siguen APPROVED ahora (null = no aplica). */
+  rateApproved: boolean | null;
   /** Decisión de las guardas de cierre (margen, tope, duplicados, ya cliente, dijo que no). */
   guards: { action: "send" } | { action: "skip"; reason: string } | { action: "alert"; reasons: string[] };
 };
@@ -64,10 +81,14 @@ export function autoenvioVerdict(i: AutoenvioInput): AutoenvioVerdict {
   if (!origin) return { action: "ignore", reason: "no nace de la puerta/bandeja/encargo cerrado" };
   if (!i.leadAt) return { action: "hold", reasons: ["no se encuentra la llegada del cliente"] };
   const age = i.now.getTime() - i.leadAt.getTime();
-  if (age < AUTOENVIO_MIN * 60_000) return { action: "wait" };
   if (age > AUTOENVIO_MAX_HOURS * 36e5) return { action: "ignore", reason: "lead de hace más de 24 h" };
+  if (i.now.getTime() < autoSendAt(i.leadAt, q.createdAt).getTime()) return { action: "wait" };
 
   const reasons: string[] = [];
+  if (i.retained) reasons.push("retenido por Juan");
+  reasons.push(...i.carrilReasons);
+  if (!i.carrilOn.ok) reasons.push(i.carrilOn.reason);
+  if (i.rateApproved === false) reasons.push("la tarifa aprendida ya no está APPROVED");
   if (q.updatedAt.getTime() - q.createdAt.getTime() > TOUCH_TOLERANCE_MS) reasons.push("editado tras crearse: lo ha tocado alguien");
   if (q.autoPricedBy !== origin.autoPricedBy) reasons.push(`precio sin procedencia aprobada (${q.autoPricedBy || "a mano"})`);
   const net = Math.round(i.lines.reduce((s, l) => s + l.unitPrice * l.quantity * 100, 0)) - i.discountCents;
