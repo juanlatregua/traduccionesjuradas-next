@@ -37,18 +37,21 @@ export type EntradaLead = {
   urgency: string | null;
   neededBy: Date | null;
   link: string;
+  noJurado: boolean;
+  hasFiles: boolean;
 };
 
-export function entradaLeads(entradas: EntradaParaLead[]): EntradaLead[] {
+/** `all` (AVISO_NO_PRESUPUESTABLES=on): también «sin jurado» y sin documentos, que el aviso marca como no presupuestables. */
+export function entradaLeads(entradas: EntradaParaLead[], opts: { all?: boolean } = {}): EntradaLead[] {
   return entradas
-    .filter((e) => e.estado !== "sin_jurado" && e.estado !== "prueba" && e.files.length > 0 && (e.email || e.phone9))
+    .filter((e) => e.estado !== "prueba" && (e.email || e.phone9) && (opts.all || (e.estado !== "sin_jurado" && e.files.length > 0)))
     .map((e) => ({
       clientEmail: e.email,
       clientName: e.nombre,
       clientPhone: e.phone9,
       sessionToken: sessionKeyOf(e.id),
       fileHash: e.files.find((f) => f.sha256)?.sha256 ?? null,
-      fileName: e.files.length === 1 ? e.files[0].name : `${e.files.length} archivos`,
+      fileName: e.files.length === 0 ? "sin archivos" : e.files.length === 1 ? e.files[0].name : `${e.files.length} archivos`,
       documentType: null,
       sourceLanguage: e.sourceLang,
       targetLanguage: e.targetLang ?? "unknown",
@@ -58,6 +61,8 @@ export function entradaLeads(entradas: EntradaParaLead[]): EntradaLead[] {
       createdAt: e.createdAt,
       urgency: e.urgency,
       neededBy: e.neededBy,
+      noJurado: e.estado === "sin_jurado",
+      hasFiles: e.files.length > 0,
       link: e.casoId ? `${SITE}/zona-traductor/lectura?caso=${encodeURIComponent(e.casoId)}` : `${SITE}/zona-traductor/lectura?session=${encodeURIComponent(sessionKeyOf(e.id))}`,
     }));
 }

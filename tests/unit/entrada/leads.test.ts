@@ -44,3 +44,12 @@ test("(a)(b) the open body keeps the ?p= preset and the client's language; unkno
   assert.equal(OpenBody.safeParse({ ...base, lang: "zz" }).success, false);
   for (const l of ["es", "fr", "en", "de", "pt"] as const) assert.match(HILO_T[l].resumenLectura(2, 1), /2/);
 });
+
+test("all (AVISO_NO_PRESUPUESTABLES): sin jurado y sin archivos entran, marcados", () => {
+  const leads = entradaLeads([entrada(), entrada({ id: "e2", estado: "sin_jurado" }), entrada({ id: "e3", files: [] }), entrada({ id: "e4", estado: "prueba" })], { all: true });
+  assert.equal(leads.length, 3);
+  assert.equal(leads.find((l) => l.sessionToken === "entrada:e2")!.noJurado, true);
+  assert.equal(leads.find((l) => l.sessionToken === "entrada:e3")!.hasFiles, false);
+  const out = selectLeadSla({ now: NOW, docs: leads.map((d) => ({ ...d, estimatedWords: null, quoteAmount: null })), inbound: [], solicitudes: [], quotes: [], paidOrders: [], v2: true });
+  assert.ok(out.some((l) => l.noPresupuestable !== null));
+});
