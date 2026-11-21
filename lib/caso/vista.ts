@@ -43,12 +43,12 @@ export const nombreMiembro = (id: string) => NOMBRES.get(id) ?? null;
 export const baseUrlStaff = () => (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
 
 export const ESTADO_PILL: Record<string, string> = {
-  ABIERTO: "bg-cyan-500/15 text-cyan-300",
-  EN_CURSO: "bg-violet-500/15 text-violet-300",
-  ENTREGADO: "bg-teal-500/15 text-teal-300",
-  PERDIDO: "bg-slate-600/30 text-slate-400",
-  SIN_JURADO: "bg-amber-500/15 text-amber-300",
-  CANCELADO: "bg-rose-500/15 text-rose-300",
+  ABIERTO: "bg-[#E8EEF6] text-[#1A2E4A]",
+  EN_CURSO: "bg-[#EFEAF8] text-[#4B2E83]",
+  ENTREGADO: "bg-[#EEF7F1] text-[#1F6B45]",
+  PERDIDO: "bg-[#F1F3F5] text-[#52606D]",
+  SIN_JURADO: "bg-[#FFF8E6] text-[#7A5A10]",
+  CANCELADO: "bg-[#FDF2F2] text-[#A12B2B]",
 };
 export const ESTADO_LABEL: Record<string, string> = {
   ABIERTO: "Abierto",

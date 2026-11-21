@@ -134,7 +134,7 @@ export default function DraftGeneratorButton({
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">
           Borrador IA de traducción jurada
         </p>
         <p className="mt-1 text-xs text-[#52606D]">
@@ -145,7 +145,7 @@ export default function DraftGeneratorButton({
         {isLoading && (
           <div className="mt-3 flex items-center gap-2">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-            <span className="text-sm text-indigo-300">{PHASE_LABELS[phase]}</span>
+            <span className="text-sm text-[#1A2E4A]">{PHASE_LABELS[phase]}</span>
           </div>
         )}
 

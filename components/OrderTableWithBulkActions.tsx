@@ -83,7 +83,7 @@ function WorkflowBadge({ state, label }: { state: string; label: string }) {
     JUSTIFICANTE_SUBIDO: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]",
     PAGO_VALIDADO: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]",
     EN_TRADUCCION: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]",
-    TRADUCIDO_ENTREGADO: "bg-lime-500/20 text-lime-300 border-lime-500/30",
+    TRADUCIDO_ENTREGADO: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]",
     CERRADO: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]",
   };
   const cls = palette[state] || palette.PENDIENTE_PAGO;

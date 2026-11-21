@@ -50,7 +50,7 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   ACCEPTED: { label: "Aceptado", cls: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]" },
   QUOTE_REVISION_REQUESTED: { label: "Revisión solicitada", cls: "bg-[#FFF8E6] text-[#7A5A10] border-[#E9D8A6]" },
   REJECTED: { label: "Rechazado", cls: "bg-[#FDF2F2] text-[#A12B2B] border-[#F0C9C9]" },
-  DELIVERED: { label: "Entregado", cls: "bg-lime-500/20 text-lime-300 border-lime-500/30" },
+  DELIVERED: { label: "Entregado", cls: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]" },
 };
 
 function parseLangFromPair(langPair: string | null): string | null {

@@ -255,13 +255,13 @@ export default function PMQuickCreatePanel() {
 
       {/* Source document upload */}
       <div className="mt-3 rounded-xl border border-dashed border-[#D5DAE1] bg-white p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">
           Documento original (opcional)
         </p>
         <p className="mt-1 text-xs text-[#52606D]">
           Adjunta el PDF/imagen del documento a traducir. Se subirá al crear el pedido.
         </p>
-        <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-teal-500/40 px-3 py-2 text-xs font-semibold text-teal-300 hover:bg-teal-500/10">
+        <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#BFE0CC] px-3 py-2 text-xs font-semibold text-[#1F6B45] hover:bg-teal-500/10">
           {sourceFile ? sourceFile.name : "Seleccionar archivo"}
           <input
             ref={sourceFileRef}

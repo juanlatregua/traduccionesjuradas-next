@@ -6,7 +6,7 @@ import Link from "next/link";
 // Botón único de «Qué toca ahora»: enlace o copiar (el /q del presupuesto enviado).
 export default function CasoAccionPaso({ label, href, copiar, compacto }: { label: string; href: string; copiar?: boolean; compacto?: boolean }) {
   const [copiado, setCopiado] = useState(false);
-  const cls = `inline-flex shrink-0 items-center rounded-lg font-semibold text-[#1A2E4A] ${
+  const cls = `inline-flex shrink-0 items-center rounded-lg font-semibold text-white ${
     compacto ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
   } ${copiado ? "bg-emerald-600" : "bg-[#1A2E4A] hover:bg-[#243F66]"}`;
   if (!copiar) {
