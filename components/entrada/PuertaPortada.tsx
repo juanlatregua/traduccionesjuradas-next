@@ -864,7 +864,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   if (paso === "documentos") {
     const l = view!.lectura!;
     const manual = l.fase === "revision_manual";
-    bubble = manual ? t.manual : <><strong>{t.resumenLectura(view!.archivos.length, incluidos.length).replace(/:$/, ".")}</strong> {p.burbujaDocs}{avisos ? ` ${p.avisos(avisos)}` : ""}</>;
+    bubble = manual ? t.manual : <><strong>{t.resumenLectura(view!.archivos.length, incluidos.length).replace(/\s*:$/, ".")}</strong> {p.burbujaDocs}{avisos ? ` ${p.avisos(avisos)}` : ""}</>;
     const preguntas = l.preguntas;
     body = (
       <div className="space-y-4">
