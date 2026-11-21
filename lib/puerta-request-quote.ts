@@ -14,6 +14,9 @@ import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { findLiveSiblingLeadRequest, leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
+import { encargoCerradoFromPuertaSession } from "@/lib/encargo-cerrado";
+import { encargoCerradoLangs } from "@/lib/encargo-cerrado-math";
+import { cierreReviewUrl } from "@/lib/cierre-token";
 import { closedPriceLangOfPair } from "@/lib/lavori-directo-math";
 import { closedPriceCostHint, directMembersFor } from "@/lib/lavori-directo";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
@@ -279,6 +282,65 @@ export async function routePuertaQuoteRequest(input: {
       await sendPriceRequestAckToClient({ name: docs[0]?.clientName, email: contactEmail, phone: contactPhone, locale, translatorLangName: null, askDeadline: !plazo });
       return out({ ok: true, lavori: { sent: false } });
     }
+
+    // ENCARGO CERRADO (21-nov-2026, ENCARGO_CERRADO=pt,en,de): la regla de coste del
+    // jurado presupuesta sin pedirle precio; al pagar le llega el encargo listo. Con una
+    // solicitud viva del mismo cliente y par no se monta nada (sigue el flujo de siempre).
+    const cerradoOn = encargoCerradoLangs(process.env.ENCARGO_CERRADO).size > 0;
+    const hermanaCerrado = cerradoOn && parLead
+      ? await findLiveSiblingLeadRequest({ email: contactEmail, phone: contactPhone, par: parLead }).catch(() => null)
+      : null;
+    const cerrado = !cerradoOn
+      ? ({ ok: false as const, reason: "ENCARGO_CERRADO apagado" })
+      : hermanaCerrado
+      ? ({ ok: false as const, reason: `solicitud viva ${hermanaCerrado.request.ref}` })
+      : await encargoCerradoFromPuertaSession({
+          sessionToken: token,
+          contactEmail,
+          contactPhone,
+          contactName: docs[0]?.clientName,
+          locale,
+          casoId: caso ? caso.casoId : null,
+        }).catch((err) => ({ ok: false as const, reason: String(err?.message || err) }));
+    if (cerrado.ok) {
+      const par = parLead || `${(lead?.sourceLang || "?").toUpperCase()}>${(lead?.targetLang || "es").toUpperCase()}`;
+      const revisar = cierreReviewUrl(cerrado.quoteId);
+      if (!cerrado.repetido) {
+        // Rodaje (2 días): cada borrador avisa AL MOMENTO por email y SMS con el enlace
+        // de un toque (regla de las 3 horas: sin presupuesto se pierde el cliente).
+        await Promise.all([
+          sendMail({
+            to: adminEmail,
+            subject: `${plazoAsunto}🔒 ${cerrado.sent ? "Encargo cerrado ENVIADO" : "Revisa y envía"} ${cerrado.quoteNumber} — ${cerrado.totalEur.toFixed(2)} € (${par}, ${cerrado.miembroNombre})`,
+            html: renderSimpleEmailHtml(
+              [
+                `Presupuesto ${cerrado.quoteNumber} montado con la regla de ${cerrado.miembroNombre} (${cerrado.regla}): ${cerrado.subtotalEur.toFixed(2)} € netos, coste ${cerrado.costEur.toFixed(2)} €, plazo ${cerrado.plazoDias}-${cerrado.plazoDias + 1} días hábiles. Sin solicitud previa al jurado.`,
+                cerrado.sent ? "Ha salido SOLO al cliente (ENCARGO_CERRADO_AUTOSEND=on)." : `NO ha salido: ${cerrado.autoSendReasons.join("; ")}.`,
+                ...(cerrado.sent ? [] : [`Revisar y enviar (un toque): ${revisar}`]),
+                `Al pagar, el encargo va a ${cerrado.miembroNombre} con el coste y el plazo cerrados.`,
+                ...(plazoTxt ? [plazoTxt] : []),
+                `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+                ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
+                ...(hermanosTxt ? [hermanosTxt] : []),
+                ...lineas,
+              ].join("\n")
+            ),
+          }).catch((err) => console.error("[puerta:request-quote] aviso encargo cerrado fallo:", err)),
+          sendStaffAlertSMS(
+            `${plazoAsunto ? "URGENTE · " : ""}🔒 ${recurrenteSms}${cerrado.sent ? "ENVIADO" : "Revisa y envía"} ${cerrado.quoteNumber} ${cerrado.totalEur.toFixed(2)}€ ${par} → ${cerrado.miembroNombre}${cerrado.sent ? "" : `: ${revisar}`}`,
+            "puerta_encargo_cerrado"
+          ).catch(() => {}),
+        ]);
+      }
+      return out({
+        ok: true,
+        lavori: { sent: false },
+        quote: { sent: cerrado.sent, draft: !cerrado.sent, number: cerrado.quoteNumber, payUrl: cerrado.sent ? cerrado.payUrl : null },
+      });
+    }
+    // Otra petición del mismo caso y par está montando el borrador ahora mismo: esta no hace nada más.
+    if ("enCurso" in cerrado && cerrado.enCurso) return out({ ok: true, lavori: { sent: false } });
+    if (cerradoOn) console.log("[puerta:request-quote] encargo cerrado no aplica:", cerrado.reason);
 
     // AGENTE DE PRECIOS (27-ago-2026): documento ya conocido con tarifa APROBADA →
     // borrador listo para que Juan lo revise y envíe (21-sep-2026), sin molestar

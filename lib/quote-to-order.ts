@@ -11,6 +11,7 @@ import { sendEmailWithRetry } from "@/lib/email-retry";
 import { prisma } from "@/lib/prisma";
 import { closedPriceLangOfPair } from "@/lib/lavori-directo-math";
 import { parseDeliveryTerm } from "@/lib/delivery-term";
+import { isEncargoCerradoQuote } from "@/lib/encargo-cerrado-math";
 import type { PaymentMethod } from "@prisma/client";
 
 export type QuoteForBridge = {
@@ -41,8 +42,8 @@ async function setDueDateFromQuoteTerm(orderId: string, quote: QuoteForBridge): 
   try {
     const current = await prisma.order.findUnique({ where: { id: orderId }, select: { dueDate: true, paidAt: true } });
     if (!current || current.dueDate) return current?.dueDate ?? null;
-    if (!closedPriceLangOfPair(quote.sourceLang, quote.targetLang)) return null;
-    const row = await prisma.quote.findUnique({ where: { id: quote.id }, select: { deliveryTerm: true } });
+    const row = await prisma.quote.findUnique({ where: { id: quote.id }, select: { deliveryTerm: true, autoPricedBy: true } });
+    if (!closedPriceLangOfPair(quote.sourceLang, quote.targetLang) && !isEncargoCerradoQuote(row?.autoPricedBy)) return null;
     const dueDate = parseDeliveryTerm(row?.deliveryTerm, current.paidAt ?? new Date());
     if (!dueDate) return null;
     await prisma.order.updateMany({ where: { id: orderId, dueDate: null }, data: { dueDate } });
