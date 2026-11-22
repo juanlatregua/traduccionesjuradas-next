@@ -18,6 +18,7 @@ import { puertaV2On } from "@/lib/entrada/flag";
 import PuertaPortada from "@/components/entrada/PuertaPortada";
 import PuertaPortadaFromParams from "@/components/entrada/PuertaPortadaFromParams";
 import SubirHeroButton from "@/components/entrada/SubirHeroButton";
+import { PORTADA_T } from "@/lib/entrada/portada-i18n";
 
 export default function HomeHero({ lang = "es" }: { lang?: Locale }) {
   const t = HOME_HERO;
@@ -55,6 +56,11 @@ export default function HomeHero({ lang = "es" }: { lang?: Locale }) {
             <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {t.accionPreguntar[lang]}
           </a>
+          {puertaV2On() && (
+            <p className="col-span-2 -mt-1 text-xs text-graphite">
+              {PORTADA_T[lang].legal[0]}<Link href="/privacidad" className="font-semibold text-bleu underline">{PORTADA_T[lang].legal[1]}</Link>{PORTADA_T[lang].legal[2]}
+            </p>
+          )}
         </div>
 
         {/* PUERTA_V2=on: el panel de subida es el paso 1 de la puerta guiada (components/entrada/PuertaPortada). */}

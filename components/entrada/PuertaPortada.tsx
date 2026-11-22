@@ -36,7 +36,7 @@ const chip = (on: boolean) => `${focusRing} inline-flex min-h-11 items-center ju
 const Spinner = () => <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />;
 
 type Res = { ok: boolean; error?: string; busy?: boolean; view?: ClientView; token?: string; answer?: string };
-type Busy = { key: string; label: string } | null;
+type Busy = { key: string; label: string; announce?: string } | null;
 
 function storage<T>(key: string, value?: T | null): T | null {
   try {
@@ -364,14 +364,14 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           continue;
         }
         const label = (pct: number | null) => p.subiendoN(i, files.length, nombreCorto(file.name), pct);
-        setBusy({ key: "subir", label: label(null) });
+        setBusy({ key: "subir", label: label(null), announce: label(null) });
         // A slow connection is said once a file takes longer than ~12 s, so the progress never looks frozen.
         const slow = setTimeout(() => setLenta(true), 12000);
         try {
           const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(0, 120);
           const blob = await upload(`entrada/${Date.now()}-${safe}`, file, {
             access: "public", handleUploadUrl: "/api/documents/upload", clientPayload: JSON.stringify({ gdprConsent: true }),
-            onUploadProgress: ({ percentage }) => percentage >= 1 && setBusy({ key: "subir", label: label(Math.min(99, Math.round(percentage))) }),
+            onUploadProgress: ({ percentage }) => percentage >= 1 && setBusy({ key: "subir", label: label(Math.min(99, Math.round(percentage))), announce: label(null) }),
           });
           const { status, data: res } = await call(`/api/entrada/${tk}/archivos`, "POST", { url: blob.url, name: file.name, size: file.size, mimeType });
           if (res.view) setView(res.view);
@@ -620,6 +620,11 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   const destinosActuales = view?.idiomas.destinos.length ? view.idiomas.destinos : destinos;
   const idiomasTxt = `${origenActual ? `${langName(origenActual)}${detectado ? ` (${p.detectado})` : ""}` : t.noSe} → ${destinosActuales.map(langName).join(", ")}`;
   const abrirIdiomas = () => { setOrigen(origenActual ?? ""); setDestinos(destinosActuales); setMulti(destinosActuales.length > 1); setEditLangs(true); };
+  const choqueDetectado = !!detectado && destinosActuales.includes(detectado);
+  useEffect(() => {
+    if (choqueDetectado) abrirIdiomas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [choqueDetectado]);
   const paginas = paginasDe(view?.archivos ?? []);
   const leyendo = paso === "lectura";
 
@@ -662,7 +667,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     </div>
   );
 
-  const fileInputEl = <input ref={fileInput} id={FILE_INPUT_ID} type="file" multiple accept={ACCEPT} className="hidden" tabIndex={-1} aria-hidden onChange={(e) => addFiles(e.target.files)} />;
+  const fileInputEl = <input ref={fileInput} id={FILE_INPUT_ID} type="file" multiple accept={ACCEPT} className="hidden" tabIndex={-1} aria-hidden disabled={!!busy} onChange={(e) => addFiles(e.target.files)} />;
   const statusLine = busy && (
     <div role="status" className="space-y-1">
       <p className={`flex items-center gap-2 text-sm font-semibold text-bleu ${wrap}`}><Spinner />{busy.label}</p>
@@ -711,7 +716,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         <span id="subida-hint" className="max-w-md text-sm text-graphite">{p.zonaHint}</span>
       </button>
       <p id="subida-legal" className="-mt-2 text-xs text-graphite">{p.legal[0]}<a href="/privacidad" target="_blank" rel="noopener" className={`font-semibold text-bleu underline ${focusRing}`}>{p.legal[1]}</a>{p.legal[2]}</p>
-      <p aria-live="polite" className="sr-only">{busy?.key === "subir" ? busy.label : ""}</p>
+      <p aria-live="polite" className="sr-only">{busy?.key === "subir" ? busy.announce ?? busy.label : ""}</p>
       {offlineLine}
       {fallidosLine}
       {errorLine}
@@ -959,7 +964,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         {fileInputEl}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button type="button" className={secondary} disabled={!!busy} onClick={pickFiles}>{busy?.key === "subir" ? <Spinner /> : <Plus className="h-4 w-4" aria-hidden />}{p.anadirMas}</button>
-          <button type="button" className={primary} disabled={!!busy} onClick={() => patch(view!.estado === "leida" ? { verArchivos: false } : { quiereLeer: true, verArchivos: false })}>{p.siTodos}</button>
+          <button type="button" className={primary} disabled={!!busy || choqueDetectado} onClick={() => patch(view!.estado === "leida" ? { verArchivos: false } : { quiereLeer: true, verArchivos: false })}>{p.siTodos}</button>
         </div>
         {busy && <p className="text-right text-xs text-graphite">{p.ocupado}</p>}
       </div>
@@ -1175,7 +1180,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         {desde}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
           {l.editable ? <button type="button" className={secondary} disabled={!!busy} onClick={pickFiles}><Plus className="h-4 w-4" aria-hidden />{p.anadirDocs}</button> : <span />}
-          <button type="button" className={primary} disabled={!!busy} onClick={() => patch({ revisado: true })}>{p.bienAsi}</button>
+          <button type="button" className={primary} disabled={!!busy || choqueDetectado} onClick={() => patch({ revisado: true })}>{p.bienAsi}</button>
         </div>
         <p className="text-right text-xs text-graphite">{p.puedesSeguir}</p>
       </div>
@@ -1222,7 +1227,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         </label>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-graphite">{p.queSigue}</p>
-          <button type="button" className={`${primary} shrink-0`} disabled={!!busy} onClick={enviar}>{busy?.key === "enviar" ? <Spinner /> : null}{t.enviar}</button>
+          <button type="button" className={`${primary} shrink-0`} disabled={!!busy || choqueDetectado} onClick={enviar}>{busy?.key === "enviar" ? <Spinner /> : null}{t.enviar}</button>
         </div>
         {statusLine}
         {errorLine}
@@ -1244,6 +1249,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         </div>
         {progreso}
         {solicitudChips}
+        <p aria-live="polite" className={choqueDetectado ? "rounded-xl bg-or/15 px-3 py-2 text-sm font-semibold text-encre" : "sr-only"}>{choqueDetectado && detectado ? p.mismoDetectado(langName(detectado)) : ""}</p>
         {paso !== "archivos" && editorIdiomas}
         {bubble && <Burbuja>{bubble}</Burbuja>}
         {offlineLine}
