@@ -53,7 +53,8 @@ export type ClientView = {
   plazo: { urgency: string | null; neededBy: string | null };
   organismo: string | null;
   pais: string | null;
-  idiomas: { origen: string | null; destinos: string[] };
+  /** detectado: the one source language the reading found when the client left «No lo sé». */
+  idiomas: { origen: string | null; destinos: string[]; detectado?: string | null };
   /** Why the client cannot change the documents (languages and messages still can). */
   soloLectura: null | "otra_entrada" | "caso_existente";
   /** Solo en la respuesta de la confirmación: el presupuesto ya salió por email (PUERTA_FR=fr). */
@@ -149,9 +150,12 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
       ? "Estamos revisando el conjunto de tus archivos."
       : "Tus archivos los revisa Juan personalmente.";
   const preguntas = fase === "lista" ? (extras?.questions ?? []).filter((q) => Boolean(q.textEs)) : [];
+  const detectados = new Set(fase === "lista" ? documents.filter((d) => d.included).map((d) => String(d.sourceLang || "").trim().toLowerCase()).filter((c) => /^[a-z]{2,3}$/.test(c)) : []);
+  const detectado = !entrada.sourceLang && detectados.size === 1 ? [...detectados][0] : null;
   const soloLectura = lote.status !== "ok" ? null : lote.sessionKey !== sessionKeyOf(entrada.id) ? "otra_entrada" : entrada.regla === "huella" || entrada.regla === "contacto" ? "caso_existente" : null;
   return {
     ...base,
+    ...(detectado ? { idiomas: { ...base.idiomas, detectado } } : {}),
     soloLectura,
     lectura: {
       fase,

@@ -6,7 +6,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { Camera, Check, AlertTriangle, MessageCircle, Plus, Upload, Mail, Lock } from "lucide-react";
-import { puertaT } from "@/lib/i18n/puerta";
 import type { EntradaLang } from "@/lib/entrada/i18n";
 import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
 import { progressSteps, isLangQuestion } from "@/lib/entrada/hilo";
@@ -24,14 +23,16 @@ const LOCAL_KEY = (t: string) => `tj-entrada-portada:${t}`;
 const LANG_CODES = ["es", "fr", "en", "de", "it", "pt", "nl", "ro", "ar", "ca", "sv", "no", "el", "ru", "uk", "pl", "zh"];
 const EXT_TYPES: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", heic: "image/heic", heif: "image/heif", tif: "image/tiff", tiff: "image/tiff", webp: "image/webp" };
 const ACCEPT = ".pdf,.jpg,.jpeg,.png,.heic,.heif,.tif,.tiff,.webp,image/*,application/pdf";
+export const FILE_INPUT_ID = "puerta-archivo";
+const focusRing = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bleu-light";
 const CARD = "rounded-2xl border border-cream bg-white p-5 shadow-paper sm:p-7";
-const primary = "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-encre px-5 text-base font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50 [@media(hover:hover)]:hover:bg-bleu";
-const secondary = "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-bleu/30 bg-white px-5 text-base font-bold text-encre transition disabled:cursor-not-allowed disabled:opacity-50 [@media(hover:hover)]:hover:border-bleu";
-const linkBtn = "inline-flex min-h-11 items-center text-sm font-semibold text-bleu underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+const primary = `${focusRing} inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-encre px-5 text-base font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50 [@media(hover:hover)]:hover:bg-bleu`;
+const secondary = `${focusRing} inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-bleu/30 bg-white px-5 text-base font-bold text-encre transition disabled:cursor-not-allowed disabled:opacity-50 [@media(hover:hover)]:hover:border-bleu`;
+const linkBtn = `${focusRing} inline-flex min-h-11 items-center text-sm font-semibold text-bleu underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50`;
 // scroll-margin: with the keyboard open, the focused field never ends under the sticky header or a bottom bar.
-const field = "w-full scroll-mb-28 scroll-mt-28 rounded-xl border border-graphite/30 bg-white px-3 py-2.5 text-base text-encre";
+const field = `${focusRing} w-full scroll-mb-28 scroll-mt-28 rounded-xl border border-graphite/30 bg-white px-3 py-2.5 text-base text-encre`;
 const wrap = "break-words [overflow-wrap:anywhere]";
-const chip = (on: boolean) => `inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${on ? "border-encre bg-encre text-white" : "border-graphite/25 bg-parchment text-encre [@media(hover:hover)]:hover:border-bleu"}`;
+const chip = (on: boolean) => `${focusRing} inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border px-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${on ? "border-encre bg-encre text-white" : "border-graphite/25 bg-parchment text-encre [@media(hover:hover)]:hover:border-bleu"}`;
 const Spinner = () => <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />;
 
 type Res = { ok: boolean; error?: string; busy?: boolean; view?: ClientView; token?: string; answer?: string };
@@ -96,7 +97,6 @@ function Burbuja({ children }: { children: ReactNode }) {
 export default function PuertaPortada({ lang = "es", source = null, asistente = null, idiomaNav = false }: { lang?: EntradaLang; source?: string | null; asistente?: ReactNode; idiomaNav?: boolean }) {
   const t = HILO_T[lang] ?? HILO_T.es;
   const p = PORTADA_T[lang] ?? PORTADA_T.es;
-  const T = puertaT[lang] ?? puertaT.es;
   const langName = useMemo(() => names(lang, "language"), [lang]);
   const countryName = useMemo(() => names(lang, "region"), [lang]);
   const langs = useMemo(() => LANG_CODES.map((c) => [c, langName(c)] as const), [langName]);
@@ -112,8 +112,6 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   const [origen, setOrigen] = useState<string>("");
   const [destinos, setDestinos] = useState<string[]>(["es"]);
   const [multi, setMulti] = useState(false);
-  const [gdpr, setGdpr] = useState(false);
-  const [why, setWhy] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
   const [editLangs, setEditLangs] = useState(false);
 
@@ -138,7 +136,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   const [ahora, setAhora] = useState(0);
 
   const fileInput = useRef<HTMLInputElement>(null);
-  const gdprRef = useRef<HTMLInputElement>(null);
+  const langEditRef = useRef<HTMLDivElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const cardRef = useRef<HTMLElement>(null);
@@ -320,28 +318,20 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
 
   const sameLang = origen !== "" && destinos.includes(origen);
 
-  /** Why the upload zone cannot open yet (null = it can). */
-  function porQueNoSubir(): string | null {
-    if (!token && !gdpr) return t.falta([t.faltaGdpr]);
-    if (destinos.length === 0) return t.choose;
-    if (sameLang) return t.mismoIdioma;
-    return null;
-  }
-
+  // The picker opens on the first click: languages are asked after the upload, so nothing can block it here.
   function pickFiles() {
     if (busy) return;
-    const r = porQueNoSubir();
-    setWhy(r);
-    if (r) {
-      if (!token && !gdpr) gdprRef.current?.focus();
-      return;
-    }
     fileInput.current?.click();
   }
 
+  useEffect(() => {
+    if (editLangs) langEditRef.current?.querySelector("select")?.focus();
+  }, [editLangs]);
+
+  // Uploading is the acceptance (the line under the zone says so): the request itself is the legal basis.
   async function ensureEntrada(): Promise<string | null> {
     if (token) return token;
-    const { status, data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: origen || null, targetLangs: destinos, source, lang });
+    const { status, data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: origen || null, targetLangs: destinos.length ? destinos : ["es"], source, lang });
     if (!data.ok || !data.token) return apply({ ...data, ok: false }, status), null;
     storage(TOKEN_KEY, data.token);
     setToken(data.token);
@@ -352,9 +342,6 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     const files = Array.from(list ?? []);
     if (fileInput.current) fileInput.current.value = "";
     if (!files.length || busy) return;
-    const r = porQueNoSubir();
-    setWhy(r);
-    if (r) return;
     setError(null);
     setFallidos([]);
     setLenta(false);
@@ -440,11 +427,9 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
 
   function chooseOrigen(c: string) {
     setOrigen(c);
-    setWhy(null);
     if (c && destinos.length === 1 && destinos[0] === c) setDestinos([]);
   }
   function chooseDestino(v: string) {
-    setWhy(null);
     if (v === "__multi") return setMulti(true);
     setDestinos(v ? [v] : []);
   }
@@ -589,7 +574,6 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     setView(null);
     setLocal(PORTADA_VACIA);
     olvidarMiniaturas();
-    setGdpr(false);
     setCode("");
     setFallidos([]);
     setReadFail(null);
@@ -631,9 +615,11 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       return [{ archivo: a, page: pt.page, label: pt.rol === "apostilla" ? p.rolApostilla : pt.rol === "anexo" ? p.rolAnexo : hojaLabel(a, pt.page) }];
     });
 
-  const origenActual = view?.idiomas.origen ?? (origen || null);
+  const detectado = view ? (view.idiomas.origen ? null : view.idiomas.detectado ?? null) : null;
+  const origenActual = view?.idiomas.origen ?? detectado ?? (origen || null);
   const destinosActuales = view?.idiomas.destinos.length ? view.idiomas.destinos : destinos;
-  const idiomasTxt = `${origenActual ? langName(origenActual) : t.noSe} → ${destinosActuales.map(langName).join(", ")}`;
+  const idiomasTxt = `${origenActual ? `${langName(origenActual)}${detectado ? ` (${p.detectado})` : ""}` : t.noSe} → ${destinosActuales.map(langName).join(", ")}`;
+  const abrirIdiomas = () => { setOrigen(origenActual ?? ""); setDestinos(destinosActuales); setMulti(destinosActuales.length > 1); setEditLangs(true); };
   const paginas = paginasDe(view?.archivos ?? []);
   const leyendo = paso === "lectura";
 
@@ -662,19 +648,21 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           <p className="mb-2 text-sm text-graphite">{p.eligeVarios}</p>
           <div className="flex flex-wrap gap-1.5">
             {langs.map(([c, n]) => (
-              <button key={c} type="button" className={chip(destinos.includes(c))} aria-pressed={destinos.includes(c)} disabled={!!busy} onClick={() => { setWhy(null); toggleDestino(c); }}>
+              <button key={c} type="button" className={chip(destinos.includes(c))} aria-pressed={destinos.includes(c)} disabled={!!busy} onClick={() => toggleDestino(c)}>
                 {destinos.includes(c) && <Check className="h-3.5 w-3.5" aria-hidden />}{n}
               </button>
             ))}
           </div>
         </div>
       )}
-      {sameLang && <p className="text-sm font-medium text-rouge" role="alert">{t.mismoIdioma}</p>}
-      {destinos.length === 0 && <p className="text-sm font-medium text-rouge" role="alert">{t.choose}</p>}
+      <div aria-live="polite">
+        {sameLang && <p className="text-sm font-medium text-rouge">{t.mismoIdioma}</p>}
+        {destinos.length === 0 && <p className="text-sm font-medium text-rouge">{t.choose}</p>}
+      </div>
     </div>
   );
 
-  const fileInputEl = <input ref={fileInput} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => addFiles(e.target.files)} />;
+  const fileInputEl = <input ref={fileInput} id={FILE_INPUT_ID} type="file" multiple accept={ACCEPT} className="hidden" tabIndex={-1} aria-hidden onChange={(e) => addFiles(e.target.files)} />;
   const statusLine = busy && (
     <div role="status" className="space-y-1">
       <p className={`flex items-center gap-2 text-sm font-semibold text-bleu ${wrap}`}><Spinner />{busy.label}</p>
@@ -696,7 +684,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   );
   const desde = <p className="text-sm text-graphite"><strong className="text-encre">{t.desde.split(".")[0]}.</strong>{t.desde.slice(t.desde.indexOf(".") + 1)}</p>;
 
-  // ——— Step 1 on the home page: languages, consent and one upload zone (no email here) ———
+  // ——— Step 1 on the home page: one upload zone and the privacy line (languages and email come after) ———
   const panelSubida = (
     <section aria-labelledby="subida-title" lang={lang} className={`${CARD} flex flex-col gap-4`}>
       <div className="flex items-center gap-3">
@@ -715,23 +703,15 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
           ))}
         </nav>
       )}
-      <div className="rounded-xl border border-cream bg-parchment/60 p-4">
-        {langFields()}
-        {!token && (
-          <label className={`mt-3 flex cursor-pointer items-start gap-2.5 rounded-lg p-2 text-xs leading-relaxed ${why && !gdpr ? "bg-rouge/5 text-rouge ring-2 ring-rouge" : "text-graphite"}`}>
-            <input ref={gdprRef} type="checkbox" checked={gdpr} onChange={(e) => { setGdpr(e.target.checked); setWhy(null); }} className="mt-0.5 h-5 w-5 shrink-0 accent-encre" />
-            <span>{t.consentUnico} <a href="/privacidad" target="_blank" className="text-bleu underline">{T.gdprPrivacyLink}</a>.</span>
-          </label>
-        )}
-      </div>
       {fileInputEl}
-      <button type="button" onClick={pickFiles} disabled={!!busy} {...dropProps}
-        className={`flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-4 py-7 text-center transition ${drag ? "border-bleu bg-bleu/5" : "border-or bg-white [@media(hover:hover)]:hover:bg-parchment/60"} disabled:cursor-wait`}>
+      <button type="button" onClick={pickFiles} disabled={!!busy} {...dropProps} aria-describedby="subida-hint subida-legal"
+        className={`flex min-h-11 flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-4 py-7 text-center transition ${focusRing} ${drag ? "border-bleu bg-bleu/5" : "border-or bg-white [@media(hover:hover)]:hover:bg-parchment/60"} disabled:cursor-wait`}>
         <span className="flex items-center gap-3 text-or-dark" aria-hidden>{busy?.key === "subir" ? <Spinner /> : <><Upload className="h-7 w-7" /><Camera className="h-7 w-7" /></>}</span>
-        <span className={`max-w-full text-lg font-bold text-encre ${wrap}`} role={busy?.key === "subir" ? "status" : undefined}>{busy?.key === "subir" ? busy.label : busy ? busy.label : drag ? p.soltar : p.zona}</span>
-        <span className="max-w-md text-sm text-graphite">{p.zonaHint}</span>
+        <span className={`max-w-full text-lg font-bold text-encre ${wrap}`}>{busy ? busy.label : drag ? p.soltar : p.zona}</span>
+        <span id="subida-hint" className="max-w-md text-sm text-graphite">{p.zonaHint}</span>
       </button>
-      {why && <p className="text-sm font-semibold text-rouge" role="alert">{why}</p>}
+      <p id="subida-legal" className="-mt-2 text-xs text-graphite">{p.legal[0]}<a href="/privacidad" target="_blank" rel="noopener" className={`font-semibold text-bleu underline ${focusRing}`}>{p.legal[1]}</a>{p.legal[2]}</p>
+      <p aria-live="polite" className="sr-only">{busy?.key === "subir" ? busy.label : ""}</p>
       {offlineLine}
       {fallidosLine}
       {errorLine}
@@ -887,7 +867,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   // «Tu solicitud»: what is already answered, each with «Cambiar» when it can still change.
   const puedeArchivos = paso === "email" || paso === "codigo" || paso === "documentos" || paso === "fecha";
   const solicitud: { k: string; label: string; value: string; onChange?: () => void }[] = [
-    { k: "idiomas", label: p.idiomas, value: idiomasTxt, onChange: leyendo ? undefined : () => { setOrigen(origenActual ?? ""); setDestinos(destinosActuales); setMulti(destinosActuales.length > 1); setEditLangs(true); } },
+    { k: "idiomas", label: p.idiomas, value: idiomasTxt, onChange: leyendo ? undefined : abrirIdiomas },
     ...(paso !== "archivos"
       ? [view?.lectura && (paso === "documentos" || paso === "fecha")
           ? { k: "docs", label: p.documentos, value: p.docsAvisos(incluidos.length, avisos), onChange: paso === "fecha" ? () => patch({ revisado: false }) : undefined }
@@ -914,10 +894,10 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   );
   const solicitudChips = (
     <ul className="-mt-1 mb-1 flex flex-wrap gap-2 lg:hidden" aria-label={p.solicitud}>
-      {solicitud.map((s) => (
+      {solicitud.filter((s) => !(paso === "archivos" && s.k === "idiomas")).map((s) => (
         <li key={s.k}>
           {s.onChange ? (
-            <button type="button" onClick={s.onChange} disabled={!!busy} className="inline-flex min-h-11 items-center gap-1 rounded-full bg-parchment px-3 text-left text-xs font-semibold text-encre" aria-label={`${s.label}: ${s.value}. ${p.cambiar}`}>
+            <button type="button" onClick={s.onChange} disabled={!!busy} className={`${focusRing} inline-flex min-h-11 items-center gap-1 rounded-full bg-parchment px-3 text-left text-xs font-semibold text-encre`} aria-label={`${s.label}: ${s.value}. ${p.cambiar}`}>
               <Check className="h-3.5 w-3.5 text-vert" aria-hidden />{s.value}<span className="text-bleu underline">· {p.cambiar}</span>
             </button>
           ) : (
@@ -930,6 +910,16 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
 
   const cerca = paso === "email" || paso === "codigo" || paso === "fecha";
 
+  const editorIdiomas = editLangs && (
+    <div ref={langEditRef} className="space-y-3 rounded-xl border border-bleu/20 bg-bleu/5 p-4">
+      {langFields(true)}
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" className={primary} disabled={!!busy || !destinos.length || sameLang} onClick={async () => { if (await saveLangs(origen, destinos)) setEditLangs(false); }}>{busy?.key === "idiomas" ? <Spinner /> : null}{t.listo}</button>
+        <button type="button" className={linkBtn} onClick={() => setEditLangs(false)}>{t.cancelar}</button>
+      </div>
+    </div>
+  );
+
   // ——— Body of each step ———
   let bubble: ReactNode = null;
   let body: ReactNode = null;
@@ -938,6 +928,16 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
     bubble = p.burbujaArchivos;
     body = (
       <div className="space-y-4" {...dropProps}>
+        {editLangs ? editorIdiomas : (
+          <div className="rounded-xl border border-bleu/20 bg-bleu/5 p-4">
+            <p id="idiomas-confirma" className="text-sm font-bold text-encre">{p.idiomasConfirma}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3">
+              <p className="font-semibold text-encre">{idiomasTxt}</p>
+              <button type="button" className={linkBtn} disabled={!!busy} onClick={abrirIdiomas} aria-describedby="idiomas-confirma">{p.cambiar}</button>
+            </div>
+            {!origenActual && <p className="mt-1 text-xs text-graphite">{p.idiomasHint}</p>}
+          </div>
+        )}
         <p className="text-sm font-semibold text-encre">{p.resumenArchivos(view!.archivos.length, paginas)} <span className="font-normal text-vert">· {p.todosSubidos}</span></p>
         <ul className={`flex flex-wrap gap-3 rounded-xl ${drag ? "ring-2 ring-bleu" : ""}`}>
           {view!.archivos.map((a) => {
@@ -947,7 +947,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
                 <div className="flex flex-wrap gap-2">{thumbs(hojas, "md", 12)}</div>
                 <div className="flex items-center justify-between gap-3 border-t border-cream pt-2">
                   <span className="min-w-0 max-w-[150px] truncate text-xs font-semibold text-encre" title={a.name}>{a.name}</span>
-                  <button type="button" className="-my-2 inline-flex min-h-11 min-w-11 items-center justify-end text-xs font-semibold text-rouge underline disabled:opacity-50" disabled={!!busy} onClick={() => remove(a.id)} aria-label={t.quitar(a.name)}>
+                  <button type="button" className={`${focusRing} -my-2 inline-flex min-h-11 min-w-11 items-center justify-end text-xs font-semibold text-rouge underline disabled:opacity-50`} disabled={!!busy} onClick={() => remove(a.id)} aria-label={t.quitar(a.name)}>
                     {busy?.key === `quitar:${a.id}` ? p.quitando : p.quitar}
                   </button>
                 </div>
@@ -1244,22 +1244,13 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
         </div>
         {progreso}
         {solicitudChips}
-        {editLangs && (
-          <div className="space-y-3 rounded-xl border border-bleu/20 bg-bleu/5 p-4">
-            {langFields(true)}
-            <div className="flex flex-wrap items-center gap-3">
-              <button type="button" className={primary} disabled={!!busy || !destinos.length || sameLang} onClick={async () => { if (await saveLangs(origen, destinos)) setEditLangs(false); }}>{busy?.key === "idiomas" ? <Spinner /> : null}{t.listo}</button>
-              <button type="button" className={linkBtn} onClick={() => setEditLangs(false)}>{t.cancelar}</button>
-            </div>
-          </div>
-        )}
+        {paso !== "archivos" && editorIdiomas}
         {bubble && <Burbuja>{bubble}</Burbuja>}
         {offlineLine}
         {/* Email, code and date show their wait and error next to their own button (on a phone the top is off screen). */}
         {!cerca && statusLine}
         {!cerca && fallidosLine}
         {!cerca && errorLine}
-        {why && <p className="text-sm font-semibold text-rouge" role="alert">{why}</p>}
         {body}
       </section>
       <div className="min-w-0 lg:col-start-1 lg:row-start-2">{dudaCard}</div>

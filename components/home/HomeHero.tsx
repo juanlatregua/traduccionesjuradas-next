@@ -17,6 +17,7 @@ import type { Locale } from "@/lib/i18n/locales";
 import { puertaV2On } from "@/lib/entrada/flag";
 import PuertaPortada from "@/components/entrada/PuertaPortada";
 import PuertaPortadaFromParams from "@/components/entrada/PuertaPortadaFromParams";
+import SubirHeroButton from "@/components/entrada/SubirHeroButton";
 
 export default function HomeHero({ lang = "es" }: { lang?: Locale }) {
   const t = HOME_HERO;
@@ -46,10 +47,10 @@ export default function HomeHero({ lang = "es" }: { lang?: Locale }) {
 
         {/* En el móvil los paneles van uno tras otro: las dos acciones, arriba y a la vista. */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:hidden">
-          <a href="#subir" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-or px-3 text-center text-sm font-bold text-encre">
+          <SubirHeroButton className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-or px-3 text-center text-sm font-bold text-encre focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-encre">
             <Upload className="h-4 w-4 shrink-0" aria-hidden="true" />
             {t.accionSubir[lang]}
-          </a>
+          </SubirHeroButton>
           <a href="#preguntar" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-encre px-3 text-center text-sm font-bold text-parchment">
             <MessageCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
             {t.accionPreguntar[lang]}

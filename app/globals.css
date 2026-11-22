@@ -15,6 +15,15 @@ h3 {
   font-family: var(--font-baskerville), Georgia, "Times New Roman", serif;
 }
 
+/* The cookie banner never covers content: the page reserves its height while it is shown */
+.cookie-banner-visible {
+  padding-bottom: var(--cookie-h, 0px);
+}
+
+html {
+  scroll-padding-bottom: var(--cookie-h, 0px);
+}
+
 /* Push WhatsApp float above cookie banner when visible */
 .cookie-banner-visible .whatsapp-float {
   bottom: 6rem;
