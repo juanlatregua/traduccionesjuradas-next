@@ -57,7 +57,9 @@ export default function PrivacidadPage() {
           <h3 className="mt-6 font-semibold text-encre">2.5 Conservación de los datos</h3>
           <p className="mt-2">
             Los datos se conservarán durante el tiempo necesario para cumplir la finalidad para la
-            que fueron recabados y mientras existan obligaciones legales.
+            que fueron recabados y mientras existan obligaciones legales. Los documentos que
+            subes por la web para traducir se borran 30 días después de la entrega; las facturas
+            se conservan el plazo que exige la ley.
           </p>
 
           <h3 className="mt-6 font-semibold text-encre">2.6 Cesión de datos</h3>

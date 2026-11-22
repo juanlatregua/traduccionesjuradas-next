@@ -263,7 +263,6 @@ export const FAQ_CLIENTE: readonly FaqEntry[] = [
   },
   {
     id: "factura",
-    // TODO-JUAN: pendiente de decidir cómo se obtiene la factura (redacción conservadora).
     q: {
       es: "¿Me dais factura?",
       fr: "Recevrai-je une facture ?",
@@ -366,7 +365,6 @@ export const FAQ_CLIENTE: readonly FaqEntry[] = [
   },
   {
     id: "original",
-    // TODO-JUAN: pendiente de decidir si el cliente necesita aportar el original en papel (redacción conservadora).
     q: {
       es: "¿Necesitáis el original en papel o vale una foto?",
       fr: "Faut-il l'original sur papier ou une photo suffit-elle ?",
