@@ -58,12 +58,12 @@ export default function ContadorProgreso({
   if (VIVOS.has(s.estado)) {
     const total = s.paginasTotal || 0;
     return (
-      <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-cyan-300" aria-live="polite">
-        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-cyan-400" />
+      <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-cyan-700" aria-live="polite">
+        <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-cyan-600" />
         {s.estado === "contando" && total > 0
           ? `Contando palabras… ${s.paginasHechas || 0} de ${total} páginas`
           : "Contando palabras… en cola"}
-        <span className="text-slate-500">· provisional: Haiku</span>
+        <span className="text-slate-600">· provisional: Haiku</span>
       </div>
     );
   }
@@ -71,7 +71,7 @@ export default function ContadorProgreso({
   if (s.aplicado && s.palabrasContador != null) {
     const differs = !!s.aviso?.differs;
     return (
-      <div className={`mt-1 flex flex-col items-end gap-0.5 text-[10px] ${differs ? "text-amber-300" : "text-emerald-300"}`}>
+      <div className={`mt-1 flex flex-col items-end gap-0.5 text-[10px] ${differs ? "text-amber-700" : "text-emerald-700"}`}>
         <span title="Cifra del contador de TraduCAT; la de Haiku queda como referencia">
           Contador: {s.palabrasContador} palabras (Haiku {s.palabrasHaiku ?? "—"}
           {differs ? `, ${s.aviso?.diffPct} %` : ""})
@@ -80,7 +80,7 @@ export default function ContadorProgreso({
           <button
             type="button"
             onClick={() => onUse(s.palabrasContador!)}
-            className="rounded border border-emerald-500/50 px-1 text-emerald-200 hover:bg-emerald-500/10"
+            className="rounded border border-emerald-600/50 px-1 text-emerald-800 hover:bg-emerald-500/10"
           >
             Usar {s.palabrasContador}
           </button>
@@ -90,7 +90,7 @@ export default function ContadorProgreso({
   }
 
   return (
-    <div className="mt-1 text-[10px] text-slate-400" title="El contador no terminó: la cifra es la estimación de Haiku">
+    <div className="mt-1 text-[10px] text-slate-600" title="El contador no terminó: la cifra es la estimación de Haiku">
       Contador no disponible: cifra de Haiku (estimación)
     </div>
   );

@@ -16,6 +16,7 @@ import QuoteUnfreezeButton from "@/components/QuoteUnfreezeButton";
 import StaffExpedienteIntake from "@/components/StaffExpedienteIntake";
 import { presupuestoPaginaUnicaOn } from "@/lib/quote-edit-hydrate";
 import { constructorDelPresupuesto } from "@/lib/quote-edit-db";
+import { contadorConfig } from "@/lib/contador/core";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -69,10 +70,12 @@ export default async function PresupuestoFichaPage({ params, searchParams = {} }
     },
   });
   // Contador de TraduCAT: la cifra de un escaneado de este presupuesto difiere >5 % de la de Haiku.
-  const avisosContador = await prisma.contadorTrabajo.findMany({
-    where: { avisoQuoteIds: { has: params.id } },
-    select: { id: true, avisoJson: true, documentAnalysis: { select: { fileName: true } } },
-  });
+  const avisosContador = contadorConfig()
+    ? await prisma.contadorTrabajo.findMany({
+        where: { avisoQuoteIds: { has: params.id } },
+        select: { id: true, avisoJson: true, documentAnalysis: { select: { fileName: true } } },
+      })
+    : [];
   const costeEstimadoCero =
     !!congelacion?.paymentFrozenAt && congelacion.lines.every((l) => Number(l.supplierUnitCost || 0) <= 0);
   const pendiente = isPendingCompletion(docsEvents.map((e) => e.processedAt), lastSend?.sentAt);
@@ -149,7 +152,7 @@ export default async function PresupuestoFichaPage({ params, searchParams = {} }
         {avisosContador.map((a) => {
           const v = a.avisoJson as { haiku?: number; contador?: number; diffPct?: number } | null;
           return (
-            <div key={a.id} className="mb-4 rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            <div key={a.id} className="mb-4 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] px-3 py-2 text-sm text-[#7A5A10]">
               <strong>Palabras del escaneado {a.documentAnalysis.fileName}:</strong> el contador de TraduCAT ha contado {v?.contador ?? "—"}; este
               presupuesto se hizo con la cifra provisional de Haiku, {v?.haiku ?? "—"} ({v?.diffPct ?? "—"} %). El precio no se ha cambiado:
               {(serialized as any).status === "DRAFT" ? " corrígelo en «Editar datos y líneas» antes de enviarlo." : " decide si se corrige."}
