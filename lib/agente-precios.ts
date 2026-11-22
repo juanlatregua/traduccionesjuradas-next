@@ -18,6 +18,7 @@ import {
   type AutoApproveVerdict,
   type DegradeVerdict,
 } from "@/lib/learned-rates-math";
+import { abs, hrefTarifario } from "./staff-links.ts";
 
 const eur = (c: number | null | undefined) => (c == null ? "—" : `${(c / 100).toFixed(2)} €`);
 
@@ -147,7 +148,7 @@ export async function runAgentePrecios(now = new Date()): Promise<RunResult> {
           [
             `La tarifa ${label}${manual} vuelve a CANDIDATE porque ${verdict.reason}. Deja de presupuestar sola hasta que la revises.`,
             `Ahora: coste ${eur(rate.costCents)} · cliente ${eur(rate.clientCents)} · jurado ${rate.miembroNombre || "—"}.`,
-            `Revisar: https://www.traduccionesjuradas.net/zona-traductor/tarifario`,
+            `Revisar: ${abs(hrefTarifario())}`,
           ],
           `Tarifa ${label}${manual} degradada: coste ${eur(verdict.fromCents)} → ${eur(verdict.toCents)}. Ya no presupuesta sola. Revisar en /zona-traductor/tarifario`,
           `tarifa_degradada ${rate.id}`
@@ -158,7 +159,7 @@ export async function runAgentePrecios(now = new Date()): Promise<RunResult> {
         const lines = [
           `La tarifa ${label}${manual} vuelve a CANDIDATE porque ${verdict.reason}. Deja de presupuestar sola hasta que la revises.`,
           `Ahora: coste ${eur(rate.costCents)} · cliente ${eur(rate.clientCents)} · jurado ${rate.miembroNombre || "—"}.`,
-          `Revisar: https://www.traduccionesjuradas.net/zona-traductor/tarifario`,
+          `Revisar: ${abs(hrefTarifario())}`,
         ];
         await sendMail({
           to: process.env.ADMIN_EMAIL || "info@traduccionesjuradas.net",

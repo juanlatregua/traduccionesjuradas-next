@@ -159,3 +159,32 @@ test("hasPaidOrder: subió el documento 3 días ANTES de pagar con esa misma hue
   assert.equal(hasPaidOrder({ email: "c@x.com", at, hashes: ["H1"] }, o), true);
   assert.equal(hasPaidOrder({ email: "c@x.com", at, hashes: ["H2"] }, o), false);
 });
+
+test("AVISO_NO_PRESUPUESTABLES: solo «on» exacto; apagado = umbrales y borrador como hoy", async () => {
+  const { avisoNoPresupuestablesOn } = await import("../../lib/lead-sla-core.ts");
+  assert.equal(avisoNoPresupuestablesOn({}), false);
+  assert.equal(avisoNoPresupuestablesOn({ AVISO_NO_PRESUPUESTABLES: "On" }), false);
+  assert.equal(avisoNoPresupuestablesOn({ AVISO_NO_PRESUPUESTABLES: "on" }), true);
+  assert.equal(stageFor(200), 2, "sin v2 no hay aviso de 3 h");
+  const l = run({ docs: [doc("a@x.com", 200, { sourceLanguage: "ru" })] })[0];
+  assert.equal(l.stage, 2);
+  assert.equal(l.noPresupuestable, null);
+});
+
+test("v2: aviso a 3 h «pierdes el cliente», el borrador no calla el de 1 h y se marca", () => {
+  assert.equal(stageFor(179, true), 2);
+  assert.equal(stageFor(180, true), 3);
+  assert.equal(run({ docs: [doc("a@x.com", 181)], v2: true })[0].stage, 3);
+  const q: SlaQuote = { id: "Q1", email: "a@x.com", phone: null, expRef: null, sentAt: null, createdAt: ago(10) };
+  const l = run({ docs: [doc("a@x.com", 90)], quotes: [q], v2: true });
+  assert.equal(l.length, 1);
+  assert.equal(l[0].hasDraft, true);
+  assert.notEqual(dedupeId(l[0].keyBase, 3), dedupeId(l[0].keyBase, 2));
+});
+
+test("v2: no presupuestable (sin jurado, par desconocido, 0 palabras leídas)", () => {
+  assert.equal(run({ docs: [doc("a@x.com", 70, { sourceLanguage: "zh" })], v2: true })[0].noPresupuestable?.code, "sin_jurado");
+  assert.equal(run({ docs: [doc("a@x.com", 70, { targetLanguage: "unknown" })], v2: true })[0].noPresupuestable?.code, "par_desconocido");
+  assert.equal(run({ docs: [doc("a@x.com", 70, { estimatedWords: 0, analyzed: true })], v2: true })[0].noPresupuestable?.code, "sin_palabras");
+  assert.equal(run({ docs: [doc("a@x.com", 70)], v2: true })[0].noPresupuestable, null);
+});

@@ -18,7 +18,7 @@ function fdate(iso: string) {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100";
+const FIELD = "rounded-lg border border-[#D5DAE1] bg-white px-2 py-1.5 text-sm text-[#1F2933]";
 
 export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) {
   const [open, setOpen] = useState(false);
@@ -57,7 +57,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
 
   function colSelect(label: string, key: keyof ColumnMapping) {
     return (
-      <label className="text-xs text-slate-400">
+      <label className="text-xs text-[#52606D]">
         {label}
         <select
           className={`mt-1 block w-40 ${FIELD}`}
@@ -182,22 +182,22 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
   const t = result?.totals;
 
   return (
-    <div className="mt-10 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+    <div className="mt-10 rounded-xl border border-[#D5DAE1] bg-white p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-white">Conciliación bancaria (CSV del banco)</h2>
-        <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs text-cyan-300 hover:text-cyan-200">
+        <h2 className="text-sm font-semibold text-[#1A2E4A]">Conciliación bancaria (CSV del banco)</h2>
+        <button type="button" onClick={() => setOpen((v) => !v)} className="text-xs text-[#1A2E4A] hover:text-[#1A2E4A]">
           {open ? "Cerrar" : "Abrir"}
         </button>
       </div>
 
       {open && (
         <div className="mt-3">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#52606D]">
             Sube el extracto de tu banco (BBVA) en CSV. Cruzo cada <strong>ingreso</strong> con facturas/pedidos y cada{" "}
             <strong>cargo</strong> con gastos, y te marco lo que no cuadra. No se guarda el extracto, solo tus decisiones.
           </p>
 
-          <label className="mt-3 block text-xs text-slate-400">
+          <label className="mt-3 block text-xs text-[#52606D]">
             Marca / actividad de esta cuenta (para gastos y decisiones)
             <select className={`mt-1 block w-64 ${FIELD}`} value={brand} onChange={(e) => setBrand(e.target.value)}>
               {BRAND_OPTIONS.map((o) => (
@@ -207,8 +207,8 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
           </label>
 
           <div className="mt-3 flex flex-wrap items-center gap-3">
-            <input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-slate-300" />
-            <span className="text-xs text-slate-500">o pega el contenido abajo</span>
+            <input type="file" accept=".csv,text/csv" onChange={onFile} className="text-sm text-[#1F2933]" />
+            <span className="text-xs text-[#52606D]">o pega el contenido abajo</span>
           </div>
           <textarea
             className={`mt-2 block h-20 w-full ${FIELD} font-mono text-xs`}
@@ -219,12 +219,12 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
 
           {/* Mapeo de columnas */}
           {headers.length > 0 && mapping && (
-            <div className="mt-3 rounded-lg border border-slate-700 bg-slate-950/40 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Mapeo de columnas</p>
+            <div className="mt-3 rounded-lg border border-[#D5DAE1] bg-white p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Mapeo de columnas</p>
               <div className="mt-2 flex flex-wrap items-end gap-3">
                 {colSelect("Fecha", "date")}
                 {colSelect("Concepto", "description")}
-                <label className="text-xs text-slate-400">
+                <label className="text-xs text-[#52606D]">
                   Importe
                   <select className={`mt-1 block w-44 ${FIELD}`} value={amountMode} onChange={(e) => setAmountMode(e.target.value as any)}>
                     <option value="single">Columna única con signo</option>
@@ -238,36 +238,36 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                   </>
                 )}
                 {colSelect("Saldo (opc.)", "balance")}
-                <button type="button" onClick={runReconcile} disabled={busy} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
+                <button type="button" onClick={runReconcile} disabled={busy} className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50">
                   {busy ? "Cuadrando…" : "Cuadrar"}
                 </button>
               </div>
             </div>
           )}
 
-          {msg && <p className="mt-2 text-xs text-amber-300">{msg}</p>}
+          {msg && <p className="mt-2 text-xs text-[#7A5A10]">{msg}</p>}
 
           {/* Resultado */}
           {result && (
             <div className="mt-4 space-y-4">
               {!result.balanceCheck.ok && (
-                <p className="rounded-lg border border-rose-700 bg-rose-900/20 p-2 text-xs text-rose-200">⚠ {result.balanceCheck.message}</p>
+                <p className="rounded-lg border border-[#F0C9C9] bg-[#FDF2F2] p-2 text-xs text-[#A12B2B]">⚠ {result.balanceCheck.message}</p>
               )}
               {result.balanceCheck.ok && result.balanceCheck.message && (
-                <p className="text-xs text-emerald-300">✓ {result.balanceCheck.message}</p>
+                <p className="text-xs text-[#1F6B45]">✓ {result.balanceCheck.message}</p>
               )}
 
               <div className="grid gap-2 text-xs sm:grid-cols-3">
-                <div className="rounded-lg border border-slate-700 p-2">Ingresos extracto: <b className="tabular-nums">{eur(t.bankIn)}</b> · cuadrados {eur(t.matchedIn)} · sin factura {eur(t.gapIn)}{t.bizumIn ? <> · Bizum (fuera) {eur(t.bizumIn)}</> : null}</div>
-                <div className="rounded-lg border border-slate-700 p-2">Cargos extracto: <b className="tabular-nums">{eur(t.bankOut)}</b> · cuadrados {eur(t.matchedOut)} · sin gasto {eur(t.gapOut)}</div>
-                <div className="rounded-lg border border-slate-700 p-2">Cuadrados {result.matched.length} · Ambiguos {result.ambiguous.length} · Internos {result.internal.length} · Ignorados {result.ignored.length}</div>
+                <div className="rounded-lg border border-[#D5DAE1] p-2">Ingresos extracto: <b className="tabular-nums">{eur(t.bankIn)}</b> · cuadrados {eur(t.matchedIn)} · sin factura {eur(t.gapIn)}{t.bizumIn ? <> · Bizum (fuera) {eur(t.bizumIn)}</> : null}</div>
+                <div className="rounded-lg border border-[#D5DAE1] p-2">Cargos extracto: <b className="tabular-nums">{eur(t.bankOut)}</b> · cuadrados {eur(t.matchedOut)} · sin gasto {eur(t.gapOut)}</div>
+                <div className="rounded-lg border border-[#D5DAE1] p-2">Cuadrados {result.matched.length} · Ambiguos {result.ambiguous.length} · Internos {result.internal.length} · Ignorados {result.ignored.length}</div>
               </div>
 
               <Section title={`Cobros sin factura (${result.incomeNoInvoice.length}) → facturar (#2)`} color="amber">
                 {result.incomeNoInvoice.map((it: any, i: number) => (
                   <Row key={i} txn={it.txn} extra={it.flags?.includes("netOfFee") ? "neto de comisión" : undefined}>
                     {it.candidateOrder && canIssue && (
-                      <button type="button" disabled={busy} onClick={() => facturar(it.candidateOrder.reference)} className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">
+                      <button type="button" disabled={busy} onClick={() => facturar(it.candidateOrder.reference)} className="rounded bg-[#1A2E4A] px-2 py-1 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50">
                         Facturar {it.candidateOrder.reference}
                       </button>
                     )}
@@ -299,7 +299,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                   <Row key={i} txn={it.txn}>
                     {canIssue &&
                       it.candidates.map((c: any, j: number) => (
-                        <button key={j} type="button" disabled={busy} onClick={() => decide(it.lineHash, "MATCHED_MANUAL", { matchedType: c.type, matchedId: c.id, movementDate: it.txn.bookingDate })} className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800">
+                        <button key={j} type="button" disabled={busy} onClick={() => decide(it.lineHash, "MATCHED_MANUAL", { matchedType: c.type, matchedId: c.id, movementDate: it.txn.bookingDate })} className="rounded border border-[#D5DAE1] px-2 py-1 text-xs text-[#1F2933] hover:bg-[#F6F7F9]">
                           {c.label}
                         </button>
                       ))}
@@ -309,9 +309,9 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
 
               {result.bizum?.length > 0 && (
                 <Section title={`Bizum (${result.bizum.length}) → fuera de contabilidad`} color="slate">
-                  <p className="mb-2 text-xs text-slate-400">
+                  <p className="mb-2 text-xs text-[#52606D]">
                     Cobros por Bizum: no se facturan ni entran en el libro. Su relación con los pedidos está en{" "}
-                    <a href="/zona-traductor/contabilidad/bizum" className="text-cyan-400 hover:underline">Bizum (fuera)</a>.
+                    <a href="/zona-traductor/contabilidad/bizum" className="text-[#1A2E4A] hover:underline">Bizum (fuera)</a>.
                   </p>
                   {result.bizum.map((it: any, i: number) => (
                     <Row key={i} txn={it.txn} extra="Bizum" />
@@ -329,7 +329,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                             disabled={busy}
                             value=""
                             onChange={(e) => e.target.value && decide(it.lineHash, "MATCHED_MANUAL", { matchedType: "invoice", matchedId: e.target.value, movementDate: it.txn.bookingDate })}
-                            className="rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                            className="rounded border border-[#D5DAE1] bg-white px-2 py-1 text-xs text-[#1F2933]"
                           >
                             <option value="">Vincular a factura…</option>
                             {result.availableInvoices.map((inv: { id: string; label: string }) => (
@@ -344,7 +344,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                 ))}
               </Section>
 
-              <details className="text-xs text-slate-400">
+              <details className="text-xs text-[#52606D]">
                 <summary className="cursor-pointer">Cuadrados, internos e ignorados ({result.matched.length + result.internal.length + result.ignored.length})</summary>
                 <div className="mt-2 space-y-2">
                   {result.matched.map((it: any, i: number) => <Row key={"m" + i} txn={it.txn} extra={`✓ ${it.label}`} />)}
@@ -366,7 +366,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
                   {result.ignored.map((it: any, i: number) => (
                     <Row key={"ig" + i} txn={it.txn} extra={`ignorado${it.note ? `: ${it.note}` : ""}`}>
                       {canIssue && (
-                        <button type="button" disabled={busy} onClick={() => fetch("/api/bank/decision", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lineHash: it.lineHash }) }).then(refresh)} className="rounded border border-slate-600 px-2 py-1 text-[11px] text-slate-300 hover:bg-slate-800">
+                        <button type="button" disabled={busy} onClick={() => fetch("/api/bank/decision", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lineHash: it.lineHash }) }).then(refresh)} className="rounded border border-[#D5DAE1] px-2 py-1 text-[11px] text-[#1F2933] hover:bg-[#F6F7F9]">
                           Deshacer
                         </button>
                       )}
@@ -385,7 +385,7 @@ export default function BankReconcilePanel({ canIssue }: { canIssue: boolean }) 
 function Section({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
   const arr = Array.isArray(children) ? children : [children];
   if (arr.flat().filter(Boolean).length === 0) return null;
-  const c = color === "rose" ? "text-rose-300" : color === "amber" ? "text-amber-300" : "text-slate-300";
+  const c = color === "rose" ? "text-[#A12B2B]" : color === "amber" ? "text-[#7A5A10]" : "text-[#1F2933]";
   return (
     <div>
       <h3 className={`text-xs font-semibold uppercase tracking-wide ${c}`}>{title}</h3>
@@ -396,11 +396,11 @@ function Section({ title, color, children }: { title: string; color: string; chi
 
 function Row({ txn, extra, children }: { txn: BankTxn; extra?: string; children?: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-1.5 text-xs">
-      <span className="text-slate-400">{fdate(txn.bookingDate)}</span>
-      <span className="flex-1 truncate text-slate-200">{txn.description || "—"}</span>
-      <span className={`tabular-nums font-semibold ${txn.amountCents < 0 ? "text-rose-300" : "text-emerald-300"}`}>{eur(txn.amountCents)}</span>
-      {extra && <span className="text-slate-400">{extra}</span>}
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#D5DAE1] bg-white px-3 py-1.5 text-xs">
+      <span className="text-[#52606D]">{fdate(txn.bookingDate)}</span>
+      <span className="flex-1 truncate text-[#1F2933]">{txn.description || "—"}</span>
+      <span className={`tabular-nums font-semibold ${txn.amountCents < 0 ? "text-[#A12B2B]" : "text-[#1F6B45]"}`}>{eur(txn.amountCents)}</span>
+      {extra && <span className="text-[#52606D]">{extra}</span>}
       {children}
     </div>
   );
@@ -415,7 +415,7 @@ function ChargeRow({ txn, busy, onRegister, onIgnore, availableExpenses, onLink 
           disabled={busy}
           value=""
           onChange={(e) => e.target.value && onLink(e.target.value)}
-          className="rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[11px] text-slate-100"
+          className="rounded border border-[#D5DAE1] bg-white px-1 py-0.5 text-[11px] text-[#1F2933]"
         >
           <option value="">Vincular a gasto…</option>
           {availableExpenses.map((ex) => (
@@ -423,13 +423,13 @@ function ChargeRow({ txn, busy, onRegister, onIgnore, availableExpenses, onLink 
           ))}
         </select>
       )}
-      <select value={vat} onChange={(e) => setVat(Number(e.target.value))} className="rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[11px] text-slate-100">
+      <select value={vat} onChange={(e) => setVat(Number(e.target.value))} className="rounded border border-[#D5DAE1] bg-white px-1 py-0.5 text-[11px] text-[#1F2933]">
         <option value={0}>IVA 0% / exento</option>
         <option value={0.21}>IVA 21%</option>
         <option value={0.1}>IVA 10%</option>
         <option value={0.04}>IVA 4%</option>
       </select>
-      <button type="button" disabled={busy} onClick={() => onRegister(txn, vat)} className="rounded bg-cyan-600 px-2 py-1 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
+      <button type="button" disabled={busy} onClick={() => onRegister(txn, vat)} className="rounded bg-[#1A2E4A] px-2 py-1 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50">
         Registrar gasto
       </button>
       <IgnoreBtn onClick={onIgnore} />
@@ -439,7 +439,7 @@ function ChargeRow({ txn, busy, onRegister, onIgnore, availableExpenses, onLink 
 
 function IgnoreBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="rounded border border-slate-700 px-2 py-1 text-[11px] text-slate-400 hover:bg-slate-800">
+    <button type="button" onClick={onClick} className="rounded border border-[#D5DAE1] px-2 py-1 text-[11px] text-[#52606D] hover:bg-[#F6F7F9]">
       Ignorar
     </button>
   );

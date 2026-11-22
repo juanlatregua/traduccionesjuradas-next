@@ -44,6 +44,10 @@
       "schedule": "30 4 * * *"
     },
     {
+      "path": "/api/cron/entrada-recordatorio",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/lead-reminders",
       "schedule": "0 10 * * *"
     },
@@ -94,6 +98,14 @@
     {
       "path": "/api/cron/lead-nudge",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/clientes-a-medias",
+      "schedule": "0 6-20 * * *"
+    },
+    {
+      "path": "/api/cron/autoenvio-150",
+      "schedule": "*/10 6-21 * * *"
     },
     {
       "path": "/api/cron/contador",

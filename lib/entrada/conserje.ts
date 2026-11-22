@@ -1,8 +1,9 @@
 // El conserje del hilo: contesta dudas del cliente sobre sus documentos (apostilla, validez, plazos, organismo).
-// Nunca precios (regla de Juan): una pregunta de precio no llega al modelo y una respuesta con cifra se sustituye.
+// Nunca precios (regla de Juan), salvo la cifra fija «desde 30 € + IVA»: una pregunta de precio no llega al modelo y una respuesta con otra cifra se sustituye.
 // Reutiliza el saneado y el control de inyección del chat (lib/chat/sanitize) y los modelos de lib/ai/models.
 import { isPromptInjection, sanitizeMessage } from "../chat/sanitize.ts";
 import type { EntradaLang } from "./i18n.ts";
+import { FROM_PRICE, faqConserjeBlock } from "../knowledge/faq-cliente.ts";
 
 export const CONSERJE_SYSTEM = `Eres el conserje de la entrada de traduccionesjuradas.net (HBTJ Consultores Lingüísticos, Málaga; Juan Silva Moreno, traductor-intérprete jurado de francés n.º 3850 del MAEC, con un equipo de traductores jurados de otros idiomas).
 El cliente está subiendo sus documentos para pedir un presupuesto de traducción jurada y te hace una duda en mitad del proceso.
@@ -10,13 +11,17 @@ El cliente está subiendo sus documentos para pedir un presupuesto de traducció
 Reglas:
 - Responde en el idioma del cliente, en 1 a 4 frases, con tono cercano y sin jerga.
 - Asesora sobre documentos: qué hace falta traducir, apostilla de La Haya o legalización, validez de la traducción jurada en España y ante organismos, plazos habituales, firma electrónica y papel, qué páginas o reverso subir.
-- NUNCA des precios, tarifas, importes ni cifras de dinero. Si preguntan por precio, di que reciben el presupuesto cerrado por email, normalmente en el día.
+- NUNCA des precios, tarifas, importes ni cifras de dinero; la única cifra permitida es «desde 30 € + IVA». Si preguntan por precio, di que reciben el presupuesto cerrado por email, normalmente en el día.
 - No inventes normativa, plazos oficiales ni requisitos de un organismo concreto. Si no estás seguro, di que se lo confirmamos en el presupuesto.
 - No prometas fechas de entrega concretas; di que el plazo se confirma en el presupuesto.
+- El servicio es 100 % online: nunca des una dirección como lugar al que ir.
 - Habla en nombre del equipo («te lo confirmamos», «lo revisamos»), nunca pidas que escriban a otra persona.
 - Si la duda no tiene que ver con traducciones o documentos, di amablemente que solo puedes ayudar con eso.
 - No pidas datos personales ni repitas datos de los documentos.
-- Termina invitando a seguir con el paso en que estaba, en una frase corta.`;
+- Termina invitando a seguir con el paso en que estaba, en una frase corta.
+
+Respuestas oficiales a las dudas frecuentes (tradúcelas al idioma del cliente, resúmelas, no las contradigas y no añadas importes):
+${faqConserjeBlock()}`;
 
 const PRICE_ASK = /\b(precio|precios|cu[aá]nto|cuesta|cobr|coste|costo|tarifa|presupuesto aproximado|price|cost|how much|fee|prix|combien|co[uû]t|tarif|preis|kostet|kosten|pre[cç]o|quanto|custa|valor)\b/i;
 const MONEY = /(\d[\d.,]*\s*(€|eur\b|euros?\b|e\b(?=\s|$))|€\s*\d|\b\d+[.,]?\d*\s*(\+\s*)?iva\b)/i;
@@ -29,14 +34,20 @@ export function isQuestion(text: string): boolean {
 }
 
 export const asksPrice = (text: string) => PRICE_ASK.test(text);
-export const hasMoney = (text: string) => MONEY.test(text);
+const ALLOWED_FROM = Object.values(FROM_PRICE);
+/** ¿Lleva cifras de dinero distintas de la única permitida («desde 30 € + IVA»)? */
+export const hasMoney = (text: string) => {
+  let t = text;
+  for (const ok of ALLOWED_FROM) t = t.split(ok).join(" ");
+  return MONEY.test(t);
+};
 
 export const NO_PRICE: Record<EntradaLang, string> = {
-  es: "El precio te lo damos cerrado en el presupuesto que te enviamos por email, normalmente en el día. Sigamos con tus documentos.",
-  fr: "Le prix, nous vous le donnons dans le devis définitif envoyé par e-mail, en général dans la journée. Continuons avec vos documents.",
-  en: "You'll get the price in the final quote we email you, usually the same day. Let's carry on with your documents.",
-  de: "Den Preis erhalten Sie im verbindlichen Angebot per E-Mail, meist am selben Tag. Machen wir mit Ihren Dokumenten weiter.",
-  pt: "O preço vai no orçamento fechado que enviamos por e-mail, normalmente no mesmo dia. Vamos continuar com seus documentos.",
+  es: `Tarifa: ${FROM_PRICE.es}; el precio cerrado te lo damos en el presupuesto que te enviamos por email, normalmente en el día. Sigamos con tus documentos.`,
+  fr: `Tarif : ${FROM_PRICE.fr} ; le prix définitif figure dans le devis envoyé par e-mail, en général dans la journée. Continuons avec vos documents.`,
+  en: `Prices: ${FROM_PRICE.en}; you'll get the final price in the quote we email you, usually the same day. Let's carry on with your documents.`,
+  de: `Preise: ${FROM_PRICE.de}; den verbindlichen Preis erhalten Sie im Angebot per E-Mail, meist am selben Tag. Machen wir mit Ihren Dokumenten weiter.`,
+  pt: `Preço: ${FROM_PRICE.pt}; o preço fechado vai no orçamento que enviamos por e-mail, normalmente no mesmo dia. Vamos continuar com seus documentos.`,
 };
 
 export const NOT_SURE: Record<EntradaLang, string> = {

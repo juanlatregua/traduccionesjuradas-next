@@ -78,7 +78,7 @@ function isProveedor(e: AcExpense) {
   return /traducc|translation|honorarios profesionales/.test(s);
 }
 
-const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
+const FIELD = "rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#52606D]";
 
 const SECTIONS = [
   { id: "balance", label: "Balance" },
@@ -530,17 +530,17 @@ export default function ContabilidadClient({
     return () => obs.disconnect();
   }, [sinFacturaSlot, bancoSlot]);
 
-  const card = "rounded-xl border border-slate-700 bg-slate-900/50 p-4";
-  const cardLabel = "text-xs uppercase tracking-wide text-slate-400";
+  const card = "rounded-xl border border-[#D5DAE1] bg-white p-4";
+  const cardLabel = "text-xs uppercase tracking-wide text-[#52606D]";
   const cardValue = "mt-1 text-xl font-semibold tabular-nums";
   const barMax = balance.maxBar;
 
   function ExpenseTable({ rows, empty }: { rows: AcExpense[]; empty: string }) {
-    if (rows.length === 0) return <p className="mt-2 text-slate-500">{empty}</p>;
+    if (rows.length === 0) return <p className="mt-2 text-[#52606D]">{empty}</p>;
     return (
-      <div className="mt-2 overflow-x-auto rounded-xl border border-slate-700">
-        <table className="w-full text-sm text-slate-200">
-          <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+      <div className="mt-2 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+        <table className="w-full text-sm text-[#1F2933]">
+          <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
             <tr>
               <th className="px-3 py-2">Fecha</th>
               <th className="px-3 py-2">Concepto</th>
@@ -553,36 +553,36 @@ export default function ContabilidadClient({
               <th className="px-3 py-2"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-[#D5DAE1]">
             {rows.map((e) => (
               <tr key={e.id}>
-                <td className="px-3 py-3 text-slate-400">{new Date(e.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</td>
+                <td className="px-3 py-3 text-[#52606D]">{new Date(e.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</td>
                 <td className="px-3 py-3">
                   {e.concept}
-                  {e.category && <span className="ml-2 text-[10px] text-slate-500">{e.category}</span>}
-                  {!e.ivaDeducible && <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-200">IVA no deducible</span>}
+                  {e.category && <span className="ml-2 text-[10px] text-[#52606D]">{e.category}</span>}
+                  {!e.ivaDeducible && <span className="ml-2 rounded bg-[#FFF8E6] px-1.5 py-0.5 text-[10px] text-[#7A5A10]">IVA no deducible</span>}
                 </td>
-                <td className="px-3 py-3 text-slate-400">{e.supplier || "—"}</td>
+                <td className="px-3 py-3 text-[#52606D]">{e.supplier || "—"}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{eur(e.baseCents)}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{eur(e.vatCents)}</td>
                 <td className="px-3 py-3 text-right tabular-nums">{e.irpfCents ? `−${eur(e.irpfCents)}` : "—"}</td>
                 <td className="px-3 py-3 text-right tabular-nums font-semibold">{eur(e.payableCents)}</td>
                 <td className="px-3 py-3">
                   {e.attachmentUrl ? (
-                    <a href={e.attachmentUrl} target="_blank" rel="noreferrer" className="text-cyan-300 hover:text-cyan-200">ver</a>
+                    <a href={e.attachmentUrl} target="_blank" rel="noreferrer" className="text-[#1A2E4A] hover:text-[#1A2E4A]">ver</a>
                   ) : (
-                    <span className="text-slate-600">—</span>
+                    <span className="text-[#52606D]">—</span>
                   )}
                 </td>
                 <td className="px-3 py-3 text-right">
-                  <button type="button" onClick={() => delExpense(e.id)} disabled={busy} className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50">
+                  <button type="button" onClick={() => delExpense(e.id)} disabled={busy} className="rounded border border-[#F0C9C9] px-2 py-1 text-xs font-semibold text-[#A12B2B] hover:bg-[#F6F7F9] disabled:opacity-50">
                     Borrar
                   </button>
                 </td>
               </tr>
             ))}
           </tbody>
-          <tfoot className="border-t-2 border-slate-700 bg-slate-800/40 text-xs font-semibold text-white">
+          <tfoot className="border-t-2 border-[#D5DAE1] bg-[#F6F7F9] text-xs font-semibold text-[#1A2E4A]">
             <tr>
               <td className="px-3 py-2" colSpan={3}>Total base del bloque</td>
               <td className="px-3 py-2 text-right tabular-nums">{eur(rows.reduce((a, e) => a + e.baseCents, 0))}</td>
@@ -601,7 +601,7 @@ export default function ContabilidadClient({
     <div className="mt-6">
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-3">
-        <label className="text-xs text-slate-400">
+        <label className="text-xs text-[#52606D]">
           Año
           <select className={`mt-1 block w-32 ${FIELD}`} value={fYear} onChange={(e) => setFYear(e.target.value)}>
             <option value="all">Todos</option>
@@ -610,7 +610,7 @@ export default function ContabilidadClient({
             ))}
           </select>
         </label>
-        <label className="text-xs text-slate-400">
+        <label className="text-xs text-[#52606D]">
           Periodo
           <select className={`mt-1 block w-48 ${FIELD}`} value={fPeriod} onChange={(e) => setFPeriod(e.target.value)}>
             <option value="all">Todo el año</option>
@@ -624,8 +624,8 @@ export default function ContabilidadClient({
           </select>
         </label>
         <div className="ml-auto flex gap-2">
-          <a href={csvHref} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500">CSV facturas</a>
-          <a href={expensesCsvHref} className="rounded-lg border border-cyan-600 px-4 py-2 text-sm font-semibold text-cyan-200 hover:bg-cyan-900/30">CSV gastos</a>
+          <a href={csvHref} className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66]">CSV facturas</a>
+          <a href={expensesCsvHref} className="rounded-lg border border-[#D5DAE1] px-4 py-2 text-sm font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">CSV gastos</a>
         </div>
       </div>
 
@@ -633,46 +633,46 @@ export default function ContabilidadClient({
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className={card}>
           <p className={cardLabel}>Ingresos cobrados</p>
-          <p className={`${cardValue} text-white`}>{eur(ingresosCobrado)}</p>
-          <p className="mt-1 text-[11px] text-slate-500">facturado {eur(inv.base)}{sinFacturaBase > 0 ? ` · sin factura ${eur(sinFacturaBase)}` : ""}</p>
+          <p className={`${cardValue} text-[#1A2E4A]`}>{eur(ingresosCobrado)}</p>
+          <p className="mt-1 text-[11px] text-[#52606D]">facturado {eur(inv.base)}{sinFacturaBase > 0 ? ` · sin factura ${eur(sinFacturaBase)}` : ""}</p>
         </div>
         <div className={card}>
           <p className={cardLabel}>Gastos (base)</p>
-          <p className={`${cardValue} text-rose-300`}>{eur(exp.base)}</p>
-          <p className="mt-1 text-[11px] text-slate-500">estructural {eur(estructBase)} · proveedores {eur(provBase)}</p>
+          <p className={`${cardValue} text-[#A12B2B]`}>{eur(exp.base)}</p>
+          <p className="mt-1 text-[11px] text-[#52606D]">estructural {eur(estructBase)} · proveedores {eur(provBase)}</p>
         </div>
         <div className={card}>
           <p className={cardLabel}>Resultado</p>
-          <p className={`${cardValue} ${resultado >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{eur(resultado)}</p>
-          <p className="mt-1 text-[11px] text-slate-500">margen {(margen * 100).toFixed(0)}% · ingresos − gastos</p>
+          <p className={`${cardValue} ${resultado >= 0 ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{eur(resultado)}</p>
+          <p className="mt-1 text-[11px] text-[#52606D]">margen {(margen * 100).toFixed(0)}% · ingresos − gastos</p>
         </div>
         <div className={card}>
           <p className={cardLabel}>Impuestos estim. a pagar</p>
-          <p className={`${cardValue} text-amber-300`}>{eur(impuestosEstim)}</p>
-          <p className="mt-1 text-[11px] text-slate-500">IVA {eur(Math.max(0, iva303))} · 111 {eur(Math.max(0, irpf111))} · IS por 202 (gestoría)</p>
+          <p className={`${cardValue} text-[#7A5A10]`}>{eur(impuestosEstim)}</p>
+          <p className="mt-1 text-[11px] text-[#52606D]">IVA {eur(Math.max(0, iva303))} · 111 {eur(Math.max(0, irpf111))} · IS por 202 (gestoría)</p>
         </div>
       </div>
 
       {/* Gastos recurrentes pendientes de confirmar (fuera de todos los números) */}
       {pendingExpenses.length > 0 && (
-        <div className="mt-4 rounded-xl border border-amber-700/60 bg-amber-900/20 p-4">
-          <p className="text-sm font-semibold text-amber-200">Gastos recurrentes pendientes de confirmar ({pendingExpenses.length})</p>
-          <p className="mt-1 text-[11px] text-amber-200/70">
+        <div className="mt-4 rounded-xl border border-[#E9D8A6] bg-[#FFF8E6] p-4">
+          <p className="text-sm font-semibold text-[#7A5A10]">Gastos recurrentes pendientes de confirmar ({pendingExpenses.length})</p>
+          <p className="mt-1 text-[11px] text-[#7A5A10]">
             No cuentan en totales, 303 ni CSV de gestoría hasta que los confirmes con el importe real de la factura.
           </p>
-          <ul className="mt-2 divide-y divide-amber-800/40">
+          <ul className="mt-2 divide-y divide-[#E9D8A6]">
             {pendingExpenses.map((e) => (
-              <li key={e.id} className="flex flex-wrap items-center gap-2 py-2 text-sm text-slate-200">
-                <span className="w-24 shrink-0 text-xs text-slate-400">{new Date(e.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</span>
+              <li key={e.id} className="flex flex-wrap items-center gap-2 py-2 text-sm text-[#1F2933]">
+                <span className="w-24 shrink-0 text-xs text-[#52606D]">{new Date(e.date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</span>
                 <span className="min-w-[180px] flex-1">
                   {e.concept}
-                  {e.supplier && <span className="ml-2 text-xs text-slate-500">{e.supplier}</span>}
+                  {e.supplier && <span className="ml-2 text-xs text-[#52606D]">{e.supplier}</span>}
                 </span>
-                <span className="tabular-nums text-xs text-slate-400">{e.baseCents > 0 ? eur(e.baseCents) : "importe pendiente"}</span>
-                <button type="button" onClick={() => startConfirm(e)} disabled={busy} className="rounded bg-amber-600 px-2 py-1 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50">
+                <span className="tabular-nums text-xs text-[#52606D]">{e.baseCents > 0 ? eur(e.baseCents) : "importe pendiente"}</span>
+                <button type="button" onClick={() => startConfirm(e)} disabled={busy} className="rounded bg-[#1A2E4A] px-2 py-1 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50">
                   Confirmar
                 </button>
-                <button type="button" onClick={() => delExpense(e.id)} disabled={busy} className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50">
+                <button type="button" onClick={() => delExpense(e.id)} disabled={busy} className="rounded border border-[#F0C9C9] px-2 py-1 text-xs font-semibold text-[#A12B2B] hover:bg-[#F6F7F9] disabled:opacity-50">
                   Descartar
                 </button>
               </li>
@@ -682,20 +682,20 @@ export default function ContabilidadClient({
       )}
 
       {/* Chips de navegación (sticky) */}
-      <nav className="sticky top-0 z-20 -mx-4 mt-4 overflow-x-auto border-b border-slate-800 bg-slate-950/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+      <nav className="sticky top-0 z-20 -mx-4 mt-4 overflow-x-auto border-b border-[#D5DAE1] bg-white px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex items-center gap-2">
           {SECTIONS.map((s) => (
             <a
               key={s.id}
               href={`#${s.id}`}
               className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                active === s.id ? "border-cyan-500 bg-cyan-500/15 text-cyan-200" : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                active === s.id ? "border-[#1A2E4A] bg-[#1A2E4A] text-white" : "border-[#D5DAE1] bg-white text-[#52606D] hover:border-[#52606D] hover:text-[#1A2E4A]"
               }`}
             >
               {s.label}
             </a>
           ))}
-          <span className="ml-auto whitespace-nowrap pl-2 text-[11px] text-slate-500">{periodLabel}</span>
+          <span className="ml-auto whitespace-nowrap pl-2 text-[11px] text-[#52606D]">{periodLabel}</span>
         </div>
       </nav>
 
@@ -708,44 +708,44 @@ export default function ContabilidadClient({
               type="button"
               onClick={() => setActivity(o.value)}
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                activity === o.value ? "border-cyan-500 bg-cyan-500/15 text-cyan-200" : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"
+                activity === o.value ? "border-[#1A2E4A] bg-[#1A2E4A] text-white" : "border-[#D5DAE1] bg-white text-[#52606D] hover:border-[#52606D] hover:text-[#1A2E4A]"
               }`}
             >
               {o.label}
             </button>
           ))}
-          {activity !== "todo" && <span className="text-[11px] text-slate-500">solo gestión: impuestos y libros siguen con todas las actividades</span>}
+          {activity !== "todo" && <span className="text-[11px] text-[#52606D]">solo gestión: impuestos y libros siguen con todas las actividades</span>}
         </div>
         {yearKpis && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className={card}>
               <p className={cardLabel}>Resultado del año</p>
-              <p className={`${cardValue} ${yearKpis.res >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{eur(yearKpis.res)}</p>
-              <p className="mt-1 text-[11px] text-slate-500">margen {(yearKpis.margen * 100).toFixed(0)}%</p>
+              <p className={`${cardValue} ${yearKpis.res >= 0 ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{eur(yearKpis.res)}</p>
+              <p className="mt-1 text-[11px] text-[#52606D]">margen {(yearKpis.margen * 100).toFixed(0)}%</p>
             </div>
             <div className={card}>
               <p className={cardLabel}>Ingresos / Gastos año</p>
-              <p className={`${cardValue} text-white`}>{eur(yearKpis.inc)}</p>
-              <p className="mt-1 text-[11px] text-rose-300/80">gastos {eur(yearKpis.gto)}</p>
+              <p className={`${cardValue} text-[#1A2E4A]`}>{eur(yearKpis.inc)}</p>
+              <p className="mt-1 text-[11px] text-[#A12B2B]">gastos {eur(yearKpis.gto)}</p>
             </div>
             <div className={card}>
               <p className={cardLabel}>Mejor / peor mes</p>
-              <p className="mt-1 text-sm font-semibold text-emerald-300">{yearKpis.best ? `${MONTHS_SHORT[yearKpis.best.i]} ${eur(yearKpis.best.res)}` : "—"}</p>
-              <p className="text-sm font-semibold text-rose-300">{yearKpis.worst ? `${MONTHS_SHORT[yearKpis.worst.i]} ${eur(yearKpis.worst.res)}` : "—"}</p>
+              <p className="mt-1 text-sm font-semibold text-[#1F6B45]">{yearKpis.best ? `${MONTHS_SHORT[yearKpis.best.i]} ${eur(yearKpis.best.res)}` : "—"}</p>
+              <p className="text-sm font-semibold text-[#A12B2B]">{yearKpis.worst ? `${MONTHS_SHORT[yearKpis.worst.i]} ${eur(yearKpis.worst.res)}` : "—"}</p>
             </div>
             <div className={card}>
               <p className={cardLabel}>Tendencia</p>
-              <p className={`${cardValue} ${yearKpis.trend >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+              <p className={`${cardValue} ${yearKpis.trend >= 0 ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>
                 {yearKpis.trend >= 0 ? "▲" : "▼"} {eur(Math.abs(yearKpis.trend))}
               </p>
-              <p className="mt-1 text-[11px] text-slate-500">último mes vs anterior</p>
+              <p className="mt-1 text-[11px] text-[#52606D]">último mes vs anterior</p>
             </div>
           </div>
         )}
 
-        <div className="mt-3 overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm text-slate-200">
-            <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+        <div className="mt-3 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+          <table className="w-full text-sm text-[#1F2933]">
+            <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
               <tr>
                 <th className="px-3 py-2">{balance.mode === "month" ? "Mes" : "Año"}</th>
                 <th className="px-3 py-2 text-right">Ingresos</th>
@@ -755,7 +755,7 @@ export default function ContabilidadClient({
                 <th className="hidden px-3 py-2 sm:table-cell">Ingresos / Gastos</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-[#D5DAE1]">
               {balance.mode === "year"
                 ? balance.rows.map((r) => <BalanceRow key={r.label} label={r.label} inc={r.inc} exp={r.exp} barMax={barMax} bold />)
                 : (["q1", "q2", "q3", "q4"] as const).flatMap((q) => {
@@ -773,7 +773,7 @@ export default function ContabilidadClient({
                   })}
             </tbody>
             {balance.mode === "month" && (
-              <tfoot className="border-t-2 border-slate-700 bg-slate-800/40 font-semibold text-white">
+              <tfoot className="border-t-2 border-[#D5DAE1] bg-[#F6F7F9] font-semibold text-[#1A2E4A]">
                 <BalanceRow
                   label={`AÑO ${balance.year}`}
                   inc={balance.months.reduce((a, m) => a + m.inc, 0)}
@@ -785,7 +785,7 @@ export default function ContabilidadClient({
             )}
           </table>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-[#52606D]">
           Ingresos = facturas emitidas + pedidos pagados aún sin factura (dinero cobrado real, no el 303). Coste de pedidos del periodo (informativo):{" "}
           {eur(orders.filter((o) => inPeriod(o.date)).reduce((a, o) => a + o.totalCostCents, 0))}.
         </p>
@@ -794,11 +794,11 @@ export default function ContabilidadClient({
       {/* INGRESOS */}
       <CollapsibleSection id="ingresos" title="Ingresos — facturas emitidas" subtitle={`${inv.rows.length} factura(s) · base ${eur(inv.base)} · IVA repercutido ${eur(inv.vat)}`}>
         {inv.rows.length === 0 ? (
-          <p className="mt-2 text-slate-500">Sin facturas emitidas en este periodo.</p>
+          <p className="mt-2 text-[#52606D]">Sin facturas emitidas en este periodo.</p>
         ) : (
-          <div className="mt-2 overflow-x-auto rounded-xl border border-slate-700">
-            <table className="w-full text-sm text-slate-200">
-              <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+          <div className="mt-2 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+            <table className="w-full text-sm text-[#1F2933]">
+              <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
                 <tr>
                   <th className="px-4 py-2">Número</th>
                   <th className="px-4 py-2">Fecha</th>
@@ -809,23 +809,23 @@ export default function ContabilidadClient({
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-[#D5DAE1]">
                 {inv.rows.map((i) => (
                   <tr key={i.id}>
                     <td className="px-4 py-3 font-mono">
                       {i.orderReference ? (
-                        <a href={`/zona-traductor/pedido/${i.orderReference}`} className="text-cyan-300 hover:text-cyan-200 hover:underline">{i.number || "—"}</a>
+                        <a href={`/zona-traductor/pedido/${i.orderReference}`} className="text-[#1A2E4A] hover:text-[#1A2E4A] hover:underline">{i.number || "—"}</a>
                       ) : (
-                        <span className="text-cyan-300">{i.number || "—"}</span>
+                        <span className="text-[#1A2E4A]">{i.number || "—"}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-400">{new Date(i.issuedAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</td>
+                    <td className="px-4 py-3 text-[#52606D]">{new Date(i.issuedAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</td>
                     <td className="px-4 py-3">{i.fiscalName}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{eur(i.baseCents)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{eur(i.vatCents)}</td>
                     <td className="px-4 py-3 text-right tabular-nums font-semibold">{eur(i.totalCents)}</td>
                     <td className="px-4 py-3 text-right">
-                      <a href={`/api/invoices/${i.id}/pdf`} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800">PDF</a>
+                      <a href={`/api/invoices/${i.id}/pdf`} target="_blank" rel="noreferrer" className="rounded-lg border border-[#D5DAE1] px-2.5 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">PDF</a>
                     </td>
                   </tr>
                 ))}
@@ -848,16 +848,16 @@ export default function ContabilidadClient({
               setShowExp((v) => !v);
               setConfirming(null);
             }}
-            className="rounded-lg border border-cyan-700 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-900/30"
+            className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
           >
             {showExp ? "Cerrar" : "+ Añadir gasto"}
           </button>
         }
       >
         {showExp && (
-          <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+          <div className="rounded-xl border border-[#D5DAE1] bg-white p-4">
             {confirming && (
-              <p className="mb-3 rounded-lg border border-amber-700/60 bg-amber-900/20 px-3 py-2 text-xs text-amber-200">
+              <p className="mb-3 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] px-3 py-2 text-xs text-[#7A5A10]">
                 Confirmando gasto recurrente «{confirming.concept}»: pon el importe real y guarda. Se contabilizará al confirmar.
               </p>
             )}
@@ -881,7 +881,7 @@ export default function ContabilidadClient({
                 <option value={0.04}>IVA 4%</option>
                 <option value={0}>IVA 0% / exento</option>
               </select>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Tratamiento IVA
                 <select
                   className={`mt-1 block w-full ${FIELD}`}
@@ -898,28 +898,28 @@ export default function ContabilidadClient({
                 <option value={0.15}>IRPF 15%</option>
                 <option value={0.07}>IRPF 7% (nuevo autónomo)</option>
               </select>
-              <label className="flex items-center gap-2 text-xs text-slate-300">
+              <label className="flex items-center gap-2 text-xs text-[#1F2933]">
                 <input type="checkbox" checked={gasto.ivaDeducible} onChange={(e) => setGasto({ ...gasto, ivaDeducible: e.target.checked })} /> IVA deducible
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Factura del proveedor (PDF/imagen/Word)
-                <input type="file" accept=".pdf,image/*,.docx" className="mt-1 block w-full text-xs text-slate-300" onChange={(e) => setGastoFile(e.target.files?.[0] || null)} />
+                <input type="file" accept=".pdf,image/*,.docx" className="mt-1 block w-full text-xs text-[#1F2933]" onChange={(e) => setGastoFile(e.target.files?.[0] || null)} />
               </label>
-              <button type="button" onClick={extractFromFile} disabled={busy || !gastoFile} className="self-end rounded-lg border border-fuchsia-600 px-3 py-2 text-xs font-semibold text-fuchsia-200 hover:bg-fuchsia-900/30 disabled:opacity-50">
+              <button type="button" onClick={extractFromFile} disabled={busy || !gastoFile} className="self-end rounded-lg border border-[#D5DAE1] px-3 py-2 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-50">
                 ✨ Extraer datos (IA)
               </button>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <div className="text-xs text-slate-400">
-                Base <b className="tabular-nums text-slate-200">{eur(gastoCalc.baseCents)}</b> · IVA <b className="tabular-nums text-slate-200">{eur(gastoCalc.vatCents)}</b>
-                {gastoCalc.irpfCents > 0 && <> · IRPF −<b className="tabular-nums text-amber-300">{eur(gastoCalc.irpfCents)}</b></>}
-                {" · "}Factura <b className="tabular-nums text-slate-200">{eur(gastoCalc.totalCents)}</b> · A pagar <b className="tabular-nums text-white">{eur(gastoCalc.payableCents)}</b>
+              <div className="text-xs text-[#52606D]">
+                Base <b className="tabular-nums text-[#1F2933]">{eur(gastoCalc.baseCents)}</b> · IVA <b className="tabular-nums text-[#1F2933]">{eur(gastoCalc.vatCents)}</b>
+                {gastoCalc.irpfCents > 0 && <> · IRPF −<b className="tabular-nums text-[#7A5A10]">{eur(gastoCalc.irpfCents)}</b></>}
+                {" · "}Factura <b className="tabular-nums text-[#1F2933]">{eur(gastoCalc.totalCents)}</b> · A pagar <b className="tabular-nums text-[#1A2E4A]">{eur(gastoCalc.payableCents)}</b>
               </div>
-              <button type="button" onClick={addExpense} disabled={busy} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
+              <button type="button" onClick={addExpense} disabled={busy} className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50">
                 {busy ? "Guardando…" : confirming ? "Confirmar gasto" : "Guardar gasto"}
               </button>
             </div>
-            {msg && <p className="mt-2 text-xs text-cyan-300">{msg}</p>}
+            {msg && <p className="mt-2 text-xs text-[#1A2E4A]">{msg}</p>}
           </div>
         )}
         <ExpenseTable rows={estructRows} empty="Sin gastos estructurales en este periodo." />
@@ -937,25 +937,25 @@ export default function ContabilidadClient({
         title="Impuestos — estimación y borradores"
         subtitle={`Estimación a pagar: ${eur(impuestosEstim)} (IVA+111 del periodo; IS por 202 lo lleva la gestoría)`}
         right={
-          <button onClick={downloadDraft} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500">Descargar borrador (TXT)</button>
+          <button onClick={downloadDraft} className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243F66]">Descargar borrador (TXT)</button>
         }
       >
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#D5DAE1] bg-white px-3 py-2">
           <button
             type="button"
             onClick={downloadGestoriaPackage}
             disabled={taxBusy || !selectedQuarter}
-            className="rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-500 disabled:opacity-50"
+            className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
           >
             📦 Paquete gestoría{selectedQuarter ? ` (T${selectedQuarter.q} ${selectedQuarter.year})` : ""}
           </button>
           {selectedQuarter ? (
             selectedClose ? (
               <>
-                <span className="rounded-full border border-emerald-700 bg-emerald-900/30 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+                <span className="rounded-full border border-[#BFE0CC] bg-[#EEF7F1] px-2.5 py-1 text-xs font-semibold text-[#1F6B45]">
                   T{selectedQuarter.q} cerrado el {new Date(selectedClose.closedAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
                 </span>
-                <button type="button" onClick={reopenQuarter} disabled={taxBusy} className="text-xs text-slate-500 underline hover:text-slate-300 disabled:opacity-50">
+                <button type="button" onClick={reopenQuarter} disabled={taxBusy} className="text-xs text-[#52606D] underline hover:text-[#1A2E4A] disabled:opacity-50">
                   Reabrir
                 </button>
               </>
@@ -964,53 +964,53 @@ export default function ContabilidadClient({
                 type="button"
                 onClick={closeQuarter}
                 disabled={taxBusy}
-                className="rounded-lg border border-amber-600 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
+                className="rounded-lg border border-[#E9D8A6] px-3 py-1.5 text-xs font-semibold text-[#7A5A10] hover:bg-[#FFF8E6] disabled:opacity-50"
               >
                 Cerrar trimestre T{selectedQuarter.q}
               </button>
             )
           ) : (
-            <span className="text-xs text-slate-500">elige un trimestre en los filtros</span>
+            <span className="text-xs text-[#52606D]">elige un trimestre en los filtros</span>
           )}
-          <span className="w-full text-[11px] text-slate-500 sm:ml-auto sm:w-auto">
+          <span className="w-full text-[11px] text-[#52606D] sm:ml-auto sm:w-auto">
             El zip lleva PDFs de facturas, justificantes de gastos, CSVs y resumen 303. Añade el extracto bancario del trimestre.
           </span>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 303 (IVA)</p>
+          <div className="rounded-lg border border-[#D5DAE1] bg-white p-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Modelo 303 (IVA)</p>
             {drafts.d303.devengado.length === 0 ? (
-              <p className="mt-1 text-slate-500">—</p>
+              <p className="mt-1 text-[#52606D]">—</p>
             ) : (
               drafts.d303.devengado.map((r) => (
-                <p key={r.ratePct} className="text-slate-300">{r.ratePct}%: base <span className="tabular-nums text-slate-100">{eur(r.baseCents)}</span> · cuota <span className="tabular-nums text-slate-100">{eur(r.cuotaCents)}</span></p>
+                <p key={r.ratePct} className="text-[#1F2933]">{r.ratePct}%: base <span className="tabular-nums text-[#1F2933]">{eur(r.baseCents)}</span> · cuota <span className="tabular-nums text-[#1F2933]">{eur(r.cuotaCents)}</span></p>
               ))
             )}
             {drafts.d303.ispIntracomBaseCents > 0 && (
-              <p className="text-slate-300">ISP intracom. (autorrep.): base <span className="tabular-nums text-slate-100">{eur(drafts.d303.ispIntracomBaseCents)}</span> · cuota <span className="tabular-nums text-slate-100">{eur(drafts.d303.ispIntracomCuotaCents)}</span></p>
+              <p className="text-[#1F2933]">ISP intracom. (autorrep.): base <span className="tabular-nums text-[#1F2933]">{eur(drafts.d303.ispIntracomBaseCents)}</span> · cuota <span className="tabular-nums text-[#1F2933]">{eur(drafts.d303.ispIntracomCuotaCents)}</span></p>
             )}
             {drafts.d303.ispImportBaseCents > 0 && (
-              <p className="text-slate-300">ISP importación (autorrep.): base <span className="tabular-nums text-slate-100">{eur(drafts.d303.ispImportBaseCents)}</span> · cuota <span className="tabular-nums text-slate-100">{eur(drafts.d303.ispImportCuotaCents)}</span></p>
+              <p className="text-[#1F2933]">ISP importación (autorrep.): base <span className="tabular-nums text-[#1F2933]">{eur(drafts.d303.ispImportBaseCents)}</span> · cuota <span className="tabular-nums text-[#1F2933]">{eur(drafts.d303.ispImportCuotaCents)}</span></p>
             )}
-            <p className="text-slate-300">Devengado: <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaRepercutidoCents)}</span></p>
-            <p className="text-slate-300">Soportado deducible: <span className="tabular-nums text-slate-100">{eur(drafts.d303.ivaSoportadoDeducibleCents)}</span></p>
+            <p className="text-[#1F2933]">Devengado: <span className="tabular-nums text-[#1F2933]">{eur(drafts.d303.ivaRepercutidoCents)}</span></p>
+            <p className="text-[#1F2933]">Soportado deducible: <span className="tabular-nums text-[#1F2933]">{eur(drafts.d303.ivaSoportadoDeducibleCents)}</span></p>
             {(drafts.d303.ispIntracomBaseCents > 0 || drafts.d303.ispImportBaseCents > 0) && (
-              <p className="text-[11px] text-slate-500">ISP: cuota en devengado y deducible (casillas exactas: validar con gestoría).</p>
+              <p className="text-[11px] text-[#52606D]">ISP: cuota en devengado y deducible (casillas exactas: validar con gestoría).</p>
             )}
-            <p className="mt-1 font-semibold text-white">Resultado: <span className="tabular-nums">{eur(drafts.d303.resultadoCents)}</span> {drafts.d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}</p>
+            <p className="mt-1 font-semibold text-[#1A2E4A]">Resultado: <span className="tabular-nums">{eur(drafts.d303.resultadoCents)}</span> {drafts.d303.resultadoCents >= 0 ? "(a ingresar)" : "(a compensar)"}</p>
           </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Modelo 111 (retenciones)</p>
-            <p className="mt-1 text-slate-300">Base: <span className="tabular-nums text-slate-100">{eur(drafts.d111.baseRetencionesCents)}</span></p>
-            <p className="text-slate-300">Retenciones: <span className="tabular-nums text-slate-100">{eur(drafts.d111.retencionesCents)}</span></p>
-            <p className="text-slate-300">Perceptores: <span className="tabular-nums text-slate-100">{drafts.d111.numPerceptores}</span></p>
+          <div className="rounded-lg border border-[#D5DAE1] bg-white p-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Modelo 111 (retenciones)</p>
+            <p className="mt-1 text-[#1F2933]">Base: <span className="tabular-nums text-[#1F2933]">{eur(drafts.d111.baseRetencionesCents)}</span></p>
+            <p className="text-[#1F2933]">Retenciones: <span className="tabular-nums text-[#1F2933]">{eur(drafts.d111.retencionesCents)}</span></p>
+            <p className="text-[#1F2933]">Perceptores: <span className="tabular-nums text-[#1F2933]">{drafts.d111.numPerceptores}</span></p>
           </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Impuesto de Sociedades</p>
-            <p className="mt-1 text-slate-300">S.L.: pagos fraccionados del IS por modelo 202 (lo presenta la gestoría).</p>
+          <div className="rounded-lg border border-[#D5DAE1] bg-white p-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Impuesto de Sociedades</p>
+            <p className="mt-1 text-[#1F2933]">S.L.: pagos fraccionados del IS por modelo 202 (lo presenta la gestoría).</p>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-amber-200/70">Uso interno (la gestoría presenta). La «estimación a pagar» suma el 303 y el 111 del periodo. El IS (modelo 202) lo lleva la gestoría.</p>
+        <p className="mt-2 text-[11px] text-[#7A5A10]">Uso interno (la gestoría presenta). La «estimación a pagar» suma el 303 y el 111 del periodo. El IS (modelo 202) lo lleva la gestoría.</p>
       </CollapsibleSection>
 
       {/* SIN FACTURA */}
@@ -1049,18 +1049,18 @@ function BalanceRow({
 }) {
   const res = inc - exp;
   const margen = inc > 0 ? Math.round((res / inc) * 100) : 0;
-  const rowCls = foot ? "" : sub ? "bg-slate-800/30 font-semibold text-slate-200" : bold ? "font-semibold" : "";
+  const rowCls = foot ? "" : sub ? "bg-[#F6F7F9] font-semibold text-[#1F2933]" : bold ? "font-semibold" : "";
   return (
     <tr className={rowCls}>
-      <td className="px-3 py-2 text-slate-300">{label}</td>
-      <td className="px-3 py-2 text-right tabular-nums text-slate-200">{(inc / 100).toFixed(2)} €</td>
-      <td className="px-3 py-2 text-right tabular-nums text-rose-300/90">{(exp / 100).toFixed(2)} €</td>
-      <td className={`px-3 py-2 text-right tabular-nums ${res >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{(res / 100).toFixed(2)} €</td>
-      <td className={`px-3 py-2 text-right tabular-nums ${res >= 0 ? "text-emerald-300/80" : "text-rose-300/80"}`}>{inc > 0 ? `${margen}%` : "—"}</td>
+      <td className="px-3 py-2 text-[#1F2933]">{label}</td>
+      <td className="px-3 py-2 text-right tabular-nums text-[#1F2933]">{(inc / 100).toFixed(2)} €</td>
+      <td className="px-3 py-2 text-right tabular-nums text-[#A12B2B]">{(exp / 100).toFixed(2)} €</td>
+      <td className={`px-3 py-2 text-right tabular-nums ${res >= 0 ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{(res / 100).toFixed(2)} €</td>
+      <td className={`px-3 py-2 text-right tabular-nums ${res >= 0 ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{inc > 0 ? `${margen}%` : "—"}</td>
       <td className="hidden px-3 py-2 sm:table-cell">
         <div className="flex h-4 items-center gap-1">
-          <div className="h-2 rounded-sm bg-emerald-500/70" style={{ width: `${Math.round((inc / barMax) * 100)}%` }} />
-          <div className="h-2 rounded-sm bg-rose-500/60" style={{ width: `${Math.round((exp / barMax) * 100)}%` }} />
+          <div className="h-2 rounded-sm bg-[#1F6B45]/70" style={{ width: `${Math.round((inc / barMax) * 100)}%` }} />
+          <div className="h-2 rounded-sm bg-[#A12B2B]/60" style={{ width: `${Math.round((exp / barMax) * 100)}%` }} />
         </div>
       </td>
     </tr>

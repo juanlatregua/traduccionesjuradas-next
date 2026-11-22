@@ -4,6 +4,7 @@ import { isAutoApplicablePrior } from "@/lib/prior-prices-match";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS } from "@/lib/quote-pdf-langs";
 import { upload } from "@vercel/blob/client";
+import { useRouter } from "next/navigation";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors, Merge } from "lucide-react";
 import { autoClientPriceForRow, clientPriceFromCost, isFrenchForeign, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
@@ -16,6 +17,26 @@ import type { EmailBrief } from "@/lib/ai/email-brief";
 import { UNREAD_PAGES_TYPE_ES } from "@/lib/ai/unread-pages";
 import { aplicarCosteJurado } from "@/lib/caso/coste-lead";
 import ContadorProgreso from "@/components/ContadorProgreso";
+import {
+  buildQuotePatchPayload,
+  editFormFromQuote,
+  editGateFor,
+  editLineFor,
+  hydrateRows,
+  mergedSavedPrices,
+  patchRow,
+  quoteLineAmounts,
+  rowMargin,
+  shippingBaseFor,
+  withBasisCost,
+  describeUnsavedChanges,
+  FROZEN_EDIT_CODE,
+  QUOTE_CHANGED_EVENT,
+  STALE_EDIT_CODE,
+  type AnalysisDoc,
+  type EditableLine,
+  type EditableQuote,
+} from "@/lib/quote-edit-hydrate";
 
 // Intake de expediente para STAFF: soltar N PDFs → extraer datos con el pipeline
 // barato (Haiku/texto o Sonnet/visión) → tabla editable → generar presupuesto.
@@ -129,6 +150,10 @@ type DocRow = {
   absorbedPages?: number[]; // páginas sin texto que el análisis unió a este documento
   priorFrom?: string; // nº del presupuesto anterior cuyo precio y coste lleva la línea
   analysisId?: string; // DocumentAnalysis.id (estado del contador de TraduCAT en escaneados)
+  // Página única (mode="edit"): línea del presupuesto guardado de la que sale la fila.
+  lineDescription?: string; // texto de la línea tal cual (editable)
+  origLine?: EditableLine;
+  hydratedSig?: string;
 };
 
 // URL del endpoint que extrae el rango de páginas de un documento para
@@ -231,17 +256,17 @@ const eur = (n: number) => `${n.toLocaleString("es-ES", { minimumFractionDigits:
 function PriorPricesHint({ matches, onUse }: { matches?: PriorPrice[]; onUse: (m: PriorPrice) => void }) {
   if (!matches?.length) return null;
   return (
-    <div className="mt-1 space-y-0.5 text-[11px] text-slate-400">
+    <div className="mt-1 space-y-0.5 text-[11px] text-[#52606D]">
       {matches.map((m) => {
         const dt = new Date(m.issuedAt);
         return (
           <p key={m.quoteNumber + m.unitPrice} className="flex flex-wrap items-center gap-x-1">
             <span>
-              {m.own ? "Ya presupuestado a este cliente" : "Ya presupuestado"}: <strong className="text-slate-200">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
+              {m.own ? "Ya presupuestado a este cliente" : "Ya presupuestado"}: <strong className="text-[#1F2933]">{eur(m.unitPrice)}</strong> · {dt.getDate()}-{MONTHS_ES[dt.getMonth()]} · {m.quoteNumber}
               {m.supplierUnitCost != null ? ` · traductor ${eur(m.supplierUnitCost)}` : ""}
               {m.status === "PAID" || m.status === "IN_PROGRESS" || m.status === "DELIVERED" ? " · pagado" : ""}
             </span>
-            <button type="button" onClick={() => onUse(m)} className="font-semibold text-cyan-400 underline hover:text-cyan-300">
+            <button type="button" onClick={() => onUse(m)} className="font-semibold text-[#1A2E4A] underline hover:text-[#1A2E4A]">
               Usar este precio
             </button>
           </p>
@@ -340,6 +365,12 @@ type Props = {
   solicitudesVivas?: SolicitudViva[];
   // Cifras del jurado por par (también de una solicitud ya no viva): coste de las líneas.
   costesJurado?: { ref: string; par: string; baseCents: number; docsCount: number }[];
+  // Página única del presupuesto (PRESUPUESTO_PAGINA_UNICA): el constructor sobre uno ya
+  // creado. Guarda SIEMPRE con PATCH /api/quotes/[id]; nunca crea otro.
+  mode?: "create" | "edit";
+  quote?: EditableQuote;
+  analysisDocs?: AnalysisDoc[];
+  nuevaLinea?: boolean;
 };
 
 export default function StaffExpedienteIntake({
@@ -354,30 +385,48 @@ export default function StaffExpedienteIntake({
   puertaSession,
   solicitudesVivas = [],
   costesJurado = [],
+  mode = "create",
+  quote,
+  analysisDocs = [],
+  nuevaLinea = false,
 }: Props = {}) {
-  const [docs, setDocs] = useState<DocRow[]>([]);
-  const [customerName, setCustomerName] = useState(initialCustomer?.name || initialData?.customerName || "");
-  const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email || initialData?.customerEmail || "");
-  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone || initialData?.customerPhone || "");
-  const [sourceLang, setSourceLang] = useState(initialData?.sourceLang || "");
-  const [targetLang, setTargetLang] = useState(initialData?.targetLang || "");
-  const [discountPct, setDiscountPct] = useState(0);
-  const [discountTouched, setDiscountTouched] = useState(false);
+  const editQuote = mode === "edit" && quote ? quote : null;
+  const router = useRouter();
+  const [ef, setEf] = useState(() => (editQuote ? editFormFromQuote(editQuote) : null));
+  const gate = editQuote ? editGateFor(editQuote.status) : null;
+  const readOnly = gate === "readonly";
+  const frozen = !!editQuote?.paymentFrozenAt;
+  const [docs, setDocs] = useState<DocRow[]>(() =>
+    editQuote
+      ? [
+          ...hydrateRows(editQuote.lines, analysisDocs, () => uid()),
+          ...(nuevaLinea && !readOnly ? [{ localId: uid(), fileName: "", fileSize: 0, mimeType: "", status: "manual" as DocStatus, include: true, unitPrice: 0 }] : []),
+        ]
+      : []
+  );
+  const [customerName, setCustomerName] = useState(ef ? ef.customerName : initialCustomer?.name || initialData?.customerName || "");
+  const [customerEmail, setCustomerEmail] = useState(ef ? ef.customerEmail : initialCustomer?.email || initialData?.customerEmail || "");
+  const [customerPhone, setCustomerPhone] = useState(ef ? ef.customerPhone : initialCustomer?.phone || initialData?.customerPhone || "");
+  const [sourceLang, setSourceLang] = useState(ef ? ef.sourceLang : initialData?.sourceLang || "");
+  const [targetLang, setTargetLang] = useState(ef ? ef.targetLang : initialData?.targetLang || "");
+  const [discountPct, setDiscountPct] = useState(ef ? ef.discountValue : 0);
+  const [discountTouched, setDiscountTouched] = useState(!!ef);
+  const [discountKind, setDiscountKind] = useState(ef ? ef.discountType : "NONE");
   // true si el % de descuento lo propuso el builder al soltar archivos (no en ?exp/?lead).
   const autoDiscountRef = useRef(false);
-  const [validityDays, setValidityDays] = useState(15);
-  const [notesLegal, setNotesLegal] = useState("");
-  const [holderNames, setHolderNames] = useState("");
+  const [validityDays, setValidityDays] = useState(ef ? ef.validityDays : 15);
+  const [notesLegal, setNotesLegal] = useState(ef ? ef.notesLegal : "");
+  const [holderNames, setHolderNames] = useState(ef ? ef.holderNames : "");
   // null = margen AUTO (tiered por coste, FR sin margen). Un número = override manual.
-  const [marginPct, setMarginPct] = useState<number | null>(initialData?.lineAmount ? 0 : null);
+  const [marginPct, setMarginPct] = useState<number | null>(ef ? ef.marginPct : initialData?.lineAmount ? 0 : null);
   // Modo de precio del COSTE por línea: "document" = precio fijo por documento
   // (escribes el coste a mano); "word" = por palabra (coste = palabras × tarifa).
   const [wordRate, setWordRate] = useState<number>(0.07);
   const [docRate, setDocRate] = useState<number>(15);
   // P2: si false, soltar documentos NO lanza el conteo IA (precio a mano / fijo).
   const [autoCount, setAutoCount] = useState(true);
-  const [pdfLang, setPdfLang] = useState<string>("es");
-  const [pdfLangTouched, setPdfLangTouched] = useState(false);
+  const [pdfLang, setPdfLang] = useState<string>(ef?.pdfLang || "es");
+  const [pdfLangTouched, setPdfLangTouched] = useState(!!ef);
   // Sugerencia de idioma del cliente: texto del email/WhatsApp > prefijo > TLD. La
   // puerta no guarda el locale de la página, así que ese dato no entra aquí.
   const langSuggestion = useMemo(
@@ -388,13 +437,20 @@ export default function StaffExpedienteIntake({
     if (!pdfLangTouched) setPdfLang(langSuggestion?.lang ?? "es");
   }, [langSuggestion, pdfLangTouched]);
   const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">(
-    initialData?.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
+    (ef ? ef.deliveryType : initialData?.deliveryType) === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
   );
-  const [deliveryNote, setDeliveryNote] = useState(initialDeliveryNote || "");
+  const [deliveryNote, setDeliveryNote] = useState(ef ? ef.deliveryTerm : initialDeliveryNote || "");
   // Orden Juan 24-ago: la cuenta de los presupuestos es SIEMPRE Sabadell — BBVA
   // está en cierre y NO debe salir en presupuestos nuevos.
-  const [paymentMethods, setPaymentMethods] = useState<string[]>(["sabadell", "bizum654"]);
-  const [contactWhatsapp, setContactWhatsapp] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(ef ? ef.paymentMethods : ["sabadell", "bizum654"]);
+  const [contactWhatsapp, setContactWhatsapp] = useState(ef ? ef.contactWhatsapp : "");
+  // Concurrencia: versión de contenido con la que se abrió (o la del último guardado propio).
+  const [editToken, setEditToken] = useState<string | null>(editQuote?.version ?? null);
+  // Guardado en modo edición (PATCH): confirmación en página, freno de margen y reenvío.
+  const [editSave, setEditSave] = useState<{
+    phase: "idle" | "confirm" | "saving" | "margin" | "saved" | "resending" | "resent" | "stale";
+    msg?: string;
+  }>({ phase: "idle" });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
@@ -465,19 +521,13 @@ export default function StaffExpedienteIntake({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Precio al cliente de una fila (se asigna abajo, donde se define rowClientPrice).
+  const rowClientPriceRef = useRef<(d: DocRow) => number>((d) => d.clientPrice ?? 0);
+  // Filas del presupuesto guardado (modo edición): tocar el coste NO mueve el precio al cliente.
+  const keepPrice = !!editQuote;
   const patch = useCallback((localId: string, data: Partial<DocRow>) => {
-    setDocs((prev) =>
-      prev.map((d) =>
-        d.localId === localId
-          ? {
-              ...d,
-              ...data,
-              ...(["unitPrice", "sourceLang", "targetLang"].some((k) => k in data) && !("clientPrice" in data) ? { clientPrice: undefined } : {}),
-            }
-          : d
-      )
-    );
-  }, []);
+    setDocs((prev) => prev.map((d) => (d.localId === localId ? patchRow(d, data, keepPrice) : d)));
+  }, [keepPrice]);
 
   // Nombre-IA: llamada barata "solo nombre" (sin contar palabras) para filas que
   // se soltaron sin análisis o cuyo análisis falló. Rellena el nombre editable.
@@ -750,6 +800,8 @@ export default function StaffExpedienteIntake({
             words: undefined,
             unitPrice: 0,
             absorbedPages: d.absorbedPages?.includes(pg) ? [pg] : undefined,
+            // Fila del presupuesto guardado: cada página se precia de nuevo (no hereda el total).
+            ...(d.origLine ? { clientPrice: undefined, basis: undefined, unitCount: undefined, unitRate: undefined, lineDescription: undefined, origLine: undefined, hydratedSig: undefined } : {}),
           });
         }
         return [...prev.slice(0, idx), ...rows, ...prev.slice(idx + 1)];
@@ -799,6 +851,10 @@ export default function StaffExpedienteIntake({
           autoPriced: keepB ? false : host.autoPriced,
           priceNote: keepB ? undefined : host.priceNote,
           absorbedPages: absorbed.length ? absorbed : undefined,
+          // Dos líneas guardadas: el precio y el coste son la SUMA de las dos.
+          ...(a.origLine || b.origLine
+            ? { ...mergedSavedPrices(a, b, rowClientPriceRef.current(a), rowClientPriceRef.current(b)), lineDescription: undefined, origLine: undefined, hydratedSig: undefined }
+            : {}),
         };
         return [...prev.slice(0, idx - 1), merged, ...prev.slice(idx + 1)];
       });
@@ -868,11 +924,11 @@ export default function StaffExpedienteIntake({
     setDocs((prev) =>
       prev.map((d) =>
         isPriceable(d.status) && d.words && d.words > 0
-          ? { ...d, basis: "word", wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined }
+          ? { ...d, basis: "word", wordRate, unitPrice: Math.round(d.words * (wordRate || 0) * 100) / 100, clientPrice: keepPrice && d.origLine ? d.clientPrice : undefined, autoPriced: false, priceNote: undefined }
           : d
       )
     );
-  }, [wordRate]);
+  }, [wordRate, keepPrice]);
 
   // Tarifa por documento a todas las líneas: coste = nº de documentos × €/doc.
   const applyDocRate = useCallback(() => {
@@ -880,10 +936,10 @@ export default function StaffExpedienteIntake({
       prev.map((d) => {
         if (!isPriceable(d.status)) return d;
         const n = d.unitCount ?? 1;
-        return { ...d, basis: "unit", unitCount: n, unitRate: docRate, unitPrice: Math.round(n * (docRate || 0) * 100) / 100, clientPrice: undefined, autoPriced: false, priceNote: undefined };
+        return { ...d, basis: "unit", unitCount: n, unitRate: docRate, unitPrice: Math.round(n * (docRate || 0) * 100) / 100, clientPrice: keepPrice && d.origLine ? d.clientPrice : undefined, autoPriced: false, priceNote: undefined };
       })
     );
-  }, [docRate]);
+  }, [docRate, keepPrice]);
 
   // Cambia la base del coste de UNA línea (fijo / por palabra / por documento).
   const setRowBasis = useCallback(
@@ -891,7 +947,7 @@ export default function StaffExpedienteIntake({
       setDocs((prev) =>
         prev.map((d) => {
           if (d.localId !== localId) return d;
-          const manual = { clientPrice: undefined, autoPriced: false, priceNote: undefined };
+          const manual = { clientPrice: keepPrice && d.origLine ? d.clientPrice : undefined, autoPriced: false, priceNote: undefined };
           if (basis === "word") {
             const r = d.wordRate ?? wordRate;
             return { ...d, ...manual, basis, wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100 };
@@ -905,7 +961,7 @@ export default function StaffExpedienteIntake({
         })
       );
     },
-    [wordRate, docRate]
+    [wordRate, docRate, keepPrice]
   );
 
   // Re-precio al cambiar el idioma destino del expediente: las filas cuyo
@@ -1014,11 +1070,11 @@ export default function StaffExpedienteIntake({
           d.basis === "unit"
             ? Math.round((d.unitCount ?? 1) * (d.unitRate ?? docRate) * 100) / 100
             : Math.round((d.words || 0) * (d.wordRate ?? wordRate) * 100) / 100;
-        return d.unitPrice === cost ? d : { ...d, unitPrice: cost, clientPrice: undefined };
+        return withBasisCost(d, cost, keepPrice);
       });
       return next.every((row, i) => row === prev[i]) ? prev : next;
     });
-  }, [docs, docRate, wordRate]);
+  }, [docs, docRate, wordRate, keepPrice]);
 
   // El campo editable de cada línea es el COSTE del traductor (sin IVA).
   // El precio al cliente se deriva aplicando el margen.
@@ -1035,6 +1091,43 @@ export default function StaffExpedienteIntake({
   const rowClientPrice = useCallback(
     (d: DocRow) => (d.clientPrice != null ? d.clientPrice : clientPriceOf(d.unitPrice, !!d.priceNote)),
     [clientPriceOf]
+  );
+  rowClientPriceRef.current = rowClientPrice;
+
+  // Línea del presupuesto a partir de una fila (crear y editar usan la misma).
+  const composeLine = useCallback(
+    (d: DocRow) => {
+      // Sin tipo documental cae al nombre del fichero: al menos sin extensión.
+      const baseName = d.documentTypeEs || d.fileName.trim().replace(/\.(pdf|jpe?g|png|heic|docx?)$/i, "") || "Línea";
+      // Dirección cara al cliente: NUNCA "Desconocido"/"Unknown" (presupuesto
+      // 2026-00045) — si el análisis no supo el destino, manda el del
+      // presupuesto; sin dato fiable, se omite la dirección.
+      const dirSrc = knownLangName(d.sourceName) || langNameOf(knownLangCode(d.sourceLang)) || langNameOf(sourceLang);
+      const dirTgt =
+        knownLangName(d.targetName) ||
+        langNameOf(knownLangCode(d.targetLang)) ||
+        langNameOf(targetLang) ||
+        // Original extranjero sin destino explícito → hacia el español.
+        (knownLangCode(d.sourceLang) && d.sourceLang !== "es" ? "Español" : "");
+      const parts: string[] = [];
+      if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
+      // Por documento: la línea sale como cantidad × precio unitario (15 × 15 €)
+      // si el total del cliente se reparte exacto entre los documentos.
+      const amounts = quoteLineAmounts({ basis: d.basis, unitCount: d.unitCount, clientPrice: rowClientPrice(d), cost: d.unitPrice });
+      if (d.basis === "unit" && d.unitCount) parts.push(`${d.unitCount} documento${d.unitCount === 1 ? "" : "s"}`);
+      else if (d.words) parts.push(`${d.words} palabras`);
+      if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
+      return {
+        // Fila del presupuesto guardado: su texto tal cual (editable), sin recomponer.
+        description: d.lineDescription !== undefined ? d.lineDescription.trim() || "Línea" : parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
+        ...amounts, // precio CLIENTE = coste × (1+margen); coste del traductor (interno) por unidad
+        sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
+        pageStart: d.pageStart,
+        pageEnd: d.pageEnd,
+        docKind: kindForKey(d.documentType) || undefined,
+      };
+    },
+    [rowClientPrice, sourceLang, targetLang]
   );
 
   const [priorPrices, setPriorPrices] = useState<Record<string, PriorPrice[]>>({});
@@ -1148,11 +1241,91 @@ export default function StaffExpedienteIntake({
       }),
     [includedDocs, rowClientPrice, discountPct, deliveryType]
   );
-  const subtotal = quoteTotals.subtotal;
-  const shipping = quoteTotals.shippingAmount;
-  const discountAmount = quoteTotals.discountAmount;
-  const vat = quoteTotals.vatAmount;
-  const total = quoteTotals.total;
+  // Modo edición: las líneas que guardaría el PATCH y sus totales, con la misma función
+  // que el servidor. Fila sin tocar = la línea guardada, exacta.
+  const editForm = ef
+    ? {
+        ...ef,
+        customerName,
+        customerEmail,
+        customerPhone,
+        sourceLang,
+        targetLang,
+        deliveryType,
+        discountType: discountKind,
+        discountValue: discountPct,
+        validityDays,
+        notesLegal,
+        holderNames,
+        deliveryTerm: deliveryNote,
+        marginPct,
+        paymentMethods,
+        contactWhatsapp,
+        pdfLang: ef.pdfLang == null && pdfLang === "es" ? null : pdfLang,
+      }
+    : null;
+  const editLines = editForm ? includedDocs.map((d) => editLineFor(d, composeLine)) : [];
+  const editTotals = editForm
+    ? computeQuoteTotals({
+        lines: editLines,
+        discountType: editForm.discountType as "NONE" | "PERCENT" | "FIXED",
+        discountValue: editForm.discountValue,
+        vatRate: editForm.vatRate,
+        deliveryType,
+        shippingBase: shippingBaseFor(editForm),
+      })
+    : null;
+  const shownTotals = editTotals ?? quoteTotals;
+
+  // Cambios sin guardar: lo que se mandaría ahora frente a lo que se abrió (o se guardó).
+  const payloadNow = editForm ? buildQuotePatchPayload(editForm, editLines) : null;
+  const payloadKey = payloadNow ? JSON.stringify(payloadNow) : "";
+  const baselineRef = useRef<string | null>(null);
+  if (editForm && baselineRef.current === null) baselineRef.current = payloadKey;
+  const dirty = !!editForm && payloadKey !== baselineRef.current;
+
+  // Acciones del panel de arriba (descongelar, idioma del PDF, enviar, marcar…) → la ficha se
+  // refresca; si el contenido cambió y aquí no hay cambios sin guardar, se vuelve a cargar del
+  // presupuesto (nuevo token). Con cambios sin guardar se deja: guardar dará «stale».
+  useEffect(() => {
+    if (!editQuote) return;
+    const onChanged = () => router.refresh();
+    window.addEventListener(QUOTE_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(QUOTE_CHANGED_EVENT, onChanged);
+  }, [editQuote ? editQuote.id : null, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  const propVersion = editQuote?.version ?? null;
+  const lastPropVersionRef = useRef(propVersion);
+  useEffect(() => {
+    if (!editQuote || propVersion === lastPropVersionRef.current) return;
+    lastPropVersionRef.current = propVersion;
+    if (propVersion === editToken || dirty) return;
+    const f = editFormFromQuote(editQuote);
+    setEf(f);
+    setDocs(hydrateRows(editQuote.lines, analysisDocs, () => uid()));
+    setCustomerName(f.customerName);
+    setCustomerEmail(f.customerEmail);
+    setCustomerPhone(f.customerPhone);
+    setSourceLang(f.sourceLang);
+    setTargetLang(f.targetLang);
+    setDiscountKind(f.discountType);
+    setDiscountPct(f.discountValue);
+    setValidityDays(f.validityDays);
+    setNotesLegal(f.notesLegal);
+    setHolderNames(f.holderNames);
+    setMarginPct(f.marginPct);
+    setPdfLang(f.pdfLang || "es");
+    setDeliveryType(f.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF");
+    setDeliveryNote(f.deliveryTerm);
+    setPaymentMethods(f.paymentMethods);
+    setContactWhatsapp(f.contactWhatsapp);
+    setEditToken(propVersion);
+    baselineRef.current = null;
+  }, [propVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const subtotal = shownTotals.subtotal;
+  const shipping = shownTotals.shippingAmount;
+  const discountAmount = shownTotals.discountAmount;
+  const vat = shownTotals.vatAmount;
+  const total = shownTotals.total;
 
   const busy = docs.some((d) => d.status === "uploading" || d.status === "analyzing");
   const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
@@ -1278,6 +1451,8 @@ export default function StaffExpedienteIntake({
           lavoriLeadRef: lavoriLeadRef || yaPedida?.ref || undefined,
           sessionToken: puertaSession || undefined,
           volverAPedir: opts.volverAPedir || undefined,
+          // Página única: la solicitud se ata a ESTE presupuesto y la guarda anti-duplicado lo ve.
+          ...(editQuote ? { quoteId: editQuote.id } : {}),
         }),
       });
       let data = await (await post(false)).json();
@@ -1307,24 +1482,37 @@ export default function StaffExpedienteIntake({
         });
       }
       setVolverAPedir(false);
+      // Página única: decir la verdad sobre si la solicitud quedó atada a este presupuesto.
+      const parSinGuardar = !!editQuote && (sourceLang !== editQuote.sourceLang || targetLang !== editQuote.targetLang);
+      const atadaTxt = !editQuote
+        ? ""
+        : data.atada
+          ? `Queda atada a ${editQuote.quoteNumber}: cuando el jurado cotice, su cifra llega a este presupuesto.`
+          : `NO ha quedado atada a ${editQuote.quoteNumber}: ${parSinGuardar ? "cambiaste el par sin guardar, guarda primero" : data.motivoNoAtada || "motivo desconocido"}.`;
+      // La cifra entró en las líneas o el pago se congeló: se refresca la ficha (sin cambios
+      // pendientes, el constructor se resincroniza; con cambios, el guardado dará «stale»).
+      if (editQuote && (data.congelados || data.cifraAplicada)) router.refresh();
       const aQuien = describeLavoriPick(lavoriPick, lavoriRoute, lavoriCartera.miembros);
       const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
       setLavoriState({
         phase: "done",
         msg: data.existing
-          ? `El caso ya tenía la solicitud ${data.existing}: no se ha pedido otra.`
+          ? `El caso ya tenía la solicitud ${data.existing}: no se ha pedido otra.${atadaTxt ? ` ${atadaTxt}` : ""}${editQuote && data.cifraAplicada ? ` ${data.cifraAplicada}` : ""}`
           : data.repetido
             ? `Esta solicitud ya estaba enviada (no se ha duplicado).`
-            : `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador.`,
+            : editQuote
+              ? `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. ${atadaTxt}`
+              : `✓ ${data.reemplaza?.length ? `${data.reemplaza.join(", ")} retirada; nueva ` : "Enviada "}a ${aQuien} · ${hora}. Genera ya el presupuesto: queda atado a esta solicitud y, cuando el jurado cotice, su coste entra solo en ese borrador.`,
       });
       return refEnviada;
     } catch {
       setLavoriState({ phase: "error", msg: "Error de conexión." });
       return null;
     }
-  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros, casoId, lavoriLeadRef, yaPedida, puertaSession]);
+  }, [lavoriRoute, lavoriDocs, sourceLang, targetLang, expedienteRef, customerName, customerPhone, customerEmail, lavoriSpecs, lavoriPick, lavoriCartera.miembros, casoId, lavoriLeadRef, yaPedida, puertaSession, editQuote, router]);
 
   const handleSubmit = useCallback(async (leadRefRecienEnviada?: string) => {
+    if (editQuote) return; // página única: nunca se crea otro presupuesto (guarda saveEdit con PATCH)
     setSubmitError(null);
     const conSolicitud = !!(lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || yaPedida?.ref);
     const deMotor = conSolicitud ? [] : includedDocs.filter((d) => isEngineCostRow(d, sourceLang, targetLang));
@@ -1339,41 +1527,7 @@ export default function StaffExpedienteIntake({
       return;
     setSubmitting(true);
     try {
-      const lines = includedDocs.map((d) => {
-        // Sin tipo documental cae al nombre del fichero: al menos sin extensión.
-        const baseName = d.documentTypeEs || d.fileName.trim().replace(/\.(pdf|jpe?g|png|heic|docx?)$/i, "") || "Línea";
-        // Dirección cara al cliente: NUNCA "Desconocido"/"Unknown" (presupuesto
-        // 2026-00045) — si el análisis no supo el destino, manda el del
-        // presupuesto; sin dato fiable, se omite la dirección.
-        const dirSrc = knownLangName(d.sourceName) || langNameOf(knownLangCode(d.sourceLang)) || langNameOf(sourceLang);
-        const dirTgt =
-          knownLangName(d.targetName) ||
-          langNameOf(knownLangCode(d.targetLang)) ||
-          langNameOf(targetLang) ||
-          // Original extranjero sin destino explícito → hacia el español.
-          (knownLangCode(d.sourceLang) && d.sourceLang !== "es" ? "Español" : "");
-        const parts: string[] = [];
-        if (dirSrc && dirTgt) parts.push(`${dirSrc}→${dirTgt}`);
-        // Por documento: la línea sale como cantidad × precio unitario (15 × 15 €)
-        // si el total del cliente se reparte exacto entre los documentos.
-        const count = d.basis === "unit" && d.unitCount && d.unitCount > 1 ? d.unitCount : 1;
-        const client = rowClientPrice(d);
-        const perUnit = Math.round((client / count) * 100) / 100;
-        const asUnits = count > 1 && Math.round(perUnit * count * 100) === Math.round(client * 100);
-        if (d.basis === "unit" && d.unitCount) parts.push(`${d.unitCount} documento${d.unitCount === 1 ? "" : "s"}`);
-        else if (d.words) parts.push(`${d.words} palabras`);
-        if (d.pages && d.pages > 1) parts.push(`${d.pages} págs`);
-        return {
-          description: parts.length ? `${baseName} (${parts.join(", ")})` : baseName,
-          quantity: asUnits ? count : 1,
-          unitPrice: asUnits ? perUnit : client, // precio CLIENTE = coste × (1+margen)
-          supplierUnitCost: asUnits ? Math.round((d.unitPrice / count) * 100) / 100 : d.unitPrice, // coste del traductor (interno), por unidad
-          sourceFileUrl: d.blobUrl, // PDF origen (para ver/descargar el documento)
-          pageStart: d.pageStart,
-          pageEnd: d.pageEnd,
-          docKind: kindForKey(d.documentType) || undefined,
-        };
-      });
+      const lines = includedDocs.map(composeLine);
       const res = await fetch("/api/quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1412,7 +1566,7 @@ export default function StaffExpedienteIntake({
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, yaPedida, rowClientPrice, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, yaPedida, composeLine, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang, editQuote]);
 
   // "Pedir precio y dejar en espera" (19-sep-2026, orden de Juan: «hay momentos
   // que no quiero aventurarme»). Hace los DOS pasos en el único orden que ata la
@@ -1426,16 +1580,90 @@ export default function StaffExpedienteIntake({
     await handleSubmit(ref);
   }, [sendLavoriPrice, handleSubmit]);
 
+  // Página única: guardar SIEMPRE con PATCH sobre el presupuesto abierto (nunca POST).
+  const saveEdit = async (overrideLowMargin = false) => {
+    if (!editQuote || !editForm || readOnly) return;
+    setEditSave({ phase: "saving" });
+    try {
+      const res = await fetch(`/api/quotes/${editQuote.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildQuotePatchPayload(editForm, editLines, { overrideLowMargin, frozenRepair: frozen, expectedVersion: editToken })),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.code === STALE_EDIT_CODE) {
+        setEditSave({ phase: "stale", msg: data.error });
+        return;
+      }
+      if (res.status === 409 && data?.code === "MARGEN_INSUFICIENTE") {
+        setEditSave({ phase: "margin", msg: String(data.error || "").replace("MARGEN_INSUFICIENTE: ", "") });
+        return;
+      }
+      if (!res.ok || !data?.ok) {
+        setEditSave({ phase: "idle", msg: data?.code === FROZEN_EDIT_CODE ? "Pago congelado: descongela antes de editar." : data?.error || "No se pudo guardar." });
+        return;
+      }
+      if (Array.isArray(data.quote?.lines)) setDocs(hydrateRows(data.quote.lines, analysisDocs, () => uid()));
+      if (data.contentVersion) setEditToken(data.contentVersion);
+      baselineRef.current = null; // lo guardado es el nuevo punto de partida
+      if (gate === "live") {
+        setEditSave({ phase: "saved", msg: `Guardado: total ${Number(data.quote?.total ?? 0).toFixed(2)} €. El cliente aún tiene el PDF y el mensaje anteriores.` });
+      } else {
+        setEditSave({ phase: "saved", msg: "Guardado. Recargando la ficha…" });
+        window.location.reload();
+      }
+    } catch {
+      setEditSave({ phase: "idle", msg: "Error de conexión al guardar." });
+    }
+  };
 
-  return (
-    <div className="space-y-6 text-slate-200">
+  const resendEdit = async () => {
+    if (!editQuote) return;
+    setEditSave({ phase: "resending" });
+    try {
+      const res = await fetch(`/api/quotes/${editQuote.id}/resend`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) {
+        setEditSave({ phase: "saved", msg: data?.error || "No se pudo reenviar." });
+        return;
+      }
+      setEditSave({ phase: "resent", msg: `Reenviado a ${customerEmail}. Recargando la ficha…` });
+      window.location.reload();
+    } catch {
+      setEditSave({ phase: "saved", msg: "Error de conexión al reenviar." });
+    }
+  };
+
+
+  const editBanner = editQuote ? (
+    <div
+      className={`rounded-[14px] border px-4 py-3 text-sm ${
+        readOnly ? "border-[#D5DAE1] bg-[#F6F7F9] text-[#1F2933]" : gate === "live" ? "border-[#E9D8A6] bg-[#FFF8E6] text-[#7A5A10]" : "border-[#BFE0CC] bg-[#EEF7F1] text-[#1F6B45]"
+      }`}
+    >
+      {readOnly
+        ? `Solo lectura: el presupuesto está en ${editQuote.status}. Aquí se ve todo, pero no se guarda ni se pide precio.`
+        : gate === "live"
+          ? `Enviado (${editQuote.status}): el cliente tiene el enlace vivo; lo que guardes cambia lo que paga. Tras guardar, reenvía.`
+          : "Borrador: todo editable. «Guardar cambios» actualiza este presupuesto; no crea otro."}
+      {frozen && !readOnly && (
+        <p className="mt-1 font-semibold text-[#A12B2B]">
+          Pago CONGELADO: guardar líneas aquí es la reparación con la cifra del jurado. Guardar no descongela ni reenvía: el reenvío se rechaza hasta desbloquear el pago arriba.
+        </p>
+      )}
+    </div>
+  ) : null;
+
+  const body = (
+    <>
+      {editBanner}
       {/* Cliente ARRIBA: confirma QUIÉN antes de subir documentos / cotizar.
           (Selector de agenda + datos; el builder unificado funciona sin docs.) */}
-      <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-        <h3 className="text-sm font-semibold text-white">Cliente</h3>
+      <div className="space-y-3 rounded-xl border border-[#D5DAE1] bg-white p-4">
+        <h3 className="text-sm font-semibold text-[#1A2E4A]">Cliente</h3>
         {agenda.length > 0 && (
           <select
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-slate-200"
+            className="w-full rounded border border-[#D5DAE1] bg-white px-3 py-2 text-[#1F2933]"
             defaultValue=""
             onChange={(e) => {
               const c = agenda.find((x) => x.id === e.target.value);
@@ -1456,12 +1684,12 @@ export default function StaffExpedienteIntake({
           </select>
         )}
         <div className="grid gap-2 sm:grid-cols-3">
-          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Nombre del cliente" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
-          <input className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" placeholder="Teléfono (opcional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+          <input className="w-full rounded border border-[#D5DAE1] bg-white px-3 py-2" placeholder="Nombre del cliente" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+          <input className="w-full rounded border border-[#D5DAE1] bg-white px-3 py-2" placeholder="Email" type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+          <input className="w-full rounded border border-[#D5DAE1] bg-white px-3 py-2" placeholder="Teléfono (opcional)" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
         </div>
         <input
-          className="mt-2 w-full rounded border border-slate-600 bg-slate-900 px-3 py-2"
+          className="mt-2 w-full rounded border border-[#D5DAE1] bg-white px-3 py-2"
           placeholder="Titulares de los certificados (opcional, p. ej. María García, Juan Pérez)"
           value={holderNames}
           onChange={(e) => setHolderNames(e.target.value)}
@@ -1469,60 +1697,60 @@ export default function StaffExpedienteIntake({
       </div>
 
       {emailContext && (
-        <div className="space-y-3 rounded-xl border border-sky-500/30 bg-sky-500/5 p-4">
+        <div className="space-y-3 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold text-sky-200">Lectura del email (IA)</h3>
-            {briefLoading && <Loader2 className="h-4 w-4 animate-spin text-sky-300" />}
+            <h3 className="text-sm font-semibold text-[#1A2E4A]">Lectura del email (IA)</h3>
+            {briefLoading && <Loader2 className="h-4 w-4 animate-spin text-[#1A2E4A]" />}
             <button
               type="button"
               onClick={() => void readEmail(docs)}
               disabled={briefLoading}
-              className="ml-auto rounded border border-sky-500/40 px-2 py-1 text-xs text-sky-200 hover:bg-sky-500/10 disabled:opacity-50"
+              className="ml-auto rounded border border-[#D5DAE1] px-2 py-1 text-xs text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-50"
             >
               Releer con los documentos
             </button>
           </div>
-          {briefError && <p className="text-xs text-amber-300">✗ {briefError}</p>}
+          {briefError && <p className="text-xs text-[#7A5A10]">✗ {briefError}</p>}
           {!brief && !briefError && briefLoading && (
-            <p className="text-xs text-sky-200/80">Leyendo qué pide el cliente…</p>
+            <p className="text-xs text-[#1A2E4A]">Leyendo qué pide el cliente…</p>
           )}
           {brief && (
             <div className="space-y-2 text-sm">
-              <p className="text-sky-50">{brief.summary}</p>
+              <p className="text-[#1F2933]">{brief.summary}</p>
               <div className="flex flex-wrap gap-1.5 text-xs">
                 {(brief.sourceLang || brief.targetLang) && (
-                  <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-200">
+                  <span className="rounded bg-[#F6F7F9] px-2 py-0.5 text-[#1F2933]">
                     Par: {(brief.sourceLang || "?").toUpperCase()} → {(brief.targetLang || "?").toUpperCase()}
                   </span>
                 )}
                 {brief.urgency && (
-                  <span className={`rounded px-2 py-0.5 ${brief.urgency === "urgent" ? "bg-amber-500/20 text-amber-200" : "bg-slate-800 text-slate-200"}`}>
+                  <span className={`rounded px-2 py-0.5 ${brief.urgency === "urgent" ? "bg-[#FFF8E6] text-[#7A5A10]" : "bg-[#F6F7F9] text-[#1F2933]"}`}>
                     {brief.urgency === "urgent" ? "Urgente" : "Plazo normal"}{brief.deadline ? ` · ${brief.deadline}` : ""}
                   </span>
                 )}
                 {brief.deliveryHint && (
-                  <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-200">
+                  <span className="rounded bg-[#F6F7F9] px-2 py-0.5 text-[#1F2933]">
                     {brief.deliveryHint === "PAPER_SHIP" ? "Pide papel" : "Pide PDF"}
                   </span>
                 )}
                 {brief.provisional && (
-                  <span className="rounded bg-rose-500/20 px-2 py-0.5 font-semibold text-rose-200">
+                  <span className="rounded bg-[#FDF2F2] px-2 py-0.5 font-semibold text-[#A12B2B]">
                     Documento provisional / incompleto
                   </span>
                 )}
               </div>
               {brief.provisional && brief.provisionalReason && (
-                <p className="text-xs text-rose-200/90">{brief.provisionalReason}</p>
+                <p className="text-xs text-[#A12B2B]">{brief.provisionalReason}</p>
               )}
               {brief.quoteNotes && (
-                <p className="text-xs text-sky-200/80">
+                <p className="text-xs text-[#1A2E4A]">
                   Nota añadida al presupuesto (editable abajo en «Notas legales»): <em>{brief.quoteNotes}</em>
                 </p>
               )}
               {brief.questions.length > 0 && (
-                <div className="rounded-lg border border-sky-500/20 bg-slate-900/50 p-3">
+                <div className="rounded-lg border border-[#D5DAE1] bg-white p-3">
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">Preguntas al cliente</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Preguntas al cliente</p>
                     <button
                       type="button"
                       onClick={() => {
@@ -1530,17 +1758,17 @@ export default function StaffExpedienteIntake({
                         setBriefCopied(true);
                         setTimeout(() => setBriefCopied(false), 1500);
                       }}
-                      className="ml-auto rounded border border-slate-600 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800"
+                      className="ml-auto rounded border border-[#D5DAE1] px-2 py-0.5 text-[11px] text-[#1F2933] hover:bg-[#F6F7F9]"
                     >
                       {briefCopied ? "Copiadas ✓" : "Copiar"}
                     </button>
                   </div>
-                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-slate-200">
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-xs text-[#1F2933]">
                     {brief.questions.map((q, i) => (
                       <li key={i}>{q}</li>
                     ))}
                   </ul>
-                  <p className="mt-1 text-[11px] text-slate-400">
+                  <p className="mt-1 text-[11px] text-[#52606D]">
                     Pégalas en la instrucción del borrador IA de la bandeja o en el email del presupuesto.
                   </p>
                 </div>
@@ -1553,25 +1781,25 @@ export default function StaffExpedienteIntake({
       {/* Idioma destino del expediente — elígelo ANTES de subir si traduces a
           un tercer idioma (p. ej. todo a inglés). Pre-rellena la dirección de
           cada documento detectado hacia ese idioma. */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3">
-        <label className="text-sm font-medium text-slate-200">Idioma destino del expediente</label>
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#D5DAE1] bg-white px-4 py-3">
+        <label className="text-sm font-medium text-[#1F2933]">Idioma destino del expediente</label>
         <select
           value={targetLang}
           onChange={(e) => setTargetLang(e.target.value)}
-          className="rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-200"
+          className="rounded border border-[#D5DAE1] bg-white px-2 py-1.5 text-sm text-[#1F2933]"
         >
           <option value="">Auto (al español)</option>
           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
         </select>
-        <span className="text-xs text-slate-500">Elígelo antes de subir si traduces a un tercer idioma (p. ej. todo a inglés). El precio final lo confirmas tú.</span>
+        <span className="text-xs text-[#52606D]">Elígelo antes de subir si traduces a un tercer idioma (p. ej. todo a inglés). El precio final lo confirmas tú.</span>
         {docs.some((d) => d.priceNote) && (
-          <span className="flex w-full items-center gap-1 text-xs text-amber-300">
+          <span className="flex w-full items-center gap-1 text-xs text-[#7A5A10]">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             Hay líneas sin precio automático (falta destino o par sin español): elige aquí el idioma de destino para recalcular, o pon el precio a mano.
           </span>
         )}
         {docs.some((d) => d.include && d.absorbedPages?.length) && (
-          <span className="flex w-full items-center gap-1 text-xs text-amber-300">
+          <span className="flex w-full items-center gap-1 text-xs text-[#7A5A10]">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             Hay documentos que incluyen páginas sin texto (firma o escaneo): comprueba que no sean otro documento — p. ej. una apostilla — antes de enviar.
           </span>
@@ -1579,7 +1807,8 @@ export default function StaffExpedienteIntake({
       </div>
 
       {/* P2: elegir si el conteo IA se lanza al soltar (tiene coste) o se pone a mano */}
-      <label className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-slate-200">
+      {!readOnly && (
+      <label className="flex flex-wrap items-center gap-2 rounded-xl border border-[#D5DAE1] bg-white px-4 py-3 text-sm text-[#1F2933]">
         <input
           type="checkbox"
           checked={autoCount}
@@ -1587,13 +1816,15 @@ export default function StaffExpedienteIntake({
           className="h-4 w-4"
         />
         <span className="font-medium">Contar palabras automáticamente al soltar (IA)</span>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-[#52606D]">
           El conteo automático usa IA y tiene coste. Desactívalo para clientes con precio fijo por documento
           (p. ej. 30 €/doc): subes el archivo y pones el precio a mano, sin lanzar el conteo.
         </span>
       </label>
+      )}
 
       {/* Dropzone */}
+      {!readOnly && (
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -1601,15 +1832,15 @@ export default function StaffExpedienteIntake({
           if (e.dataTransfer.files?.length) handleFiles(e.dataTransfer.files);
         }}
         onClick={() => inputRef.current?.click()}
-        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-cyan-700/50 bg-slate-900/50 px-6 py-10 transition-colors hover:border-cyan-500"
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#D5DAE1] bg-white px-6 py-10 transition-colors hover:border-[#1A2E4A]"
         role="button"
         tabIndex={0}
       >
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/10">
-          <Upload className="h-6 w-6 text-cyan-400" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F6F7F9]">
+          <Upload className="h-6 w-6 text-[#1A2E4A]" />
         </div>
-        <p className="font-semibold text-white">Arrastra los documentos del expediente</p>
-        <p className="text-sm text-slate-400">PDF, foto o escaneo · varios a la vez · máx. 20 MB c/u</p>
+        <p className="font-semibold text-[#1A2E4A]">Arrastra los documentos del expediente</p>
+        <p className="text-sm text-[#52606D]">PDF, foto o escaneo · varios a la vez · máx. 20 MB c/u</p>
         <input
           ref={inputRef}
           type="file"
@@ -1622,24 +1853,27 @@ export default function StaffExpedienteIntake({
           }}
         />
       </div>
+      )}
 
       {/* Añadir una línea a mano (sin documento) */}
+      {!readOnly && (
       <div>
         <button
           type="button"
           onClick={addManualLine}
-          className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
+          className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-sm text-[#1F2933] hover:bg-[#F6F7F9]"
         >
           + Añadir línea manual
         </button>
-        <span className="ml-2 text-xs text-slate-500">Para presupuestar sin subir documento, o añadir conceptos sueltos.</span>
+        <span className="ml-2 text-xs text-[#52606D]">Para presupuestar sin subir documento, o añadir conceptos sueltos.</span>
       </div>
+      )}
 
       {/* Tabla de documentos */}
       {docs.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-slate-700">
+        <div className="overflow-x-auto rounded-xl border border-[#D5DAE1]">
           <table className="w-full text-sm">
-            <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+            <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
               <tr>
                 <th className="px-3 py-2"></th>
                 <th className="px-3 py-2">Documento</th>
@@ -1651,7 +1885,7 @@ export default function StaffExpedienteIntake({
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-[#D5DAE1]">
               {docs.map((d, i) => (
                 <tr key={d.localId} className={d.include ? "" : "opacity-40"}>
                   <td className="px-3 py-2">
@@ -1660,30 +1894,49 @@ export default function StaffExpedienteIntake({
                       checked={d.include}
                       disabled={d.status === "uploading" || d.status === "analyzing"}
                       onChange={(e) => patch(d.localId, { include: e.target.checked })}
-                      className="h-4 w-4 rounded border-slate-600"
+                      className="h-4 w-4 rounded border-[#D5DAE1]"
                     />
                   </td>
                   <td className="max-w-[220px] px-3 py-2">
-                    {d.status === "manual" || d.status === "error" ? (
+                    {d.lineDescription !== undefined ? (
+                      <div>
+                        <input
+                          type="text"
+                          value={d.lineDescription}
+                          onChange={(e) => patch(d.localId, { lineDescription: e.target.value })}
+                          placeholder="Concepto de la línea"
+                          title="Texto de la línea tal como lo ve el cliente"
+                          className="w-full min-w-[160px] rounded border border-[#D5DAE1] bg-white px-2 py-1 text-sm"
+                        />
+                        {d.blobUrl && (
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px]">
+                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">ver</a>
+                            <span className="text-[#52606D]">·</span>
+                            <a href={docViewUrl(d, true)!} className="text-[#1A2E4A] hover:underline">descargar</a>
+                            {d.status === "done" && <span className="truncate text-[#52606D]" title={d.fileName}>· {d.fileName}</span>}
+                          </div>
+                        )}
+                      </div>
+                    ) : d.status === "manual" || d.status === "error" ? (
                       <div>
                         <input
                           type="text"
                           value={d.fileName}
                           onChange={(e) => patch(d.localId, { fileName: e.target.value })}
                           placeholder={d.status === "error" ? "Nombre / concepto del documento" : "Concepto de la línea"}
-                          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                          className="w-full rounded border border-[#D5DAE1] bg-white px-2 py-1 text-sm"
                         />
                         {d.blobUrl && (
                           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px]">
-                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ver</a>
-                            <span className="text-slate-600">·</span>
-                            <a href={docViewUrl(d, true)!} className="text-cyan-400 hover:underline">descargar</a>
-                            <span className="text-slate-600">·</span>
+                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">ver</a>
+                            <span className="text-[#52606D]">·</span>
+                            <a href={docViewUrl(d, true)!} className="text-[#1A2E4A] hover:underline">descargar</a>
+                            <span className="text-[#52606D]">·</span>
                             <button
                               type="button"
                               onClick={() => suggestName(d)}
                               disabled={namingId === d.localId}
-                              className="text-cyan-400 hover:underline disabled:opacity-50"
+                              className="text-[#1A2E4A] hover:underline disabled:opacity-50"
                               title="Sugerir el tipo de documento con IA (no cuenta palabras)"
                             >
                               {namingId === d.localId ? "nombrando…" : "sugerir nombre (IA)"}
@@ -1694,19 +1947,19 @@ export default function StaffExpedienteIntake({
                     ) : (
                       <div>
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 shrink-0 text-slate-500" />
+                          <FileText className="h-4 w-4 shrink-0 text-[#52606D]" />
                           <span className="truncate" title={d.fileName}>{d.fileName}</span>
                         </div>
                         {d.blobUrl && (
                           <div className="ml-6 mt-0.5 flex items-center gap-2 text-[11px]">
-                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">ver</a>
-                            <span className="text-slate-600">·</span>
-                            <a href={docViewUrl(d, true)!} className="text-cyan-400 hover:underline">descargar</a>
+                            <a href={docViewUrl(d)!} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">ver</a>
+                            <span className="text-[#52606D]">·</span>
+                            <a href={docViewUrl(d, true)!} className="text-[#1A2E4A] hover:underline">descargar</a>
                           </div>
                         )}
                         {d.absorbedPages?.length ? (
                           <p
-                            className="ml-6 mt-0.5 text-[11px] text-amber-300"
+                            className="ml-6 mt-0.5 text-[11px] text-[#7A5A10]"
                             title="Página sin texto legible (firma o escaneo) unida a este documento. Si es otro documento (p. ej. una apostilla escaneada), sepárala y ponle precio."
                           >
                             incluye pág. {d.absorbedPages.join(", ")} sin texto
@@ -1719,7 +1972,7 @@ export default function StaffExpedienteIntake({
                                 <button
                                   type="button"
                                   onClick={() => detachAbsorbed(d.localId)}
-                                  className="font-semibold underline hover:text-amber-200"
+                                  className="font-semibold underline hover:text-[#7A5A10]"
                                 >
                                   separar
                                 </button>
@@ -1732,35 +1985,35 @@ export default function StaffExpedienteIntake({
                   </td>
                   <td className="px-3 py-2">
                     {d.status === "uploading" && (
-                      <span className="flex items-center gap-1 text-slate-400"><Loader2 className="h-3 w-3 animate-spin" /> Subiendo…</span>
+                      <span className="flex items-center gap-1 text-[#52606D]"><Loader2 className="h-3 w-3 animate-spin" /> Subiendo…</span>
                     )}
                     {d.status === "analyzing" && (
-                      <span className="flex items-center gap-1 text-cyan-400"><Loader2 className="h-3 w-3 animate-spin" /> Analizando y contando palabras…</span>
+                      <span className="flex items-center gap-1 text-[#1A2E4A]"><Loader2 className="h-3 w-3 animate-spin" /> Analizando y contando palabras…</span>
                     )}
                     {d.status === "error" && (
-                      <span className="flex items-center gap-1 text-amber-400" title={d.error}><AlertTriangle className="h-3 w-3" /> Error · precio a mano</span>
+                      <span className="flex items-center gap-1 text-[#7A5A10]" title={d.error}><AlertTriangle className="h-3 w-3" /> Error · precio a mano</span>
                     )}
                     {d.status === "manual" && (
-                      <span className="text-slate-400">Línea manual</span>
+                      <span className="text-[#52606D]">Línea manual</span>
                     )}
                     {d.status === "done" && (
                       <span className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        <CheckCircle2 className="h-3 w-3 text-[#1F6B45]" />
                         {d.documentTypeEs}
                         {d.mode === "text" && (
-                          <span className="ml-1 rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Analizado por texto (barato)">texto</span>
+                          <span className="ml-1 rounded bg-[#EEF7F1] px-1 text-[10px] text-[#1F6B45]" title="Analizado por texto (barato)">texto</span>
                         )}
                         {d.priceNote ? (
-                          <span className="ml-1 flex items-center gap-0.5 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>
+                          <span className="ml-1 flex items-center gap-0.5 rounded bg-[#FFF8E6] px-1 text-[10px] text-[#7A5A10]" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>
                             <AlertTriangle className="h-3 w-3" /> a mano: {d.priceNote}
                           </span>
                         ) : (
                           knownLangCode(d.targetLang) && d.targetLang !== "es" && (
-                            <span className="ml-1 rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
+                            <span className="ml-1 rounded bg-[#FFF8E6] px-1 text-[10px] text-[#7A5A10]" title="Destino no-español: revisa y ajusta el precio (suele ser algo más alto)">revisa precio</span>
                           )
                         )}
                         {!d.priceNote && d.autoPriced !== false && d.minApplied && (
-                          <span className="ml-1 rounded bg-sky-500/15 px-1 text-[10px] text-sky-300" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — en expedientes con varios certificados cortos cada doc suma su mínimo: bájalo a mano si lo ves justo`}>mínimo aplicado</span>
+                          <span className="ml-1 rounded bg-[#F6F7F9] px-1 text-[10px] text-[#1A2E4A]" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — en expedientes con varios certificados cortos cada doc suma su mínimo: bájalo a mano si lo ves justo`}>mínimo aplicado</span>
                         )}
                       </span>
                     )}
@@ -1771,19 +2024,19 @@ export default function StaffExpedienteIntake({
                           value={d.documentTypeEs || ""}
                           onChange={(e) => patch(d.localId, { documentTypeEs: e.target.value })}
                           placeholder="Concepto / tipo"
-                          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
+                          className="w-full rounded border border-[#D5DAE1] bg-white px-2 py-1 text-xs"
                         />
                         <div className="flex flex-wrap items-center gap-1">
-                          <span className="rounded bg-cyan-500/15 px-1 text-[10px] text-cyan-300" title="Documento detectado dentro de un PDF con varios — revisa y ajusta">auto · varios</span>
+                          <span className="rounded bg-[#F6F7F9] px-1 text-[10px] text-[#1A2E4A]" title="Documento detectado dentro de un PDF con varios — revisa y ajusta">auto · varios</span>
                           {d.priceNote ? (
-                            <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>a mano: {d.priceNote}</span>
+                            <span className="rounded bg-[#FFF8E6] px-1 text-[10px] text-[#7A5A10]" title={`${d.priceNote} — sin precio automático: fija el destino del expediente o pon el precio a mano`}>a mano: {d.priceNote}</span>
                           ) : (
                             knownLangCode(d.targetLang) && d.targetLang !== "es" && (
-                              <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-300" title="Destino no-español: revisa y ajusta el precio">revisa precio</span>
+                              <span className="rounded bg-[#FFF8E6] px-1 text-[10px] text-[#7A5A10]" title="Destino no-español: revisa y ajusta el precio">revisa precio</span>
                             )
                           )}
                           {!d.priceNote && d.autoPriced !== false && d.minApplied && (
-                            <span className="rounded bg-sky-500/15 px-1 text-[10px] text-sky-300" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — bájalo a mano si lo ves justo`}>mínimo aplicado</span>
+                            <span className="rounded bg-[#F6F7F9] px-1 text-[10px] text-[#1A2E4A]" title={`El precio viene del mínimo del par${d.minAmount ? ` (${d.minAmount} €)` : ""}, no de las palabras — bájalo a mano si lo ves justo`}>mínimo aplicado</span>
                           )}
                         </div>
                       </div>
@@ -1795,17 +2048,17 @@ export default function StaffExpedienteIntake({
                       />
                     )}
                     {d.priorFrom && (
-                      <span className="mt-1 inline-block rounded bg-emerald-500/15 px-1 text-[10px] text-emerald-300" title="Precio y coste copiados de un presupuesto anterior de este cliente">
+                      <span className="mt-1 inline-block rounded bg-[#EEF7F1] px-1 text-[10px] text-[#1F6B45]" title="Precio y coste copiados de un presupuesto anterior de este cliente">
                         precedente {d.priorFrom}
                       </span>
                     )}
                     {isEngineCostRow(d, sourceLang, targetLang) && (
-                      <span className="mt-1 inline-block rounded bg-red-500/20 px-1 text-[10px] font-semibold text-red-300" title="El coste sale de la tarifa de la casa: ningún jurado lo ha dado y el cliente no lo pagó antes. Pide precio por lavori o ponlo a mano.">
+                      <span className="mt-1 inline-block rounded bg-[#FDF2F2] px-1 text-[10px] font-semibold text-[#A12B2B]" title="El coste sale de la tarifa de la casa: ningún jurado lo ha dado y el cliente no lo pagó antes. Pide precio por lavori o ponlo a mano.">
                         coste de motor, sin precio de jurado
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-slate-300">
+                  <td className="px-3 py-2 whitespace-nowrap text-[#1F2933]">
                     {/* Editable también tras el análisis: la IA lee la apostilla (título en
                         francés) como FR y el documento es ES (Juan, 6-oct-2026). */}
                     {d.status === "done" || d.status === "error" || d.status === "manual" || d.status === "split" ? (
@@ -1813,7 +2066,7 @@ export default function StaffExpedienteIntake({
                         <select
                           value={knownLangCode(d.sourceLang) || (d.status === "done" ? sourceLang : "") || ""}
                           onChange={(e) => patch(d.localId, { sourceLang: e.target.value || undefined, priceNote: undefined })}
-                          className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
+                          className="rounded border border-[#D5DAE1] bg-white px-1 py-1 text-xs"
                         >
                           <option value="">orig</option>
                           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.code.toUpperCase()}</option>)}
@@ -1822,7 +2075,7 @@ export default function StaffExpedienteIntake({
                         <select
                           value={knownLangCode(d.targetLang) || (d.status === "done" ? targetLang : "") || ""}
                           onChange={(e) => patch(d.localId, { targetLang: e.target.value || undefined, priceNote: undefined })}
-                          className="rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs"
+                          className="rounded border border-[#D5DAE1] bg-white px-1 py-1 text-xs"
                         >
                           <option value="">dest</option>
                           {LANGS.map((l) => <option key={l.code} value={l.code}>{l.code.toUpperCase()}</option>)}
@@ -1832,7 +2085,7 @@ export default function StaffExpedienteIntake({
                       "—"
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-slate-300">
+                  <td className="px-3 py-2 text-right tabular-nums text-[#1F2933]">
                     {/* Editable también tras el análisis: el recuento de la IA puede
                         salir inflado (Juan, 6-oct: 3.300 contadas vs 1.100 reales). */}
                     {d.status === "done" || d.status === "error" || d.status === "manual" || d.status === "split" ? (
@@ -1851,7 +2104,7 @@ export default function StaffExpedienteIntake({
                           );
                         }}
                         placeholder="palabras"
-                        className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                        className="w-20 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                       />
                       {d.mode === "vision" && d.analysisId && (
                         <ContadorProgreso
@@ -1878,7 +2131,7 @@ export default function StaffExpedienteIntake({
                         <select
                           value={d.basis ?? "fixed"}
                           onChange={(e) => setRowBasis(d.localId, e.target.value === "fixed" ? undefined : (e.target.value as "word" | "unit"))}
-                          className="rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[11px] text-slate-300"
+                          className="rounded border border-[#D5DAE1] bg-white px-1 py-0.5 text-[11px] text-[#1F2933]"
                           title="Cómo se calcula el coste de esta línea"
                         >
                           <option value="fixed">Fijo</option>
@@ -1896,10 +2149,10 @@ export default function StaffExpedienteIntake({
                                 const r = Math.max(0, Number(e.target.value));
                                 patch(d.localId, { wordRate: r, unitPrice: Math.round((d.words || 0) * r * 100) / 100, autoPriced: false, priceNote: undefined });
                               }}
-                              className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              className="w-20 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                               title="€ por palabra (coste del traductor) de esta línea"
                             />
-                            <span className="text-[11px] text-slate-400">€/pal.</span>
+                            <span className="text-[11px] text-[#52606D]">€/pal.</span>
                           </div>
                         ) : d.basis === "unit" ? (
                           <div className="flex items-center gap-1">
@@ -1912,10 +2165,10 @@ export default function StaffExpedienteIntake({
                                 const n = Math.max(1, Math.floor(Number(e.target.value) || 1));
                                 patch(d.localId, { unitCount: n, unitPrice: Math.round(n * (d.unitRate ?? docRate) * 100) / 100, autoPriced: false, priceNote: undefined });
                               }}
-                              className="w-14 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              className="w-14 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                               title="Nº de documentos de esta línea"
                             />
-                            <span className="text-[11px] text-slate-400">docs ×</span>
+                            <span className="text-[11px] text-[#52606D]">docs ×</span>
                             <input
                               type="number"
                               min={0}
@@ -1925,10 +2178,10 @@ export default function StaffExpedienteIntake({
                                 const r = Math.max(0, Number(e.target.value));
                                 patch(d.localId, { unitRate: r, unitPrice: Math.round((d.unitCount ?? 1) * r * 100) / 100, autoPriced: false, priceNote: undefined });
                               }}
-                              className="w-16 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                              className="w-16 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                               title="€ por documento (coste del traductor) de esta línea"
                             />
-                            <span className="text-[11px] text-slate-400">€</span>
+                            <span className="text-[11px] text-[#52606D]">€</span>
                           </div>
                         ) : (
                           <input
@@ -1937,17 +2190,48 @@ export default function StaffExpedienteIntake({
                             step="0.01"
                             value={d.unitPrice}
                             onChange={(e) => patch(d.localId, { unitPrice: Number(e.target.value), clientPrice: undefined, autoPriced: false, priceNote: undefined })}
-                            className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                            className="w-24 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                           />
                         )}
-                        {d.basis && <span className="tabular-nums text-[11px] text-slate-400">= {(d.unitPrice || 0).toFixed(2)} €</span>}
+                        {d.basis && <span className="tabular-nums text-[11px] text-[#52606D]">= {(d.unitPrice || 0).toFixed(2)} €</span>}
                       </div>
                     ) : (
                       "—"
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-white">
-                    {isPriceable(d.status) ? `${rowClientPrice(d).toFixed(2)} €` : "—"}
+                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#1A2E4A]">
+                    {editQuote && isPriceable(d.status) ? (
+                      <div className="flex flex-col items-end gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={rowClientPrice(d)}
+                        onChange={(e) => patch(d.localId, { clientPrice: Math.max(0, Number(e.target.value)), autoPriced: false, priceNote: undefined })}
+                        className="w-24 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right font-semibold tabular-nums"
+                        title="Precio al cliente de la línea (sin IVA)"
+                      />
+                      {(() => {
+                        const m = rowMargin(rowClientPrice(d), d.unitPrice || 0);
+                        return (
+                          <span className={`text-[11px] font-normal ${m.low ? "font-semibold text-[#A12B2B]" : "text-[#52606D]"}`}>
+                            margen {m.marginEur.toFixed(2)} €{m.pct != null ? ` (${Math.round(m.pct)} %)` : ""}
+                            {m.low ? " · margen bajo" : ""}
+                          </span>
+                        );
+                      })()}
+                      {d.clientPrice != null && (
+                        <button
+                          type="button"
+                          onClick={() => patch(d.localId, { clientPrice: clientPriceOf(d.unitPrice, !!d.priceNote) })}
+                          className="text-[11px] font-normal text-[#1A2E4A] underline-offset-2 hover:underline"
+                          title="Precio = coste × margen del presupuesto (Auto o el % fijado)"
+                        >
+                          Recalcular precio con el margen
+                        </button>
+                      )}
+                      </div>
+                    ) : isPriceable(d.status) ? `${rowClientPrice(d).toFixed(2)} €` : "—"}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1">
@@ -1956,7 +2240,7 @@ export default function StaffExpedienteIntake({
                           type="button"
                           onClick={() => mergeWithPrevious(d.localId)}
                           title="Unir con la línea anterior (páginas seguidas del mismo documento)"
-                          className="rounded p-1 text-cyan-400 hover:bg-slate-800"
+                          className="rounded p-1 text-[#1A2E4A] hover:bg-[#F6F7F9]"
                           aria-label="Unir con la anterior"
                         >
                           <Merge className="h-4 w-4" />
@@ -1967,7 +2251,7 @@ export default function StaffExpedienteIntake({
                           type="button"
                           onClick={() => splitRowByPages(d.localId)}
                           title="Separar en una línea por página (p. ej. 2 certificados en 2 páginas)"
-                          className="rounded p-1 text-cyan-400 hover:bg-slate-800"
+                          className="rounded p-1 text-[#1A2E4A] hover:bg-[#F6F7F9]"
                           aria-label="Dividir por páginas"
                         >
                           <Scissors className="h-4 w-4" />
@@ -1976,7 +2260,7 @@ export default function StaffExpedienteIntake({
                       <button
                         type="button"
                         onClick={() => setDocs((prev) => prev.filter((x) => x.localId !== d.localId))}
-                        className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                        className="rounded p-1 text-[#52606D] hover:bg-[#F6F7F9] hover:text-[#1A2E4A]"
                         aria-label="Quitar"
                       >
                         <X className="h-4 w-4" />
@@ -1992,63 +2276,77 @@ export default function StaffExpedienteIntake({
 
       {/* Configuración del presupuesto (al haber líneas; el Cliente va arriba). */}
       {docs.length > 0 && (
-          <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-            <h3 className="text-sm font-semibold text-white">Presupuesto</h3>
+          <div className="space-y-3 rounded-xl border border-[#D5DAE1] bg-white p-4">
+            <h3 className="text-sm font-semibold text-[#1A2E4A]">Presupuesto</h3>
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Idioma origen
-                <select className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200" value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
+                <select className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]" value={sourceLang} onChange={(e) => setSourceLang(e.target.value)}>
                   <option value="">—</option>
                   {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
                 </select>
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Idioma destino
-                <select className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200" value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
+                <select className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]" value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
                   <option value="">—</option>
                   {LANGS.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
                 </select>
               </label>
-              <label className="text-xs text-slate-400">
+              {editQuote ? (
+                <label className="text-xs text-[#52606D]">
+                  Descuento
+                  <div className="mt-1 flex gap-1">
+                    <select value={discountKind} onChange={(e) => setDiscountKind(e.target.value)} className="rounded border border-[#D5DAE1] bg-white px-1 py-2 text-[#1F2933]">
+                      <option value="NONE">Sin</option>
+                      <option value="PERCENT">%</option>
+                      <option value="FIXED">€ fijo</option>
+                    </select>
+                    <input type="number" min={0} step="0.01" value={discountPct} disabled={discountKind === "NONE"} onChange={(e) => setDiscountPct(Number(e.target.value))} className="w-full min-w-0 rounded border border-[#D5DAE1] bg-white px-2 py-2 disabled:opacity-50" />
+                  </div>
+                </label>
+              ) : (
+              <label className="text-xs text-[#52606D]">
                 Descuento volumen (%)
-                <input type="number" min={0} max={100} value={discountPct} onChange={(e) => { setDiscountTouched(true); setDiscountPct(Number(e.target.value)); }} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                <input type="number" min={0} max={100} value={discountPct} onChange={(e) => { setDiscountTouched(true); setDiscountPct(Number(e.target.value)); }} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
               </label>
-              <label className="text-xs text-slate-400">
+              )}
+              <label className="text-xs text-[#52606D]">
                 Validez (días)
-                <input type="number" min={1} value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                <input type="number" min={1} value={validityDays} onChange={(e) => setValidityDays(Number(e.target.value))} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Tipo de entrega
-                <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "DIGITAL_PDF" | "PAPER_SHIP")} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
+                <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "DIGITAL_PDF" | "PAPER_SHIP")} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]">
                   <option value="DIGITAL_PDF">PDF con certificado digital</option>
                   <option value="PAPER_SHIP">Envío en papel (+12 € + IVA)</option>
                 </select>
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Idioma del cliente (PDF y página de pago)
-                <select value={pdfLang} onChange={(e) => { setPdfLangTouched(true); setPdfLang(e.target.value); }} className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-slate-200">
+                <select value={pdfLang} onChange={(e) => { setPdfLangTouched(true); setPdfLang(e.target.value); }} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]">
                   {QUOTE_PDF_LANGS.map((l) => (
                     <option key={l} value={l}>{QUOTE_PDF_LANG_LABELS[l]}</option>
                   ))}
                 </select>
                 {langSuggestion && (
-                  <span className="mt-1 block text-[11px] text-slate-500">
+                  <span className="mt-1 block text-[11px] text-[#52606D]">
                     Sugerido: {QUOTE_PDF_LANG_LABELS[langSuggestion.lang]} ({langSuggestion.reason})
                   </span>
                 )}
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Plazo de entrega
-                <input value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="ej. 3-4 días hábiles" className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2" />
+                <input value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} placeholder="ej. 3-4 días hábiles" className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
               </label>
             </div>
             {sourceLang && targetLang && docs.some((d) => (d.status === "done" || d.status === "split") && (d.sourceLang !== sourceLang || d.targetLang !== targetLang)) && (
-              <p className="text-xs text-amber-400">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
+              <p className="text-xs text-[#7A5A10]">⚠ Hay documentos con dirección distinta a la del presupuesto. La dirección de cada doc va en su línea; el par del presupuesto es informativo.</p>
             )}
 
             {/* Base del coste: cada línea elige Fijo / Por palabra / Por documento en su fila; aquí se aplica a todas de golpe */}
-            <div className="border-t border-slate-700 pt-3">
-              <label className="text-xs text-slate-400">Aplicar a todas las líneas</label>
+            <div className="border-t border-[#D5DAE1] pt-3">
+              <label className="text-xs text-[#52606D]">Aplicar a todas las líneas</label>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <input
                   type="number"
@@ -2056,64 +2354,65 @@ export default function StaffExpedienteIntake({
                   step="0.001"
                   value={wordRate}
                   onChange={(e) => setWordRate(Math.max(0, Number(e.target.value)))}
-                  className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                  className="w-20 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                   title="€ por palabra (coste del traductor)"
                 />
-                <span className="text-xs text-slate-400">€/palabra</span>
+                <span className="text-xs text-[#52606D]">€/palabra</span>
                 <button
                   type="button"
                   onClick={applyWordRate}
-                  className="rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30"
+                  className="rounded border border-[#1A2E4A] bg-[#F6F7F9] px-2 py-1 text-xs text-[#1A2E4A] hover:bg-[#F6F7F9]"
                 >
                   Por palabra
                 </button>
-                <span className="mx-1 text-slate-600">·</span>
+                <span className="mx-1 text-[#52606D]">·</span>
                 <input
                   type="number"
                   min={0}
                   step="0.01"
                   value={docRate}
                   onChange={(e) => setDocRate(Math.max(0, Number(e.target.value)))}
-                  className="w-20 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-right tabular-nums"
+                  className="w-20 rounded border border-[#D5DAE1] bg-white px-2 py-1 text-right tabular-nums"
                   title="€ por documento (coste del traductor)"
                 />
-                <span className="text-xs text-slate-400">€/documento</span>
+                <span className="text-xs text-[#52606D]">€/documento</span>
                 <button
                   type="button"
                   onClick={applyDocRate}
-                  className="rounded border border-cyan-500 bg-cyan-600/20 px-2 py-1 text-xs text-cyan-200 hover:bg-cyan-600/30"
+                  className="rounded border border-[#1A2E4A] bg-[#F6F7F9] px-2 py-1 text-xs text-[#1A2E4A] hover:bg-[#F6F7F9]"
                 >
                   Por documento
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-1 text-[11px] text-[#52606D]">
                 Cada línea elige en su fila: coste fijo, palabras × €/palabra o nº de documentos × €/documento. Estos botones la aplican a todas; luego puedes ajustar cada una.
               </p>
             </div>
 
             {/* Margen sobre el coste del traductor (interno; el cliente solo ve su precio) */}
-            <div className="border-t border-slate-700 pt-3">
-              <label className="text-xs text-slate-400">Margen sobre coste del traductor (%)</label>
+            <div className="border-t border-[#D5DAE1] pt-3">
+              <label className="text-xs text-[#52606D]">Margen sobre coste del traductor (%)</label>
               <div className="mt-1 flex items-center gap-2">
-                <input type="number" min={0} value={marginPct ?? ""} placeholder="Auto" onChange={(e) => setMarginPct(e.target.value === "" ? null : Math.max(0, Number(e.target.value)))} className="w-24 rounded border border-slate-600 bg-slate-900 px-2 py-2" />
-                <button type="button" onClick={() => setMarginPct(null)} className={`rounded border px-2 py-1 text-xs ${marginPct === null ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}>Auto</button>
+                <input type="number" min={0} value={marginPct ?? ""} placeholder="Auto" onChange={(e) => setMarginPct(e.target.value === "" ? null : Math.max(0, Number(e.target.value)))} className="w-24 rounded border border-[#D5DAE1] bg-white px-2 py-2" />
+                <button type="button" onClick={() => setMarginPct(null)} className={`rounded border px-2 py-1 text-xs ${marginPct === null ? "border-[#1A2E4A] bg-[#F6F7F9] text-[#1A2E4A]" : "border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]"}`}>Auto</button>
                 {[30, 40].map((m) => (
-                  <button key={m} type="button" onClick={() => setMarginPct(m)} className={`rounded border px-2 py-1 text-xs ${marginPct === m ? "border-cyan-500 bg-cyan-600/20 text-cyan-200" : "border-slate-600 text-slate-300 hover:bg-slate-800"}`}>{m}%</button>
+                  <button key={m} type="button" onClick={() => setMarginPct(m)} className={`rounded border px-2 py-1 text-xs ${marginPct === m ? "border-[#1A2E4A] bg-[#F6F7F9] text-[#1A2E4A]" : "border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]"}`}>{m}%</button>
                 ))}
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">Auto = margen por tramo de coste (30/25/20 %), francés sin margen. El cliente solo ve el precio final.</p>
+              <p className="mt-1 text-[11px] text-[#52606D]">Auto = margen por tramo de coste (30/25/20 %), francés sin margen. El cliente solo ve el precio final.</p>
             </div>
 
             {/* Formas de pago a mostrar en el PDF + WhatsApp del presupuesto */}
-            <div className="border-t border-slate-700 pt-3">
-              <label className="text-xs text-slate-400">Formas de pago en el presupuesto</label>
-              <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-300">
+            <div className="border-t border-[#D5DAE1] pt-3">
+              <label className="text-xs text-[#52606D]">Formas de pago en el presupuesto</label>
+              <div className="mt-1 flex flex-wrap gap-3 text-xs text-[#1F2933]">
                 {[
                   { id: "sabadell", label: "Banco Sabadell" },
                   { id: "openbank", label: "Openbank" },
                   { id: "bizum654", label: "Bizum 614619682" },
                   { id: "paypal", label: "PayPal" },
                   { id: "bbva", label: "BBVA (en cierre)" },
+                  ...(editQuote ? [{ id: "revolut", label: "Revolut (internacional/SWIFT)" }] : []),
                 ].map((m) => (
                   <label key={m.id} className="flex items-center gap-1">
                     <input type="checkbox" checked={paymentMethods.includes(m.id)} onChange={() => togglePaymentMethod(m.id)} />
@@ -2121,7 +2420,7 @@ export default function StaffExpedienteIntake({
                   </label>
                 ))}
               </div>
-              <input value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="WhatsApp para este presupuesto (opcional; por defecto 951 333 614)" className="mt-2 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm" />
+              <input value={contactWhatsapp} onChange={(e) => setContactWhatsapp(e.target.value)} placeholder="WhatsApp para este presupuesto (opcional; por defecto 951 333 614)" className="mt-2 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-sm" />
             </div>
           </div>
       )}
@@ -2130,8 +2429,8 @@ export default function StaffExpedienteIntake({
           en el tablón. El traductor ve los documentos y propone su precio; la
           respuesta llega por email y queda anclada al lead. Destinatarios: carril
           por defecto, toda la lengua o uno en concreto (21-ago-2026). */}
-      {lavoriRoute && yaPedida && !volverAPedir && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-violet-700/60 bg-violet-950/30 px-4 py-3 text-sm text-violet-200">
+      {!readOnly && lavoriRoute && yaPedida && !volverAPedir && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] px-4 py-3 text-sm text-[#1A2E4A]">
           <span>
             Ya pedido: <span className="font-mono">{yaPedida.ref}</span>
             {yaPedida.priceCents
@@ -2144,23 +2443,23 @@ export default function StaffExpedienteIntake({
               type="button"
               onClick={() => setVolverAPedir(true)}
               disabled={lavoriState.phase === "sending" || busy}
-              className="rounded-lg border border-violet-500/60 px-3 py-1 text-xs font-semibold text-violet-100 hover:bg-violet-600/30 disabled:opacity-40"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-40"
             >
               Volver a pedir / cambiar jurado
             </button>
           )}
           {lavoriState.msg && (
-            <span className={`text-xs ${lavoriState.phase === "error" ? "text-amber-400" : "text-violet-300"}`}>{lavoriState.msg}</span>
+            <span className={`text-xs ${lavoriState.phase === "error" ? "text-[#7A5A10]" : "text-[#1A2E4A]"}`}>{lavoriState.msg}</span>
           )}
         </div>
       )}
 
-      {lavoriRoute && lavoriDocs.length > 0 && (!yaPedida || volverAPedir) && (
-        <div className="space-y-2 rounded-xl border border-violet-700/60 bg-violet-950/30 p-4">
-          <h3 className="text-sm font-semibold text-violet-200">
+      {!readOnly && lavoriRoute && lavoriDocs.length > 0 && (!yaPedida || volverAPedir) && (
+        <div className="space-y-2 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
+          <h3 className="text-sm font-semibold text-[#1A2E4A]">
             {yaPedida ? `Volver a pedir precio · ${yaPedida.ref} se retira en lavori` : `Solicitar precio vía lavori · ${lavoriRoute.par}`}
           </h3>
-          <p className="text-xs text-violet-300/80">
+          <p className="text-xs text-[#1A2E4A]">
             Manda {lavoriDocs.length === 1 ? "el documento" : `los ${lavoriDocs.length} documentos`} a
             jurados del par como encargo dirigido sin precio. Sin datos del cliente: solo tipo,
             volumen y los PDF. Útil antes de generar el presupuesto.
@@ -2182,7 +2481,7 @@ export default function StaffExpedienteIntake({
             maxLength={2000}
             rows={2}
             placeholder="Especificaciones del encargo (opcional): apostilla íntegra, plazo deseado, grafía de nombres… Sin datos del cliente."
-            className="w-full rounded-lg border border-violet-700/60 bg-violet-950/40 px-3 py-2 text-sm text-violet-100 placeholder:text-violet-400/60 focus:border-violet-500 focus:outline-none disabled:opacity-40"
+            className="w-full rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-2 text-sm text-[#1A2E4A] placeholder:text-[#1A2E4A] focus:border-violet-500 focus:outline-none disabled:opacity-40"
           />
           <div className="flex items-center gap-3">
             <button
@@ -2200,12 +2499,12 @@ export default function StaffExpedienteIntake({
                     : `Solicitar precio (${lavoriDocs.length} doc${lavoriDocs.length > 1 ? "s" : ""})`}
             </button>
             {yaPedida && (
-              <button type="button" onClick={() => setVolverAPedir(false)} className="text-xs text-violet-300 underline hover:text-white">
+              <button type="button" onClick={() => setVolverAPedir(false)} className="text-xs text-[#1A2E4A] underline hover:text-[#1A2E4A]">
                 Cancelar
               </button>
             )}
             {lavoriState.msg && (
-              <span className={`text-xs ${lavoriState.phase === "error" ? "text-amber-400" : "text-violet-300"}`}>
+              <span className={`text-xs ${lavoriState.phase === "error" ? "text-[#7A5A10]" : "text-[#1A2E4A]"}`}>
                 {lavoriState.msg}
               </span>
             )}
@@ -2215,31 +2514,142 @@ export default function StaffExpedienteIntake({
 
       {/* Totales + acción */}
       {includedDocs.length > 0 && (
-        <div className="flex flex-col items-end gap-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+        <div className="flex flex-col items-end gap-3 rounded-xl border border-[#D5DAE1] bg-white p-4">
           <div className="w-full max-w-xs space-y-1 text-sm">
-            <div className="flex justify-between text-slate-400"><span>Subtotal</span><span className="tabular-nums">{subtotal.toFixed(2)} €</span></div>
-            {discountPct > 0 && <div className="flex justify-between text-emerald-400"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>}
-            {shipping > 0 && <div className="flex justify-between text-slate-400"><span>Envío papel</span><span className="tabular-nums">{shipping.toFixed(2)} €</span></div>}
-            <div className="flex justify-between text-slate-400"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
-            <div className="flex justify-between border-t border-slate-700 pt-1 text-base font-semibold text-white"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
-            <div className="mt-1 flex justify-between border-t border-dashed border-slate-700 pt-1 text-[11px] text-slate-500" title="Solo visible para ti, no aparece en el presupuesto del cliente">
+            <div className="flex justify-between text-[#52606D]"><span>Subtotal</span><span className="tabular-nums">{subtotal.toFixed(2)} €</span></div>
+            {editForm ? (
+              discountAmount > 0 && <div className="flex justify-between text-[#1F6B45]"><span>{discountKind === "PERCENT" ? `Descuento ${discountPct}%` : "Descuento"}</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>
+            ) : (
+              discountPct > 0 && <div className="flex justify-between text-[#1F6B45]"><span>Descuento {discountPct}%</span><span className="tabular-nums">-{discountAmount.toFixed(2)} €</span></div>
+            )}
+            {shipping > 0 && <div className="flex justify-between text-[#52606D]"><span>Envío papel</span><span className="tabular-nums">{shipping.toFixed(2)} €</span></div>}
+            {editForm ? (
+              <div className="flex justify-between text-[#52606D]"><span>{`IVA ${Math.round(editForm.vatRate * 100)}%`}</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
+            ) : (
+              <div className="flex justify-between text-[#52606D]"><span>IVA 21%</span><span className="tabular-nums">{vat.toFixed(2)} €</span></div>
+            )}
+            <div className="flex justify-between border-t border-[#D5DAE1] pt-1 text-base font-semibold text-[#1A2E4A]"><span>Total</span><span className="tabular-nums">{total.toFixed(2)} €</span></div>
+            <div className="mt-1 flex justify-between border-t border-dashed border-[#D5DAE1] pt-1 text-[11px] text-[#52606D]" title="Solo visible para ti, no aparece en el presupuesto del cliente">
               <span>Interno · coste {costTotal.toFixed(2)} € · margen {marginPct === null ? "AUTO" : `${marginPct}%`}</span>
               <span className="tabular-nums">+{(subtotal - costTotal).toFixed(2)} €</span>
             </div>
           </div>
-          {costeJuradoAviso && <p className="text-sm text-amber-400">{costeJuradoAviso}</p>}
+          {costeJuradoAviso && <p className="text-sm text-[#7A5A10]">{costeJuradoAviso}</p>}
           {costTotal > 0 && subtotal - discountAmount - costTotal <= 0 && (
-            <p className="text-sm font-semibold text-rose-400">
+            <p className="text-sm font-semibold text-[#A12B2B]">
               Margen {(subtotal - discountAmount - costTotal).toFixed(2)} €: con este precio se pierde o no se gana. Sube el precio antes de generar.
             </p>
           )}
+          {editQuote ? (
+            <div className="flex w-full flex-col items-end gap-2">
+              {editSave.phase === "confirm" && (
+                <div className="w-full rounded-[14px] border border-[#E9D8A6] bg-[#FFF8E6] p-3 text-sm text-[#7A5A10]">
+                  <p className="font-semibold">
+                    {gate === "live" ? "El cliente tiene el enlace vivo; el importe que paga cambia. Tras guardar, reenvía." : "Pago congelado: vas a guardar las líneas como reparación con la cifra del jurado."}
+                  </p>
+                  {gate === "live" && frozen && <p className="mt-1">Pago congelado: esto guarda la reparación con la cifra del jurado; no descongela. Para reenviar, desbloquea antes el pago arriba.</p>}
+                  <p className="mt-1">Total nuevo: {total.toFixed(2)} € (antes {editQuote.total.toFixed(2)} €).</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => saveEdit()} className="rounded-[10px] bg-[#1A2E4A] px-4 py-2 font-semibold text-white hover:bg-[#243F66]">
+                      Sí, guardar
+                    </button>
+                    <button type="button" onClick={() => setEditSave({ phase: "idle" })} className="rounded-[10px] border border-[#D5DAE1] bg-white px-4 py-2 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {editSave.phase === "margin" && (
+                <div className="w-full rounded-[14px] border border-[#F0C9C9] bg-[#FDF2F2] p-3 text-sm text-[#A12B2B]">
+                  <p className="font-semibold">Freno de margen: {editSave.msg}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => saveEdit(true)} className="rounded-[10px] bg-[#A12B2B] px-4 py-2 font-semibold text-white hover:opacity-90">
+                      Guardar igualmente (avisa por email y SMS)
+                    </button>
+                    <button type="button" onClick={() => setEditSave({ phase: "idle", msg: "Guardado frenado por margen insuficiente. Ajusta precio o coste." })} className="rounded-[10px] border border-[#D5DAE1] bg-white px-4 py-2 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+              {editSave.phase === "stale" && (() => {
+                const perdidos = baselineRef.current && payloadNow ? describeUnsavedChanges(JSON.parse(baselineRef.current), payloadNow) : [];
+                return (
+                  <div className="w-full rounded-[14px] border border-[#F0C9C9] bg-[#FDF2F2] p-3 text-sm text-[#A12B2B]">
+                    <p className="font-semibold">{editSave.msg}</p>
+                    {perdidos.length > 0 && (
+                      <>
+                        <p className="mt-2 text-[#1F2933]">Al recargar se pierden estos cambios tuyos (cópialos para volver a ponerlos):</p>
+                        <ul className="mt-1 list-disc break-words pl-5 text-[#1F2933]">
+                          {perdidos.map((t, i) => (
+                            <li key={i}>{t}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {perdidos.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => void navigator.clipboard?.writeText(perdidos.join("\n"))}
+                          className="rounded-[10px] border border-[#D5DAE1] bg-white px-4 py-2 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
+                        >
+                          Copiar cambios
+                        </button>
+                      )}
+                      <button type="button" onClick={() => window.location.reload()} className="rounded-[10px] bg-[#1A2E4A] px-4 py-2 font-semibold text-white hover:bg-[#243F66]">
+                        {perdidos.length > 0 ? "Recargar (se pierden)" : "Recargar"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+              {editSave.msg && editSave.phase !== "margin" && editSave.phase !== "stale" && (
+                <p className={`text-sm ${editSave.phase === "idle" ? "text-[#A12B2B]" : "text-[#1F6B45]"}`}>{editSave.msg}</p>
+              )}
+              {!readOnly && (
+                <div className="flex flex-wrap justify-end gap-2">
+                  {(editSave.phase === "saved" || editSave.phase === "resending" || editSave.phase === "resent") && gate === "live" && frozen && (
+                    <span className="self-center text-sm text-[#A12B2B]">Pago congelado: desbloquea arriba antes de reenviar.</span>
+                  )}
+                  {(editSave.phase === "saved" || editSave.phase === "resending" || editSave.phase === "resent") && gate === "live" && !frozen && (
+                    <button
+                      type="button"
+                      disabled={editSave.phase !== "saved"}
+                      onClick={resendEdit}
+                      className="inline-flex items-center gap-2 rounded-[10px] border border-[#1A2E4A] bg-white px-5 py-2.5 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-60"
+                    >
+                      {editSave.phase === "resending" && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {editSave.phase === "resending" ? "Reenviando…" : editSave.phase === "resent" ? "Reenviado" : "Reenviar al cliente"}
+                    </button>
+                  )}
+                  {editSave.phase === "saved" && gate === "live" && (
+                    <button type="button" onClick={() => window.location.reload()} className="rounded-[10px] border border-[#D5DAE1] bg-white px-4 py-2.5 text-sm font-semibold text-[#52606D] hover:bg-[#F6F7F9]">
+                      Recargar sin reenviar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy || missing.length > 0 || ["confirm", "saving", "resending", "resent", "stale"].includes(editSave.phase)}
+                    onClick={() => (gate === "live" || frozen ? setEditSave({ phase: "confirm" }) : saveEdit())}
+                    className="inline-flex items-center gap-2 rounded-[10px] bg-[#1A2E4A] px-5 py-2.5 font-semibold text-white hover:bg-[#243F66] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {editSave.phase === "saving" && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {editSave.phase === "saving" ? "Guardando…" : `Guardar cambios (${includedDocs.length} línea${includedDocs.length === 1 ? "" : "s"})`}
+                  </button>
+                </div>
+              )}
+              {!readOnly && missing.length > 0 && <p className="text-xs text-[#7A5A10]">Falta: {missing.join(", ")}.</p>}
+            </div>
+          ) : (
+            <>
           {submitError && (
-            <p className="text-sm text-amber-400">
+            <p className="text-sm text-[#7A5A10]">
               {submitError}
               {existingQuoteId && (
                 <>
                   {" "}
-                  <a href={`/zona-traductor/presupuestos/${existingQuoteId}`} className="underline hover:text-white">
+                  <a href={`/zona-traductor/presupuestos/${existingQuoteId}`} className="underline hover:text-[#1A2E4A]">
                     Abrir ese presupuesto →
                   </a>
                 </>
@@ -2251,7 +2661,7 @@ export default function StaffExpedienteIntake({
               type="button"
               disabled={!canSubmit}
               onClick={() => handleSubmit()}
-              className="rounded-xl bg-cyan-600 px-5 py-2.5 font-semibold text-white hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-xl bg-[#1A2E4A] px-5 py-2.5 font-semibold text-white hover:bg-[#243F66] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {submitting ? "Creando…" : `Generar presupuesto (${includedDocs.length} doc${includedDocs.length > 1 ? "s" : ""})`}
             </button>
@@ -2260,7 +2670,7 @@ export default function StaffExpedienteIntake({
                 type="button"
                 disabled={!canSubmit || lavoriState.phase === "sending"}
                 onClick={handleAskThenDraft}
-                className="rounded-xl border border-violet-500/60 bg-violet-600/20 px-5 py-2.5 font-semibold text-violet-200 hover:bg-violet-600/30 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] px-5 py-2.5 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:cursor-not-allowed disabled:opacity-40"
                 title="Pide el precio a los jurados y deja el presupuesto en borrador, atado a esa solicitud. Cuando contesten, su cifra cae sola en el borrador."
               >
                 {lavoriState.phase === "sending" || submitting ? "Pidiendo…" : "Pedir precio y dejar en espera"}
@@ -2268,16 +2678,26 @@ export default function StaffExpedienteIntake({
             )}
           </div>
           {!canSubmit && !submitting && missing.length > 0 && (
-            <p className="text-xs text-amber-400">Falta: {missing.join(", ")}.</p>
+            <p className="text-xs text-[#7A5A10]">Falta: {missing.join(", ")}.</p>
           )}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#52606D]">
             Se crea como borrador en Presupuestos para revisar y enviar.
             {lavoriRoute && lavoriDocs.length > 0 && !lavoriLeadRefSent && !yaPedida
               ? " Si el precio lo pone el jurado, usa «Pedir precio y dejar en espera»: el borrador queda atado a la solicitud y su cifra cae sola cuando conteste."
               : ""}
           </p>
+            </>
+          )}
         </div>
       )}
-    </div>
+    </>
+  );
+
+  return editQuote ? (
+    <fieldset disabled={readOnly} className="min-w-0 space-y-6 text-[#1F2933]">
+      {body}
+    </fieldset>
+  ) : (
+    <div className="space-y-6 text-[#1F2933]">{body}</div>
   );
 }

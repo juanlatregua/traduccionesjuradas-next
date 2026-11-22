@@ -1,4 +1,5 @@
 import { deadlineLine, isUrgentDeadline } from "@/lib/needed-by";
+import { hrefCaso } from "@/lib/staff-links";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -151,11 +152,11 @@ function getClientMessages(events: any[]): ClientMessage[] {
 }
 
 const PAY_CLS: Record<string, string> = {
-  PAID: "bg-emerald-500/15 text-emerald-300",
+  PAID: "bg-[#EEF7F1] text-[#1F6B45]",
 };
 const DELIVERY_CLS: Record<string, string> = {
-  TRADUCIDO: "bg-emerald-500/15 text-emerald-300",
-  EN_PROCESO: "bg-cyan-500/15 text-cyan-400",
+  TRADUCIDO: "bg-[#EEF7F1] text-[#1F6B45]",
+  EN_PROCESO: "bg-[#F6F7F9] text-[#1A2E4A]",
 };
 
 function Section({
@@ -170,9 +171,9 @@ function Section({
   return (
     <section
       id={id}
-      className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm"
+      className="scroll-mt-20 rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-sm"
     >
-      <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+      <h2 className="text-lg font-semibold text-[#1F2933]">{title}</h2>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -437,25 +438,25 @@ export default async function PedidoWorkspacePage({ params }: Params) {
       : `Sobre tu pedido ${order.reference}`;
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <main className="px-4 py-6">
       <div className="mx-auto max-w-5xl space-y-5">
         {/* Cabecera */}
-        <div className="rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-sm">
-          <a href="/zona-traductor" className="text-xs font-semibold text-cyan-400 hover:underline">
+        <div className="rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-sm">
+          <a href="/zona-traductor" className="text-xs font-semibold text-[#1A2E4A] hover:underline">
             ← Volver a zona traductor
           </a>
           <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-bold text-slate-100">
-                Pedido <span className="font-mono text-cyan-400">{order.reference}</span>
+              <h1 className="text-2xl font-bold text-[#1F2933]">
+                Pedido <span className="font-mono text-[#1A2E4A]">{order.reference}</span>
               </h1>
-              <p className="mt-1 text-sm text-slate-300">
+              <p className="mt-1 text-sm text-[#1F2933]">
                 {order.title} · {order.langPair || "—"} ·{" "}
                 {/* La carpeta del cliente era una isla: ningún pedido enlazaba a ella. */}
                 <a
                   href={`/zona-traductor/clientes/${encodeURIComponent(order.clientEmail)}`}
-                  className="text-cyan-400 hover:underline"
+                  className="text-[#1A2E4A] hover:underline"
                   title="Abrir la carpeta de este cliente"
                 >
                   {order.clientEmail}
@@ -466,15 +467,15 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               {/* Carpeta del expediente para el Mac / TraduCAT (Juan, 25-ago-2026) */}
               <a
                 href={`/api/orders/${encodeURIComponent(order.reference)}/expediente`}
-                className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-cyan-300 hover:bg-cyan-500/20"
+                className="rounded-md border border-[#D5DAE1] bg-[#F6F7F9] px-2 py-1 text-[#1A2E4A] hover:bg-[#F6F7F9]"
                 title="ZIP con la carpeta del expediente: originales, traducción, expediente.md y expediente.json"
               >
                 ⤓ Descargar expediente
               </a>
               {order.caso && (
                 <a
-                  href={`/zona-traductor/casos/${order.caso.id}`}
-                  className="rounded-md border border-cyan-500/40 bg-cyan-500/10 px-2 py-1 text-cyan-300 hover:bg-cyan-500/20"
+                  href={hrefCaso(order.caso.id)}
+                  className="rounded-md border border-[#D5DAE1] bg-[#F6F7F9] px-2 py-1 text-[#1A2E4A] hover:bg-[#F6F7F9]"
                   title="Toda la historia del cliente: entradas, solicitudes, presupuestos y pedido"
                 >
                   Ver caso {order.caso.ref}
@@ -482,24 +483,24 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               )}
               {casoDeadlineLine && (
                 <span
-                  className={`rounded-md border px-2 py-1 ${casoUrgent ? "border-red-500/40 bg-red-500/10 text-red-300" : "border-slate-600/50 bg-slate-700/30 text-slate-200"}`}
+                  className={`rounded-md border px-2 py-1 ${casoUrgent ? "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]" : "border-[#D5DAE1] bg-[#F6F7F9] text-[#1F2933]"}`}
                 >
                   {casoDeadlineLine}
                   {casoPlazoPosterior && " ⚠ nuestro plazo es posterior"}
                 </span>
               )}
-              <span className="rounded-md bg-slate-700/50 px-2 py-1 text-slate-100">
+              <span className="rounded-md bg-[#F6F7F9] px-2 py-1 text-[#1F2933]">
                 {getWorkflowStateLabel(workflowState)}
               </span>
-              <span className={`rounded-md px-2 py-1 ${PAY_CLS[order.paymentStatus] || "bg-amber-500/15 text-amber-300"}`}>
+              <span className={`rounded-md px-2 py-1 ${PAY_CLS[order.paymentStatus] || "bg-[#FFF8E6] text-[#7A5A10]"}`}>
                 Pago: {order.paymentStatus}
               </span>
               {creditInfo && !creditInfo.paidAt && (
                 <span
                   className={`rounded-md px-2 py-1 ${
                     creditInfo.daysToDue !== null && creditInfo.daysToDue < 0
-                      ? "bg-red-500/15 text-red-300"
-                      : "bg-violet-500/15 text-violet-300"
+                      ? "bg-[#FDF2F2] text-[#A12B2B]"
+                      : "bg-[#F6F7F9] text-[#1A2E4A]"
                   }`}
                   title={`Factura ${creditInfo.invoiceNumber || ""} con vencimiento: se trabaja y entrega antes de cobrar`}
                 >
@@ -508,7 +509,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               )}
               {monthlyInfo && !monthlyInfo.paidAt && (
                 <span
-                  className={`rounded-md px-2 py-1 ${monthlyInfo.status !== "DRAFT" && monthlyInfo.dueDate && new Date(monthlyInfo.dueDate) < new Date() ? "bg-red-500/15 text-red-300" : "bg-violet-500/15 text-violet-300"}`}
+                  className={`rounded-md px-2 py-1 ${monthlyInfo.status !== "DRAFT" && monthlyInfo.dueDate && new Date(monthlyInfo.dueDate) < new Date() ? "bg-[#FDF2F2] text-[#A12B2B]" : "bg-[#F6F7F9] text-[#1A2E4A]"}`}
                   title="Cuelga de la factura agrupada del mes: se trabaja y entrega antes de cobrar"
                 >
                   {monthlyInfo.status === "DRAFT"
@@ -516,21 +517,21 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                     : `Crédito: ${monthlyInfo.number} vence ${monthlyInfo.dueDate ? new Date(monthlyInfo.dueDate).toLocaleDateString("es-ES") : "—"}`}
                 </span>
               )}
-              <span className={`rounded-md px-2 py-1 ${DELIVERY_CLS[order.deliveryState] || "bg-slate-700/50 text-slate-100"}`}>
+              <span className={`rounded-md px-2 py-1 ${DELIVERY_CLS[order.deliveryState] || "bg-[#F6F7F9] text-[#1F2933]"}`}>
                 Entrega: {order.deliveryState}
               </span>
             </div>
           </div>
-          <div className="mt-4 grid gap-2 text-xs text-slate-300 sm:grid-cols-2 lg:grid-cols-4">
-            <p>ETA: <strong className="text-slate-100">{order.dueDate ? new Date(order.dueDate).toLocaleDateString("es-ES") : "—"}</strong></p>
-            <p>Importe: <strong className="text-slate-100">{(order.amountCents / 100).toFixed(2)} EUR</strong></p>
-            <p>Asignado: <strong className="text-slate-100">{order.assignedTo || assignment?.collaborator?.fullName || "—"}</strong></p>
-            <p>Teléfono: <strong className="text-slate-100">{order.clientPhone || "—"}</strong></p>
+          <div className="mt-4 grid gap-2 text-xs text-[#1F2933] sm:grid-cols-2 lg:grid-cols-4">
+            <p>ETA: <strong className="text-[#1F2933]">{order.dueDate ? new Date(order.dueDate).toLocaleDateString("es-ES") : "—"}</strong></p>
+            <p>Importe: <strong className="text-[#1F2933]">{(order.amountCents / 100).toFixed(2)} EUR</strong></p>
+            <p>Asignado: <strong className="text-[#1F2933]">{order.assignedTo || assignment?.collaborator?.fullName || "—"}</strong></p>
+            <p>Teléfono: <strong className="text-[#1F2933]">{order.clientPhone || "—"}</strong></p>
           </div>
           {order.clientNotes && (
-            <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5">
-              <p className="text-xs font-semibold text-amber-300">Observaciones del cliente</p>
-              <p className="mt-1 whitespace-pre-line text-sm text-slate-300">{order.clientNotes}</p>
+            <div className="mt-3 rounded-xl border border-[#E9D8A6] bg-[#FFF8E6] px-4 py-2.5">
+              <p className="text-xs font-semibold text-[#7A5A10]">Observaciones del cliente</p>
+              <p className="mt-1 whitespace-pre-line text-sm text-[#1F2933]">{order.clientNotes}</p>
             </div>
           )}
         </div>
@@ -539,14 +540,14 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         <OrderStepper stage={actionStage} nextAction={nextAction} />
 
         {/* Acciones de gestión (antes solo en el Cockpit): avanzar, factura, envío, cobro */}
-        <div className="rounded-3xl border border-slate-700 bg-slate-900 p-5 shadow-sm">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Acciones del pedido</p>
+        <div className="rounded-3xl border border-[#D5DAE1] bg-[#fff] p-5 shadow-sm">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#52606D]">Acciones del pedido</p>
           {caseRollup && caseRollup.orders > 1 && (
-            <p className="mb-3 rounded-lg bg-slate-800/60 px-3 py-2 text-xs text-slate-300">
-              <span className="font-semibold text-cyan-300">Trámite {order.caseRef}</span> · {caseRollup.orders} pedidos ·
+            <p className="mb-3 rounded-lg bg-[#F6F7F9] px-3 py-2 text-xs text-[#1F2933]">
+              <span className="font-semibold text-[#1A2E4A]">Trámite {order.caseRef}</span> · {caseRollup.orders} pedidos ·
               coste devengado del conjunto{" "}
-              <strong className="text-slate-100">{(caseRollup.accrualCents / 100).toFixed(2)} €</strong>
-              <span className="ml-1 text-slate-500">(el margen se sigue midiendo pedido a pedido)</span>
+              <strong className="text-[#1F2933]">{(caseRollup.accrualCents / 100).toFixed(2)} €</strong>
+              <span className="ml-1 text-[#52606D]">(el margen se sigue midiendo pedido a pedido)</span>
             </p>
           )}
           <OrderManagementActions
@@ -578,8 +579,8 @@ export default async function PedidoWorkspacePage({ params }: Params) {
               <OrderExtendButton reference={order.reference} docsAfterPayment={docsAfterPayment} />
             </div>
           )}
-          <details className="mt-4 border-t border-slate-700/50 pt-3">
-            <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
+          <details className="mt-4 border-t border-[#D5DAE1] pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-[#52606D] hover:text-[#1F2933]">
               Cambiar workflow a otro estado
             </summary>
             <div className="mt-3">
@@ -594,26 +595,26 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             completo sigue disponible (plegado) y para pedidos sin Quote (WhatsApp
             order-first) se muestra como siempre. */}
         {isPaidQuoteOrder ? (
-          <section id="presupuesto" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+          <section id="presupuesto" className="scroll-mt-20 rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-slate-100">
+                <h2 className="text-lg font-semibold text-[#1F2933]">
                   Presupuesto {order.quote!.quoteNumber}
                 </h2>
-                <p className="mt-1 text-sm text-slate-300">
+                <p className="mt-1 text-sm text-[#1F2933]">
                   {(order.amountCents / 100).toFixed(2)} EUR ·{" "}
-                  <span className="font-semibold text-emerald-300">pagado</span>
+                  <span className="font-semibold text-[#1F6B45]">pagado</span>
                 </p>
               </div>
               <a
                 href={`/zona-traductor/presupuestos/${order.quote!.id}`}
-                className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
               >
                 Abrir presupuesto →
               </a>
             </div>
-            <details className="mt-3 border-t border-slate-700/50 pt-3">
-              <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
+            <details className="mt-3 border-t border-[#D5DAE1] pt-3">
+              <summary className="cursor-pointer text-xs font-semibold text-[#52606D] hover:text-[#1F2933]">
                 Editor de presupuesto del pedido (avanzado — este pedido ya está cobrado)
               </summary>
               <div className="mt-3">
@@ -646,13 +647,13 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             confundía). El flujo justificante→cobrada (Bizum/transferencia) sigue
             intacto: si hay comprobantes o falta el cobro, sección completa. */}
         {order.paymentStatus === "PAID" && paymentProofs.length === 0 ? (
-          <section id="pago" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+          <section id="pago" className="scroll-mt-20 rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-sm">
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-lg font-semibold text-slate-100">Pago</h2>
-              <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300">
+              <h2 className="text-lg font-semibold text-[#1F2933]">Pago</h2>
+              <span className="rounded-md bg-[#EEF7F1] px-2 py-1 text-xs font-semibold text-[#1F6B45]">
                 Pagado · {order.paymentMethod || "—"}
               </span>
-              <span className="text-sm text-slate-300">
+              <span className="text-sm text-[#1F2933]">
                 {(order.amountCents / 100).toFixed(2)} EUR
                 {order.paidAt ? ` · ${new Date(order.paidAt).toLocaleDateString("es-ES")}` : ""}
               </span>
@@ -662,7 +663,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         <Section id="pago" title="Pago y comprobantes">
           {order.paymentStatus !== "PAID" && (
             <div className="mb-4 flex flex-wrap items-center gap-3">
-              <span className="text-sm text-slate-300">Marcar cobrado:</span>
+              <span className="text-sm text-[#1F2933]">Marcar cobrado:</span>
               <ConfirmPaymentButton reference={order.reference} />
             </div>
           )}
@@ -681,17 +682,17 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             </div>
           )}
           {paymentProofs.length === 0 ? (
-            <p className="text-sm text-slate-400">Aún no se ha subido comprobante.</p>
+            <p className="text-sm text-[#52606D]">Aún no se ha subido comprobante.</p>
           ) : (
             <ul className="space-y-2">
               {paymentProofs.map((proof: any, idx: number) => (
                 <li
                   key={`${proof.fileUrl}-${idx}`}
-                  className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-200"
+                  className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3 text-sm text-[#1F2933]"
                 >
-                  <p className="font-semibold text-slate-100">{proof.fileName || "Comprobante"}</p>
+                  <p className="font-semibold text-[#1F2933]">{proof.fileName || "Comprobante"}</p>
                   {proof.uploadedAt && (
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-[#52606D]">
                       Subido: {new Date(proof.uploadedAt).toLocaleString("es-ES")}
                     </p>
                   )}
@@ -699,7 +700,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                     href={proof.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 inline-flex rounded-lg border border-cyan-500/40 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                    className="mt-2 inline-flex rounded-lg border border-[#D5DAE1] px-2.5 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                   >
                     Abrir comprobante
                   </a>
@@ -712,9 +713,9 @@ export default async function PedidoWorkspacePage({ params }: Params) {
 
         {/* SECCIÓN 1 — Subir / ver traducciones (lo primero: el dolor de "dónde meto la traducción") */}
         {/* SECCIÓN — Producción · Borrador IA (migrado del Workspace), plegable */}
-        <section id="produccion" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+        <section id="produccion" className="scroll-mt-20 rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-sm">
           <details>
-            <summary className="cursor-pointer text-lg font-semibold text-slate-100">Producción · Borrador IA</summary>
+            <summary className="cursor-pointer text-lg font-semibold text-[#1F2933]">Producción · Borrador IA</summary>
             <div className="mt-4">
               <WorkspaceEditor
                 reference={order.reference}
@@ -806,8 +807,8 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             La lista plana duplicada de los mismos archivos se retiró. */}
         <Section id="docs" title="Documentos del cliente">
           {docsAfterPayment > 0 && (
-            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3">
-              <p className="text-sm text-amber-200">
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-[#E9D8A6] bg-[#FFF8E6] px-4 py-3">
+              <p className="text-sm text-[#7A5A10]">
                 <strong>{docsAfterPayment} documento{docsAfterPayment === 1 ? "" : "s"}</strong> llegó después del pago. El pedido cobrado no se toca:
                 se presupuesta aparte y su pedido se agrupa en el mismo trámite.
               </p>
@@ -815,11 +816,11 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             </div>
           )}
           {sourceDocs.length === 0 && docItems.length === 0 ? (
-            <p className="text-sm text-slate-400">No hay documentos fuente guardados en este pedido.</p>
+            <p className="text-sm text-[#52606D]">No hay documentos fuente guardados en este pedido.</p>
           ) : (
             <a
               href={`/api/orders/${encodeURIComponent(order.reference)}/expediente?solo=originales`}
-              className="inline-flex items-center rounded-md border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/20"
+              className="inline-flex items-center rounded-md border border-[#D5DAE1] bg-[#F6F7F9] px-3 py-1.5 text-sm font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
             >
               ⤓ Descargar todos los originales (ZIP)
             </a>
@@ -828,7 +829,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             files={sourceDocs.filter((d) => d.url).map((d) => ({ name: d.name, url: d.url as string }))}
           />
           <OrderDocumentItems reference={order.reference} items={docItems} />
-          <div className="mt-4 border-t border-slate-700/50 pt-4">
+          <div className="mt-4 border-t border-[#D5DAE1] pt-4">
             <SourceDocumentUpload reference={order.reference} />
           </div>
         </Section>
@@ -838,35 +839,35 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             competían y el texto libre parecía obligatorio incluso auto-asignado. */}
         <Section id="asignar" title="Traductor">
           {assignment ? (
-            <div className="text-sm text-slate-300">
+            <div className="text-sm text-[#1F2933]">
               <p>
-                <strong className="text-slate-100">{assignment.collaborator.fullName}</strong> · {assignment.status}
+                <strong className="text-[#1F2933]">{assignment.collaborator.fullName}</strong> · {assignment.status}
               </p>
               {assignment.deliveredFileUrl && (
                 <p className="mt-1">
                   Entrega del colaborador:{" "}
-                  <a href={assignment.deliveredFileUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
+                  <a href={assignment.deliveredFileUrl} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">
                     {assignment.deliveredFilename || "archivo"}
                   </a>
                 </p>
               )}
             </div>
           ) : order.assignedTo ? (
-            <p className="text-sm text-slate-300">
-              Asignado a <strong className="text-slate-100">{order.assignedTo}</strong>
+            <p className="text-sm text-[#1F2933]">
+              Asignado a <strong className="text-[#1F2933]">{order.assignedTo}</strong>
               {order.dueDate ? ` · fecha límite ${new Date(order.dueDate).toLocaleDateString("es-ES")}` : ""}
             </p>
           ) : (
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-[#52606D]">
               Sin colaborador asignado{" "}
-              <span className="text-slate-500">(FR lo traduce Juan; otros idiomas se auto-asignan al pago).</span>
+              <span className="text-[#52606D]">(FR lo traduce Juan; otros idiomas se auto-asignan al pago).</span>
             </p>
           )}
           <div className="mt-4">
             <CollaboratorAssignmentPanel reference={order.reference} langPair={order.langPair} assignments={collabAssignments} />
           </div>
-          <details className="mt-4 border-t border-slate-700/50 pt-3">
-            <summary className="cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-200">
+          <details className="mt-4 border-t border-[#D5DAE1] pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-[#52606D] hover:text-[#1F2933]">
               Asignación manual y fecha límite (carril FR — avisa al cliente «en proceso»)
             </summary>
             <div className="mt-3">
@@ -883,17 +884,17 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         {/* SECCIÓN 4 — Finanzas. Plegada hasta la entrega (conciliación, IRPF y
             cierre no pintan nada en un pedido recién pagado); los avisos del
             snapshot quedan visibles en el pliegue para no ocultar un margen bajo. */}
-        <section id="finanzas" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+        <section id="finanzas" className="scroll-mt-20 rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-sm">
           <details open={isDeliveredStage}>
             <summary className="flex cursor-pointer flex-wrap items-center gap-3">
-              <h2 className="text-lg font-semibold text-slate-100">Finanzas</h2>
+              <h2 className="text-lg font-semibold text-[#1F2933]">Finanzas</h2>
               {!isDeliveredStage && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-[#52606D]">
                   conciliación, factura proveedor y cierre — se gestionan al entregar
                 </span>
               )}
               {financeSnapshot.warnings.length > 0 && (
-                <span className="rounded-md bg-amber-500/15 px-2 py-1 text-xs font-semibold text-amber-300">
+                <span className="rounded-md bg-[#FFF8E6] px-2 py-1 text-xs font-semibold text-[#7A5A10]">
                   {financeSnapshot.warnings.length} aviso{financeSnapshot.warnings.length === 1 ? "" : "s"}
                 </span>
               )}
@@ -908,7 +909,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                 canRegisterSupplierInvoice={["ADMIN", "PM"].includes(getStaffRole(email) || "")}
               />
               <p className="mt-3 text-xs">
-                <a href="/zona-traductor/facturas" className="font-semibold text-cyan-400 hover:underline">
+                <a href="/zona-traductor/facturas" className="font-semibold text-[#1A2E4A] hover:underline">
                   Gestionar facturas →
                 </a>
               </p>
@@ -920,7 +921,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
             + WhatsApp) y las plantillas copy-first. El segundo formulario y su
             endpoint /send-client-message se retiraron (P2.6). */}
         <Section id="comunicacion" title="Comunicación con el cliente">
-          <p className="text-xs font-semibold uppercase tracking-wide text-sky-300">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">
             Escribir al cliente
           </p>
           <div className="mt-3">
@@ -941,35 +942,35 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         </Section>
 
         {/* SECCIÓN — Datos fiscales, envío postal y timeline, plegados por defecto */}
-        <section id="datos" className="scroll-mt-20 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-sm">
+        <section id="datos" className="scroll-mt-20 rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-sm">
           <details>
-            <summary className="cursor-pointer text-lg font-semibold text-slate-100">Datos y actividad</summary>
+            <summary className="cursor-pointer text-lg font-semibold text-[#1F2933]">Datos y actividad</summary>
             <div className="mt-3">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">
                 Datos de facturación
               </p>
               {order.billing ? (
-                <div className="mt-2 space-y-1 text-sm text-slate-300">
-                  <p>Nombre fiscal: <strong className="text-slate-100">{order.billing.fiscalName}</strong></p>
-                  <p>NIF: <strong className="text-slate-100">{order.billing.nif}</strong></p>
+                <div className="mt-2 space-y-1 text-sm text-[#1F2933]">
+                  <p>Nombre fiscal: <strong className="text-[#1F2933]">{order.billing.fiscalName}</strong></p>
+                  <p>NIF: <strong className="text-[#1F2933]">{order.billing.nif}</strong></p>
                   <p>Dirección: {order.billing.address}</p>
                   <p>Ciudad: {order.billing.city} {order.billing.postalCode}</p>
                   <p>País: {order.billing.country}</p>
                   <p>Email: {order.billing.email}</p>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-400">Sin datos de facturación.</p>
+                <p className="mt-2 text-sm text-[#52606D]">Sin datos de facturación.</p>
               )}
             </div>
-            <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">
                 Datos de envío postal
               </p>
               {order.shipping ? (
-                <div className="mt-2 space-y-1 text-sm text-slate-300">
-                  <p>Nombre: <strong className="text-slate-100">{order.shipping.name}</strong></p>
+                <div className="mt-2 space-y-1 text-sm text-[#1F2933]">
+                  <p>Nombre: <strong className="text-[#1F2933]">{order.shipping.name}</strong></p>
                   <p>Teléfono: {order.shipping.phone}</p>
                   <p>Dirección: {order.shipping.address}</p>
                   <p>Ciudad: {order.shipping.city} ({order.shipping.province})</p>
@@ -977,25 +978,25 @@ export default async function PedidoWorkspacePage({ params }: Params) {
                   <p>País: {order.shipping.country}</p>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-400">Sin datos de envío postal.</p>
+                <p className="mt-2 text-sm text-[#52606D]">Sin datos de envío postal.</p>
               )}
             </div>
           </div>
           <div className="mt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">
               Timeline de eventos
             </p>
             {order.events.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-400">Sin eventos registrados.</p>
+              <p className="mt-2 text-sm text-[#52606D]">Sin eventos registrados.</p>
             ) : (
               <ul className="mt-2 max-h-96 space-y-2 overflow-y-auto pr-1">
                 {order.events.map((evt: any) => (
                   <li key={evt.id} className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
-                    <span className="shrink-0 text-xs text-slate-500">
+                    <span className="shrink-0 text-xs text-[#52606D]">
                       {new Date(evt.createdAt).toLocaleString("es-ES")}
                     </span>
-                    <span className="font-mono text-xs text-slate-400">{evt.type}</span>
-                    <span className="text-slate-300">{evt.message}</span>
+                    <span className="font-mono text-xs text-[#52606D]">{evt.type}</span>
+                    <span className="text-[#1F2933]">{evt.message}</span>
                   </li>
                 ))}
               </ul>

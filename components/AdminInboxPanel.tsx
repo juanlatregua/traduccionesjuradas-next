@@ -55,7 +55,7 @@ const STATUS_STYLE: Record<string, string> = {
   NEW: "bg-amber-100 text-amber-800",
   DRAFTED: "bg-sky-100 text-sky-800",
   REPLIED: "bg-emerald-100 text-emerald-800",
-  ARCHIVED: "bg-slate-100 text-slate-500",
+  ARCHIVED: "bg-slate-100 text-[#52606D]",
 };
 
 const VISTAS = [
@@ -194,7 +194,7 @@ function EmailCard({
   }
 
   const inputCls =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400";
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]";
 
   return (
     <li ref={cardRef} className={`rounded-2xl border bg-white shadow-sm ${focused ? "border-amber-400 ring-2 ring-amber-200" : "border-slate-200"}`}>
@@ -209,14 +209,14 @@ function EmailCard({
         {row.channel === "WHATSAPP" && (
           <span className="rounded-md bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-800">WhatsApp</span>
         )}
-        <span className="text-sm font-semibold text-slate-900">
+        <span className="text-sm font-semibold text-[#1F2933]">
           {row.fromName || (row.channel === "WHATSAPP" ? row.fromPhone : row.fromEmail)}
         </span>
         {row.media.length > 0 && (
-          <span className="text-xs text-slate-500">📎 {row.media.length}</span>
+          <span className="text-xs text-[#52606D]">📎 {row.media.length}</span>
         )}
-        <span className="min-w-0 flex-1 truncate text-sm text-slate-600">{row.subject}</span>
-        <span className="text-xs text-slate-400">
+        <span className="min-w-0 flex-1 truncate text-sm text-[#52606D]">{row.subject}</span>
+        <span className="text-xs text-[#52606D]">
           {new Date(row.receivedAt).toLocaleString("es-ES")}
         </span>
       </button>
@@ -224,9 +224,9 @@ function EmailCard({
       {open && (
         <div className="space-y-4 border-t border-slate-100 px-4 py-4">
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-slate-500">
+            <span className="text-[#52606D]">
               De:{" "}
-              <strong className="text-slate-800">
+              <strong className="text-[#1F2933]">
                 {row.channel === "WHATSAPP" ? row.fromPhone || row.fromEmail : row.fromEmail}
               </strong>
             </span>
@@ -247,7 +247,7 @@ function EmailCard({
               </Link>
             )}
             {!row.customerId && !row.quoteId && !row.orderReference && (
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-500">
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[#52606D]">
                 Sin ficha de cliente conocida
               </span>
             )}
@@ -264,17 +264,17 @@ function EmailCard({
               type="button"
               onClick={toggleArchive}
               disabled={archiving}
-              className={`rounded-md border border-slate-300 px-2 py-0.5 font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50`}
+              className={`rounded-md border border-slate-300 px-2 py-0.5 font-semibold text-[#52606D] hover:bg-slate-50 disabled:opacity-50`}
             >
               {row.status === "ARCHIVED" ? "Desarchivar" : "Archivar"}
             </button>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">
               Mensaje del cliente
             </p>
-            <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm text-slate-800">
+            <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm text-[#1F2933]">
               {row.bodyText || row.bodyPreview}
             </p>
             {row.media.length > 0 && (
@@ -285,7 +285,7 @@ function EmailCard({
                       href={m.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-md border border-slate-300 bg-white px-2 py-1 font-medium text-slate-700 hover:bg-slate-100"
+                      className="rounded-md border border-slate-300 bg-white px-2 py-1 font-medium text-[#1F2933] hover:bg-slate-100"
                     >
                       📎 {m.name} · {Math.max(1, Math.round(m.size / 1024))} KB
                     </a>
@@ -331,7 +331,7 @@ function EmailCard({
             <div className="space-y-2">
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-0 flex-1">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">
                     Instrucción para la IA (opcional)
                   </label>
                   <input
@@ -368,13 +368,13 @@ function EmailCard({
                 className={`${inputCls} resize-y`}
               />
               {row.channel !== "WHATSAPP" && (row.deliveredFileCount || 0) > 0 && (
-                <label className="flex items-center gap-2 text-sm text-slate-200">
+                <label className="flex items-center gap-2 text-sm text-[#1F2933]">
                   <input type="checkbox" checked={attachFiles} onChange={(e) => setAttachFiles(e.target.checked)} />
                   Adjuntar las {row.deliveredFileCount} traducción{row.deliveredFileCount === 1 ? "" : "es"} entregada{row.deliveredFileCount === 1 ? "" : "s"} + factura (si está emitida)
                 </label>
               )}
               {row.channel !== "WHATSAPP" && row.orderReference && !(row.deliveredFileCount || 0) && (
-                <p className="text-xs text-amber-300">Este pedido aún no tiene traducción entregada: la respuesta saldrá sin PDF.</p>
+                <p className="text-xs text-[#7A5A10]">Este pedido aún no tiene traducción entregada: la respuesta saldrá sin PDF.</p>
               )}
               <div className="flex flex-wrap items-center gap-2">
                 {row.channel === "WHATSAPP" && (
@@ -406,7 +406,7 @@ function EmailCard({
                         : `Enviar respuesta a ${row.fromEmail}`}
                   </button>
                 )}
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-[#52606D]">
                   {row.channel === "WHATSAPP"
                     ? row.isManual
                       ? "Dado de alta a mano: la respuesta sale desde tu WhatsApp (se abre con el texto) y aquí queda registrada."
@@ -447,7 +447,7 @@ function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const inputCls =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400";
+    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]";
 
   async function submit() {
     setBusy(true);
@@ -507,11 +507,11 @@ function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel
           multiple
           accept="application/pdf,image/*"
           onChange={(e) => setFiles(Array.from(e.target.files || []))}
-          className="text-slate-700"
+          className="text-[#1F2933]"
         />
-        {files.length > 0 && <span className="text-slate-600">{files.length} archivo(s)</span>}
+        {files.length > 0 && <span className="text-[#52606D]">{files.length} archivo(s)</span>}
       </div>
-      <label className="flex items-center gap-2 text-xs text-slate-700">
+      <label className="flex items-center gap-2 text-xs text-[#1F2933]">
         <input type="checkbox" checked={buildQuote} onChange={(e) => setBuildQuote(e.target.checked)} />
         Montar presupuesto al dar de alta (abre el builder con los archivos y el WhatsApp a la vista)
       </label>
@@ -525,7 +525,7 @@ function ManualWhatsAppForm({ onDone, onCancel }: { onDone: () => void; onCancel
         >
           {busy ? "Guardando…" : "Dar de alta en la bandeja"}
         </button>
-        <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-white">
+        <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-[#52606D] hover:bg-white">
           Cancelar
         </button>
       </div>
@@ -592,7 +592,7 @@ export default function AdminInboxPanel({
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold text-slate-900">Bandeja de entrada</h1>
+        <h1 className="text-2xl font-bold text-[#1F2933]">Bandeja de entrada</h1>
         <button
           type="button"
           onClick={syncNow}
@@ -615,7 +615,7 @@ export default function AdminInboxPanel({
               key={v.key}
               href={`/admin/inbox?vista=${v.key}${canal !== "todos" ? `&canal=${canal}` : ""}`}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                vista === v.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                vista === v.key ? "bg-white text-[#1F2933] shadow-sm" : "text-[#52606D] hover:text-[#1A2E4A]"
               }`}
             >
               {v.label}
@@ -635,7 +635,7 @@ export default function AdminInboxPanel({
               key={c.key}
               href={`/admin/inbox?vista=${vista}${c.key !== "todos" ? `&canal=${c.key}` : ""}`}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                canal === c.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                canal === c.key ? "bg-white text-[#1F2933] shadow-sm" : "text-[#52606D] hover:text-[#1A2E4A]"
               }`}
             >
               {c.label}
@@ -644,7 +644,7 @@ export default function AdminInboxPanel({
         </div>
       </div>
 
-      {syncMsg && <p className="text-sm font-medium text-slate-700">{syncMsg}</p>}
+      {syncMsg && <p className="text-sm font-medium text-[#1F2933]">{syncMsg}</p>}
 
       {manualOpen && (
         <ManualWhatsAppForm
@@ -657,7 +657,7 @@ export default function AdminInboxPanel({
       )}
 
       {rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-[#52606D]">
           No hay emails en esta vista. Pulsa «Sincronizar buzón» para traer los últimos mensajes de
           clientes (se ignoran los del propio staff y los no-reply).
         </div>

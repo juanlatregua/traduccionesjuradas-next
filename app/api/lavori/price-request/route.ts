@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
 import { findLiveSiblingLeadRequest, sendLeadPriceRequest, validarAntesDeRetirar, type LeadDoc, type LeadRequestInput } from "@/lib/lavori-lead";
 import { retireLeadRequest } from "@/lib/lavori-retire";
-import { freezeQuoteForRepricing } from "@/lib/precio-tras-envio";
+import { freezeQuoteForRepricing, handleLeadPriceOnSentQuote } from "@/lib/precio-tras-envio";
 import { parFromLangs } from "@/lib/lavori-dup-guard";
+import { attachAndApplyPrice, type AttachDeps } from "@/lib/quote-edit-hydrate";
+import { fillDraftQuoteFromLeadPrice } from "@/lib/lavori-quote-fill";
 import { sombraBloqueo } from "@/lib/caso/sombra";
 import { anclasDeExpediente } from "@/lib/caso/sombra-plan";
 import { decidirSolicitud, quotesACongelar, retirarEnOrden } from "@/lib/caso/hilo";
@@ -29,6 +31,28 @@ export const runtime = "nodejs";
 
 const s = (x: unknown, max: number) => (typeof x === "string" && x.trim() ? x.trim().slice(0, max) : null);
 const eur = (c: number) => `${(c / 100).toFixed(2)} €`;
+
+/** Página única: atar la solicitud al presupuesto y, si tiene cifra, aplicarla (lib/quote-edit-hydrate). */
+const ATTACH_DEPS: AttachDeps = {
+  readQuote: async (id) => {
+    const q = await prisma.quote.findFirst({ where: { id, deletedAt: null }, select: { status: true, sourceLang: true, targetLang: true } }).catch(() => null);
+    return q ? { status: q.status, par: parFromLangs(q.sourceLang, q.targetLang) } : null;
+  },
+  readLead: (ref) => prisma.lavoriPriceRequest.findUnique({ where: { ref }, select: { id: true, quoteId: true, par: true, priceCents: true } }).catch(() => null),
+  attach: async (ref, quoteId) =>
+    (await prisma.lavoriPriceRequest.updateMany({ where: { ref, quoteId: null }, data: { quoteId } }).catch((err) => {
+      console.error("[lavori-price-request] atar al presupuesto falló:", err);
+      return { count: 0 };
+    })).count > 0,
+  detach: async (ref, quoteId) => {
+    await prisma.lavoriPriceRequest
+      .updateMany({ where: { ref, quoteId }, data: { quoteId: null } })
+      .catch((err) => console.error("[lavori-price-request] desatar tras no aplicar la cifra falló:", err));
+  },
+  fill: (leadId) => fillDraftQuoteFromLeadPrice(leadId),
+  sent: (leadId) => handleLeadPriceOnSentQuote(leadId),
+};
+const atarAlPresupuesto = (quoteId: string | null | undefined, ref: string) => attachAndApplyPrice(ATTACH_DEPS, quoteId, ref);
 
 export async function POST(req: Request) {
   const staff = await requireStaffAccess(req);
@@ -110,7 +134,9 @@ export async function POST(req: Request) {
 
         if (d.accion === "reutilizar") {
           const v = d.viva;
+          const atado = await atarAlPresupuesto(anclas.quoteId, v.ref);
           return NextResponse.json({
+            ...atado,
             ok: true,
             existing: v.ref,
             ref: v.ref,
@@ -184,9 +210,10 @@ export async function POST(req: Request) {
               .updateMany({ where: { ref: result.ref, quoteId: null }, data: { quoteId: d.quoteId } })
               .catch((err) => console.error("[lavori-price-request] heredar presupuesto falló:", err));
           }
+          const atado = await atarAlPresupuesto(anclas.quoteId, result.ref);
           await rastroHilo(casoId, "solicitud_reemplazada", actor, result.ref, { retiradas, nueva: result.ref, candidatos: result.candidatos, quoteId: d.quoteId, congelados });
           return NextResponse.json(
-            { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres, reemplaza: retiradas, congelados: congelados.length },
+            { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres, reemplaza: retiradas, congelados: congelados.length, ...atado },
             { status: 201 }
           );
         }
@@ -223,6 +250,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
       }
 
+      const atado = await atarAlPresupuesto(anclas.quoteId, result.ref);
+
       // Acuse al cliente (12-ago SMS; 24-ago también email): al salir los documentos
       // hacia el traductor, el cliente recibe UN aviso — email si es real, SMS/WhatsApp
       // si es lead solo-WhatsApp. Con await: sin él, la lambda se congela al responder
@@ -237,7 +266,7 @@ export async function POST(req: Request) {
       }
 
       return NextResponse.json(
-        { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres },
+        { ok: true, ref: result.ref, encargoId: result.encargoId, repetido: result.repetido, nombres: result.nombres, ...atado },
         { status: result.repetido ? 200 : 201 }
       );
     };

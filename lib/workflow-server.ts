@@ -39,6 +39,7 @@ import { LEAD_LIVE_STATUSES, LEAD_PAIRABLE_STATUSES, matchLeadByCustomer, matchL
 import { assertWorkflowTransitionPreconditions } from "@/lib/workflow-guards";
 import { isOrderSecured } from "@/lib/credit-terms";
 import { recalcularCasoDePedido } from "@/lib/caso/sombra";
+import { abs, hrefPedido } from "./staff-links.ts";
 
 type TransitionOptions = {
   reference: string;
@@ -590,7 +591,7 @@ async function emitPrecioAceptadoIfApplicable(opts: {
             payload: { ref, precioCents, baseCents, costCents, quoteId: opts.order.quoteId, miembroId: miembroIdHint },
           },
         });
-        const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+        const ficha = abs(hrefPedido(reference));
         await staffMailLines(`⚠ ${reference}: la cifra del jurado supera el coste ya presupuestado`, [
           `El pedido ${reference} está pagado y la cifra que llega del canal (${(baseCents / 100).toFixed(2)} € base) supera el coste ya presupuestado en ${quoteConLineas?.quoteNumber || "el presupuesto"} (${(costCents / 100).toFixed(2)} €).`,
           `NO se ha comunicado la aceptación a lavori: decide tú antes de aceptar por encima de lo presupuestado.`,
@@ -623,7 +624,7 @@ async function emitPrecioAceptadoIfApplicable(opts: {
       });
       await staffMailLines(`⚠ ${reference} pagado: NO se acepta solo, hay otro encargo vivo`, [
         `El pedido ${reference} está pagado y la solicitud ${lprAuto?.ref} tiene cifra, pero ${motivo}`,
-        `Decide tú a quién se le da y retira el otro en lavori: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+        `Decide tú a quién se le da y retira el otro en lavori: ${abs(hrefPedido(reference))}`,
       ]);
       const { sendStaffAlertSMS } = await import("@/lib/sms");
       await sendStaffAlertSMS(`${reference}: pagado, NO aceptado solo — hay otro encargo vivo (${dup.ref})`, `aceptacion_frenada ${reference}`).catch(() => {});
@@ -652,7 +653,7 @@ async function holdForPendingPrice(
   lpr: { id: string; ref: string; miembroNombre: string | null; candidatos: string[]; createdAt: Date; quoteId: string | null }
 ): Promise<{ handled: boolean; changed: boolean }> {
   const { order, reference } = opts;
-  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+  const ficha = abs(hrefPedido(reference));
   if (order.quoteId && !lpr.quoteId) {
     await prisma.lavoriPriceRequest
       .update({ where: { id: lpr.id }, data: { quoteId: order.quoteId } })
@@ -685,7 +686,7 @@ async function assignAlreadyAccepted(
   lpr: { id: string; ref: string; priceCents: number | null; miembroId: string | null; miembroNombre: string | null; encargoId: string | null }
 ): Promise<{ handled: boolean; changed: boolean }> {
   const { order, reference } = opts;
-  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+  const ficha = abs(hrefPedido(reference));
   if (order.quoteId) {
     await prisma.lavoriPriceRequest
       .update({ where: { id: lpr.id }, data: { quoteId: order.quoteId } })
@@ -899,7 +900,7 @@ export async function deliverPrecioAceptado(opts: {
 }): Promise<{ ok: boolean; conflicto?: boolean }> {
   const { orderId, reference, ref, precioCents, lprId } = opts;
   const precio = (precioCents / 100).toFixed(2);
-  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`;
+  const ficha = abs(hrefPedido(reference));
   const auto = opts.auto === true;
   const staffMail = (subject: string, lines: string[]) =>
     sendMail({
@@ -1102,7 +1103,7 @@ async function routeOrderToLavori(opts: {
         text: [
           `El pedido ${reference} está pagado y su presupuesto fija traductor externo: ${quote.translatorName}.`,
           `No se ha abierto encargo en lavori. Coordina el encargo y la entrega directamente.`,
-          `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+          `Ficha: ${abs(hrefPedido(reference))}`,
         ].join("\n"),
         html: `<p>El pedido ${reference} está pagado y su presupuesto fija traductor externo: <strong>${quote.translatorName}</strong>.</p><p>No se ha abierto encargo en lavori. Coordina el encargo y la entrega directamente.</p>`,
       }).catch((err) => console.error("[lavori-bridge] external translator mail failed", err));
@@ -1128,7 +1129,7 @@ async function routeOrderToLavori(opts: {
     await staffMailLines(`Pedido ${route.par} pagado SIN solicitud previa en lavori (${reference}) — pídelo desde la ficha`, [
       `El pedido ${reference} (${route.par}) está pagado y no tiene solicitud de precio en lavori ni traductor fijado.`,
       `No se ha abierto ningún encargo automático. Pide precio desde la ficha («pedir precio en lavori») o asigna a mano.`,
-      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+      `Ficha: ${abs(hrefPedido(reference))}`,
     ]);
     return { changed: false };
   }
@@ -1146,7 +1147,7 @@ async function routeOrderToLavori(opts: {
     const alertLines = [
       `El pedido ${reference} (${route.par}) está pagado y el puente a lavori falló: ${error}.`,
       `Nadie ha sido avisado. Solicítalo a mano en lavori o asigna un colaborador.`,
-      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+      `Ficha: ${abs(hrefPedido(reference))}`,
     ];
     await sendMail({
       to: STAFF_ALERT_EMAIL,
@@ -1244,7 +1245,7 @@ async function routeOrderToLavori(opts: {
       vivo.respaldo ? `⚠ ${vivo.respaldo.motivo}.` : "",
       `Cuando el traductor acepte te llegará el aviso de lavori; entonces asígnalo en la ficha.`,
       `Si en 24 h nadie acepta, lavori te avisará para el plan B.`,
-      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+      `Ficha: ${abs(hrefPedido(reference))}`,
     ];
     await sendMail({
       to: STAFF_ALERT_EMAIL,
@@ -1306,7 +1307,7 @@ async function abortPactadoByDuplicate(orderId: string, reference: string, par: 
   await staffMailLines(`⚠ Pedido ${par} pagado con encargo vivo en lavori (${reference})`, [
     `El pedido ${reference} está pagado y ya hay un encargo vivo con estos documentos: ${liveDuplicateMessage(duplicado)}`,
     `No se ha abierto otro. Revisa la ficha y asigna a mano.`,
-    `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${reference}`,
+    `Ficha: ${abs(hrefPedido(reference))}`,
   ]);
   const { sendStaffAlertSMS } = await import("@/lib/sms");
   await sendStaffAlertSMS(`${reference} (${par}) pagado: NO se manda el encargo, ya hay uno vivo (${duplicado.ref}). Revisa la ficha.`, `pactado_duplicado ${reference}`).catch(console.error);
@@ -1330,6 +1331,8 @@ async function routePactadoToMiembro(opts: {
   acordadoTexto: string;
   origenTexto: string;
   quoteNumber: string | null;
+  /** Último paso antes de enviar (encargo cerrado: retirar solicitudes vivas). false = no se envía. */
+  antesDeEnviar?: () => Promise<boolean>;
 }): Promise<{ changed: boolean }> {
   const { order, paraTiCents } = opts;
   // NUNCA un encargo con paraTi 0 (ni negativo): se aborta y se avisa a staff. El
@@ -1349,7 +1352,7 @@ async function routePactadoToMiembro(opts: {
     await staffMailLines(`⚠ Pedido ${opts.par} pagado SIN encargo a lavori (${opts.reference}) — ${motivo}`, [
       `El pedido ${opts.reference} (${opts.par}) está pagado y NO se ha enviado el encargo con precio pactado: ${motivo}.`,
       `Nadie ha sido avisado. Pide precio desde la ficha («pedir precio en lavori») o asigna a mano.`,
-      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${opts.reference}`,
+      `Ficha: ${abs(hrefPedido(opts.reference))}`,
     ]);
     return { changed: false };
   }
@@ -1373,7 +1376,7 @@ async function routePactadoToMiembro(opts: {
     });
     await staffMailLines(`⚠ Pedido ${opts.par} pagado SIN encargo a lavori (${opts.reference}) — sin margen`, [
       `El pedido ${opts.reference} (${opts.par}) está pagado y NO se ha enviado el encargo: ${motivo}.`,
-      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${opts.reference}`,
+      `Ficha: ${abs(hrefPedido(opts.reference))}`,
     ]);
     const { sendStaffAlertSMS } = await import("@/lib/sms");
     await sendStaffAlertSMS(`${opts.reference} (${opts.par}) pagado: encargo NO enviado, coste ${(costeBase / 100).toFixed(2)}€ >= cobrado ${(cobradoCents / 100).toFixed(2)}€`, `pactado_sin_margen ${opts.reference}`).catch(console.error);
@@ -1393,6 +1396,7 @@ async function routePactadoToMiembro(opts: {
     });
     const abierta = lavoriRouteFromPair(order.langPair);
     if (abierta) {
+      if (opts.antesDeEnviar && !(await opts.antesDeEnviar())) return { changed: false };
       return await routeOrderToLavori({
         order,
         route: abierta,
@@ -1403,6 +1407,7 @@ async function routePactadoToMiembro(opts: {
       });
     }
   }
+  if (opts.antesDeEnviar && !(await opts.antesDeEnviar())) return { changed: false };
   return await routeOrderToLavori({
     order,
     route: { lang: opts.lang, par: opts.par, candidatos: [opts.miembroId] },
@@ -1458,6 +1463,10 @@ export async function autoAssignCollaboratorIfNeeded(options: {
           sourceLang: true,
           targetLang: true,
           autoPricedBy: true,
+          casoId: true,
+          expedienteRef: true,
+          deliveryTerm: true,
+          translatorName: true,
           lines: { select: { supplierUnitCost: true, unitPrice: true, quantity: true } },
         },
       });
@@ -1501,6 +1510,63 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       ]);
       const paraTiCents = baseToChannelPriceCents(costeBaseCents, priceBasisForMember(q?.lavoriMiembroId));
       if (q?.lavoriMiembroId && parsed && paraTiCents > 0) {
+        // Encargo cerrado (21-nov-2026): las solicitudes de precio vivas del mismo caso y par
+        // se retiran JUSTO ANTES de enviar, ya pasados los frenos de routePactadoToMiembro
+        // (precio > 0, veto, margen, disponibilidad), la idempotencia y el traductor externo.
+        // precio_aceptado y la huella corren después, en routeOrderToLavori: si no, se
+        // detendrían sobre las mismas solicitudes que hay que retirar.
+        const { isEncargoCerradoQuote, shouldRetireBeforeClosedSend } = await import("@/lib/encargo-cerrado-math");
+        if (isEncargoCerradoQuote(q.autoPricedBy)) {
+          const quoteRef = { id: order.quoteId, casoId: q.casoId, expedienteRef: q.expedienteRef };
+          const antesDeEnviar = async (): Promise<boolean> => {
+            if (!shouldRetireBeforeClosedSend({ events: order.events, translatorName: q.translatorName })) return true;
+            const { retireOpenRequestsForClosedQuote } = await import("@/lib/encargo-cerrado");
+            const ret = await retireOpenRequestsForClosedQuote({ quote: quoteRef, par: parsed.par, reference: options.reference, actorEmail: options.actorEmail || null });
+            if (!ret.ok) {
+              await prisma.orderEvent.create({
+                data: {
+                  orderId: order.id,
+                  type: "lavori.pactado_abortado",
+                  message: `Encargo cerrado NO enviado: la solicitud ${ret.ref} sigue viva y no se pudo retirar (${ret.error}).`,
+                  payload: { ref: ret.ref, error: ret.error },
+                },
+              });
+              await staffMailLines(`⚠ Pedido ${parsed.par} pagado: encargo cerrado NO enviado (${options.reference})`, [
+                `El pedido ${options.reference} está pagado y la solicitud ${ret.ref} del mismo caso no se pudo retirar: ${ret.error}.`,
+                `No se ha mandado el encargo a ${q.lavoriMiembroNombre || "el jurado"} para no duplicarlo. Decide en la ficha.`,
+                `Ficha: ${abs(hrefPedido(options.reference))}`,
+              ]);
+              const { sendStaffAlertSMS } = await import("@/lib/sms");
+              await sendStaffAlertSMS(`${options.reference} (${parsed.par}) pagado: encargo cerrado NO enviado, ${ret.ref} sigue viva. Revisa la ficha.`, `cerrado_no_retirada ${options.reference}`).catch(console.error);
+              return false;
+            }
+            if (ret.retiradas.length) {
+              await prisma.orderEvent.create({
+                data: {
+                  orderId: order.id,
+                  type: "lavori.solicitudes_retiradas_encargo_cerrado",
+                  message: `Retiradas antes del encargo cerrado: ${ret.retiradas.join(", ")}.`,
+                  payload: { refs: ret.retiradas },
+                },
+              });
+            }
+            return true;
+          };
+          return await routePactadoToMiembro({
+            order,
+            reference: options.reference,
+            actorEmail: options.actorEmail || null,
+            lang: parsed.lang,
+            par: parsed.par,
+            miembroId: q.lavoriMiembroId,
+            miembroNombre: q.lavoriMiembroNombre,
+            paraTiCents,
+            acordadoTexto: `Encargo listo, precio cerrado (presupuesto ${q.quoteNumber}${q.deliveryTerm ? `, plazo ${q.deliveryTerm}` : ""})`,
+            origenTexto: `presupuesto ${q.quoteNumber}`,
+            quoteNumber: q.quoteNumber,
+            antesDeEnviar,
+          });
+        }
         return await routePactadoToMiembro({
           order,
           reference: options.reference,
@@ -1598,7 +1664,7 @@ export async function autoAssignCollaboratorIfNeeded(options: {
       `El pedido ${options.reference} (${order.langPair}) está pagado y asignado internamente a ${collaborator.fullName}.`,
       `NO se le ha enviado nada automático (canal personal): escríbele tú y pásale su enlace del encargo:`,
       encargoUrl,
-      `Ficha: https://www.traduccionesjuradas.net/zona-traductor/pedido/${options.reference}`,
+      `Ficha: ${abs(hrefPedido(options.reference))}`,
     ];
     await sendMail({
       to: STAFF_ALERT_EMAIL,

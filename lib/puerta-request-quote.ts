@@ -14,6 +14,9 @@ import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { findLiveSiblingLeadRequest, leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
 import { lavoriOneTapUrl } from "@/lib/lavori-onetap";
 import { autoQuoteFromPuertaSession } from "@/lib/learned-rates";
+import { encargoCerradoFromPuertaSession } from "@/lib/encargo-cerrado";
+import { encargoCerradoLangs } from "@/lib/encargo-cerrado-math";
+import { cierreReviewUrl } from "@/lib/cierre-token";
 import { closedPriceLangOfPair } from "@/lib/lavori-directo-math";
 import { closedPriceCostHint, directMembersFor } from "@/lib/lavori-directo";
 import { casaJuradoFor } from "@/lib/lavori-bridge";
@@ -27,6 +30,7 @@ import { paresDe } from "@/lib/caso/sombra-plan";
 import { deadlineLine, deadlineOf, jurorDeadlineNote, urgentSubjectPrefix, type DeadlineUrgency } from "@/lib/needed-by";
 import { saveSessionDeadline } from "@/lib/needed-by-db";
 import { AVISO_REPETIDO_HORAS, clavesDocs, decidirAvisoHumano, dedupeAviso, type AvisoPrevio } from "@/lib/caso/aviso-humano";
+import { abs, hrefCaso, hrefCliente, hrefConstructor, hrefPresupuesto } from "./staff-links.ts";
 
 const horaMadrid = (d: Date) =>
   d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -109,6 +113,10 @@ export async function routePuertaQuoteRequest(input: {
   phone?: string;
   locale?: string | null;
   deadline?: { urgency: DeadlineUrgency; neededBy: Date | null } | null;
+  /** Lo que el cliente ya contó (la puerta nueva: respuestas, organismo, documentos excluidos): encabeza cada aviso a staff. */
+  extraLines?: string[];
+  /** Archivos sin análisis (puerta nueva): ni encargo cerrado ni tarifario, que leen tipo y palabras del análisis. */
+  skipTariff?: boolean;
 }): Promise<PuertaQuoteResult> {
   const token = input.sessionToken;
   const email = input.email || "";
@@ -176,16 +184,16 @@ export async function routePuertaQuoteRequest(input: {
 
     const adminEmail = process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
     const baseUrl = (process.env.NEXTAUTH_URL || "https://www.traduccionesjuradas.net").replace(/\/$/, "");
-    if (recurrente.kind !== "none") recurrenteTxt += ` · Historial: ${baseUrl}/zona-traductor/clientes/${encodeURIComponent(recurrente.email)}`;
-    const lineas = docs.map((d) => {
+    if (recurrente.kind !== "none") recurrenteTxt += ` · Historial: ${abs(hrefCliente(recurrente.email), baseUrl)}`;
+    const lineas = [...(input.extraLines ?? []), ...docs.map((d) => {
       const par = `${getLanguageName(d.sourceLanguage || "?")} → ${getLanguageName(d.targetLanguage || "?")}`;
       const ref = d.quoteAmount ? ` · motor (referencia interna): ${Number(d.quoteAmount).toFixed(2)} € netos` : "";
       return `· ${d.fileName} — ${documentTypeLabel(d.documentType) || "documento"} · ${par} · ${d.estimatedWords ?? "?"} palabras / ${d.pageCount ?? "?"} págs${ref}`;
-    });
+    })];
     // El builder importa los documentos de la puerta por sesión (25-ago-2026):
     // ya no hay que volver a soltar el PDF.
     const builderUrl =
-      `${baseUrl}/zona-traductor/presupuesto?session=${encodeURIComponent(token)}` +
+      abs(hrefConstructor({ session: token }), baseUrl) +
       `&customerEmail=${encodeURIComponent(contactEmail)}` +
       (docs[0]?.clientName ? `&customerName=${encodeURIComponent(docs[0].clientName)}` : "") +
       (contactPhone ? `&customerPhone=${encodeURIComponent(contactPhone)}` : "");
@@ -280,11 +288,72 @@ export async function routePuertaQuoteRequest(input: {
       return out({ ok: true, lavori: { sent: false } });
     }
 
+    // ENCARGO CERRADO (21-nov-2026, ENCARGO_CERRADO=pt,en,de): la regla de coste del
+    // jurado presupuesta sin pedirle precio; al pagar le llega el encargo listo. Con una
+    // solicitud viva del mismo cliente y par no se monta nada (sigue el flujo de siempre).
+    const cerradoOn = !input.skipTariff && encargoCerradoLangs(process.env.ENCARGO_CERRADO).size > 0;
+    const hermanaCerrado = cerradoOn && parLead
+      ? await findLiveSiblingLeadRequest({ email: contactEmail, phone: contactPhone, par: parLead }).catch(() => null)
+      : null;
+    const cerrado = !cerradoOn
+      ? ({ ok: false as const, reason: "ENCARGO_CERRADO apagado" })
+      : hermanaCerrado
+      ? ({ ok: false as const, reason: `solicitud viva ${hermanaCerrado.request.ref}` })
+      : await encargoCerradoFromPuertaSession({
+          sessionToken: token,
+          contactEmail,
+          contactPhone,
+          contactName: docs[0]?.clientName,
+          locale,
+          casoId: caso ? caso.casoId : null,
+        }).catch((err) => ({ ok: false as const, reason: String(err?.message || err) }));
+    if (cerrado.ok) {
+      const par = parLead || `${(lead?.sourceLang || "?").toUpperCase()}>${(lead?.targetLang || "es").toUpperCase()}`;
+      const revisar = cierreReviewUrl(cerrado.quoteId);
+      if (!cerrado.repetido) {
+        // Rodaje (2 días): cada borrador avisa AL MOMENTO por email y SMS con el enlace
+        // de un toque (regla de las 3 horas: sin presupuesto se pierde el cliente).
+        await Promise.all([
+          sendMail({
+            to: adminEmail,
+            subject: `${plazoAsunto}🔒 ${cerrado.sent ? "Encargo cerrado ENVIADO" : "Revisa y envía"} ${cerrado.quoteNumber} — ${cerrado.totalEur.toFixed(2)} € (${par}, ${cerrado.miembroNombre})`,
+            html: renderSimpleEmailHtml(
+              [
+                `Presupuesto ${cerrado.quoteNumber} montado con la regla de ${cerrado.miembroNombre} (${cerrado.regla}): ${cerrado.subtotalEur.toFixed(2)} € netos, coste ${cerrado.costEur.toFixed(2)} €, plazo ${cerrado.plazoDias}-${cerrado.plazoDias + 1} días hábiles. Sin solicitud previa al jurado.`,
+                cerrado.sent ? "Ha salido SOLO al cliente (ENCARGO_CERRADO_AUTOSEND=on)." : `NO ha salido: ${cerrado.autoSendReasons.join("; ")}.`,
+                ...(cerrado.sent ? [] : [`Revisar y enviar (un toque): ${revisar}`]),
+                `Al pagar, el encargo va a ${cerrado.miembroNombre} con el coste y el plazo cerrados.`,
+                ...(plazoTxt ? [plazoTxt] : []),
+                `Contacto: ${contactEmail || "(sin email)"} · ${contactPhone || "(sin teléfono)"}`,
+                ...(recurrenteTxt ? [`★ ${recurrenteTxt}`] : []),
+                ...(hermanosTxt ? [hermanosTxt] : []),
+                ...lineas,
+              ].join("\n")
+            ),
+          }).catch((err) => console.error("[puerta:request-quote] aviso encargo cerrado fallo:", err)),
+          sendStaffAlertSMS(
+            `${plazoAsunto ? "URGENTE · " : ""}🔒 ${recurrenteSms}${cerrado.sent ? "ENVIADO" : "Revisa y envía"} ${cerrado.quoteNumber} ${cerrado.totalEur.toFixed(2)}€ ${par} → ${cerrado.miembroNombre}${cerrado.sent ? "" : `: ${revisar}`}`,
+            "puerta_encargo_cerrado"
+          ).catch(() => {}),
+        ]);
+      }
+      return out({
+        ok: true,
+        lavori: { sent: false },
+        quote: { sent: cerrado.sent, draft: !cerrado.sent, number: cerrado.quoteNumber, payUrl: cerrado.sent ? cerrado.payUrl : null },
+      });
+    }
+    // Otra petición del mismo caso y par está montando el borrador ahora mismo: esta no hace nada más.
+    if ("enCurso" in cerrado && cerrado.enCurso) return out({ ok: true, lavori: { sent: false } });
+    if (cerradoOn) console.log("[puerta:request-quote] encargo cerrado no aplica:", cerrado.reason);
+
     // AGENTE DE PRECIOS (27-ago-2026): documento ya conocido con tarifa APROBADA →
     // borrador listo para que Juan lo revise y envíe (21-sep-2026), sin molestar
     // al jurado; al pagar, el encargo le llega con su cifra cerrada. Si falta
     // tarifa, sigue el carril de lavori.
-    const auto = await autoQuoteFromPuertaSession({
+    const auto = input.skipTariff
+      ? ({ ok: false as const, reason: "archivos sin análisis (puerta nueva)" })
+      : await autoQuoteFromPuertaSession({
       sessionToken: token,
       contactEmail,
       contactPhone,
@@ -308,7 +377,7 @@ export async function routePuertaQuoteRequest(input: {
               ? `Al pagar, el encargo irá a ${auto.miembroNombre} con su precio ya cerrado (sin solicitud previa).`
               : "Sin jurado asociado a la tarifa: al pagar irá por el carril normal de lavori.",
             ...lineas,
-            `Ficha: ${baseUrl}/zona-traductor/presupuestos/${auto.quoteId}`,
+            `Ficha: ${abs(hrefPresupuesto(auto.quoteId), baseUrl)}`,
           ].join("\n")
         ),
       }).catch((err) => console.error("[puerta:request-quote] aviso auto fallo:", err));
@@ -367,7 +436,7 @@ export async function routePuertaQuoteRequest(input: {
         h.priceCents ? `${(h.priceCents / 100).toFixed(2)} € de ${h.miembroNombre || "el traductor"}` : "sin precio aún",
         hermana.quote ? `presupuesto ${hermana.quote.quoteNumber} ${hermana.quote.status}` : "sin presupuesto",
       ].join(" · ");
-      lavoriEmail = `Ya está en lavori: ${h.ref} enviada a ${h.miembroNombre || `${h.candidatos.length} jurado(s)`} el ${horaMadrid(h.createdAt)} (${detalle}). NO se ha enviado otra. Solicitud: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(h.ref)}`;
+      lavoriEmail = `Ya está en lavori: ${h.ref} enviada a ${h.miembroNombre || `${h.candidatos.length} jurado(s)`} el ${horaMadrid(h.createdAt)} (${detalle}). NO se ha enviado otra. Solicitud: ${abs(hrefConstructor({ lead: h.ref }), baseUrl)}`;
       lavoriSms = `Ya en curso ${h.ref} (${h.status}) — sin 2.ª solicitud`;
     } else if (closedLang) {
       // NL/PT/DE (orden Juan 8-nov-2026): la puerta NUNCA pide precio previo al
@@ -436,7 +505,7 @@ export async function routePuertaQuoteRequest(input: {
           if (auto?.ok) {
             lavoriSent = { lang: leadLang, langName: getLanguageName(leadLang) };
             if (!auto.repetido) solicitudNueva = auto.ref;
-            lavoriEmail = `${await lineaEnLavori(auto.ref, auto.nombres.join(", "), auto.repetido)}${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${baseUrl}/zona-traductor/presupuesto?lead=${encodeURIComponent(auto.ref)}`;
+            lavoriEmail = `${await lineaEnLavori(auto.ref, auto.nombres.join(", "), auto.repetido)}${auto.respaldo ? ` ⚠ ${auto.respaldo}.` : ""} Montar presupuesto cuando llegue el precio: ${abs(hrefConstructor({ lead: auto.ref }), baseUrl)}`;
             lavoriSms = auto.repetido ? `Ya en lavori ${auto.ref} — sin 2.ª solicitud` : `✓ Enviada a ${auto.nombres.join(", ")} (lavori)`;
           } else {
             lavoriEmail = `NO se ha enviado a lavori (falló el envío automático${auto && !auto.ok ? `: ${auto.error}` : ""}). Pedir precio en lavori (${quien}) → ${lavoriOneTapUrl(token)}`;
@@ -456,7 +525,7 @@ export async function routePuertaQuoteRequest(input: {
     // reclama ANTES de enviar; mismo cliente y mismos documentos = no se repite.
     const claves = clavesDocs(lead?.rows?.length ? lead.rows.map((r) => ({ id: r.id, hash: r.fileHash })) : docs.map((d) => ({ id: d.id })));
     const aviso = await reclamarAvisoHumano(caso?.casoId ?? null, claves, solicitudNueva, token, { email: contactEmail, phone: contactPhone });
-    const casoUrl = aviso.casoRef ? `${baseUrl}/zona-traductor/casos/${caso!.casoId}` : null;
+    const casoUrl = aviso.casoRef ? abs(hrefCaso(caso!.casoId as string), baseUrl) : null;
     const etiqueta = aviso.casoRef ? `[${aviso.casoRef}] ` : "";
     const quienCliente = docs[0]?.clientName || contactEmail || contactPhone || "El cliente";
     if (aviso.tipo === "completo") {

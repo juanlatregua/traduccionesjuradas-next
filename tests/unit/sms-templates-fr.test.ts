@@ -20,8 +20,8 @@ test("por defecto (sin lang) siguen en español", () => {
 });
 
 test("formatDeliveryPlazo: fallback localizado sin fecha", () => {
-  assert.equal(formatDeliveryPlazo(null, "fr"), "24-48 h ouvrées");
-  assert.equal(formatDeliveryPlazo(null, "es"), "24-48 h laborables");
+  assert.equal(formatDeliveryPlazo(null, "fr"), "le délai indiqué dans votre devis");
+  assert.equal(formatDeliveryPlazo(null, "es"), "el plazo indicado en tu presupuesto");
 });
 
 test("formatDeliveryPlazo: fecha en locale FR vs ES", () => {

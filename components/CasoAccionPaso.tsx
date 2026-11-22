@@ -8,7 +8,7 @@ export default function CasoAccionPaso({ label, href, copiar, compacto }: { labe
   const [copiado, setCopiado] = useState(false);
   const cls = `inline-flex shrink-0 items-center rounded-lg font-semibold text-white ${
     compacto ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
-  } ${copiado ? "bg-emerald-600" : "bg-cyan-600 hover:bg-cyan-500"}`;
+  } ${copiado ? "bg-emerald-600" : "bg-[#1A2E4A] hover:bg-[#243F66]"}`;
   if (!copiar) {
     return (
       <Link href={href} className={cls}>

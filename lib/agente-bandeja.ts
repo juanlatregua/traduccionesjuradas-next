@@ -50,6 +50,7 @@ import {
   type Segment,
   unreadAttachmentsReason,
 } from "@/lib/agente-bandeja-math";
+import { abs, hrefBandeja, hrefConstructor, hrefPresupuesto } from "./staff-links.ts";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const ACTOR = "system:agente-bandeja";
@@ -82,7 +83,7 @@ async function flagStaleClaims() {
     const marked = await prisma.inboundEmail.updateMany({ where: { id: r.id, draftSubject: CLAIM_SUBJECT }, data: { draftSubject: STALE_SUBJECT } });
     if (marked.count === 0) continue;
     await sms(
-      `Agente bandeja: el email de ${r.fromEmail} quedó a medias${r.quoteId ? " (con presupuesto en borrador)" : ""}. Revísalo a mano en ${SITE}/admin/inbox`,
+      `Agente bandeja: el email de ${r.fromEmail} quedó a medias${r.quoteId ? " (con presupuesto en borrador)" : ""}. Revísalo a mano en ${abs(hrefBandeja(), SITE)}`,
       `agente_bandeja_interrumpido ${r.id}`
     );
   }
@@ -143,7 +144,7 @@ export async function runAgenteBandeja(opts: { deadlineAt: number }): Promise<{ 
           data: { status: "DRAFTED", draftSubject: ERROR_SUBJECT, draftBody: body, draftedAt: new Date() },
         })
         .catch(() => {});
-      await sms(`Agente bandeja: error con el email de ${row.fromEmail} (${short(msg, 100)}). Revisar en ${SITE}/admin/inbox`, `agente_bandeja_error ${row.id}`);
+      await sms(`Agente bandeja: error con el email de ${row.fromEmail} (${short(msg, 100)}). Revisar en ${abs(hrefBandeja(), SITE)}`, `agente_bandeja_error ${row.id}`);
       outcomes.push({ id: row.id, from: row.fromEmail, result: "error", detail: short(msg, 200) });
     }
   }
@@ -228,14 +229,14 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
   if (!exp.ref) {
     await saveDraft(row, subject, isWa ? waText : buildNoDocDraft({ lang, name }));
     await sms(
-      `${isWa ? "WhatsApp" : "Email"} de ${who} sin documento${exp.skipped.length ? ` (adjuntos no válidos: ${exp.skipped.join(", ")})` : ""}: borrador listo en ${SITE}/admin/inbox${waTail}`,
+      `${isWa ? "WhatsApp" : "Email"} de ${who} sin documento${exp.skipped.length ? ` (adjuntos no válidos: ${exp.skipped.join(", ")})` : ""}: borrador listo en ${abs(hrefBandeja(), SITE)}${waTail}`,
       `agente_bandeja_sin_doc ${row.id}`,
       smsMax
     );
     return out("drafted", "sin documento");
   }
   const ref = exp.ref;
-  const builderUrl = `${SITE}/zona-traductor/presupuesto?inbox=${row.id}&exp=${ref}`;
+  const builderUrl = abs(hrefConstructor({ inbox: row.id, exp: ref }), SITE);
   const manual = async (reason: string): Promise<BandejaOutcome> => {
     await saveDraft(row, subject, isWa ? waText : buildHoldingDraft({ lang, name, askDeadline }));
     await sms(`Agente bandeja: ${via} de ${who} sin precio automático (${short(reason, 120)}). Sin solicitud a lavori (fuera de alcance). Presupuesto: ${builderUrl}${waTail}`, `agente_bandeja_manual ${row.id}`, smsMax);
@@ -324,7 +325,7 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
   if (action.action === "send" && deadlineAt - Date.now() < SEND_MIN_REMAINING_MS) {
     action = { action: "draft", reasons: ["sin tiempo para enviar en esta pasada"] };
   }
-  const reviewUrl = `${SITE}/zona-traductor/presupuestos/${quote.id}`;
+  const reviewUrl = abs(hrefPresupuesto(quote.id), SITE);
   const replyInput = {
     lang,
     name,
@@ -338,10 +339,14 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
   };
 
   if (action.action === "draft") {
+    const { recordCarrilHold } = await import("@/lib/autoenvio-150-holds");
+    // «Sin tiempo en esta pasada» no es un freno del carril: no retiene.
+    const frenos = action.reasons.filter((r) => r !== "sin tiempo para enviar en esta pasada");
+    if (frenos.length) await recordCarrilHold(quote.id, quote.quoteNumber, frenos, "agente-bandeja");
     await saveDraft(row, subject, isWa ? waText : buildQuoteReply({ ...replyInput, draftOf: { quoteNumber: quote.quoteNumber } }), quote.id);
     const head = isWa ? "Agente bandeja (WhatsApp, borrador)" : mode === "draft" ? "Agente bandeja (borrador)" : "Agente bandeja: NO sale solo";
     await sms(
-      `${head}: presupuesto ${quote.quoteNumber} (${totalEur.toFixed(2)} €) para ${isWa ? who : row.fromEmail}${mode !== "draft" && !isWa ? ` — ${short(action.reasons[0] || "", 100)}` : ""}. Ficha: ${reviewUrl} · respuesta en ${SITE}/admin/inbox${waTail}`,
+      `${head}: presupuesto ${quote.quoteNumber} (${totalEur.toFixed(2)} €) para ${isWa ? who : row.fromEmail}${mode !== "draft" && !isWa ? ` — ${short(action.reasons[0] || "", 100)}` : ""}. Ficha: ${reviewUrl} · respuesta en ${abs(hrefBandeja(), SITE)}${waTail}`,
       `agente_bandeja_borrador ${quote.quoteNumber}`,
       smsMax
     );
@@ -367,7 +372,7 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
   } catch (err) {
     await saveDraft(row, subject, body, quote.id);
     await sms(
-      `URGENTE agente bandeja: ${quote.quoteNumber} quedó ENVIADO pero la respuesta a ${row.fromEmail} falló. Responde a mano desde ${SITE}/admin/inbox (borrador listo)`,
+      `URGENTE agente bandeja: ${quote.quoteNumber} quedó ENVIADO pero la respuesta a ${row.fromEmail} falló. Responde a mano desde ${abs(hrefBandeja(), SITE)} (borrador listo)`,
       `agente_bandeja_reply_fallo ${quote.quoteNumber}`
     );
     return out("error", `${quote.quoteNumber} enviado sin respuesta en el hilo: ${short(String((err as Error)?.message || err), 150)}`);

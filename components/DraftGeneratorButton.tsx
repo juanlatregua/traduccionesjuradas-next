@@ -79,13 +79,13 @@ export default function DraftGeneratorButton({
   if (phase === "success") {
     return (
       <div className="space-y-3">
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+        <div className="rounded-xl border border-[#BFE0CC] bg-[#EEF7F1] p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">
             Borrador IA generado
           </p>
-          <p className="mt-1 text-sm text-slate-300">{draftFilename}</p>
+          <p className="mt-1 text-sm text-[#1F2933]">{draftFilename}</p>
           {existingDraftGeneratedAt && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#52606D]">
               {new Date(existingDraftGeneratedAt).toLocaleString("es-ES")}
             </p>
           )}
@@ -106,7 +106,7 @@ export default function DraftGeneratorButton({
                 setDraftFilename("");
                 setNotas([]);
               }}
-              className="rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
             >
               Regenerar
             </button>
@@ -114,11 +114,11 @@ export default function DraftGeneratorButton({
         </div>
 
         {notas.length > 0 && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
+          <div className="rounded-xl border border-[#E9D8A6] bg-[#FFF8E6] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#7A5A10]">
               Notas para el revisor
             </p>
-            <ul className="mt-2 space-y-1 text-xs text-slate-300">
+            <ul className="mt-2 space-y-1 text-xs text-[#1F2933]">
               {notas.map((nota, i) => (
                 <li key={i}>• {nota}</li>
               ))}
@@ -134,23 +134,23 @@ export default function DraftGeneratorButton({
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-300">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">
           Borrador IA de traducción jurada
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-[#52606D]">
           Genera un borrador DOCX con formato de traducción jurada usando Claude.
-          Dirección: <span className="font-semibold text-slate-200">{defaultDir}</span>
+          Dirección: <span className="font-semibold text-[#1F2933]">{defaultDir}</span>
         </p>
 
         {isLoading && (
           <div className="mt-3 flex items-center gap-2">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-400 border-t-transparent" />
-            <span className="text-sm text-indigo-300">{PHASE_LABELS[phase]}</span>
+            <span className="text-sm text-[#1A2E4A]">{PHASE_LABELS[phase]}</span>
           </div>
         )}
 
         {phase === "error" && (
-          <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+          <div className="mt-3 rounded-lg border border-[#F0C9C9] bg-[#FDF2F2] p-3 text-xs text-[#A12B2B]">
             {error}
           </div>
         )}
@@ -169,7 +169,7 @@ export default function DraftGeneratorButton({
                 Generar borrador IA
               </button>
             ) : (
-              <p className="text-xs text-amber-300">
+              <p className="text-xs text-[#7A5A10]">
                 No hay documentos fuente. Sube un documento primero.
               </p>
             )}

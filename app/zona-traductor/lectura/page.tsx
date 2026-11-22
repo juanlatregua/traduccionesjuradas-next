@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { lecturaConstructorOn } from "@/lib/lectura-constructor/flag.ts";
-import { lecturaStore } from "@/lib/lectura-constructor/server.ts";
+import { lecturaStore, regularizationOfSession } from "@/lib/lectura-constructor/server.ts";
 import { viewOf } from "@/lib/lectura-constructor/api.ts";
 import LecturaConstructor, { type LecturaSource } from "@/components/lectura/LecturaConstructor";
 import { puertaV2On } from "@/lib/entrada/flag.ts";
@@ -47,7 +47,7 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
     });
     const refs = await casoRefs(entradas.flatMap((e) => [e.casoId, ...e.posibles, ...e.relacionados]));
     return (
-      <div className="min-h-screen bg-slate-950">
+      <div className="min-h-screen bg-[#F6F7F9]">
         <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
           <EntradasPendientes entradas={entradas} refs={refs} />
         </div>
@@ -73,21 +73,22 @@ export default async function LecturaPage({ searchParams }: { searchParams: { ca
     phone: contact?.clientPhone || caso?.phone9 || "",
   };
   const expedienteRef = sessionKey.startsWith("exp:") ? sessionKey.slice(4) : null;
+  const regularization = data ? await regularizationOfSession(data.lote.sessionKey).catch(() => false) : false;
   const entradas = casoId && puertaV2On() ? await prisma.entrada.findMany({ where: { casoId }, orderBy: { createdAt: "asc" } }) : [];
   const entradaRefs = await casoRefs(entradas.flatMap((e) => [...e.posibles, ...e.relacionados]));
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <header className="mb-6">
-          <a href="/zona-traductor/presupuesto" className="text-sm text-cyan-400 hover:text-cyan-300">← Constructor</a>
-          <h1 className="mt-2 text-2xl font-semibold text-white">Leer el lote{caso ? ` · ${caso.ref}` : expedienteRef ? ` · ${expedienteRef}` : ""}</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <a href="/zona-traductor/presupuesto" className="text-sm text-[#1A2E4A] hover:text-[#1A2E4A]">← Constructor</a>
+          <h1 className="mt-2 text-2xl font-semibold text-[#1A2E4A]">Leer el lote{caso ? ` · ${caso.ref}` : expedienteRef ? ` · ${expedienteRef}` : ""}</h1>
+          <p className="mt-1 text-sm text-[#52606D]">
             La lectura agrupa los archivos en documentos. Revisa, corrige y confirma: ninguna línea existe sin que una persona la confirme.
           </p>
         </header>
         <EntradaResumen entradas={entradas} refs={entradaRefs} />
-        <LecturaConstructor source={source} initialView={data ? viewOf(data) : null} customer={customer} expedienteRef={expedienteRef} />
+        <LecturaConstructor source={source} initialView={data ? viewOf(data, { regularization }) : null} customer={customer} expedienteRef={expedienteRef} />
       </div>
     </div>
   );

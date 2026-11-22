@@ -4,16 +4,16 @@ import { SchemaFAQ } from "@/components/SchemaFAQ";
 import { SchemaBreadcrumbs } from "@/components/SchemaBreadcrumbs";
 
 export const metadata: Metadata = {
-  title: "Traducci\u00F3n Jurada Online \u00B7 Traductor Jurado Oficial \u00B7 Entrega 24h",
+  title: "Traducción Jurada Online · MAEC nº 3850 · Francés en 1 día hábil",
   description:
-    "Traducciones juradas online por traductor jurado oficial MAEC n\u00BA 3850. Sube tu documento, recibe presupuesto gratis al instante. PDF firmado en 24h. Desde 35\u20AC.",
+    "Traducciones juradas online por traductor jurado oficial MAEC nº 3850. Sube tu documento, recibe presupuesto gratis al instante. Francés: hasta 5 páginas en 1 día hábil. Desde 30€ + IVA.",
   alternates: { canonical: "https://www.traduccionesjuradas.net/traduccion-jurada-online" },
 };
 
 const LANG_COMBOS = [
   { pair: "Español ↔ Inglés", price: "desde 40 € + IVA", plazo: "en el presupuesto" },
-  { pair: "Español ↔ Francés", price: "francés → español: 30 € + IVA por página · español → francés: desde 35 € + IVA", plazo: "24-48 h" },
-  { pair: "Español ↔ Alemán", price: "precio cerrado en el día, confirmado por el traductor jurado · desde 40 € + IVA por documento", plazo: "48 h" },
+  { pair: "Español ↔ Francés", price: "francés → español: 30 € + IVA por página · español → francés: desde 35 € + IVA", plazo: "hasta 5 páginas en 1 día hábil" },
+  { pair: "Español ↔ Alemán", price: "precio cerrado en el día, confirmado por el traductor jurado · desde 40 € + IVA por documento", plazo: "en el presupuesto" },
   { pair: "Español ↔ Italiano", price: "en el presupuesto", plazo: "en el presupuesto" },
   { pair: "Español ↔ Portugués", price: "desde 40 € + IVA", plazo: "en el presupuesto" },
 ];
@@ -31,11 +31,11 @@ export default function TraduccionJuradaOnlinePage() {
         items={[
           {
             question: "¿Recibo la traducción jurada en PDF o en papel?",
-            answer: "La entregamos en PDF firmado y sellado; si necesitas papel, podemos enviarlo por mensajería.",
+            answer: "La entregamos en PDF firmado y sellado; si necesitas papel, lo enviamos por mensajería; el envío en papel se cobra aparte y se suma al presupuesto.",
           },
           {
             question: "¿Qué plazos orientativos manejan?",
-            answer: "Francés: 24 h hasta 2 páginas y 48 h desde 3. En el resto de idiomas, el traductor jurado confirma el plazo en el presupuesto, normalmente el mismo día.",
+            answer: "En francés, hasta 5 páginas se entregan en 1 día hábil. En el resto de idiomas el plazo lo fija el traductor jurado y figura en el presupuesto. Si tienes prisa, la urgencia lleva un recargo que verás en el presupuesto.",
           },
           {
             question: "¿Puedo enviar foto en lugar de escaneo?",
@@ -43,7 +43,7 @@ export default function TraduccionJuradaOnlinePage() {
           },
           {
             question: "¿Cómo pago?",
-            answer: "Transferencia, tarjeta, Bizum o PayPal. Para urgentes solemos pedir el pago antes de empezar.",
+            answer: "Con tarjeta, transferencia o Bizum, antes de empezar la traducción. El presupuesto es válido 15 días.",
           },
         ]}
       />
@@ -55,7 +55,7 @@ export default function TraduccionJuradaOnlinePage() {
           Traducción jurada online con entrega en PDF firmado
         </h1>
         <p className="text-sepia">
-          Adjunta tu documento y recibe la traducción jurada en PDF firmado y sellado por el traductor jurado. Francés en 24-48 h; en otros idiomas, plazo confirmado en el presupuesto.
+          Adjunta tu documento y recibe la traducción jurada en PDF firmado y sellado por el traductor jurado. Francés: hasta 5 páginas en 1 día hábil; en otros idiomas, plazo confirmado en el presupuesto.
         </p>
         <div className="flex flex-wrap gap-3 text-xs text-graphite">
           <span>Respuesta en &lt; 30 minutos en horario 09:00-19:00 CET</span>

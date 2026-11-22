@@ -69,7 +69,7 @@ const FIELDS: { key: keyof BillingFields; label: string; wide?: boolean }[] = [
 ];
 
 const INPUT =
-  "mt-1 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-1.5 text-sm text-slate-100 placeholder:text-slate-500";
+  "mt-1 w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-1.5 text-sm text-[#1F2933] placeholder:text-[#8A96A3]";
 
 export default function DeliveryPanel(props: Props) {
   const router = useRouter();
@@ -336,21 +336,21 @@ export default function DeliveryPanel(props: Props) {
   const sentInvoice = sentNow?.invoiceNumber ?? props.lastSent?.invoiceNumber ?? null;
 
   return (
-    <div className="rounded-2xl border border-emerald-500/30 bg-slate-900/80 p-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300">Entregar al cliente</p>
+    <div className="rounded-2xl border border-[#BFE0CC] bg-[#fff] p-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">Entregar al cliente</p>
 
       {props.lastSent && (
-        <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-slate-300">
+        <div className="mt-3 rounded-xl border border-[#BFE0CC] bg-[#EEF7F1] p-3 text-xs text-[#1F2933]">
           <p>
-            Enviado a <b className="text-slate-100">{props.lastSent.toEmail || props.clientEmail}</b> ·{" "}
+            Enviado a <b className="text-[#1F2933]">{props.lastSent.toEmail || props.clientEmail}</b> ·{" "}
             {new Date(props.lastSent.sentAt).toLocaleString("es-ES")}
-            {sentInvoice ? <> · factura adjunta <b className="text-slate-100">{sentInvoice}</b></> : sentNow ? " · sin factura" : null}
+            {sentInvoice ? <> · factura adjunta <b className="text-[#1F2933]">{sentInvoice}</b></> : sentNow ? " · sin factura" : null}
           </p>
           {props.whatsappText && (
             <button
               type="button"
               onClick={copyWhatsapp}
-              className="mt-2 rounded-lg border border-emerald-500/40 px-3 py-1 font-semibold text-emerald-300 hover:bg-emerald-500/10"
+              className="mt-2 rounded-lg border border-[#BFE0CC] px-3 py-1 font-semibold text-[#1F6B45] hover:bg-[#EEF7F1]"
             >
               {copied ? "Copiado" : "Copiar texto WhatsApp"}
             </button>
@@ -359,7 +359,7 @@ export default function DeliveryPanel(props: Props) {
       )}
 
       <div className="mt-4">
-        <p className="text-sm font-semibold text-slate-100">1. Traducción</p>
+        <p className="text-sm font-semibold text-[#1F2933]">1. Traducción</p>
         {allFiles.length > 0 ? (
           <>
             <ul className="mt-2 space-y-1">
@@ -369,7 +369,7 @@ export default function DeliveryPanel(props: Props) {
             </ul>
             {versions.previous.length > 0 && (
               <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+                <summary className="cursor-pointer text-xs text-[#52606D] hover:text-[#1F2933]">
                   Versiones anteriores ({versions.previous.length})
                 </summary>
                 <ul className="mt-1 space-y-1">
@@ -381,9 +381,9 @@ export default function DeliveryPanel(props: Props) {
             )}
           </>
         ) : (
-          <p className="mt-1 text-xs text-slate-400">Aún no hay traducción subida: sube el archivo abajo.</p>
+          <p className="mt-1 text-xs text-[#52606D]">Aún no hay traducción subida: sube el archivo abajo.</p>
         )}
-        <label className="mt-2 block text-xs text-slate-400">
+        <label className="mt-2 block text-xs text-[#52606D]">
           {allFiles.length > 0 ? "Subir un archivo sustituto o adicional" : "Subir la traducción"}
           <input
             type="file"
@@ -393,15 +393,15 @@ export default function DeliveryPanel(props: Props) {
               addFiles(Array.from(e.target.files || []));
               e.target.value = "";
             }}
-            className="mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border file:border-emerald-500/50 file:bg-emerald-600/20 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-200"
+            className="mt-1 block w-full text-xs text-[#1F2933] file:mr-3 file:rounded-lg file:border file:border-[#BFE0CC] file:bg-[#EEF7F1] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-[#1F6B45]"
           />
         </label>
         {newFiles.length > 0 && (
           <ul className="mt-2 space-y-1">
             {newFiles.map((f, i) => (
-              <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 rounded-lg bg-slate-800/60 px-2.5 py-1.5 text-xs text-slate-200">
+              <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 rounded-lg bg-[#F6F7F9] px-2.5 py-1.5 text-xs text-[#1F2933]">
                 <span className="truncate">{f.name}</span>
-                <button type="button" onClick={() => setNewFiles((p) => p.filter((_, j) => j !== i))} className="shrink-0 font-semibold text-red-300 hover:text-red-200">
+                <button type="button" onClick={() => setNewFiles((p) => p.filter((_, j) => j !== i))} className="shrink-0 font-semibold text-[#A12B2B] hover:text-[#A12B2B]">
                   quitar
                 </button>
               </li>
@@ -409,15 +409,15 @@ export default function DeliveryPanel(props: Props) {
           </ul>
         )}
         {props.alreadyDelivered && newFiles.length > 0 && (
-          <p className="mt-1 text-[11px] text-amber-300">Ya se entregó: lo que subas se envía como versión corregida.</p>
+          <p className="mt-1 text-[11px] text-[#7A5A10]">Ya se entregó: lo que subas se envía como versión corregida.</p>
         )}
       </div>
 
       <div className="mt-5">
-        <p className="text-sm font-semibold text-slate-100">2. Revisa datos de facturación</p>
+        <p className="text-sm font-semibold text-[#1F2933]">2. Revisa datos de facturación</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {FIELDS.map((f) => (
-            <label key={f.key} className={`text-xs text-slate-400 ${f.wide ? "sm:col-span-2" : ""}`}>
+            <label key={f.key} className={`text-xs text-[#52606D] ${f.wide ? "sm:col-span-2" : ""}`}>
               {f.label}
               <input
                 value={billing[f.key]}
@@ -428,18 +428,18 @@ export default function DeliveryPanel(props: Props) {
             </label>
           ))}
         </div>
-        <p className="mt-2 text-xs font-semibold text-emerald-300">{invoiceStatusLabel(status)}</p>
-        {nifBlocked && <p className="mt-1 text-xs font-semibold text-red-300">{NIF_REQUIRED_MESSAGE}</p>}
+        <p className="mt-2 text-xs font-semibold text-[#1F6B45]">{invoiceStatusLabel(status)}</p>
+        {nifBlocked && <p className="mt-1 text-xs font-semibold text-[#A12B2B]">{NIF_REQUIRED_MESSAGE}</p>}
       </div>
 
       <div className="mt-5">
-        <p className="text-sm font-semibold text-slate-100">3. Mensaje</p>
+        <p className="text-sm font-semibold text-[#1F2933]">3. Mensaje</p>
         {syntheticEmail && (
-          <p className="mt-1 text-[11px] text-amber-300">
+          <p className="mt-1 text-[11px] text-[#7A5A10]">
             Este cliente no tiene email real: el correo no le llegará. Usa «Copiar texto WhatsApp» tras enviar.
           </p>
         )}
-        <label className="mt-2 block text-xs text-slate-400">
+        <label className="mt-2 block text-xs text-[#52606D]">
           Asunto
           <input value={subjectText} onChange={(e) => setSubject(e.target.value)} className={INPUT} />
         </label>
@@ -449,7 +449,7 @@ export default function DeliveryPanel(props: Props) {
           rows={9}
           className={`${INPUT} font-sans`}
         />
-        <div className="mt-2 rounded-lg border border-slate-700 bg-slate-950/60 p-2">
+        <div className="mt-2 rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] p-2">
           <div className="flex flex-wrap gap-2">
             <input
               value={aiInstruction}
@@ -461,7 +461,7 @@ export default function DeliveryPanel(props: Props) {
               type="button"
               disabled={aiLoading}
               onClick={() => adjustWithAi(aiInstruction)}
-              className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-50"
             >
               {aiLoading ? "Ajustando…" : "Ajustar con IA"}
             </button>
@@ -473,18 +473,18 @@ export default function DeliveryPanel(props: Props) {
                 type="button"
                 disabled={aiLoading}
                 onClick={() => adjustWithAi(translateInstruction(l))}
-                className="rounded-md border border-slate-600 px-2 py-1 text-[11px] text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-md border border-[#D5DAE1] px-2 py-1 text-[11px] text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50"
               >
                 {l}
               </button>
             ))}
           </div>
           {aiFeedback && (
-            <p className={`mt-1.5 text-xs font-semibold ${aiFeedback.ok ? "text-emerald-300" : "text-red-300"}`}>{aiFeedback.text}</p>
+            <p className={`mt-1.5 text-xs font-semibold ${aiFeedback.ok ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{aiFeedback.text}</p>
           )}
         </div>
         {(message !== null || subject !== null) && (
-          <button type="button" onClick={() => { setMessage(null); setSubject(null); setAiFeedback(null); }} className="mt-1 text-[11px] text-slate-400 hover:text-slate-200">
+          <button type="button" onClick={() => { setMessage(null); setSubject(null); setAiFeedback(null); }} className="mt-1 text-[11px] text-[#52606D] hover:text-[#1F2933]">
             Restaurar texto por defecto
           </button>
         )}
@@ -494,17 +494,17 @@ export default function DeliveryPanel(props: Props) {
         type="button"
         onClick={send}
         disabled={sending || nifBlocked || pendingReview.length > 0}
-        className="mt-5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+        className="mt-5 rounded-xl bg-[#1F6B45] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#185738] disabled:opacity-60"
       >
         {sending ? "Enviando…" : invoiceOnly ? "Enviar factura" : silent ? "Marcar lista para recoger (sin email)" : correction ? "Enviar corrección" : props.lastSent ? "Reenviar" : "Enviar"}
       </button>
       {pendingReview.length > 0 && (
-        <p className="mt-2 text-xs font-semibold text-amber-300">
+        <p className="mt-2 text-xs font-semibold text-[#7A5A10]">
           Revisa los archivos del traductor marcados (casilla «Revisada ✓») para poder enviar.
         </p>
       )}
       {feedback && (
-        <p className={`mt-2 text-xs font-semibold ${feedback.ok ? "text-emerald-300" : "text-red-300"}`}>{feedback.text}</p>
+        <p className={`mt-2 text-xs font-semibold ${feedback.ok ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{feedback.text}</p>
       )}
     </div>
   );
@@ -527,14 +527,14 @@ function FileRow({
 }) {
   return (
     <li className="flex flex-wrap items-center gap-2 text-sm">
-      <input type="checkbox" checked={checked} onChange={onToggle} className="rounded border-slate-500" />
-      <span className="truncate text-slate-200">{f.name}</span>
-      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-cyan-400 hover:underline">
+      <input type="checkbox" checked={checked} onChange={onToggle} className="rounded border-[#D5DAE1]" />
+      <span className="truncate text-[#1F2933]">{f.name}</span>
+      <a href={f.url} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs text-[#1A2E4A] hover:underline">
         ver
       </a>
       {needsReview && (
-        <label className={`flex shrink-0 items-center gap-1 text-xs ${reviewed ? "text-emerald-300" : "text-amber-300"}`}>
-          <input type="checkbox" checked={reviewed} onChange={(e) => onReview(e.target.checked)} className="rounded border-slate-500" />
+        <label className={`flex shrink-0 items-center gap-1 text-xs ${reviewed ? "text-[#1F6B45]" : "text-[#7A5A10]"}`}>
+          <input type="checkbox" checked={reviewed} onChange={(e) => onReview(e.target.checked)} className="rounded border-[#D5DAE1]" />
           {reviewed ? "Revisada ✓" : "Sin revisar"}
         </label>
       )}

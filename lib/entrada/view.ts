@@ -6,10 +6,11 @@ import { sessionKeyOf, type ArchivoRow, type EntradaRow } from "./store.ts";
 export const MAEC_URL = "https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Buscador-STIJ.aspx";
 
 type PartRef = { fileIndex: number; page: number };
+type Part = PartRef;
 export type ReadingExtras = {
   notToTranslate: { parts: PartRef[]; reason: string }[];
   duplicates: { parts: PartRef[] }[];
-  questions: { textEs: string }[];
+  questions: { textEs: string; kind?: string }[];
   /** docKey (D1, D2…) → pages the document declares and did not arrive. */
   missing: Record<string, number[]>;
 };
@@ -25,6 +26,8 @@ export type ClientDocument = {
   ilegible: boolean;
   incluido: boolean;
   motivo: string | null;
+  /** Its pages in reading order, pointing at the client's own files (for the thumbnails). */
+  partes: { archivoId: string; page: number; rol: "pagina" | "anexo" | "apostilla" }[];
 };
 
 export type ClientView = {
@@ -42,6 +45,8 @@ export type ClientView = {
         documentos: ClientDocument[];
         noIncluidos: { que: string; motivo: string }[];
         preguntas: string[];
+        /** Same order as preguntas: the question asks for the target language (answered with the language picker). */
+        preguntasIdioma?: boolean[];
         resumen: string;
       };
   sinJurado: null | { idioma: string; codigo: string; maecUrl: string };
@@ -86,6 +91,25 @@ export function ownLote(e: Pick<EntradaRow, "id" | "regla">, lote: Pick<LoteRow,
   return lote.sessionKey === sessionKeyOf(e.id) && e.regla !== "huella" && e.regla !== "contacto";
 }
 
+/** Lote parts (file position + page) → the entrada's archivo ids; parts of files the client no longer has are dropped. */
+export function partesOf(d: Pick<WorkingDocument, "parts" | "annexes" | "apostille">, files: Pick<FileRow, "position" | "url">[], archivos: Pick<ArchivoRow, "id" | "url">[]): ClientDocument["partes"] {
+  const idOf = (fileIndex: number) => {
+    const url = files.find((f) => f.position === fileIndex)?.url;
+    return url ? archivos.find((a) => a.url === url)?.id ?? null : null;
+  };
+  const out: ClientDocument["partes"] = [];
+  const push = (parts: Part[], rol: ClientDocument["partes"][number]["rol"]) => {
+    for (const p of parts) {
+      const archivoId = idOf(p.fileIndex);
+      if (archivoId) out.push({ archivoId, page: p.page, rol });
+    }
+  };
+  push(d.parts, "pagina");
+  for (const a of d.annexes ?? []) push(a.parts, "anexo");
+  push(d.apostille?.parts ?? [], "apostilla");
+  return out;
+}
+
 export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: LoteData | null, extras: ReadingExtras | null, sinJurado: string | null): ClientView {
   const base: ClientView = {
     estado: entrada.estado,
@@ -108,6 +132,7 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
         id: d.id, titulo: labelOf(d), paginas: d.pageCount, apostilla: Boolean(d.apostille),
         faltan: extras?.missing[d.docKey] ?? [],
         ilegible: d.legibility === "illegible", incluido: d.included, motivo: d.included ? null : d.excludedReason,
+        partes: partesOf(d, files, archivos),
       }))
     : [];
   const noIncluidos = fase === "lista"
@@ -119,10 +144,11 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
     : [];
   const incluidos = documentos.filter((d) => d.incluido).length;
   const resumen = fase === "lista"
-    ? `Has subido ${plural(archivos.length, "archivo", "archivos")} que corresponden a ${plural(incluidos, "documento", "documentos")}.`
+    ? `Has subido ${plural(archivos.length, "archivo que corresponde", "archivos que corresponden")} a ${plural(incluidos, "documento", "documentos")}.`
     : fase === "leyendo"
       ? "Estamos revisando el conjunto de tus archivos."
       : "Tus archivos los revisa Juan personalmente.";
+  const preguntas = fase === "lista" ? (extras?.questions ?? []).filter((q) => Boolean(q.textEs)) : [];
   const soloLectura = lote.status !== "ok" ? null : lote.sessionKey !== sessionKeyOf(entrada.id) ? "otra_entrada" : entrada.regla === "huella" || entrada.regla === "contacto" ? "caso_existente" : null;
   return {
     ...base,
@@ -134,7 +160,8 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
       targetLang: lote.targetLang && lote.targetLang !== "unknown" ? lote.targetLang : entrada.targetLang,
       documentos,
       noIncluidos,
-      preguntas: fase === "lista" ? (extras?.questions ?? []).map((q) => q.textEs).filter(Boolean) : [],
+      preguntas: preguntas.map((q) => q.textEs),
+      preguntasIdioma: preguntas.map((q) => q.kind === "target_lang"),
       resumen,
     },
   };

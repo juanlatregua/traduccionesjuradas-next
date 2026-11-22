@@ -1,5 +1,6 @@
 // Una entrada: archivos → «he terminado» → puerta de identidad → una lectura del conjunto → el cliente confirma → Juan presupuesta.
-// Aquí no nace ningún presupuesto, ninguna solicitud a jurados ni ningún precio.
+// Aquí no nace ningún precio: al confirmar, el francés va por lib/dinero (frAuto) y el resto por el camino de la
+// puerta vieja (routeQuote: solicitud directa a lavori, tarifario, encargo cerrado o staff), que respeta sus candados.
 import { createHash, randomBytes } from "node:crypto";
 import { applyEdit } from "../lectura-constructor/documents.ts";
 import type { StartInput, StartResult } from "../lectura-constructor/run.ts";
@@ -11,13 +12,14 @@ import { sessionKeyOf, type ArchivoRow, type EntradaRow, type EntradaStore } fro
 import { clientView, ownLote, type ClientView, type ReadingExtras } from "./view.ts";
 import type { FrAutoData, FrAutoResult } from "./fr-auto.ts";
 import { fingerprintOf } from "../lectura-constructor/run.ts";
+import { staffOnlyReason } from "./aviso.ts";
 
 export const MAX_ARCHIVOS = 40;
 export const EXCLUDED_BY_CLIENT = "el cliente indica que no hace falta traducirlo";
 
 export type Jurado = "si" | "no" | "desconocido";
 export type Aviso =
-  | { kind: "confirmada"; entrada: EntradaRow; casoRef: string | null; documentos: number; presupuesto?: string | null }
+  | { kind: "confirmada"; entrada: EntradaRow; casoRef: string | null; documentos: number; presupuesto?: string | null; excluidos?: string[]; revisar?: string | null }
   | { kind: "sin_jurado"; entrada: EntradaRow; casoRef: string | null; idioma: string };
 
 export type FlowDeps = {
@@ -43,6 +45,13 @@ export type FlowDeps = {
   notify(aviso: Aviso): Promise<void>;
   /** PUERTA_FR: presupuesto automático fr>es por lib/dinero. Opcional; un fallo nunca rompe la confirmación. */
   frAuto?(e: EntradaRow, data: FrAutoData | null): Promise<FrAutoResult>;
+  /** Without a quote from frAuto: the old puerta path (lib/puerta-request-quote), which sends its own staff email, SMS and
+   *  client ack. handled=false (it failed) → notify. quoteSent: a quote already reached the client. */
+  routeQuote?(e: EntradaRow, data: FrAutoData | null, x: { casoRef: string | null; documentos: number; excluidos: string[] }): Promise<{ handled: boolean; quoteSent: boolean }>;
+  /** «Hemos recibido tu solicitud», in the entrada language; deduplicated per recipient (24 h). enMarcha=false: Juan reviews it first. */
+  ackClient?(e: EntradaRow, x: { enMarcha: boolean }): Promise<void>;
+  /** One FunnelEvent per entrada and step; never throws. */
+  funnel?(e: EntradaRow, step: string): Promise<void>;
   /** linkToken: the one-time «Confirmar mi email» button, bound to this entrada. */
   sendCode(to: string, code: string, lang: string | null, linkToken: string): Promise<void>;
   /** Pages and openability of one file at upload time (no model call); null when it cannot be told here. */
@@ -236,7 +245,7 @@ export async function leerEntrada(deps: FlowDeps, e: EntradaRow, opts: { continu
     const r = await deps.lectura.start(
       {
         source: { casoId, sessionKey: sessionKeyOf(e.id), quoteId: null },
-        targetLang: cur.targetLang, sourceLang: cur.sourceLang, notes: cur.notas, reread: false, by: actorOf(e),
+        targetLang: cur.targetLang, sourceLang: cur.sourceLang, notes: cur.notas, clientLang: cur.lang, reread: false, by: actorOf(e),
       },
       files,
     );
@@ -342,7 +351,22 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
       console.error("[entrada] frAuto falló", e.id, err);
     }
   }
-  deps.notify({ kind: "confirmada", entrada: done, casoRef: await deps.caso.ref(e.casoId), documentos, presupuesto }).catch(console.error);
+  const casoRef = await deps.caso.ref(e.casoId);
+  const motivos = excluidos.map((x) => x.motivo ?? "sin motivo");
+  let routed = false;
+  const revisar = presupuesto ? null : staffOnlyReason(e, data);
+  if (!presupuesto && !revisar && deps.routeQuote) {
+    try {
+      const r = await deps.routeQuote(done, data, { casoRef, documentos, excluidos: motivos });
+      routed = r.handled;
+      presupuestoEnviado = r.quoteSent;
+    } catch (err) {
+      console.error("[entrada] routeQuote falló", e.id, err);
+    }
+  }
+  if (!routed) await deps.notify({ kind: "confirmada", entrada: done, casoRef, documentos, presupuesto, excluidos: motivos, revisar }).catch(console.error);
+  if (!presupuestoEnviado && deps.ackClient) await deps.ackClient(done, { enMarcha: routed || Boolean(presupuesto) }).catch(console.error);
+  if (deps.funnel) await deps.funnel(done, "entrada_confirmada").catch(() => {});
   const view = await vistaEntrada(deps, done);
   return { ok: true, view: presupuestoEnviado ? { ...view, presupuestoEnviado: true } : view };
 }

@@ -15,9 +15,9 @@ import {
 } from "@/lib/panel-layout";
 import { BarsChart, DataTable, DonutChart, KpiCard, LineChart, summaryText } from "./PanelCharts";
 
-const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#60a5fa]";
-const BTN = `rounded-lg border border-[#232a35] bg-[#14181f] px-3 py-1.5 text-xs font-semibold text-[#e8ecf2] hover:border-[#93a0b4] disabled:opacity-40 ${FOCUS}`;
-const FIELD = `w-full rounded-md border border-[#232a35] bg-[#0b0d10] px-2 py-1.5 text-xs text-[#e8ecf2] ${FOCUS}`;
+const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A2E4A]";
+const BTN = `rounded-lg border border-[#D5DAE1] bg-[#ffffff] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:border-[#52606D] disabled:opacity-40 ${FOCUS}`;
+const FIELD = `w-full rounded-md border border-[#D5DAE1] bg-[#F6F7F9] px-2 py-1.5 text-xs text-[#1F2933] ${FOCUS}`;
 
 type Props = { period: Period; current: PanelData; previous: PanelData };
 
@@ -60,7 +60,7 @@ export default function PanelBoard({ period, current, previous }: Props) {
   return (
     <section aria-label="Widgets del panel">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[#93a0b4]">Análisis · {period.label}</h2>
+        <h2 className="text-sm font-semibold text-[#52606D]">Análisis · {period.label}</h2>
         <div className="flex flex-wrap gap-2">
           {editing && (
             <>
@@ -101,7 +101,7 @@ export default function PanelBoard({ period, current, previous }: Props) {
           />
         ))}
       </div>
-      {layout.length === 0 && <p className="py-10 text-center text-sm text-[#93a0b4]">El panel está vacío. Pulsa «Editar panel» para añadir widgets.</p>}
+      {layout.length === 0 && <p className="py-10 text-center text-sm text-[#52606D]">El panel está vacío. Pulsa «Editar panel» para añadir widgets.</p>}
     </section>
   );
 }
@@ -129,13 +129,13 @@ function WidgetCard(props: {
   const titleId = `w-${w.id}-title`;
 
   return (
-    <article aria-labelledby={titleId} className={`rounded-xl border border-[#232a35] bg-[#14181f] p-4 ${span(w)}`}>
+    <article aria-labelledby={titleId} className={`rounded-xl border border-[#D5DAE1] bg-[#ffffff] p-4 ${span(w)}`}>
       <div className="mb-3 flex items-start justify-between gap-2">
-        <h3 id={titleId} className="text-sm font-medium text-[#93a0b4]">
+        <h3 id={titleId} className="text-sm font-medium text-[#52606D]">
           {w.title}
         </h3>
         {w.chart !== "kpi" && w.chart !== "tabla" && (
-          <button type="button" className={`${FOCUS} rounded px-1 text-[11px] text-[#93a0b4] underline hover:text-[#e8ecf2]`} aria-expanded={showTable} onClick={() => setShowTable((s) => !s)}>
+          <button type="button" className={`${FOCUS} rounded px-1 text-[11px] text-[#52606D] underline hover:text-[#1F2933]`} aria-expanded={showTable} onClick={() => setShowTable((s) => !s)}>
             {showTable ? "Ver gráfico" : "Ver tabla"}
           </button>
         )}
@@ -155,7 +155,7 @@ function WidgetCard(props: {
 
       {editing && <Editor {...props} />}
       {editing && (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-[#232a35] pt-3">
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-[#D5DAE1] pt-3">
           <button type="button" className={BTN} disabled={index === 0} onClick={() => props.onMove(-1)} aria-label={`Subir «${w.title}»`}>
             ↑ Subir
           </button>
@@ -180,16 +180,16 @@ function Editor({ widget: w, onChange }: { widget: Widget; onChange: (patch: Par
   };
   const id = (s: string) => `${w.id}-${s}`;
   return (
-    <div className="mt-3 space-y-3 border-t border-[#232a35] pt-3 text-xs">
+    <div className="mt-3 space-y-3 border-t border-[#D5DAE1] pt-3 text-xs">
       <div>
-        <label htmlFor={id("title")} className="mb-1 block text-[#93a0b4]">
+        <label htmlFor={id("title")} className="mb-1 block text-[#52606D]">
           Título
         </label>
         <input id={id("title")} className={FIELD} value={w.title} maxLength={80} onChange={(e) => onChange({ title: e.target.value })} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor={id("chart")} className="mb-1 block text-[#93a0b4]">
+          <label htmlFor={id("chart")} className="mb-1 block text-[#52606D]">
             Gráfico
           </label>
           <select id={id("chart")} className={FIELD} value={w.chart} onChange={(e) => onChange({ chart: e.target.value as Widget["chart"] })}>
@@ -201,7 +201,7 @@ function Editor({ widget: w, onChange }: { widget: Widget; onChange: (patch: Par
           </select>
         </div>
         <div>
-          <label htmlFor={id("dim")} className="mb-1 block text-[#93a0b4]">
+          <label htmlFor={id("dim")} className="mb-1 block text-[#52606D]">
             Dimensión
           </label>
           <select id={id("dim")} className={FIELD} value={w.dimension} disabled={w.chart === "kpi"} onChange={(e) => onChange({ dimension: e.target.value as Widget["dimension"] })}>
@@ -214,11 +214,11 @@ function Editor({ widget: w, onChange }: { widget: Widget; onChange: (patch: Par
         </div>
       </div>
       <fieldset>
-        <legend className="mb-1 text-[#93a0b4]">{w.chart === "kpi" ? "Métrica (la primera marcada)" : "Métricas"}</legend>
+        <legend className="mb-1 text-[#52606D]">{w.chart === "kpi" ? "Métrica (la primera marcada)" : "Métricas"}</legend>
         <div className="grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2">
           {METRIC_KEYS.map((m) => (
             <label key={m} className="flex items-center gap-2">
-              <input type="checkbox" className={`h-3.5 w-3.5 accent-[#3ecf8e] ${FOCUS}`} checked={w.metrics.includes(m)} onChange={() => toggleMetric(m)} />
+              <input type="checkbox" className={`h-3.5 w-3.5 accent-[#1F6B45] ${FOCUS}`} checked={w.metrics.includes(m)} onChange={() => toggleMetric(m)} />
               {METRICS[m].label}
             </label>
           ))}
@@ -227,7 +227,7 @@ function Editor({ widget: w, onChange }: { widget: Widget; onChange: (patch: Par
       <div className="flex flex-wrap items-end gap-4">
         {w.chart !== "kpi" && w.chart !== "linea" && (
           <div className="w-28">
-            <label htmlFor={id("top")} className="mb-1 block text-[#93a0b4]">
+            <label htmlFor={id("top")} className="mb-1 block text-[#52606D]">
               Mostrar los N primeros
             </label>
             <input
@@ -244,7 +244,7 @@ function Editor({ widget: w, onChange }: { widget: Widget; onChange: (patch: Par
         )}
         {w.chart !== "kpi" && (
           <label className="flex items-center gap-2">
-            <input type="checkbox" className={`h-3.5 w-3.5 accent-[#3ecf8e] ${FOCUS}`} checked={!!w.wide} onChange={(e) => onChange({ wide: e.target.checked })} />
+            <input type="checkbox" className={`h-3.5 w-3.5 accent-[#1F6B45] ${FOCUS}`} checked={!!w.wide} onChange={(e) => onChange({ wide: e.target.checked })} />
             Ancho completo
           </label>
         )}

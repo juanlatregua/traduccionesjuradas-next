@@ -47,10 +47,10 @@ function formatDate(dateStr: string | null) {
 
 function PaymentBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    PAID: { label: "Pagado", cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-    PENDING: { label: "Pendiente", cls: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
-    FAILED: { label: "Fallido", cls: "bg-red-500/20 text-red-400 border-red-500/30" },
-    REFUNDED: { label: "Reembolsado", cls: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
+    PAID: { label: "Pagado", cls: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]" },
+    PENDING: { label: "Pendiente", cls: "bg-[#FFF8E6] text-[#7A5A10] border-[#E9D8A6]" },
+    FAILED: { label: "Fallido", cls: "bg-[#FDF2F2] text-[#A12B2B] border-[#F0C9C9]" },
+    REFUNDED: { label: "Reembolsado", cls: "bg-[#F6F7F9] text-[#52606D] border-[#D5DAE1]" },
   };
   const info = map[status] || map.PENDING;
   return (
@@ -62,9 +62,9 @@ function PaymentBadge({ status }: { status: string }) {
 
 function DeliveryBadge({ state }: { state: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    PRESUPUESTO: { label: "Presupuesto", cls: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
-    EN_PROCESO: { label: "En proceso", cls: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-    TRADUCIDO: { label: "Traducido", cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+    PRESUPUESTO: { label: "Presupuesto", cls: "bg-[#F6F7F9] text-[#52606D] border-[#D5DAE1]" },
+    EN_PROCESO: { label: "En proceso", cls: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]" },
+    TRADUCIDO: { label: "Traducido", cls: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]" },
   };
   const info = map[state] || map.PRESUPUESTO;
   return (
@@ -76,15 +76,15 @@ function DeliveryBadge({ state }: { state: string }) {
 
 function WorkflowBadge({ state, label }: { state: string; label: string }) {
   const palette: Record<string, string> = {
-    BORRADOR: "bg-slate-500/20 text-slate-300 border-slate-500/30",
-    PENDIENTE_REVISION: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-    PRESUPUESTO_ENVIADO: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-    PENDIENTE_PAGO: "bg-orange-500/20 text-orange-300 border-orange-500/30",
-    JUSTIFICANTE_SUBIDO: "bg-violet-500/20 text-violet-300 border-violet-500/30",
-    PAGO_VALIDADO: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-    EN_TRADUCCION: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-    TRADUCIDO_ENTREGADO: "bg-lime-500/20 text-lime-300 border-lime-500/30",
-    CERRADO: "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30",
+    BORRADOR: "bg-[#F6F7F9] text-[#1F2933] border-[#D5DAE1]",
+    PENDIENTE_REVISION: "bg-[#FFF8E6] text-[#7A5A10] border-[#E9D8A6]",
+    PRESUPUESTO_ENVIADO: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]",
+    PENDIENTE_PAGO: "bg-[#FFF8E6] text-[#7A5A10] border-[#E9D8A6]",
+    JUSTIFICANTE_SUBIDO: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]",
+    PAGO_VALIDADO: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]",
+    EN_TRADUCCION: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]",
+    TRADUCIDO_ENTREGADO: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]",
+    CERRADO: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]",
   };
   const cls = palette[state] || palette.PENDIENTE_PAGO;
   return (
@@ -97,8 +97,8 @@ function WorkflowBadge({ state, label }: { state: string; label: string }) {
 function ChannelBadge({ source }: { source: "WHATSAPP" | "WEB" }) {
   const cls =
     source === "WHATSAPP"
-      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
-      : "border-slate-500/40 bg-slate-500/10 text-slate-300";
+      ? "border-[#BFE0CC] bg-[#EEF7F1] text-[#1F6B45]"
+      : "border-[#D5DAE1] bg-[#F6F7F9] text-[#1F2933]";
   return (
     <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
       {source === "WHATSAPP" ? "WhatsApp" : "Web"}
@@ -163,16 +163,16 @@ export default function OrderTableWithBulkActions({ orders }: Props) {
 
   return (
     <>
-      <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-700">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-[#D5DAE1]">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-800/80 text-[11px] uppercase tracking-wider text-slate-400">
+          <thead className="bg-[#F6F7F9] text-[11px] uppercase tracking-wider text-[#52606D]">
             <tr>
               <th className="px-3 py-3">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}
-                  className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+                  className="h-4 w-4 rounded border-[#D5DAE1] bg-[#F6F7F9] text-[#1A2E4A] focus:ring-[#1A2E4A]/30"
                 />
               </th>
               <th className="px-4 py-3 font-semibold">Ref.</th>
@@ -190,19 +190,19 @@ export default function OrderTableWithBulkActions({ orders }: Props) {
               <th className="px-4 py-3 font-semibold">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-700/50">
+          <tbody className="divide-y divide-[#D5DAE1]">
             {orders.map((order) => {
               const isSelected = selectedRefs.has(order.reference);
               return (
                 <tr
                   key={order.reference}
-                  className={`transition-colors hover:bg-slate-800/40 ${
+                  className={`transition-colors hover:bg-[#F6F7F9] ${
                     isSelected
-                      ? "bg-cyan-500/10"
+                      ? "bg-[#F6F7F9]"
                       : order.overdue
-                        ? "bg-red-500/5"
+                        ? "bg-[#FDF2F2]"
                         : order.dueSoon
-                          ? "bg-amber-500/5"
+                          ? "bg-[#FFF8E6]"
                           : ""
                   }`}
                 >
@@ -211,31 +211,31 @@ export default function OrderTableWithBulkActions({ orders }: Props) {
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleRef(order.reference)}
-                      className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500/30"
+                      className="h-4 w-4 rounded border-[#D5DAE1] bg-[#F6F7F9] text-[#1A2E4A] focus:ring-[#1A2E4A]/30"
                     />
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-cyan-300">{order.reference}</td>
-                  <td className="max-w-[180px] truncate px-4 py-3 text-xs text-slate-300" title={order.title}>
+                  <td className="px-4 py-3 font-mono text-xs font-bold text-[#1A2E4A]">{order.reference}</td>
+                  <td className="max-w-[180px] truncate px-4 py-3 text-xs text-[#1F2933]" title={order.title}>
                     {order.title}
                   </td>
-                  <td className="px-4 py-3 text-xs font-medium text-slate-200">{formatMoney(order.amountCents)}</td>
+                  <td className="px-4 py-3 text-xs font-medium text-[#1F2933]">{formatMoney(order.amountCents)}</td>
                   <td className="px-4 py-3"><PaymentBadge status={order.paymentStatus} /></td>
                   <td className="px-4 py-3"><ChannelBadge source={order.acquisitionSource} /></td>
                   <td className="px-4 py-3"><WorkflowBadge state={order.workflowState} label={order.workflowStateLabel} /></td>
                   <td className="px-4 py-3"><DeliveryBadge state={order.deliveryState} /></td>
-                  <td className="px-4 py-3 text-xs text-slate-300">{order.assignedTo || <span className="text-slate-600">—</span>}</td>
+                  <td className="px-4 py-3 text-xs text-[#1F2933]">{order.assignedTo || <span className="text-[#52606D]">—</span>}</td>
                   <td className="px-4 py-3">
                     {order.dueDate ? (
                       <span
                         className={`text-xs font-semibold ${
-                          order.overdue ? "text-red-400" : order.dueSoon ? "text-amber-400" : "text-slate-300"
+                          order.overdue ? "text-[#A12B2B]" : order.dueSoon ? "text-[#7A5A10]" : "text-[#1F2933]"
                         }`}
                       >
                         {formatDate(order.dueDate)}
                         {order.overdue && " !"}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-600">—</span>
+                      <span className="text-xs text-[#52606D]">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -244,37 +244,37 @@ export default function OrderTableWithBulkActions({ orders }: Props) {
                         href={order.latestProofUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex rounded-lg border border-cyan-500/40 px-2 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                        className="inline-flex rounded-lg border border-[#D5DAE1] px-2 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                       >
                         Ver
                       </a>
                     ) : (
-                      <span className="text-xs text-slate-600">—</span>
+                      <span className="text-xs text-[#52606D]">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3" title={order.financeTitle}>
                     <span
                       className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
                         order.financeRisk
-                          ? "border-red-500/40 bg-red-500/10 text-red-300"
-                          : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                          ? "border-[#F0C9C9] bg-[#FDF2F2] text-[#A12B2B]"
+                          : "border-[#BFE0CC] bg-[#EEF7F1] text-[#1F6B45]"
                       }`}
                     >
                       {order.financeRisk ? "Riesgo" : "OK"}
                     </span>
-                    <p className="mt-1 text-[10px] text-slate-400">
+                    <p className="mt-1 text-[10px] text-[#52606D]">
                       {order.marginPct === null ? "Margen —" : `Margen ${order.marginPct}%`}
                       {order.requiresMarginApproval ? " · aprobar" : ""}
                       {order.hasMonthlyBatchPending ? " · lote vencido" : ""}
                     </p>
                   </td>
-                  <td className="max-w-[160px] truncate px-4 py-3 text-xs text-slate-400" title={order.clientEmail}>
+                  <td className="max-w-[160px] truncate px-4 py-3 text-xs text-[#52606D]" title={order.clientEmail}>
                     {order.clientEmail}
                   </td>
                   <td className="px-4 py-3">
                     <a
                       href={order.quickQuoteHref}
-                      className="mb-2 inline-flex rounded-lg border border-cyan-500/40 px-2 py-1 text-[11px] font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                      className="mb-2 inline-flex rounded-lg border border-[#D5DAE1] px-2 py-1 text-[11px] font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                     >
                       Presupuesto pro
                     </a>
@@ -283,7 +283,7 @@ export default function OrderTableWithBulkActions({ orders }: Props) {
                         <br />
                         <a
                           href={`/zona-traductor/pedido/${order.reference}`}
-                          className="mb-2 inline-flex rounded-lg border border-indigo-500/40 px-2 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/10"
+                          className="mb-2 inline-flex rounded-lg border border-[#D5DAE1] px-2 py-1 text-[11px] font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                         >
                           Abrir pedido
                         </a>

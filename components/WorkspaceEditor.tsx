@@ -271,17 +271,17 @@ export default function WorkspaceEditor({
     return (
       <div className="space-y-6">
         {/* Document viewer + upload */}
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">Documentos fuente</p>
+        <div className="rounded-2xl border border-[#D5DAE1] bg-[#fff] p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Documentos fuente</p>
           {documents.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">No hay documentos fuente.</p>
+            <p className="mt-3 text-sm text-[#52606D]">No hay documentos fuente.</p>
           ) : (
             <ul className="mt-3 space-y-2">
               {documents.map((doc, idx) => (
-                <li key={`${doc.name}-${idx}`} className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-                  <span className="text-sm text-slate-200">{doc.name}</span>
+                <li key={`${doc.name}-${idx}`} className="flex items-center justify-between rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+                  <span className="text-sm text-[#1F2933]">{doc.name}</span>
                   {doc.url && (
-                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-cyan-500/40 px-3 py-1 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10">Descargar</a>
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-[#D5DAE1] px-3 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">Descargar</a>
                   )}
                 </li>
               ))}
@@ -289,8 +289,8 @@ export default function WorkspaceEditor({
           )}
         </div>
 
-        <div className="rounded-2xl border border-slate-700 bg-slate-900/80 p-5">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-300">Borrador IA</p>
+        <div className="rounded-2xl border border-[#D5DAE1] bg-[#fff] p-5">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">Borrador IA</p>
           <DraftGeneratorButton
             orderReference={reference}
             documents={documents}
@@ -300,7 +300,7 @@ export default function WorkspaceEditor({
             existingDraftGeneratedAt={draftGeneratedAt}
           />
           {draftFileUrl && !draftContentJson && (
-            <p className="mt-3 text-xs text-amber-300">
+            <p className="mt-3 text-xs text-[#7A5A10]">
               El borrador fue generado antes de la actualización del workspace. Regenera para habilitar la edición en dos columnas.
             </p>
           )}
@@ -312,23 +312,23 @@ export default function WorkspaceEditor({
   return (
     <div className="space-y-4">
       {/* Sticky action bar */}
-      <div className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/95 px-5 py-3 backdrop-blur">
+      <div className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#D5DAE1] bg-[#fff] px-5 py-3 backdrop-blur">
         <div className="flex items-center gap-4">
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-[#52606D]">
             {revisadasCount}/{secciones.length} secciones revisadas
           </span>
           {hasPendingChanges && saveStatus === "idle" && (
-            <span className="text-xs text-amber-400">Cambios sin guardar</span>
+            <span className="text-xs text-[#7A5A10]">Cambios sin guardar</span>
           )}
-          {saveStatus === "saving" && <span className="text-xs text-cyan-400">Guardando...</span>}
-          {saveStatus === "saved" && <span className="text-xs text-emerald-400">Guardado</span>}
-          {saveStatus === "error" && <span className="text-xs text-red-400">Error al guardar</span>}
+          {saveStatus === "saving" && <span className="text-xs text-[#1A2E4A]">Guardando...</span>}
+          {saveStatus === "saved" && <span className="text-xs text-[#1F6B45]">Guardado</span>}
+          {saveStatus === "error" && <span className="text-xs text-[#A12B2B]">Error al guardar</span>}
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleRegenerate}
-            className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:bg-slate-700/50 hover:text-slate-200"
+            className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#52606D] hover:bg-[#F6F7F9] hover:text-[#1F2933]"
           >
             Regenerar IA
           </button>
@@ -336,7 +336,7 @@ export default function WorkspaceEditor({
             type="button"
             onClick={() => doSave(secciones)}
             disabled={saveStatus === "saving"}
-            className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700/50 disabled:opacity-50"
+            className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50"
           >
             Guardar ahora
           </button>
@@ -344,7 +344,7 @@ export default function WorkspaceEditor({
             type="button"
             onClick={handleDownload}
             disabled={downloading}
-            className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50"
+            className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9] disabled:opacity-50"
           >
             {downloading ? "Generando..." : "Descargar DOCX"}
           </button>
@@ -352,7 +352,7 @@ export default function WorkspaceEditor({
       </div>
 
       {allRevisadas && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+        <div className="rounded-xl border border-[#BFE0CC] bg-[#EEF7F1] px-4 py-3 text-sm text-[#1F6B45]">
           Todas las secciones revisadas. Lista para entregar.
         </div>
       )}
@@ -361,15 +361,15 @@ export default function WorkspaceEditor({
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Left column: collaborator delivery (priority) or original document */}
         <div className="space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#1A2E4A]">
             {collaboratorDelivery ? "Entrega colaborador" : "Original"}
           </p>
 
           {collaboratorDelivery && (
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+            <div className="rounded-lg border border-[#BFE0CC] bg-[#EEF7F1] px-3 py-2 text-xs text-[#1F6B45]">
               Entrega de {collaboratorDelivery.collaboratorName}
               {collaboratorDelivery.deliveredAt && (
-                <span className="ml-2 text-emerald-400/60">
+                <span className="ml-2 text-[#1F6B45]">
                   {new Date(collaboratorDelivery.deliveredAt).toLocaleDateString("es-ES")}
                 </span>
               )}
@@ -386,14 +386,14 @@ export default function WorkspaceEditor({
 
           {docUrl ? (
             isDocx ? (
-              <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-8 text-center">
-                <p className="text-sm text-slate-300">Archivo Word: <strong>{collaboratorDelivery?.filename}</strong></p>
-                <p className="mt-2 text-xs text-slate-400">Los archivos Word no se pueden previsualizar. Descarga para revisar.</p>
+              <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-8 text-center">
+                <p className="text-sm text-[#1F2933]">Archivo Word: <strong>{collaboratorDelivery?.filename}</strong></p>
+                <p className="mt-2 text-xs text-[#52606D]">Los archivos Word no se pueden previsualizar. Descarga para revisar.</p>
                 <a
                   href={docUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-4 inline-block rounded-lg bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500"
+                  className="mt-4 inline-block rounded-lg bg-[#1A2E4A] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#243F66]"
                 >
                   Descargar DOCX
                 </a>
@@ -403,19 +403,19 @@ export default function WorkspaceEditor({
               <img
                 src={docUrl}
                 alt={collaboratorDelivery ? "Entrega colaborador" : "Documento original"}
-                className="w-full rounded-xl border border-slate-700"
+                className="w-full rounded-xl border border-[#D5DAE1]"
               />
             ) : (
               <iframe
                 src={docUrl}
-                className="w-full rounded-xl border border-slate-700"
+                className="w-full rounded-xl border border-[#D5DAE1]"
                 style={{ minHeight: "800px", height: "calc(100vh - 280px)" }}
                 title={collaboratorDelivery ? "Entrega colaborador" : "Documento original"}
               />
             )
           ) : (
-            <div className="rounded-xl border border-slate-700 bg-slate-950/50 p-8 text-center">
-              <p className="text-sm text-slate-400">No hay documento fuente adjunto.</p>
+            <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-8 text-center">
+              <p className="text-sm text-[#52606D]">No hay documento fuente adjunto.</p>
               <div className="mt-4">
                 <SourceDocumentUpload reference={reference} />
               </div>
@@ -425,12 +425,12 @@ export default function WorkspaceEditor({
           {/* Source documents list (always shown when collaborator delivery is displayed) */}
           {collaboratorDelivery && documents.length > 0 && (
             <div className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Documentos originales</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#52606D]">Documentos originales</p>
               {documents.map((doc, idx) => (
-                <div key={`${doc.name}-${idx}`} className="flex items-center justify-between text-xs text-slate-400">
+                <div key={`${doc.name}-${idx}`} className="flex items-center justify-between text-xs text-[#52606D]">
                   <span>{doc.name}</span>
                   {doc.url && (
-                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Abrir</a>
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">Abrir</a>
                   )}
                 </div>
               ))}
@@ -441,10 +441,10 @@ export default function WorkspaceEditor({
           {!collaboratorDelivery && documents.length > 1 && (
             <div className="space-y-1">
               {documents.map((doc, idx) => (
-                <div key={`${doc.name}-${idx}`} className="flex items-center justify-between text-xs text-slate-400">
+                <div key={`${doc.name}-${idx}`} className="flex items-center justify-between text-xs text-[#52606D]">
                   <span>{doc.name}</span>
                   {doc.url && (
-                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Abrir</a>
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-[#1A2E4A] hover:underline">Abrir</a>
                   )}
                 </div>
               ))}
@@ -454,15 +454,15 @@ export default function WorkspaceEditor({
 
         {/* Right column: editable translation */}
         <div className="space-y-3">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-400">Traducción</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#1A2E4A]">Traducción</p>
 
           {/* Document metadata */}
           {(parsed.tribunal_organismo || parsed.referencia_original) && (
-            <div className="rounded-xl border border-slate-700 bg-slate-950/50 px-4 py-3 text-xs text-slate-400">
-              {parsed.tribunal_organismo && <p>Tribunal/Organismo: <span className="text-slate-200">{parsed.tribunal_organismo}</span></p>}
-              {parsed.referencia_original && <p>Ref. original: <span className="text-slate-200">{parsed.referencia_original}</span></p>}
-              {parsed.fecha_documento && <p>Fecha documento: <span className="text-slate-200">{parsed.fecha_documento}</span></p>}
-              <p>Dirección: <span className="text-slate-200">{parsed.direccion}</span></p>
+            <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] px-4 py-3 text-xs text-[#52606D]">
+              {parsed.tribunal_organismo && <p>Tribunal/Organismo: <span className="text-[#1F2933]">{parsed.tribunal_organismo}</span></p>}
+              {parsed.referencia_original && <p>Ref. original: <span className="text-[#1F2933]">{parsed.referencia_original}</span></p>}
+              {parsed.fecha_documento && <p>Fecha documento: <span className="text-[#1F2933]">{parsed.fecha_documento}</span></p>}
+              <p>Dirección: <span className="text-[#1F2933]">{parsed.direccion}</span></p>
             </div>
           )}
 
@@ -475,8 +475,8 @@ export default function WorkspaceEditor({
                 key={idx}
                 className={`rounded-xl border p-4 transition-colors ${
                   seccion.revisada
-                    ? "border-emerald-500/40 bg-emerald-500/5"
-                    : "border-slate-700 bg-slate-900/80"
+                    ? "border-[#BFE0CC] bg-[#EEF7F1]"
+                    : "border-[#D5DAE1] bg-[#fff]"
                 }`}
               >
                 {/* Section header */}
@@ -486,14 +486,14 @@ export default function WorkspaceEditor({
                       type="checkbox"
                       checked={seccion.revisada}
                       onChange={() => toggleRevisada(idx)}
-                      className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500/30"
+                      className="h-4 w-4 rounded border-[#D5DAE1] bg-[#F6F7F9] text-[#1F6B45] focus:ring-[#1A2E4A]/30"
                     />
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-300">
+                    <span className="text-xs font-bold uppercase tracking-wide text-[#1F2933]">
                       {meta?.titulo_seccion || meta?.tipo || `Sección ${idx + 1}`}
                     </span>
                   </label>
                   {seccion.revisada && (
-                    <span className="text-[10px] font-semibold text-emerald-400">Revisada</span>
+                    <span className="text-[10px] font-semibold text-[#1F6B45]">Revisada</span>
                   )}
                 </div>
 
@@ -501,7 +501,7 @@ export default function WorkspaceEditor({
                 {notes.map((nota, nIdx) => (
                   <div
                     key={nIdx}
-                    className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300"
+                    className="mb-2 rounded-lg border border-[#E9D8A6] bg-[#FFF8E6] px-3 py-1.5 text-xs text-[#7A5A10]"
                   >
                     {nota}
                   </div>
@@ -512,7 +512,7 @@ export default function WorkspaceEditor({
                   value={seccion.editado}
                   onChange={(e) => updateSection(idx, e.target.value)}
                   rows={calcRows(seccion.editado)}
-                  className="w-full resize-none border-0 bg-transparent p-0 text-sm leading-relaxed text-slate-200 focus:outline-none focus:ring-0"
+                  className="w-full resize-none border-0 bg-transparent p-0 text-sm leading-relaxed text-[#1F2933] focus:outline-none focus:ring-0"
                 />
               </div>
             );
@@ -520,12 +520,12 @@ export default function WorkspaceEditor({
 
           {/* Translator notes */}
           <div className="mt-6">
-            <p className="mb-2 text-xs uppercase text-slate-500">Notas del traductor</p>
+            <p className="mb-2 text-xs uppercase text-[#52606D]">Notas del traductor</p>
             <textarea
               value={notasTraductor}
               onChange={(e) => updateNotasTraductor(e.target.value)}
               placeholder="Observaciones, términos dudosos, aclaraciones para el cliente..."
-              className="w-full rounded-xl border border-slate-700 bg-slate-800/60 p-3 text-sm text-slate-300 resize-none focus:border-slate-600 focus:outline-none focus:ring-0"
+              className="w-full rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3 text-sm text-[#1F2933] resize-none focus:border-[#D5DAE1] focus:outline-none focus:ring-0"
               rows={3}
             />
           </div>

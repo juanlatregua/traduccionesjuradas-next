@@ -23,6 +23,7 @@ import {
   completionQuota,
   parseCompletionFiles,
 } from "@/lib/q-journey";
+import { abs, hrefPresupuesto } from "@/lib/staff-links";
 
 export const runtime = "nodejs";
 
@@ -97,7 +98,7 @@ export async function POST(req: Request, { params }: Params) {
   // Aviso a la casa: con el rastro ya guardado (arriba) y reintentos; si agota,
   // queda en FailedEmail y el banner de la ficha sigue ahí.
   const to = process.env.PRESUPUESTO_TO || "hola@traduccionesjuradas.net";
-  const ficha = `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${quote.id}`;
+  const ficha = abs(hrefPresupuesto(quote.id));
   const links = parsed.files
     .map((f) => `<li><a href="${esc(f.url)}">${esc(f.name)}</a> (${(f.size / 1024 / 1024).toFixed(1)} MB)</li>`)
     .join("");

@@ -6,7 +6,17 @@ import { computeQuoteTotals, calculateValidUntil, PAPER_SHIPPING_BASE_EUR } from
 import { parseUpdateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
 import { sealClosedPriceQuote } from "@/lib/lavori-directo";
+import { unsealOnLineEdit } from "@/lib/encargo-cerrado-math";
 import { checkQuoteLinesMargin, notifyMarginOverride, MARGIN_BLOCK_CODE } from "@/lib/quote-margin";
+import { abs, hrefPresupuesto } from "@/lib/staff-links";
+import { lockedRecheck, patchPrecheck, QUOTE_VERSION_SELECT } from "@/lib/quote-edit-hydrate";
+import { quoteContentVersion } from "@/lib/quote-content-version";
+
+class LockedRecheckError extends Error {
+  constructor(public readonly result: NonNullable<ReturnType<typeof lockedRecheck>>) {
+    super(result.body.error);
+  }
+}
 
 export const runtime = "nodejs";
 
@@ -60,17 +70,12 @@ export async function PATCH(req: Request, { params }: Params) {
         status: true,
         issuedAt: true,
         autoPricedBy: true,
+        paymentFrozenAt: true,
+        ...QUOTE_VERSION_SELECT,
       },
     });
     if (!current) {
       return NextResponse.json({ ok: false, error: "Presupuesto no encontrado." }, { status: 404 });
-    }
-
-    if (!["DRAFT", "SENT", "OPENED", "ACCEPTED"].includes(current.status)) {
-      return NextResponse.json(
-        { ok: false, error: `No se puede editar en estado ${current.status}.` },
-        { status: 400 }
-      );
     }
 
     const totals = computeQuoteTotals({
@@ -84,6 +89,22 @@ export async function PATCH(req: Request, { params }: Params) {
           ? parsed.data.shippingBase || PAPER_SHIPPING_BASE_EUR
           : 0,
     });
+
+    // Estado editable; obsoleto (expectedVersion ≠ versión de contenido: p. ej. la cifra del
+    // jurado entró en las líneas después de abrir la página; abrir /q o descongelar no cuenta)
+    // → 409 «stale»; pago CONGELADO: líneas e importe solo desde la reparación con la cifra
+    // del jurado (frozenRepair). Sin escribir nada.
+    const expectedVersion = (body as any)?.expectedVersion;
+    const pre = patchPrecheck({
+      status: current.status,
+      version: quoteContentVersion(current),
+      expectedVersion,
+      frozen: !!current.paymentFrozenAt,
+      frozenRepair: (body as any)?.frozenRepair === true,
+      current: { lines: current.lines, total: current.total },
+      next: { lines: totals.lines, total: totals.total },
+    });
+    if (pre) return NextResponse.json(pre.body, { status: pre.status });
 
     const validUntil = calculateValidUntil(current.issuedAt, parsed.data.validityDays);
 
@@ -111,6 +132,14 @@ export async function PATCH(req: Request, { params }: Params) {
     }
 
     const quote = await prisma.$transaction(async (tx) => {
+      // Bajo candado de fila: el estado sigue siendo editable (un pago entre la lectura y aquí
+      // → 400) y, con versión, nadie ha cambiado el contenido (los rellenos de la cifra del
+      // jurado actualizan la fila Quote en su transacción).
+      await tx.$queryRaw`SELECT id FROM "Quote" WHERE id = ${params.id} FOR UPDATE`;
+      const locked = await tx.quote.findUnique({ where: { id: params.id }, select: { status: true, ...QUOTE_VERSION_SELECT } });
+      if (!locked) throw new LockedRecheckError({ status: 400, body: { ok: false, error: "Presupuesto no encontrado." } });
+      const again = lockedRecheck({ status: locked.status, version: quoteContentVersion(locked), expectedVersion });
+      if (again) throw new LockedRecheckError(again);
       const customer = await tx.customer.upsert({
         where: { email: parsed.data.customerEmail },
         update: {
@@ -151,6 +180,8 @@ export async function PATCH(req: Request, { params }: Params) {
           // Editar líneas invalida la marca de tarifa por página: hay que volver a
           // verificar la procedencia del coste (canal o override) antes de enviar.
           ...(current.autoPricedBy === PAGE_TARIFF_MARK ? { autoPricedBy: null } : {}),
+          // Encargo cerrado: con las líneas cambiadas el coste ya no es el de la regla → sin sello ni jurado.
+          ...(unsealOnLineEdit(current.autoPricedBy, current.lines, totals.lines) ?? {}),
           marginPct: parsed.data.marginPct,
           paymentMethods: parsed.data.paymentMethods,
           contactWhatsapp: parsed.data.contactWhatsapp,
@@ -201,11 +232,17 @@ export async function PATCH(req: Request, { params }: Params) {
         label: (quote as any).quoteNumber || params.id,
         actorEmail: access.email,
         detail: marginCheck.detail,
-        url: `https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${params.id}`,
+        url: abs(hrefPresupuesto(params.id)),
       });
     }
-    return NextResponse.json({ ok: true, quote: serializeQuote(quote) });
+    // Versión tras el sellado: el token de la siguiente edición no debe chocar con lo que
+    // este mismo guardado escribió.
+    const fresh = await prisma.quote.findUnique({ where: { id: params.id }, select: QUOTE_VERSION_SELECT }).catch(() => null);
+    return NextResponse.json({ ok: true, quote: serializeQuote(quote), contentVersion: fresh ? quoteContentVersion(fresh) : null });
   } catch (err: any) {
+    if (err instanceof LockedRecheckError) {
+      return NextResponse.json(err.result.body, { status: err.result.status });
+    }
     console.error("[quotes:update] error", err);
     return NextResponse.json(
       { ok: false, error: err?.message || "No se pudo actualizar el presupuesto." },

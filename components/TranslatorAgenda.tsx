@@ -87,9 +87,9 @@ export default function TranslatorAgenda({ items }: Props) {
 
   if (grouped.size === 0) {
     return (
-      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
-        <h2 className="text-lg font-semibold text-white">Agenda de plazos</h2>
-        <p className="mt-3 text-sm text-slate-400">No hay entregas con fecha prevista.</p>
+      <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-xl sm:p-8">
+        <h2 className="text-lg font-semibold text-[#1A2E4A]">Agenda de plazos</h2>
+        <p className="mt-3 text-sm text-[#52606D]">No hay entregas con fecha prevista.</p>
       </section>
     );
   }
@@ -97,37 +97,37 @@ export default function TranslatorAgenda({ items }: Props) {
   const today = ymd(new Date());
 
   return (
-    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl sm:p-8">
-      <h2 className="text-lg font-semibold text-white">Agenda de plazos</h2>
-      <p className="mt-1 text-xs text-slate-400">Pedidos pagados con fecha de entrega. «Entregado» registra una entrega ya hecha por otra vía: no envía nada al cliente.</p>
-      {error && <p className="mt-2 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{error}</p>}
+    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-xl sm:p-8">
+      <h2 className="text-lg font-semibold text-[#1A2E4A]">Agenda de plazos</h2>
+      <p className="mt-1 text-xs text-[#52606D]">Pedidos pagados con fecha de entrega. «Entregado» registra una entrega ya hecha por otra vía: no envía nada al cliente.</p>
+      {error && <p className="mt-2 rounded-lg border border-[#F0C9C9] bg-[#FDF2F2] px-3 py-2 text-xs text-[#A12B2B]">{error}</p>}
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {Array.from(grouped.entries()).map(([day, rows]) => {
           const late = day < today;
           const isToday = day === today;
           return (
-            <div key={day} className={`rounded-2xl border p-4 ${late ? "border-rose-500/50 bg-rose-950/20" : isToday ? "border-amber-400/50 bg-amber-950/10" : "border-slate-700 bg-slate-950/70"}`}>
-              <p className={`text-xs font-semibold uppercase tracking-wide ${late ? "text-rose-300" : isToday ? "text-amber-300" : "text-cyan-300"}`}>
+            <div key={day} className={`rounded-2xl border p-4 ${late ? "border-[#F0C9C9] bg-[#FDF2F2]" : isToday ? "border-[#E9D8A6] bg-[#FFF8E6]" : "border-[#D5DAE1] bg-[#F6F7F9]"}`}>
+              <p className={`text-xs font-semibold uppercase tracking-wide ${late ? "text-[#A12B2B]" : isToday ? "text-[#7A5A10]" : "text-[#1A2E4A]"}`}>
                 {new Date(day).toLocaleDateString("es-ES", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}
                 {late ? " · VENCIDO" : isToday ? " · HOY" : ""}
               </p>
               <ul className="mt-3 space-y-2">
                 {rows.map((row) => (
-                  <li key={row.reference} className="rounded-xl border border-slate-700 bg-slate-900/70 p-2.5">
+                  <li key={row.reference} className="rounded-xl border border-[#D5DAE1] bg-[#fff] p-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <a href={`/zona-traductor/pedido/${encodeURIComponent(row.reference)}`} className="font-mono text-xs font-bold text-cyan-300 hover:underline">
+                        <a href={`/zona-traductor/pedido/${encodeURIComponent(row.reference)}`} className="font-mono text-xs font-bold text-[#1A2E4A] hover:underline">
                           {row.reference}
                         </a>
-                        <p className="mt-0.5 truncate text-sm text-slate-200">{row.title}</p>
-                        <p className={`mt-0.5 text-[11px] ${row.translatorDeliveredAt ? "text-emerald-300" : "text-slate-400"}`}>{labelState(row)}</p>
+                        <p className="mt-0.5 truncate text-sm text-[#1F2933]">{row.title}</p>
+                        <p className={`mt-0.5 text-[11px] ${row.translatorDeliveredAt ? "text-[#1F6B45]" : "text-[#52606D]"}`}>{labelState(row)}</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => markDelivered(row)}
                         disabled={busy === row.reference}
                         title="Marcar como entregado al cliente (no envía nada)"
-                        className="shrink-0 rounded-md border border-emerald-500/40 px-2 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+                        className="shrink-0 rounded-md border border-[#BFE0CC] px-2 py-1 text-[11px] font-semibold text-[#1F6B45] hover:bg-[#EEF7F1] disabled:opacity-50"
                       >
                         {busy === row.reference ? "…" : "Entregado"}
                       </button>

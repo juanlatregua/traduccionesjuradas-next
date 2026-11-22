@@ -12,6 +12,7 @@ import {
   baseUrlStaff,
   ESTADO_PILL,
   ESTADO_LABEL,
+  casosVivosWhere,
 } from "@/lib/caso/vista";
 
 export const metadata: Metadata = {
@@ -33,10 +34,8 @@ const GRUPO_CLS: Record<GrupoPaso, string> = {
   jurado: "border-l-sky-500",
   cliente: "border-l-violet-500",
   en_curso: "border-l-emerald-500",
-  cerrado: "border-l-slate-700",
+  cerrado: "border-l-[#D5DAE1]",
 };
-
-const PAGABLE_DIAS = 14;
 
 const fmt = (d: Date) => d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -51,16 +50,7 @@ export default async function CasosBandejaPage({ searchParams }: Props) {
   const casos = await prisma.caso.findMany({
     where: cerrados
       ? { estado: { notIn: ["ABIERTO", "EN_CURSO"] }, lastActivityAt: { gte: new Date(ahora.getTime() - 60 * 864e5) } }
-      : {
-          OR: [
-            { estado: { in: ["ABIERTO", "EN_CURSO"] } },
-            // Perdido por silencio pero con presupuesto aún pagable: se espera al cliente.
-            {
-              estado: "PERDIDO",
-              quotes: { some: { deletedAt: null, supersededAt: null, expiredAt: null, status: { in: ["DRAFT", "SENT", "OPENED", "ACCEPTED"] }, sentAt: { gte: new Date(ahora.getTime() - PAGABLE_DIAS * 864e5) } } },
-            },
-          ],
-        },
+      : casosVivosWhere(ahora),
     orderBy: { lastActivityAt: "desc" },
     take: cerrados ? 100 : 300,
     select: {
@@ -107,79 +97,79 @@ export default async function CasosBandejaPage({ searchParams }: Props) {
   const qs = (f: string) => `/zona-traductor/casos?${new URLSearchParams({ ...(f !== "todos" ? { f } : {}), ...(cerrados ? { ver: "cerrados" } : {}) })}`;
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Casos</h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <h1 className="text-2xl font-semibold text-[#1A2E4A]">Casos</h1>
+            <p className="mt-1 text-sm text-[#52606D]">
               Un caso = un cliente con un encargo: sus entradas, solicitudes a lavori, presupuestos y pedido juntos. Cada fila dice qué toca ahora.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <Link
               href={cerrados ? "/zona-traductor/casos" : "/zona-traductor/casos?ver=cerrados"}
-              className="rounded-lg border border-slate-700 px-3 py-2 font-semibold text-slate-300 hover:bg-slate-800"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-2 font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
             >
               {cerrados ? "Ver abiertos y en curso" : "Ver cerrados (60 días)"}
             </Link>
-            <Link href="/zona-traductor/casos/discrepancias" className="rounded-lg border border-slate-700 px-3 py-2 font-semibold text-slate-300 hover:bg-slate-800">
+            <Link href="/zona-traductor/casos/discrepancias" className="rounded-lg border border-[#D5DAE1] px-3 py-2 font-semibold text-[#1F2933] hover:bg-[#F6F7F9]">
               Discrepancias
             </Link>
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-1 border-b border-slate-800 pb-2">
+        <div className="mt-5 flex flex-wrap items-center gap-1 border-b border-[#D5DAE1] pb-2">
           {FILTROS.map((f) => (
             <Link
               key={f.key}
               href={qs(f.key)}
               className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                f.key === filtro.key ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                f.key === filtro.key ? "bg-[#F6F7F9] text-[#1A2E4A]" : "text-[#52606D] hover:bg-[#F6F7F9] hover:text-[#1A2E4A]"
               }`}
             >
               {f.label}
-              <span className="ml-2 text-xs text-slate-500">{cuenta(f.grupos)}</span>
+              <span className="ml-2 text-xs text-[#52606D]">{cuenta(f.grupos)}</span>
             </Link>
           ))}
         </div>
 
         {visibles.length === 0 ? (
-          <p className="mt-10 text-slate-500">Nada por aquí.</p>
+          <p className="mt-10 text-[#52606D]">Nada por aquí.</p>
         ) : (
           <div className="mt-4 space-y-2">
             {visibles.map(({ c, paso, posible }) => (
               <div
                 key={c.id}
-                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 border-l-4 bg-slate-900/60 p-3 ${GRUPO_CLS[paso.grupo]}`}
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#D5DAE1] border-l-4 bg-white p-3 ${GRUPO_CLS[paso.grupo]}`}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Link href={hrefCaso(c.id)} className="font-mono text-sm font-semibold text-cyan-300 hover:underline">
+                    <Link href={hrefCaso(c.id)} className="font-mono text-sm font-semibold text-[#1A2E4A] hover:underline">
                       {c.ref}
                     </Link>
                     <span className={`rounded px-2 py-0.5 text-xs font-semibold ${ESTADO_PILL[c.estado] || ESTADO_PILL.PERDIDO}`}>
                       {ESTADO_LABEL[c.estado] || c.estado}
                     </span>
                     {c.pares.map((p) => (
-                      <span key={p} className="rounded bg-slate-700/60 px-2 py-0.5 text-xs font-semibold text-slate-200">
+                      <span key={p} className="rounded bg-[#F6F7F9] px-2 py-0.5 text-xs font-semibold text-[#1F2933]">
                         {p}
                       </span>
                     ))}
                     {c.dudoso && (
-                      <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300" title="El resolver no supo a qué caso pertenece: revisar a mano">
+                      <span className="rounded bg-[#FFF8E6] px-2 py-0.5 text-xs font-semibold text-[#7A5A10]" title="El resolver no supo a qué caso pertenece: revisar a mano">
                         dudoso
                       </span>
                     )}
                     {posible && (
-                      <span className="rounded bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-200" title="Puede ser el mismo encargo que otro caso (unir llegará en F3b)">
+                      <span className="rounded bg-[#FFF8E6] px-2 py-0.5 text-xs font-semibold text-[#7A5A10]" title="Puede ser el mismo encargo que otro caso (unir llegará en F3b)">
                         ¿mismo que otro?
                       </span>
                     )}
-                    <span className="text-sm text-slate-200">{c.nombre || c.email || (c.phone9 ? `+34 ${c.phone9}` : "(sin identificar)")}</span>
+                    <span className="text-sm text-[#1F2933]">{c.nombre || c.email || (c.phone9 ? `+34 ${c.phone9}` : "(sin identificar)")}</span>
                   </div>
-                  <div className="mt-1 text-sm text-slate-300">{paso.titulo}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="mt-1 text-sm text-[#1F2933]">{paso.titulo}</div>
+                  <div className="text-xs text-[#52606D]">
                     {paso.detalle ? `${paso.detalle} · ` : ""}actividad {fmt(c.lastActivityAt)}
                   </div>
                 </div>

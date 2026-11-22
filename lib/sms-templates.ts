@@ -8,7 +8,7 @@ export type SmsLang = "es" | "fr";
 
 /** Plazo de entrega localizado para el SMS de pago confirmado. */
 export function formatDeliveryPlazo(dueDate: Date | null | undefined, lang: SmsLang = "es"): string {
-  if (!dueDate) return lang === "fr" ? "24-48 h ouvrées" : "24-48 h laborables";
+  if (!dueDate) return lang === "fr" ? "le délai indiqué dans votre devis" : "el plazo indicado en tu presupuesto";
   return dueDate.toLocaleDateString(lang === "fr" ? "fr-FR" : "es-ES", {
     day: "numeric",
     month: "long",

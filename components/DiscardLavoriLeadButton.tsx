@@ -47,7 +47,7 @@ export default function DiscardLavoriLeadButton({ id, leadRef }: { id: string; l
       disabled={busy}
       onClick={discard}
       title="Cierra la solicitud en tj.net y retira su encargo en lavori"
-      className="rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-800 disabled:opacity-50"
+      className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-xs font-semibold text-[#52606D] hover:bg-[#F6F7F9] disabled:opacity-50"
     >
       {busy ? "…" : "Descartar"}
     </button>

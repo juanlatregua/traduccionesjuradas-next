@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title: "Traductor Jurado de Alem\u00E1n \u00B7 Traducci\u00F3n Oficial Alem\u00E1n\u2194Espa\u00F1ol \u00B7 MAEC",
+  title: "Traductor Jurado de Alemán · Traducción Oficial Alemán↔Español · MAEC",
   description:
-    "Traducci\u00F3n jurada de alem\u00E1n por traductor oficial MAEC. Documentos legales, certificados, t\u00EDtulos universitarios. Alem\u00E1n-espa\u00F1ol y espa\u00F1ol-alem\u00E1n. Precio cerrado en el d\u00EDa, confirmado por el traductor jurado, desde 40\u20AC + IVA por documento.",
+    "Traducción jurada de alemán por traductor oficial MAEC. Documentos legales, certificados, títulos universitarios. Alemán-español y español-alemán. Precio cerrado en el día, confirmado por el traductor jurado, desde 40€ + IVA por documento.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/traductor-jurado-aleman",
   },
@@ -43,7 +43,7 @@ export default function TraductorJuradoAlemanPage() {
         {
           question: "¿En cuánto tiempo se entrega una traducción jurada de alemán?",
           answer:
-            "De alemán a español, 48 horas desde el pago. En otros documentos, el plazo lo confirma el traductor jurado en el presupuesto, normalmente el mismo día.",
+            "El plazo lo fija el traductor jurado y figura en el presupuesto, antes de pagar. Dinos tu fecha límite al pedirlo y lo tenemos en cuenta; la urgencia lleva un recargo que verás en el presupuesto.",
         },
         {
           question: "¿Se necesita Apostilla para usar una traducción jurada en Alemania, Austria o Suiza?",

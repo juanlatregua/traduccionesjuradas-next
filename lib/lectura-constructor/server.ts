@@ -9,11 +9,19 @@ import { explicitRssCeilingMb, lecturaConstructorOn } from "./flag.ts";
 import { prismaLecturaStore } from "./prisma-store.ts";
 import { startReading, type SourceRef, type StartDeps } from "./run.ts";
 import type { LoteSource } from "./store.ts";
+import { REGULARIZACION_SOURCE } from "../entrada/fr-auto.ts";
 
 const MAX_FILES = DEFAULT_LIMITS.maxFiles;
 const MAX_BYTES = DEFAULT_LIMITS.maxRequestBytes;
 
 export const lecturaStore = prismaLecturaStore(prisma);
+
+/** Lote of an entrada that came with ?p=regularizacion-2026 (its source). */
+export async function regularizationOfSession(sessionKey: string | null): Promise<boolean> {
+  if (!sessionKey?.startsWith("entrada:")) return false;
+  const e = await prisma.entrada.findUnique({ where: { id: sessionKey.slice("entrada:".length) }, select: { source: true } });
+  return e?.source === REGULARIZACION_SOURCE;
+}
 
 const fromUrl = (url: string) => decodeURIComponent(url.split("?")[0].split("/").pop() || "documento");
 
@@ -69,6 +77,7 @@ export const apiDeps: ApiDeps = {
   rateLimit: (key, limit, windowMs) => checkRateLimit({ key, limit, windowMs }),
   store: lecturaStore,
   start: (input) => startReading(startDeps, input),
+  regularization: regularizationOfSession,
   readyToRead: () =>
     explicitRssCeilingMb() === null
       ? "La lectura no está configurada en este servidor (falta LECTURA_RSS_CEILING_MB)."

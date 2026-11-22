@@ -35,7 +35,7 @@ const VAT_OPTIONS = [
   { label: "0% / exento", value: 0 },
 ];
 const TAX_OPTIONS = TAX_TREATMENT_OPTIONS;
-const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
+const FIELD = "rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#52606D]";
 
 function eur(c: number) {
   return `${(c / 100).toFixed(2)} €`;
@@ -192,19 +192,19 @@ export default function RecurringExpenseManager({ templates }: { templates: Recu
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-[#52606D]">
           {templates.length} plantilla(s). El cron crea el gasto el día indicado; los de importe variable quedan «pendientes de confirmar» en Contabilidad.
         </p>
-        <button type="button" onClick={startCreate} className="shrink-0 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500">
+        <button type="button" onClick={startCreate} className="shrink-0 rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66]">
           + Nueva plantilla
         </button>
       </div>
 
       {open && (
-        <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+        <div className="mt-4 rounded-xl border border-[#D5DAE1] bg-white p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white">{editingId ? "Editar plantilla" : "Nueva plantilla de gasto recurrente"}</h2>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-400 hover:text-slate-200">Cerrar</button>
+            <h2 className="text-sm font-semibold text-[#1A2E4A]">{editingId ? "Editar plantilla" : "Nueva plantilla de gasto recurrente"}</h2>
+            <button type="button" onClick={() => setOpen(false)} className="text-xs text-[#52606D] hover:text-[#1A2E4A]">Cerrar</button>
           </div>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -212,7 +212,7 @@ export default function RecurringExpenseManager({ templates }: { templates: Recu
             <select className={FIELD} value={form.brand} onChange={(e) => set("brand", e.target.value)}>
               {BRAND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <label className="flex items-center gap-2 text-xs text-slate-300">
+            <label className="flex items-center gap-2 text-xs text-[#1F2933]">
               <input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} /> Activa (el cron la genera)
             </label>
           </div>
@@ -225,23 +225,23 @@ export default function RecurringExpenseManager({ templates }: { templates: Recu
           </div>
 
           <div className="mt-4 flex flex-wrap items-end gap-3">
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               Importe fijo € base (vacío = variable)
               <input className={`mt-1 block w-44 ${FIELD}`} placeholder="p.ej. 90,82" inputMode="decimal" value={form.amount} onChange={(e) => set("amount", e.target.value)} />
             </label>
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               IVA
               <select className={`mt-1 block w-32 ${FIELD}`} value={form.vatRate} onChange={(e) => set("vatRate", Number(e.target.value))}>
                 {VAT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </label>
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               Tratamiento IVA
               <select className={`mt-1 block w-48 ${FIELD}`} value={form.taxTreatment} onChange={(e) => set("taxTreatment", e.target.value)}>
                 {TAX_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </label>
-            <label className="text-xs text-slate-400">
+            <label className="text-xs text-[#52606D]">
               Día del mes (1–28)
               <input type="number" min={1} max={28} className={`mt-1 block w-24 ${FIELD}`} value={form.dayOfMonth} onChange={(e) => set("dayOfMonth", Number(e.target.value))} />
             </label>
@@ -249,8 +249,8 @@ export default function RecurringExpenseManager({ templates }: { templates: Recu
 
           <div className="mt-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Líneas (opcional, multi-apunte: un gasto por línea)</p>
-              <button type="button" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, { concept: "", base: "", vatRate: 0.21, ivaDeducible: true }] }))} className="text-xs text-cyan-300 hover:text-cyan-200">+ Añadir línea</button>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Líneas (opcional, multi-apunte: un gasto por línea)</p>
+              <button type="button" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, { concept: "", base: "", vatRate: 0.21, ivaDeducible: true }] }))} className="text-xs text-[#1A2E4A] hover:text-[#1A2E4A]">+ Añadir línea</button>
             </div>
             {form.lines.length > 0 && (
               <div className="mt-2 space-y-2">
@@ -261,10 +261,10 @@ export default function RecurringExpenseManager({ templates }: { templates: Recu
                     <select className={FIELD} value={l.vatRate} onChange={(e) => setLine(i, { vatRate: Number(e.target.value) })}>
                       {VAT_OPTIONS.map((o) => <option key={o.value} value={o.value}>IVA {o.label}</option>)}
                     </select>
-                    <label className="flex items-center gap-1 text-xs text-slate-300">
+                    <label className="flex items-center gap-1 text-xs text-[#1F2933]">
                       <input type="checkbox" checked={l.ivaDeducible} onChange={(e) => setLine(i, { ivaDeducible: e.target.checked })} /> deducible
                     </label>
-                    <button type="button" onClick={() => setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }))} className="rounded-lg border border-slate-700 px-2 py-2 text-xs text-slate-400 hover:bg-slate-800">✕</button>
+                    <button type="button" onClick={() => setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }))} className="rounded-lg border border-[#D5DAE1] px-2 py-2 text-xs text-[#52606D] hover:bg-[#F6F7F9]">✕</button>
                   </div>
                 ))}
               </div>
@@ -272,22 +272,22 @@ export default function RecurringExpenseManager({ templates }: { templates: Recu
           </div>
 
           <div className="mt-4 flex gap-2">
-            <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
+            <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50">
               {busy ? "Guardando…" : editingId ? "Guardar cambios" : "Crear plantilla"}
             </button>
           </div>
-          {msg && <p className="mt-2 text-xs text-cyan-300">{msg}</p>}
+          {msg && <p className="mt-2 text-xs text-[#1A2E4A]">{msg}</p>}
         </div>
       )}
 
-      {!open && msg && <p className="mt-3 text-xs text-cyan-300">{msg}</p>}
+      {!open && msg && <p className="mt-3 text-xs text-[#1A2E4A]">{msg}</p>}
 
       {templates.length === 0 ? (
-        <p className="mt-8 text-slate-500">No hay plantillas todavía.</p>
+        <p className="mt-8 text-[#52606D]">No hay plantillas todavía.</p>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm text-slate-200">
-            <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+        <div className="mt-6 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+          <table className="w-full text-sm text-[#1F2933]">
+            <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
               <tr>
                 <th className="px-4 py-2">Plantilla</th>
                 <th className="px-4 py-2">Proveedor</th>
@@ -297,37 +297,37 @@ export default function RecurringExpenseManager({ templates }: { templates: Recu
                 <th className="px-4 py-2 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-[#D5DAE1]">
               {templates.map((t) => (
                 <tr key={t.id} className={t.active ? undefined : "opacity-60"}>
                   <td className="px-4 py-3">
                     {t.label}
-                    {t.brand !== "traduccionesjuradas" && <span className="ml-2 rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-fuchsia-200">{brandLabel(t.brand)}</span>}
-                    {t.taxTreatment !== "general" && <span className="ml-2 rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] text-sky-200">{TAX_OPTIONS.find((o) => o.value === t.taxTreatment)?.label || t.taxTreatment}</span>}
-                    {!t.active && <span className="ml-2 rounded bg-slate-500/20 px-1.5 py-0.5 text-[10px] text-slate-300">inactiva</span>}
+                    {t.brand !== "traduccionesjuradas" && <span className="ml-2 rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[10px] font-semibold text-[#1A2E4A]">{brandLabel(t.brand)}</span>}
+                    {t.taxTreatment !== "general" && <span className="ml-2 rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[10px] text-[#1A2E4A]">{TAX_OPTIONS.find((o) => o.value === t.taxTreatment)?.label || t.taxTreatment}</span>}
+                    {!t.active && <span className="ml-2 rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[10px] text-[#1F2933]">inactiva</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{t.supplier || "—"}</td>
+                  <td className="px-4 py-3 text-[#52606D]">{t.supplier || "—"}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    {t.amountCents != null ? eur(t.amountCents) : <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200">variable</span>}
-                    {t.lines.length > 0 && <span className="ml-1 text-[10px] text-slate-500">({t.lines.length} líneas)</span>}
+                    {t.amountCents != null ? eur(t.amountCents) : <span className="rounded bg-[#FFF8E6] px-1.5 py-0.5 text-[10px] font-semibold text-[#7A5A10]">variable</span>}
+                    {t.lines.length > 0 && <span className="ml-1 text-[10px] text-[#52606D]">({t.lines.length} líneas)</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{t.dayOfMonth}</td>
-                  <td className="px-4 py-3 font-mono text-slate-400">{t.lastGeneratedPeriod || "—"}</td>
+                  <td className="px-4 py-3 text-[#52606D]">{t.dayOfMonth}</td>
+                  <td className="px-4 py-3 font-mono text-[#52606D]">{t.lastGeneratedPeriod || "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-1.5">
-                      <button type="button" onClick={() => toggleActive(t)} disabled={busy} className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50">
+                      <button type="button" onClick={() => toggleActive(t)} disabled={busy} className="rounded border border-[#D5DAE1] px-2 py-1 text-xs text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50">
                         {t.active ? "Pausar" : "Activar"}
                       </button>
-                      <button type="button" onClick={() => startEdit(t)} className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800">Editar</button>
-                      <button type="button" onClick={() => remove(t)} disabled={busy} className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50">Borrar</button>
+                      <button type="button" onClick={() => startEdit(t)} className="rounded border border-[#D5DAE1] px-2 py-1 text-xs text-[#1F2933] hover:bg-[#F6F7F9]">Editar</button>
+                      <button type="button" onClick={() => remove(t)} disabled={busy} className="rounded border border-[#F0C9C9] px-2 py-1 text-xs font-semibold text-[#A12B2B] hover:bg-[#F6F7F9] disabled:opacity-50">Borrar</button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="border-t border-slate-800 px-4 py-2 text-right">
-            <a href="/zona-traductor/contabilidad" className="text-xs text-cyan-300 hover:text-cyan-200">Ver gastos generados en Contabilidad →</a>
+          <div className="border-t border-[#D5DAE1] px-4 py-2 text-right">
+            <a href="/zona-traductor/contabilidad" className="text-xs text-[#1A2E4A] hover:text-[#1A2E4A]">Ver gastos generados en Contabilidad →</a>
           </div>
         </div>
       )}

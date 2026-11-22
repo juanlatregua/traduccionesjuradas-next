@@ -20,6 +20,7 @@ import {
   isRealClientEmail,
   puertaFrAction,
   puertaFrMode,
+  puertaFrRiskReasons,
   puertaSegmentsAreFrEs,
   puertaWaitVerdict,
   segmentsFromPuertaRows,
@@ -27,6 +28,7 @@ import {
   type PuertaFrMode,
   type PuertaRow,
 } from "@/lib/puerta-fr-math";
+import { abs, hrefConstructor, hrefPresupuesto } from "./staff-links.ts";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const ACTOR = "system:puerta-fr";
@@ -90,7 +92,7 @@ export async function runPuertaFr(now = new Date(), opts: { deadlineAt?: number;
       const msg = String((err as Error)?.message || err);
       console.error("[puerta-fr]", token, msg);
       await patchTrace(token, { result: "error", detail: short(msg, 200) });
-      await sms(`Puerta FR: error con el lead ${email} (${short(msg, 100)}). Revisar: ${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(token)}`, `puerta_fr_error ${token}`);
+      await sms(`Puerta FR: error con el lead ${email} (${short(msg, 100)}). Revisar: ${abs(hrefConstructor({ session: token }), SITE)}`, `puerta_fr_error ${token}`);
       outcomes.push({ session: token, email, result: "error", detail: short(msg, 200) });
     }
   }
@@ -148,7 +150,7 @@ async function processSession(
     if (took.count === 0) return null;
   }
 
-  const builderUrl = `${SITE}/zona-traductor/presupuesto?session=${encodeURIComponent(token)}`;
+  const builderUrl = abs(hrefConstructor({ session: token }), SITE);
   const manual = async (reason: string): Promise<PuertaFrOutcome> => {
     await patchTrace(token, { mode, result: "manual", detail: short(reason, 200) });
     await sms(`Puerta FR (a mano): ${name || email} sin precio automático (${short(reason, 120)}). Presupuesto: ${builderUrl}`, `puerta_fr_manual ${token}`);
@@ -176,9 +178,11 @@ async function processSession(
 
   // quoteFr solo devuelve ok si TODOS los documentos tienen tarifa por documento.
   const marketingConsent = list.some((r: any) => r.marketingConsent === true);
-  const action = puertaFrAction({ mode, allTariffed: true, decision: q.decision, marketingConsent });
+  const risk = puertaFrRiskReasons(rows);
+  const decision = risk.length ? { action: "alert" as const, reasons: risk } : q.decision;
+  const action = puertaFrAction({ mode, allTariffed: true, decision, marketingConsent });
   const quote = q.quote;
-  const reviewUrl = `${SITE}/zona-traductor/presupuestos/${quote.id}`;
+  const reviewUrl = abs(hrefPresupuesto(quote.id), SITE);
   if (action.action !== "send") {
     const reasons = action.action === "draft" ? action.reasons : ["apagado"];
     await patchTrace(token, { mode, result: "drafted", quote: quote.quoteNumber, detail: short(reasons.join("; "), 200) });

@@ -18,6 +18,7 @@ import {
 import { transferAccountsLast4 } from "@/lib/payment-labels";
 import { getWorkflowState } from "@/lib/workflow";
 import { confirmManualPaymentWithSideEffects } from "@/lib/payments-confirm";
+import { abs, hrefPedido } from "./staff-links.ts";
 
 const HIGH_AMOUNT_CENTS = 30000;
 const FRESH_PROOF_MS = 7 * 24 * 60 * 60 * 1000;
@@ -149,7 +150,7 @@ export async function processUploadedProofs(opts?: { max?: number; now?: Date })
     }
 
     res.revisados++;
-    const orderUrl = `https://www.traduccionesjuradas.net/zona-traductor/pedido/${encodeURIComponent(order.reference)}`;
+    const orderUrl = abs(hrefPedido(order.reference));
     let read: PaymentProofRead | null = null;
     let decision: ProofDecision;
     let fileHash: string | null = payload.fileHash || null;

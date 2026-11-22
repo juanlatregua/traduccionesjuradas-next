@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title:
     "Regularización 2026 Costa de Marfil: traducción jurada francés-español",
   description:
-    "Documentos marfileños en francés traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire Bulletin nº 3, extrait d'acte de naissance, legalización consular. Entrega 24h.",
+    "Documentos marfileños en francés traducidos al español para la regularización extraordinaria 2026 (RD 316/2026). Casier judiciaire Bulletin nº 3, extrait d'acte de naissance, legalización consular. Entrega en 1 día hábil.",
   alternates: {
     canonical:
       "https://www.traduccionesjuradas.net/regularizacion-2026/costa-de-marfil",
@@ -35,7 +35,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Tradúcis directamente del francés?",
     answer:
-      "Sí. El francés es lengua oficial en Costa de Marfil y todos los documentos del estado civil y judicial se emiten en francés. Como traductor jurado oficial de francés (MAEC nº 3850), traducimos directamente sin intermediarios. Plazo habitual de 24h una vez tenemos el documento legalizado.",
+      "Sí. El francés es lengua oficial en Costa de Marfil y todos los documentos del estado civil y judicial se emiten en francés. Como traductor jurado oficial de francés (MAEC nº 3850), traducimos directamente sin intermediarios. Plazo: 1 día hábil (hasta 5 páginas) una vez tenemos el documento legalizado.",
   },
   {
     question: "¿Qué documentos pide Extranjería para la regularización?",
@@ -50,7 +50,7 @@ export default function RegularizacionCostaDeMarfilPage() {
       <SchemaService
         id="service-regularizacion-2026-costa-de-marfil"
         serviceName="Traducción jurada francés-español de documentos marfileños para la regularización 2026"
-        serviceDescription="Traducción jurada francés-español de Casier Judiciaire Bulletin nº 3, extrait d'acte de naissance y otros documentos de Costa de Marfil para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). Entrega 24h."
+        serviceDescription="Traducción jurada francés-español de Casier Judiciaire Bulletin nº 3, extrait d'acte de naissance y otros documentos de Costa de Marfil para expedientes de la regularización extraordinaria (RD 316/2026; plazo de solicitud cerrado el 30 de junio de 2026, ahora en fase de subsanación). Entrega en 1 día hábil."
         serviceUrl="https://www.traduccionesjuradas.net/regularizacion-2026/costa-de-marfil"
         brand={{ "@type": "Brand", name: "HBTJ Consultores Lingüísticos" }}
         provider={{
@@ -232,7 +232,7 @@ export default function RegularizacionCostaDeMarfilPage() {
             por WhatsApp o por el formulario en PDF o foto legible.
           </li>
           <li>
-            Te confirmamos precio cerrado y plazo de entrega (24h habitual).
+            Te confirmamos precio cerrado y plazo de entrega (1 día hábil en francés, hasta 5 páginas).
           </li>
           <li>
             Traducimos al español incluyendo todos los sellos y la cadena de
@@ -257,14 +257,14 @@ export default function RegularizacionCostaDeMarfilPage() {
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
             <strong>Casier judiciaire Bulletin nº 3 (francés):</strong> 25 € —
-            entrega 24h
+            entrega en 1 día hábil
           </li>
           <li>
             <strong>Extrait d&apos;acte de naissance:</strong> 25 € — entrega
-            24h
+            1 día hábil
           </li>
           <li>
-            <strong>Acte de mariage:</strong> 25 € — entrega 24-48h
+            <strong>Acte de mariage:</strong> 25 € — entrega en 1 día hábil
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio
@@ -284,8 +284,8 @@ export default function RegularizacionCostaDeMarfilPage() {
           Pago fácil: Bizum, tarjeta o transferencia
         </h2>
         <p className="mt-2 text-sepia">
-          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys),
-          PayPal o transferencia bancaria. Recibo electrónico inmediato. Empiezas
+          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys) o
+          transferencia bancaria. Recibo electrónico inmediato. Empiezas
           a tramitar en cuanto recibimos el pago.
         </p>
       </section>

@@ -36,7 +36,7 @@ const VAT_OPTIONS = [
   { label: "4%", value: 0.04 },
   { label: "0% / exento", value: 0 },
 ];
-const FIELD = "rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500";
+const FIELD = "rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#52606D]";
 
 function eur(c: number) {
   return `${(c / 100).toFixed(2)} €`;
@@ -199,17 +199,17 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
   return (
     <div className="mt-6">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-400">{templates.length} plantilla(s). El cron genera el borrador el día indicado; también puedes generarlo a mano.</p>
-        <button type="button" onClick={startCreate} className="shrink-0 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500">
+        <p className="text-sm text-[#52606D]">{templates.length} plantilla(s). El cron genera el borrador el día indicado; también puedes generarlo a mano.</p>
+        <button type="button" onClick={startCreate} className="shrink-0 rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66]">
           + Nueva plantilla
         </button>
       </div>
 
       {open && (
-        <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+        <div className="mt-4 rounded-xl border border-[#D5DAE1] bg-white p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-white">{editingId ? "Editar plantilla" : "Nueva plantilla recurrente"}</h2>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-400 hover:text-slate-200">Cerrar</button>
+            <h2 className="text-sm font-semibold text-[#1A2E4A]">{editingId ? "Editar plantilla" : "Nueva plantilla recurrente"}</h2>
+            <button type="button" onClick={() => setOpen(false)} className="text-xs text-[#52606D] hover:text-[#1A2E4A]">Cerrar</button>
           </div>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -217,7 +217,7 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
             <select className={FIELD} value={form.brand} onChange={(e) => set("brand", e.target.value)}>
               {BRAND_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <label className="flex items-center gap-2 text-xs text-slate-300">
+            <label className="flex items-center gap-2 text-xs text-[#1F2933]">
               <input type="checkbox" checked={form.active} onChange={(e) => set("active", e.target.checked)} /> Activa (el cron la genera)
             </label>
           </div>
@@ -236,8 +236,8 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
 
           <div className="mt-4">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Líneas (importe = base, sin IVA)</p>
-              <button type="button" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, { description: "", detail: "", amount: "" }] }))} className="text-xs text-cyan-300 hover:text-cyan-200">+ Añadir línea</button>
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">Líneas (importe = base, sin IVA)</p>
+              <button type="button" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, { description: "", detail: "", amount: "" }] }))} className="text-xs text-[#1A2E4A] hover:text-[#1A2E4A]">+ Añadir línea</button>
             </div>
             <div className="mt-2 space-y-2">
               {form.lines.map((l, i) => (
@@ -245,11 +245,11 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
                   <input className={`${FIELD} min-w-[200px] flex-1`} placeholder="Descripción" value={l.description} onChange={(e) => setLine(i, { description: e.target.value })} />
                   <input className={`${FIELD} min-w-[160px] flex-1`} placeholder="Detalle" value={l.detail} onChange={(e) => setLine(i, { detail: e.target.value })} />
                   <input className={`${FIELD} w-28 text-right`} placeholder="€ base" inputMode="decimal" value={l.amount} onChange={(e) => setLine(i, { amount: e.target.value })} />
-                  <label className="flex items-center gap-1 text-xs text-slate-400" title="Cabecera de bloque (p. ej. BACHELOR ES - Málaga)">
+                  <label className="flex items-center gap-1 text-xs text-[#52606D]" title="Cabecera de bloque (p. ej. BACHELOR ES - Málaga)">
                     <input type="checkbox" checked={Boolean(l.group)} onChange={(e) => setLine(i, { group: e.target.checked })} />
                     Bloque
                   </label>
-                  <button type="button" onClick={() => setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }))} disabled={form.lines.length === 1} className="rounded-lg border border-slate-700 px-2 py-2 text-xs text-slate-400 hover:bg-slate-800 disabled:opacity-40">✕</button>
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, lines: f.lines.filter((_, idx) => idx !== i) }))} disabled={form.lines.length === 1} className="rounded-lg border border-[#D5DAE1] px-2 py-2 text-xs text-[#52606D] hover:bg-[#F6F7F9] disabled:opacity-40">✕</button>
                 </div>
               ))}
             </div>
@@ -257,41 +257,41 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
 
           <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
             <div className="flex flex-wrap items-end gap-3">
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 IVA
                 <select className={`mt-1 block w-32 ${FIELD}`} value={form.vatRate} onChange={(e) => set("vatRate", Number(e.target.value))}>
                   {VAT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </label>
-              <label className="text-xs text-slate-400">
+              <label className="text-xs text-[#52606D]">
                 Día del mes (1–28)
                 <input type="number" min={1} max={28} className={`mt-1 block w-24 ${FIELD}`} value={form.dayOfMonth} onChange={(e) => set("dayOfMonth", Number(e.target.value))} />
               </label>
             </div>
-            <div className="text-right text-sm text-slate-300">
+            <div className="text-right text-sm text-[#1F2933]">
               <div>Base: <span className="tabular-nums">{eur(totals.base)}</span></div>
               <div>IVA: <span className="tabular-nums">{eur(totals.vat)}</span></div>
-              <div className="text-base font-semibold text-white">Total: <span className="tabular-nums">{eur(totals.total)}</span></div>
+              <div className="text-base font-semibold text-[#1A2E4A]">Total: <span className="tabular-nums">{eur(totals.total)}</span></div>
             </div>
           </div>
 
           <div className="mt-4 flex gap-2">
-            <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
+            <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66] disabled:opacity-50">
               {busy ? "Guardando…" : editingId ? "Guardar cambios" : "Crear plantilla"}
             </button>
           </div>
-          {msg && <p className="mt-2 text-xs text-cyan-300">{msg}</p>}
+          {msg && <p className="mt-2 text-xs text-[#1A2E4A]">{msg}</p>}
         </div>
       )}
 
-      {!open && msg && <p className="mt-3 text-xs text-cyan-300">{msg}</p>}
+      {!open && msg && <p className="mt-3 text-xs text-[#1A2E4A]">{msg}</p>}
 
       {templates.length === 0 ? (
-        <p className="mt-8 text-slate-500">No hay plantillas todavía.</p>
+        <p className="mt-8 text-[#52606D]">No hay plantillas todavía.</p>
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-700">
-          <table className="w-full text-sm text-slate-200">
-            <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+        <div className="mt-6 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+          <table className="w-full text-sm text-[#1F2933]">
+            <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
               <tr>
                 <th className="px-4 py-2">Plantilla</th>
                 <th className="px-4 py-2">Cliente</th>
@@ -300,30 +300,30 @@ export default function RecurringInvoiceManager({ templates }: { templates: Recu
                 <th className="px-4 py-2 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-[#D5DAE1]">
               {templates.map((t) => (
                 <tr key={t.id} className={t.active ? undefined : "opacity-60"}>
                   <td className="px-4 py-3">
                     {t.label}
-                    {t.brand !== "traduccionesjuradas" && <span className="ml-2 rounded bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-fuchsia-200">{brandLabel(t.brand)}</span>}
-                    {!t.active && <span className="ml-2 rounded bg-slate-500/20 px-1.5 py-0.5 text-[10px] text-slate-300">inactiva</span>}
+                    {t.brand !== "traduccionesjuradas" && <span className="ml-2 rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[10px] font-semibold text-[#1A2E4A]">{brandLabel(t.brand)}</span>}
+                    {!t.active && <span className="ml-2 rounded bg-[#F6F7F9] px-1.5 py-0.5 text-[10px] text-[#1F2933]">inactiva</span>}
                   </td>
                   <td className="px-4 py-3">{t.fiscalName}</td>
-                  <td className="px-4 py-3 text-slate-400">{t.dayOfMonth}</td>
-                  <td className="px-4 py-3 font-mono text-slate-400">{t.lastGeneratedPeriod || "—"}</td>
+                  <td className="px-4 py-3 text-[#52606D]">{t.dayOfMonth}</td>
+                  <td className="px-4 py-3 font-mono text-[#52606D]">{t.lastGeneratedPeriod || "—"}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-1.5">
-                      <button type="button" onClick={() => generate(t.id)} disabled={busy} className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50">Generar borrador</button>
-                      <button type="button" onClick={() => startEdit(t)} className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800">Editar</button>
-                      <button type="button" onClick={() => remove(t)} disabled={busy} className="rounded border border-rose-700 px-2 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 disabled:opacity-50">Borrar</button>
+                      <button type="button" onClick={() => generate(t.id)} disabled={busy} className="rounded bg-[#1A2E4A] px-2 py-1 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50">Generar borrador</button>
+                      <button type="button" onClick={() => startEdit(t)} className="rounded border border-[#D5DAE1] px-2 py-1 text-xs text-[#1F2933] hover:bg-[#F6F7F9]">Editar</button>
+                      <button type="button" onClick={() => remove(t)} disabled={busy} className="rounded border border-[#F0C9C9] px-2 py-1 text-xs font-semibold text-[#A12B2B] hover:bg-[#F6F7F9] disabled:opacity-50">Borrar</button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="border-t border-slate-800 px-4 py-2 text-right">
-            <a href="/zona-traductor/facturas" className="text-xs text-cyan-300 hover:text-cyan-200">Ver borradores generados en Facturas →</a>
+          <div className="border-t border-[#D5DAE1] px-4 py-2 text-right">
+            <a href="/zona-traductor/facturas" className="text-xs text-[#1A2E4A] hover:text-[#1A2E4A]">Ver borradores generados en Facturas →</a>
           </div>
         </div>
       )}

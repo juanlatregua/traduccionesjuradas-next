@@ -1,8 +1,8 @@
 const SITE_URL = "https://www.traduccionesjuradas.net";
 const PER_DOC_EUR = 25;
 const DEADLINE = "2026-06-30";
-const DELIVERY_TIME = "24h";
-const PAYMENT_METHODS = ["bizum", "tarjeta", "paypal", "transferencia"];
+const DELIVERY_TIME = "1 día hábil (francés, hasta 5 páginas)";
+const PAYMENT_METHODS = ["tarjeta", "transferencia", "bizum"];
 const UTM = "utm_source=chat&utm_medium=bot&utm_campaign=recommend_arraigo_pack";
 
 const HAGUE_COUNTRIES = new Set(["MA", "SN", "TN", "BR", "GB", "UK", "IT", "FR", "DE", "PT"]);

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { del, list } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { hasCronSecret } from "@/lib/cron-auth";
+import { isEntradaSession, keepEntradaFiles } from "@/lib/entrada/retencion";
 
 const RETENTION_DAYS = 30;
 // Expedientes de clientes (carpeta expedientes-clientes/): suben ANTES de pulsar
@@ -70,13 +71,45 @@ export async function GET(req: NextRequest) {
   threshold.setDate(threshold.getDate() - RETENTION_DAYS);
 
   // Phase A — Unpaid documents: delete blob + delete DB record
-  const unpaid = await prisma.documentAnalysis.findMany({
+  const candidates = await prisma.documentAnalysis.findMany({
     where: {
       createdAt: { lt: threshold },
       status: { in: [...UNPAID_STATUSES] },
     },
-    select: { id: true, fileUrl: true },
+    select: { id: true, fileUrl: true, sessionToken: true, casoId: true, createdAt: true },
   });
+  // Los archivos de una entrada no cambian de estado (UPLOADED): se quedan mientras su caso tenga un
+  // presupuesto vivo reciente o un pedido sin terminar, hasta 30 días después de la entrega y nunca más de 180.
+  const casoIds = [...new Set(candidates.filter((d) => isEntradaSession(d.sessionToken) && d.casoId).map((d) => d.casoId!))];
+  const casos = casoIds.length
+    ? await prisma.caso.findMany({
+        where: { id: { in: casoIds } },
+        select: {
+          id: true,
+          quotes: { select: { status: true, deletedAt: true, lostReason: true, updatedAt: true } },
+          orders: {
+            select: {
+              status: true,
+              paymentStatus: true,
+              updatedAt: true,
+              events: { where: { type: "delivery.updated" }, orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+              documentItems: { where: { deliveredAt: { not: null } }, orderBy: { deliveredAt: "desc" }, take: 1, select: { deliveredAt: true } },
+            },
+          },
+        },
+      })
+    : [];
+  const vida = new Map(
+    casos.map((c) => [
+      c.id,
+      {
+        quotes: c.quotes,
+        orders: c.orders.map((o) => ({ status: o.status, paymentStatus: o.paymentStatus, updatedAt: o.updatedAt, deliveredAt: o.events[0]?.createdAt ?? o.documentItems[0]?.deliveredAt ?? null })),
+      },
+    ]),
+  );
+  const now = new Date();
+  const unpaid = candidates.filter((d) => !(isEntradaSession(d.sessionToken) && d.casoId && keepEntradaFiles(vida.get(d.casoId), { now, threshold, fileCreatedAt: d.createdAt })));
 
   for (const doc of unpaid) {
     try {
@@ -135,6 +168,7 @@ export async function GET(req: NextRequest) {
 
   return Response.json({
     deleted: deletedResult.count,
+    keptEntrada: candidates.length - unpaid.length,
     updated: updatedResult.count,
     orphanExpedientes,
     threshold: threshold.toISOString(),

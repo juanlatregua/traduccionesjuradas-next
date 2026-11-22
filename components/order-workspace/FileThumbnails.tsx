@@ -21,9 +21,9 @@ export default function FileThumbnails({
       {files.map((f, i) => {
         const img = isImage(f.url) || isImage(f.name);
         return (
-          <div key={i} className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-sm transition hover:border-cyan-500">
+          <div key={i} className="overflow-hidden rounded-xl border border-[#D5DAE1] bg-[#fff] shadow-sm transition hover:border-[#D5DAE1]">
             <a href={f.url} target="_blank" rel="noopener noreferrer" className="group block">
-              <div className="h-36 w-full overflow-hidden bg-slate-800/40">
+              <div className="h-36 w-full overflow-hidden bg-[#F6F7F9]">
                 {img ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={f.url} alt={f.name} className="h-full w-full object-cover" />
@@ -37,7 +37,7 @@ export default function FileThumbnails({
                 )}
               </div>
               <p
-                className="truncate px-2 py-1.5 text-[11px] text-slate-300 group-hover:text-cyan-400"
+                className="truncate px-2 py-1.5 text-[11px] text-[#1F2933] group-hover:text-[#1A2E4A]"
                 title={f.name}
               >
                 {f.name}
@@ -46,7 +46,7 @@ export default function FileThumbnails({
             <a
               href={blobDownloadUrl(f.url)}
               download={f.name}
-              className="block border-t border-slate-700 px-2 py-1.5 text-center text-xs font-semibold text-cyan-300 hover:bg-slate-800"
+              className="block border-t border-[#D5DAE1] px-2 py-1.5 text-center text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
             >
               ⤓ Descargar
             </a>

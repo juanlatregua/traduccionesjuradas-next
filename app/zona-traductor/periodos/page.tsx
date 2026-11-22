@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import ContabilidadSubNav from "@/components/ContabilidadSubNav";
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
@@ -96,8 +95,8 @@ async function loadIngresos(): Promise<Dataset> {
       amountCents: i.totalCents,
       state: i.paidAt ? "COBRADA" : "PENDIENTE",
       cells: [
-        <span key="num" className="font-mono text-cyan-300">{i.number || "—"}</span>,
-        <span key="date" className="text-slate-400">{fmtDate(date)}</span>,
+        <span key="num" className="font-mono text-[#1A2E4A]">{i.number || "—"}</span>,
+        <span key="date" className="text-[#52606D]">{fmtDate(date)}</span>,
         <span key="client">{i.fiscalName}</span>,
         <span key="base" className="tabular-nums">{formatEurCents(i.baseCents)}</span>,
         <span key="vat" className="tabular-nums">{formatEurCents(i.vatCents)}</span>,
@@ -107,7 +106,7 @@ async function loadIngresos(): Promise<Dataset> {
           href={`/api/invoices/${i.id}/pdf`}
           target="_blank"
           rel="noreferrer"
-          className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800"
+          className="rounded-lg border border-[#D5DAE1] px-2.5 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
         >
           PDF
         </a>,
@@ -158,18 +157,18 @@ async function loadPresupuestos(): Promise<Dataset> {
     amountCents: moneyToCents(decimalToNumber(q.total)),
     state: q.status,
     cells: [
-      <a key="num" href={`/zona-traductor/presupuestos/${q.id}`} className="font-mono text-cyan-300 hover:text-cyan-200">
+      <a key="num" href={`/zona-traductor/presupuestos/${q.id}`} className="font-mono text-[#1A2E4A] hover:text-[#1A2E4A]">
         {q.quoteNumber}
       </a>,
-      <span key="date" className="text-slate-400">{fmtDate(q.createdAt)}</span>,
+      <span key="date" className="text-[#52606D]">{fmtDate(q.createdAt)}</span>,
       <span key="client">
         <span className="block">{q.customerName}</span>
-        <span className="block text-xs text-slate-500">{q.customerEmail}</span>
+        <span className="block text-xs text-[#52606D]">{q.customerEmail}</span>
       </span>,
-      <span key="langs" className="text-slate-400">
+      <span key="langs" className="text-[#52606D]">
         {q.sourceLang} → {q.targetLang}
       </span>,
-      <span key="state" className="text-slate-300">{QUOTE_STATUS_LABELS[(q.status as QuoteStatus) || "DRAFT"]}</span>,
+      <span key="state" className="text-[#1F2933]">{QUOTE_STATUS_LABELS[(q.status as QuoteStatus) || "DRAFT"]}</span>,
       <span key="total" className="tabular-nums font-semibold">{formatEurCents(moneyToCents(decimalToNumber(q.total)))}</span>,
     ],
   }));
@@ -220,17 +219,17 @@ async function loadPedidos(base: "created" | "paid"): Promise<Dataset> {
     amountCents: o.amountCents,
     state: o.paymentStatus,
     cells: [
-      <Link key="ref" href={`/zona-traductor/pedido/${o.reference}`} className="font-mono text-cyan-300 hover:text-cyan-200">
+      <Link key="ref" href={`/zona-traductor/pedido/${o.reference}`} className="font-mono text-[#1A2E4A] hover:text-[#1A2E4A]">
         {o.reference}
       </Link>,
-      <span key="date" className="text-slate-400">{fmtDate(o.refDate)}</span>,
+      <span key="date" className="text-[#52606D]">{fmtDate(o.refDate)}</span>,
       <span key="client">
         <span className="block">{o.clientName || "—"}</span>
-        <span className="block text-xs text-slate-500">{o.clientEmail}</span>
+        <span className="block text-xs text-[#52606D]">{o.clientEmail}</span>
       </span>,
-      <span key="langs" className="text-slate-400">{o.langPair || "—"}</span>,
-      <span key="pay" className="text-slate-300">{PAYMENT_STATUS_LABELS[o.paymentStatus] ?? o.paymentStatus}</span>,
-      <span key="delivery" className="text-slate-300">{DELIVERY_STATE_LABELS[o.deliveryState] ?? o.deliveryState}</span>,
+      <span key="langs" className="text-[#52606D]">{o.langPair || "—"}</span>,
+      <span key="pay" className="text-[#1F2933]">{PAYMENT_STATUS_LABELS[o.paymentStatus] ?? o.paymentStatus}</span>,
+      <span key="delivery" className="text-[#1F2933]">{DELIVERY_STATE_LABELS[o.deliveryState] ?? o.deliveryState}</span>,
       <span key="amount" className="tabular-nums font-semibold">{formatEurCents(o.amountCents)}</span>,
     ],
   }));
@@ -257,7 +256,7 @@ function StateBadges({ byState, labels }: { byState: StateTotals; labels: Record
   return (
     <div className="mt-1 flex flex-wrap gap-1">
       {entries.map(([key, v]) => (
-        <span key={key} className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300">
+        <span key={key} className="rounded-full bg-[#F6F7F9] px-2 py-0.5 text-[10px] text-[#1F2933]">
           {labels[key] ?? key}: {v.count}
         </span>
       ))}
@@ -318,19 +317,18 @@ export default async function ZonaTraductorPeriodosPage({
 
   const tabClass = (active: boolean) =>
     `rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-      active ? "bg-cyan-700 text-white" : "border border-slate-600 text-slate-300 hover:bg-slate-800"
+      active ? "bg-[#1A2E4A] text-white" : "border border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]"
     }`;
   const pillClass = (active: boolean) =>
     `rounded-lg px-3 py-1.5 text-sm font-semibold ${
-      active ? "bg-slate-100 text-slate-900" : "border border-slate-600 text-slate-300 hover:bg-slate-800"
+      active ? "bg-[#1A2E4A] text-white" : "border border-[#D5DAE1] text-[#1F2933] hover:bg-[#F6F7F9]"
     }`;
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <ContabilidadSubNav />
-        <h1 className="text-2xl font-semibold text-white">Periodos · trimestres y meses</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-[#1A2E4A]">Periodos · trimestres y meses</h1>
+        <p className="mt-1 text-sm text-[#52606D]">
           Agrupa ingresos, presupuestos y pedidos por trimestre y mes (zona horaria Europe/Madrid). Útil para cierres
           trimestrales y la revisión mensual. Pulsa un periodo para ver el detalle.
         </p>
@@ -346,7 +344,7 @@ export default async function ZonaTraductorPeriodosPage({
 
         {/* Base de fecha (solo pedidos) */}
         {vista === "pedidos" && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#52606D]">
             <span>Agrupar por:</span>
             <Link href={href({}, { base: "created", periodo: undefined, mes: undefined })} className={pillClass(base === "created")}>
               Fecha pedido
@@ -358,9 +356,9 @@ export default async function ZonaTraductorPeriodosPage({
         )}
 
         {vista === "ingresos" && (
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-[#52606D]">
             ¿Buscas el IVA a liquidar y los borradores 303/111/130?{" "}
-            <Link href="/zona-traductor/contabilidad" className="text-cyan-300 underline hover:text-cyan-200">
+            <Link href="/zona-traductor/contabilidad" className="text-[#1A2E4A] underline hover:text-[#1A2E4A]">
               Ir a Contabilidad general
             </Link>
             .
@@ -368,12 +366,12 @@ export default async function ZonaTraductorPeriodosPage({
         )}
 
         {years.length === 0 || !yearBucket ? (
-          <p className="mt-8 text-sm text-slate-500">No hay datos para mostrar todavía.</p>
+          <p className="mt-8 text-sm text-[#52606D]">No hay datos para mostrar todavía.</p>
         ) : (
           <>
             {/* Selector de año */}
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <span className="text-xs uppercase tracking-wide text-slate-500">Año</span>
+              <span className="text-xs uppercase tracking-wide text-[#52606D]">Año</span>
               {years.map((y) => (
                 <Link key={y} href={href({ anio: String(y) }, { periodo: undefined, mes: undefined })} className={pillClass(y === selectedYear)}>
                   {y}
@@ -382,13 +380,13 @@ export default async function ZonaTraductorPeriodosPage({
             </div>
 
             {/* Resumen anual */}
-            <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/50 p-4">
+            <div className="mt-4 rounded-xl border border-[#D5DAE1] bg-white p-4">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-400">{dataset.amountHeader} · {selectedYear}</p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums text-white">{formatEurCents(yearBucket.totalCents)}</p>
+                  <p className="text-xs uppercase tracking-wide text-[#52606D]">{dataset.amountHeader} · {selectedYear}</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-[#1A2E4A]">{formatEurCents(yearBucket.totalCents)}</p>
                 </div>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-[#52606D]">
                   {yearBucket.count} registro{yearBucket.count === 1 ? "" : "s"} en el año
                 </p>
               </div>
@@ -396,9 +394,9 @@ export default async function ZonaTraductorPeriodosPage({
             </div>
 
             {/* Resumen por trimestre y mes */}
-            <div className="mt-4 overflow-x-auto rounded-xl border border-slate-700">
-              <table className="w-full text-sm text-slate-200">
-                <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+            <div className="mt-4 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+              <table className="w-full text-sm text-[#1F2933]">
+                <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
                   <tr>
                     <th className="px-4 py-2">Trimestre / Mes</th>
                     <th className="px-4 py-2 text-right">Nº</th>
@@ -406,21 +404,21 @@ export default async function ZonaTraductorPeriodosPage({
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-[#D5DAE1]">
                   {yearBucket.quarters.map((q) => (
                     <Fragment key={q.key}>
-                      <tr className={`bg-slate-900/40 ${selectedKey === q.key ? "ring-1 ring-inset ring-cyan-500/50" : ""}`}>
+                      <tr className={`bg-white ${selectedKey === q.key ? "ring-1 ring-inset ring-[#1A2E4A]/30" : ""}`}>
                         <td className="px-4 py-2">
-                          <span className="font-semibold text-white">{q.label}</span>
+                          <span className="font-semibold text-[#1A2E4A]">{q.label}</span>
                           <StateBadges byState={q.byState} labels={dataset.stateLabels} />
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums">{q.count}</td>
-                        <td className="px-4 py-2 text-right tabular-nums font-semibold text-white">{formatEurCents(q.totalCents)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums font-semibold text-[#1A2E4A]">{formatEurCents(q.totalCents)}</td>
                         <td className="px-4 py-2 text-right">
                           {q.count > 0 && (
                             <Link
                               href={href({}, { periodo: q.key, mes: undefined })}
-                              className="rounded-lg border border-slate-600 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:bg-slate-800"
+                              className="rounded-lg border border-[#D5DAE1] px-2.5 py-1 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                             >
                               Ver detalle
                             </Link>
@@ -428,15 +426,15 @@ export default async function ZonaTraductorPeriodosPage({
                         </td>
                       </tr>
                       {q.months.map((m) => (
-                        <tr key={m.key} className={selectedKey === m.key ? "bg-cyan-500/5" : ""}>
-                          <td className="px-4 py-2 pl-8 text-slate-400">{m.label}</td>
-                          <td className="px-4 py-2 text-right tabular-nums text-slate-400">{m.count}</td>
+                        <tr key={m.key} className={selectedKey === m.key ? "bg-[#F6F7F9]" : ""}>
+                          <td className="px-4 py-2 pl-8 text-[#52606D]">{m.label}</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-[#52606D]">{m.count}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{m.count > 0 ? formatEurCents(m.totalCents) : "—"}</td>
                           <td className="px-4 py-2 text-right">
                             {m.count > 0 && (
                               <Link
                                 href={href({}, { mes: m.key, periodo: undefined })}
-                                className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                                className="text-xs font-semibold text-[#1A2E4A] hover:text-[#1A2E4A]"
                               >
                                 Ver
                               </Link>
@@ -454,22 +452,22 @@ export default async function ZonaTraductorPeriodosPage({
             {parsed && (
               <div className="mt-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-[#1F2933]">
                     Detalle · {formatPeriodLabel(parsed)}
-                    <span className="ml-2 font-normal text-slate-500">
+                    <span className="ml-2 font-normal text-[#52606D]">
                       ({detailRows.length} · {formatEurCents(detailTotal)})
                     </span>
                   </h2>
-                  <Link href={href({}, { periodo: undefined, mes: undefined })} className="text-xs text-slate-400 underline hover:text-slate-200">
+                  <Link href={href({}, { periodo: undefined, mes: undefined })} className="text-xs text-[#52606D] underline hover:text-[#1A2E4A]">
                     × Quitar filtro
                   </Link>
                 </div>
                 {detailRows.length === 0 ? (
-                  <p className="mt-2 text-slate-500">Sin registros en este periodo.</p>
+                  <p className="mt-2 text-[#52606D]">Sin registros en este periodo.</p>
                 ) : (
-                  <div className="mt-2 overflow-x-auto rounded-xl border border-slate-700">
-                    <table className="w-full text-sm text-slate-200">
-                      <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+                  <div className="mt-2 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+                    <table className="w-full text-sm text-[#1F2933]">
+                      <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
                         <tr>
                           {dataset.columns.map((c, idx) => (
                             <th key={idx} className={`px-4 py-2 ${c.align === "right" ? "text-right" : ""}`}>
@@ -478,7 +476,7 @@ export default async function ZonaTraductorPeriodosPage({
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800">
+                      <tbody className="divide-y divide-[#D5DAE1]">
                         {detailRows.map((r, ri) => (
                           <tr key={ri}>
                             {r.cells.map((cell, ci) => (

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import ContabilidadSubNav from "@/components/ContabilidadSubNav";
 import { BRANDS } from "@/lib/invoice-brands";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
@@ -168,13 +167,12 @@ export default async function ZonaTraductorContabilidadPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <ContabilidadSubNav />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Contabilidad general</h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <h1 className="text-2xl font-semibold text-[#1A2E4A]">Contabilidad general</h1>
+            <p className="mt-1 text-sm text-[#52606D]">
               Ingresos, gastos, IVA y resultado por año, trimestre o mes (modelo 303/390). Registra gastos a mano o importa
               tu histórico desde Excel.
             </p>
@@ -188,7 +186,7 @@ export default async function ZonaTraductorContabilidadPage() {
                 <a
                   key={b.key}
                   href={`/zona-traductor/facturas?nueva=${b.key}`}
-                  className="rounded-lg border border-fuchsia-600 px-4 py-2 text-sm font-semibold text-fuchsia-200 hover:bg-fuchsia-900/30"
+                  className="rounded-lg border border-[#D5DAE1] px-4 py-2 text-sm font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                 >
                   + Factura {b.label}
                 </a>
@@ -198,7 +196,7 @@ export default async function ZonaTraductorContabilidadPage() {
         {canIssue && <PanelDiarioContable resumen={resumenPanel} paradas={paradas} porLeer={facturasLavori.length - paradas.length} />}
         {/* El día a día es el panel: libros, impuestos y banco quedan para investigar. */}
         <details open={!canIssue} className="mt-6">
-          <summary className="cursor-pointer rounded-lg border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm font-semibold text-slate-200 hover:border-slate-500">
+          <summary className="cursor-pointer rounded-lg border border-[#D5DAE1] bg-white px-4 py-3 text-sm font-semibold text-[#1F2933] hover:border-[#52606D]">
             Ver el detalle: libros, impuestos, banco y asesor
           </summary>
         {role === "ADMIN" && <AsesorContableIA periods={periodOptions(new Date())} />}
@@ -212,9 +210,9 @@ export default async function ZonaTraductorContabilidadPage() {
           sinFacturaSlot={
             <>
               <ReconcilePanel rows={unbilled} totalAmountCents={unbilledTotal} canIssue={canIssue} />
-              <p className="mt-3 text-xs text-slate-500">
+              <p className="mt-3 text-xs text-[#52606D]">
                 Los cobros por Bizum y los pedidos apartados no aparecen aquí: están en{" "}
-                <a href="/zona-traductor/contabilidad/bizum" className="text-cyan-400 hover:underline">
+                <a href="/zona-traductor/contabilidad/bizum" className="text-[#1A2E4A] hover:underline">
                   Bizum (fuera de contabilidad)
                 </a>
                 .

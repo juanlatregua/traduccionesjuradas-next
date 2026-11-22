@@ -121,95 +121,7 @@ body[data-chat-open="true"] .whatsapp-float {
 }
 
 /* ============================================
-   ZONA TRADUCTOR — DO NOT MODIFY
-   ============================================ */
-#zona-traductor-root.zona-theme-light {
-  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 55%, #e2e8f0 100%);
-  color: #0f172a;
-}
-
-#zona-traductor-root.zona-theme-light [class*="bg-slate-950"],
-#zona-traductor-root.zona-theme-light [class*="bg-slate-900"],
-#zona-traductor-root.zona-theme-light [class*="bg-slate-800"],
-#zona-traductor-root.zona-theme-light [class*="bg-slate-700"] {
-  background-color: rgba(255, 255, 255, 0.92) !important;
-}
-
-#zona-traductor-root.zona-theme-light [class*="text-white"] {
-  color: #0f172a !important;
-}
-
-#zona-traductor-root.zona-theme-light [class*="text-slate-4"],
-#zona-traductor-root.zona-theme-light [class*="text-slate-5"],
-#zona-traductor-root.zona-theme-light [class*="text-slate-6"] {
-  color: #475569 !important;
-}
-
-#zona-traductor-root.zona-theme-light [class*="text-slate-1"],
-#zona-traductor-root.zona-theme-light [class*="text-slate-2"],
-#zona-traductor-root.zona-theme-light [class*="text-slate-3"] {
-  color: #0f172a !important;
-}
-
-#zona-traductor-root.zona-theme-light [class*="border-slate-7"],
-#zona-traductor-root.zona-theme-light [class*="border-slate-6"],
-#zona-traductor-root.zona-theme-light [class*="border-slate-5"] {
-  border-color: #cbd5e1 !important;
-}
-
-#zona-traductor-root.zona-theme-light table thead {
-  background-color: #e2e8f0 !important;
-}
-
-/* Tema claro: los acentos (cian/verde/ámbar/rosa/fucsia en variantes 200-300) están
-   pensados para fondo oscuro y sobre blanco quedan ilegibles. Se oscurecen a tono 700
-   para mantener contraste AA. (No tocan el tema oscuro: van scopeados a .zona-theme-light.) */
-#zona-traductor-root.zona-theme-light [class*="text-cyan-"] {
-  color: #0e7490 !important;
-}
-#zona-traductor-root.zona-theme-light [class*="text-emerald-"] {
-  color: #047857 !important;
-}
-#zona-traductor-root.zona-theme-light [class*="text-amber-"] {
-  color: #b45309 !important;
-}
-#zona-traductor-root.zona-theme-light [class*="text-rose-"] {
-  color: #be123c !important;
-}
-#zona-traductor-root.zona-theme-light [class*="text-fuchsia-"] {
-  color: #a21caf !important;
-}
-
-/* ============================================
-   ZONA TRADUCTOR — paleta OSCURA por defecto, más cómoda
-   Canon de UI oscura: evitar el negro casi puro (#020617) y la halación del
-   blanco puro (#fff). Fondo gris azulado, superficies elevadas por luminancia,
-   texto off-white. Solo en modo oscuro (sin .zona-theme-light); el tema claro
-   de arriba gana por especificidad.
-   ============================================ */
-#zona-traductor-root:not(.zona-theme-light) {
-  background-color: #1e2530;
-}
-#zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-950"] {
-  background-color: #1e2530 !important; /* fondo de página: carbón neutro, fuera del pozo */
-}
-#zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-900"] {
-  background-color: #2a323d !important; /* tarjetas, inputs, nav (elevado) */
-}
-#zona-traductor-root:not(.zona-theme-light) [class*="bg-slate-800"] {
-  background-color: #363f4c !important; /* cabeceras de tabla, chips (más elevado) */
-}
-#zona-traductor-root:not(.zona-theme-light) [class*="text-white"] {
-  color: #edf1f6 !important; /* off-white: sin vibración del #fff */
-}
-/* Bordes un punto más suaves para que no "corten" sobre el carbón. */
-#zona-traductor-root:not(.zona-theme-light) [class*="border-slate-700"],
-#zona-traductor-root:not(.zona-theme-light) [class*="border-slate-800"] {
-  border-color: #3c4654 !important;
-}
-
-/* ============================================
-   ZONA TRADUCTOR — densidad y legibilidad (auditoría visual)
+   ZONA TRADUCTOR — densidad y legibilidad
    ============================================ */
 /* #2 Densidad: más aire vertical en las filas de tabla (estaban apretadas) y
    chips de 10px → 11px. Aplica en ambos temas. */
@@ -223,12 +135,4 @@ body[data-chat-open="true"] .whatsapp-float {
 }
 #zona-traductor-root [class~="text-[10px]"] {
   font-size: 11px;
-}
-/* #3 Texto atenuado más legible en oscuro (slate-400/500 rozaban el mínimo AA).
-   Token exacto (~=) para no tocar el placeholder de los inputs (placeholder:text-slate-500). */
-#zona-traductor-root:not(.zona-theme-light) [class~="text-slate-400"] {
-  color: #aebccd !important; /* ~6:1 sobre el carbón */
-}
-#zona-traductor-root:not(.zona-theme-light) [class~="text-slate-500"] {
-  color: #94a3b8 !important; /* ~5:1, sigue por debajo de slate-400 */
 }

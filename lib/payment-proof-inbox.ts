@@ -16,6 +16,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { extractPaymentProof, type PaymentProofRead } from "@/lib/ai/extract-payment-proof";
+import { abs, hrefBandeja, hrefPresupuesto } from "./staff-links.ts";
 
 export type QuoteCandidate = {
   id: string;
@@ -228,13 +229,13 @@ Cruce: ${match.motivo}.
 Concepto del justificante: ${read.concepto || "—"} · fecha ${read.fecha || "—"}.
 
 NO se ha cobrado nada: compruébalo contra el banco y confírmalo desde el presupuesto.
-https://www.traduccionesjuradas.net/zona-traductor/presupuestos/${match.quote.id}`
+${abs(hrefPresupuesto(match.quote.id))}`
     : `${quien} ha enviado por email un justificante de ${importe}, pero no se ha podido cruzar solo.
 
 Motivo: ${match.motivo}.
 Concepto: ${read.concepto || "—"} · fecha ${read.fecha || "—"} · ordenante ${read.ordenante || "—"}.
 
-Está en la bandeja: https://www.traduccionesjuradas.net/admin/inbox`;
+Está en la bandeja: ${abs(hrefBandeja())}`;
 
   await sendMail({
     to: process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net",

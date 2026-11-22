@@ -115,7 +115,7 @@ export default function PMQuickCreatePanel() {
       );
       const quickQuotePath = toInternalPath(
         String(data.quickQuoteUrl || ""),
-        `/admin/quotes/new?customerEmail=${encodeURIComponent(
+        `/zona-traductor/presupuesto?customerEmail=${encodeURIComponent(
           clientEmail.trim().toLowerCase()
         )}&customerName=${encodeURIComponent(clientName.trim())}&lineDescription=${encodeURIComponent(
           title.trim()
@@ -168,14 +168,14 @@ export default function PMQuickCreatePanel() {
   }
 
   return (
-    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-cyan-500/30 bg-cyan-500/5 p-6 shadow-xl sm:p-8">
-      <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">
+    <section className="mx-auto mt-6 max-w-6xl rounded-3xl border border-[#D5DAE1] bg-white p-6 shadow-xl sm:p-8">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">
         Alta rápida PM
       </p>
-      <h2 className="mt-2 text-lg font-semibold text-white">
+      <h2 className="mt-2 text-lg font-semibold text-[#1A2E4A]">
         Crear pedido desde WhatsApp/Email y enviar enlace de pago
       </h2>
-      <p className="mt-1 text-xs text-slate-300">
+      <p className="mt-1 text-xs text-[#1F2933]">
         Uso recomendado para leads que entran directos a {`juansilva@traduccionesjuradas.net`} o por WhatsApp.
       </p>
 
@@ -185,21 +185,21 @@ export default function PMQuickCreatePanel() {
           value={clientEmail}
           onChange={(e) => setClientEmail(e.target.value)}
           placeholder="Email cliente *"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="rounded-xl border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
         />
         <input
           type="text"
           value={clientName}
           onChange={(e) => setClientName(e.target.value)}
           placeholder="Nombre cliente (opcional)"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="rounded-xl border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
         />
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Titulo/servicio *"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="rounded-xl border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
         />
         <input
           type="number"
@@ -208,12 +208,12 @@ export default function PMQuickCreatePanel() {
           value={amountEur}
           onChange={(e) => setAmountEur(e.target.value)}
           placeholder="Importe EUR *"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="rounded-xl border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
         />
         <select
           value={langPair}
           onChange={(e) => setLangPair(e.target.value)}
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          className="rounded-xl border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933]"
         >
           <option value="fr-es">fr-es</option>
           <option value="es-fr">es-fr</option>
@@ -227,7 +227,7 @@ export default function PMQuickCreatePanel() {
         <select
           value={channel}
           onChange={(e) => setChannel(e.target.value as Channel)}
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+          className="rounded-xl border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933]"
         >
           <option value="whatsapp">Origen WhatsApp</option>
           <option value="email">Origen Email</option>
@@ -242,26 +242,26 @@ export default function PMQuickCreatePanel() {
           value={pagesLabel}
           onChange={(e) => setPagesLabel(e.target.value)}
           placeholder="Alcance/paginas (opcional)"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="rounded-xl border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
         />
         <input
           type="text"
           value={urgencyNotes}
           onChange={(e) => setUrgencyNotes(e.target.value)}
           placeholder="Notas urgencia (opcional)"
-          className="rounded-xl border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+          className="rounded-xl border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3]"
         />
       </div>
 
       {/* Source document upload */}
-      <div className="mt-3 rounded-xl border border-dashed border-slate-600 bg-slate-950/50 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">
+      <div className="mt-3 rounded-xl border border-dashed border-[#D5DAE1] bg-white p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#1F6B45]">
           Documento original (opcional)
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-[#52606D]">
           Adjunta el PDF/imagen del documento a traducir. Se subirá al crear el pedido.
         </p>
-        <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-teal-500/40 px-3 py-2 text-xs font-semibold text-teal-300 hover:bg-teal-500/10">
+        <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#BFE0CC] px-3 py-2 text-xs font-semibold text-[#1F6B45] hover:bg-teal-500/10">
           {sourceFile ? sourceFile.name : "Seleccionar archivo"}
           <input
             ref={sourceFileRef}
@@ -278,19 +278,19 @@ export default function PMQuickCreatePanel() {
               setSourceFile(null);
               if (sourceFileRef.current) sourceFileRef.current.value = "";
             }}
-            className="ml-2 text-xs text-slate-400 hover:text-red-300"
+            className="ml-2 text-xs text-[#52606D] hover:text-[#A12B2B]"
           >
             Quitar
           </button>
         )}
       </div>
 
-      <label className="mt-3 inline-flex items-center gap-2 text-xs text-slate-300">
+      <label className="mt-3 inline-flex items-center gap-2 text-xs text-[#1F2933]">
         <input
           type="checkbox"
           checked={sendEmail}
           onChange={(e) => setSendEmail(e.target.checked)}
-          className="h-4 w-4 rounded border-slate-500 bg-slate-950 text-cyan-500"
+          className="h-4 w-4 rounded border-[#D5DAE1] bg-white text-cyan-500"
         />
         Enviar email automático al cliente con enlace de pago
       </label>
@@ -300,7 +300,7 @@ export default function PMQuickCreatePanel() {
           type="button"
           onClick={submit}
           disabled={loading}
-          className="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-600 disabled:opacity-60"
+          className="rounded-xl bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1A2E4A] disabled:opacity-60"
         >
           {loading && !uploadingDoc ? "Creando..." : uploadingDoc ? "Subiendo documento..." : "Crear pedido y habilitar pago"}
         </button>
@@ -309,7 +309,7 @@ export default function PMQuickCreatePanel() {
             <button
               type="button"
               onClick={copyPaymentUrl}
-              className="rounded-xl border border-cyan-500/40 px-4 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/10"
+              className="rounded-xl border border-[#D5DAE1] px-4 py-2 text-sm font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
             >
               Copiar enlace pago
             </button>
@@ -317,7 +317,7 @@ export default function PMQuickCreatePanel() {
               href={created.paymentUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-xl border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+              className="rounded-xl border border-[#D5DAE1] px-4 py-2 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
             >
               Abrir enlace
             </a>
@@ -326,22 +326,22 @@ export default function PMQuickCreatePanel() {
       </div>
 
       {created && (
-        <div className="mt-3 rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-200">
+        <div className="mt-3 rounded-xl border border-[#D5DAE1] bg-white p-3 text-xs text-[#1F2933]">
           <p>
             Referencia creada:{" "}
-            <span className="font-mono font-semibold text-cyan-300">{created.reference}</span>
+            <span className="font-mono font-semibold text-[#1A2E4A]">{created.reference}</span>
           </p>
           <p className="mt-1">
             Email al cliente:{" "}
-            <span className={created.emailSent ? "font-semibold text-emerald-300" : "font-semibold text-amber-300"}>
+            <span className={created.emailSent ? "font-semibold text-[#1F6B45]" : "font-semibold text-[#7A5A10]"}>
               {created.emailSent ? "Enviado" : "Pendiente / fallo de envío"}
             </span>
           </p>
           {created.emailSubject && (
-            <p className="mt-1 text-slate-300">Asunto: {created.emailSubject}</p>
+            <p className="mt-1 text-[#1F2933]">Asunto: {created.emailSubject}</p>
           )}
           {created.emailMessageId && (
-            <p className="mt-1 text-slate-400">ID proveedor: {created.emailMessageId}</p>
+            <p className="mt-1 text-[#52606D]">ID proveedor: {created.emailMessageId}</p>
           )}
 
           <div className="mt-3 flex flex-wrap gap-2">
@@ -355,20 +355,20 @@ export default function PMQuickCreatePanel() {
               href={created.consultaPath}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg border border-slate-600 px-3 py-1.5 font-semibold text-slate-200 hover:bg-slate-800"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
             >
               Ver consulta cliente
             </a>
             <a
               href={created.quickQuotePath}
-              className="rounded-lg border border-cyan-500/50 px-3 py-1.5 font-semibold text-cyan-300 hover:bg-cyan-500/10"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
             >
               Crear presupuesto con preview
             </a>
           </div>
         </div>
       )}
-      {message && <p className="mt-2 text-xs font-semibold text-slate-200">{message}</p>}
+      {message && <p className="mt-2 text-xs font-semibold text-[#1F2933]">{message}</p>}
     </section>
   );
 }

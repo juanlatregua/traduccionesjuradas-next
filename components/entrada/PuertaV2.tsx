@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { puertaT } from "@/lib/i18n/puerta";
 import type { EntradaLang } from "@/lib/entrada/i18n";
 import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
-import { atBottom, buildHilo, LOCAL_VACIO, progressSteps, scrollPlan, type Ask, type EditKey, type HiloLocal, type Msg, type Urgency } from "@/lib/entrada/hilo";
+import { buildHilo, LOCAL_VACIO, progressSteps, type Ask, type EditKey, type HiloLocal, type Msg, type Urgency } from "@/lib/entrada/hilo";
 import { isQuestion } from "@/lib/entrada/conserje";
 import type { ClientView } from "@/lib/entrada/view";
 
@@ -12,8 +12,9 @@ const TOKEN_KEY = "tj-entrada";
 const LOCAL_KEY = (t: string) => `tj-entrada-hilo:${t}`;
 const LANG_CODES = ["es", "fr", "en", "de", "it", "pt", "nl", "ro", "ar", "ca", "sv", "no", "el", "ru", "uk", "pl", "zh"];
 const EXT_TYPES: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", heic: "image/heic", heif: "image/heif", tif: "image/tiff", tiff: "image/tiff", webp: "image/webp" };
-const btn = "rounded-full bg-bleu px-4 py-2 text-sm font-semibold text-white disabled:opacity-40";
-const chip = (on: boolean) => `rounded-full border px-3 py-1.5 text-sm ${on ? "border-bleu bg-bleu text-white" : "border-bleu/30 bg-white text-bleu"}`;
+const btn = "inline-flex items-center gap-2 rounded-full bg-bleu px-4 py-2 text-sm font-semibold text-white transition [@media(hover:hover)]:hover:bg-bleu-dark disabled:cursor-not-allowed disabled:opacity-40";
+const chip = (on: boolean) => `inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${on ? "border-bleu bg-bleu font-semibold text-white shadow-sm" : "border-bleu/30 bg-white text-bleu [@media(hover:hover)]:hover:border-bleu [@media(hover:hover)]:hover:bg-bleu/5"}`;
+const Spinner = () => <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />;
 const field = "w-full rounded-lg border border-graphite/30 bg-white px-3 py-2 text-base";
 
 type Res = { ok: boolean; error?: string; busy?: boolean; view?: ClientView; token?: string; answer?: string };
@@ -96,10 +97,12 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   const [notas, setNotas] = useState("");
   const [duda, setDuda] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
-  const [vh, setVh] = useState<number | null>(null);
-  const scroller = useRef<HTMLDivElement>(null);
+  const [needGdpr, setNeedGdpr] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const wasAtBottom = useRef(true);
+  const mounted = useRef(false);
 
+  const gdprRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -131,36 +134,45 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
 
   const { messages, ask } = useMemo(() => buildHilo({ email: view?.email ?? null, view, local, editing }), [view, local, editing]);
 
-  // Chat behaviour: the thread scrolls itself to the START of the new message; if the client scrolled up to reread,
-  // it is not pulled down and a «new messages» chip appears instead.
+  // The thread flows with the page (no inner scroller that traps the wheel) and the answer panel sticks to the bottom
+  // of the screen. A new message is brought up just above the panel, never past its start; if the client scrolled up
+  // to reread, it is not pulled down and a «new messages» chip appears instead.
+  const panelTop = () => panelRef.current?.getBoundingClientRect().top ?? window.innerHeight;
   const toLast = useCallback(() => {
-    const box = scroller.current;
     const last = lastRef.current;
-    if (!box || !last) return;
-    const plan = scrollPlan({ scrollTop: box.scrollTop, clientHeight: box.clientHeight, scrollHeight: box.scrollHeight, lastTop: last.offsetTop, wasAtBottom: true });
-    if (plan.to !== null) box.scrollTo({ top: plan.to, behavior: "smooth" });
+    if (!last) return;
+    const r = last.getBoundingClientRect();
+    const dy = Math.min(r.bottom - (panelTop() - 12), r.top - 96);
+    if (dy > 0) window.scrollBy({ top: dy, behavior: "smooth" });
+    wasAtBottom.current = true;
     setShowNew(false);
   }, []);
 
   useEffect(() => {
-    const box = scroller.current;
-    const last = lastRef.current;
-    if (!box || !last) return;
-    const plan = scrollPlan({ scrollTop: box.scrollTop, clientHeight: box.clientHeight, scrollHeight: box.scrollHeight, lastTop: last.offsetTop, wasAtBottom: wasAtBottom.current });
-    if (plan.to !== null) box.scrollTo({ top: plan.to, behavior: "smooth" });
-    setShowNew(plan.showNew);
-    if (!plan.showNew && !(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement)) last.focus({ preventScroll: true });
-  }, [messages.length, ask?.kind]);
-
-  // The answer bar stays visible above the mobile keyboard: the thread takes the visual viewport's height.
-  useEffect(() => {
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    if (!vv) return;
-    const fit = () => setVh(vv.height);
-    fit();
-    vv.addEventListener("resize", fit);
-    return () => vv.removeEventListener("resize", fit);
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const r = lastRef.current?.getBoundingClientRect();
+      if (r) {
+        if (r.bottom > 0 && r.top < panelTop()) {
+          wasAtBottom.current = true;
+          setShowNew(false);
+        } else if (y < lastY - 4 && r.top >= panelTop()) wasAtBottom.current = false;
+      }
+      lastY = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    const last = lastRef.current;
+    if (!last) return;
+    if (!mounted.current) return void (mounted.current = true);
+    if (!wasAtBottom.current) return setShowNew(true);
+    toLast();
+    if (!(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement)) last.focus({ preventScroll: true });
+  }, [messages.length, ask?.kind, toLast]);
 
   // Autofill sometimes fills inputs without firing React events: read the DOM while those asks are open.
   useEffect(() => {
@@ -231,12 +243,19 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
 
   async function setLangs(source: string | null, targets: string[]) {
     if (!token) return false;
-    const { data } = await call(`/api/entrada/${token}/documentos`, "POST", { op: "setLangs", sourceLang: source, targetLangs: targets });
-    return apply(data);
+    setBusy(t.guardando);
+    try {
+      const { data } = await call(`/api/entrada/${token}/documentos`, "POST", { op: "setLangs", sourceLang: source, targetLangs: targets });
+      return apply(data);
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function answerOrigen(code: string | null) {
+    if (busy) return;
     patchLocal({ origenDado: true, origen: code });
+    if (code && destinos.length === 1 && destinos[0] === code) setDestinos([]);
     if (view && view.idiomas.destinos.length) await setLangs(code, view.idiomas.destinos);
     setEditing(null);
   }
@@ -250,9 +269,16 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   }
 
   async function addFiles(list: FileList | null) {
-    if (!list || !gdpr) return;
+    // Consent is given once, when the entrada is born: a returning client (saved token) has no checkbox to tick.
+    if (!list?.length || (!token && !gdpr)) return;
+    setError(null);
+    setBusy(t.uploading(list[0].name));
     const tk = await ensureEntrada();
-    if (!tk) return;
+    if (!tk) {
+      setBusy(null);
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
     const { upload } = await import("@vercel/blob/client");
     for (const file of Array.from(list)) {
       const mimeType = mimeOf(file);
@@ -501,7 +527,9 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   const langPicker = (multi: boolean, value: string[], onPick: (c: string) => void) => (
     <div className="flex flex-wrap gap-1.5">
       {langs.map(([c, n]) => (
-        <button key={c} type="button" className={chip(value.includes(c))} aria-pressed={value.includes(c)} onClick={() => onPick(c)}>{n}</button>
+        <button key={c} type="button" className={chip(value.includes(c))} aria-pressed={value.includes(c)} disabled={!!busy} onClick={() => onPick(c)}>
+          {value.includes(c) && <span aria-hidden>✓</span>}{n}
+        </button>
       ))}
     </div>
   );
@@ -561,29 +589,42 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
             {langPicker(true, destinos, toggle)}
             {same && <p className="text-xs text-rouge">{t.mismoIdioma}</p>}
             <div className="flex items-center gap-3">
-              <button type="button" className={btn} disabled={destinos.length === 0 || same} onClick={answerDestinos}>{t.listo}</button>
+              <button type="button" className={btn} disabled={destinos.length === 0 || same || !!busy} onClick={answerDestinos}>{t.listo}</button>
               {cancel}
             </div>
-            {destinos.length === 0 && <p className="text-xs text-graphite">{t.choose}</p>}
+            {destinos.length === 0 && <p className="text-sm font-medium text-rouge" role="alert">{t.choose}</p>}
           </div>
         );
-      case "archivos":
+      case "archivos": {
+        const hay = Boolean(view?.archivos.length);
+        const sinConsent = !token && !gdpr;
         return (
           <div className="space-y-2">
             <input ref={fileInput} type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.tif,.tiff,.webp" className="hidden" onChange={(e) => addFiles(e.target.files)} />
             {!token && (
-              <label className="flex items-start gap-2 text-xs text-graphite">
-                <input type="checkbox" checked={gdpr} onChange={(e) => setGdpr(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
+              <label className={`flex cursor-pointer items-start gap-2 rounded-lg p-2 text-xs ${needGdpr && !gdpr ? "bg-rouge/5 text-rouge ring-2 ring-rouge" : "bg-parchment text-graphite"}`}>
+                <input ref={gdprRef} type="checkbox" checked={gdpr} onChange={(e) => { setGdpr(e.target.checked); setNeedGdpr(false); }} className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{t.consentUnico} <a href="/privacidad" target="_blank" className="text-bleu underline">{T.gdprPrivacyLink}</a>.</span>
               </label>
             )}
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={chip(false)} disabled={!!busy || (!token && !gdpr)} onClick={() => fileInput.current?.click()}>{t.add}</button>
-              <button type="button" className={btn} disabled={!view?.archivos.length || !!busy} onClick={() => patchLocal({ terminado: true })}>{t.terminado}</button>
+              {/* Never disabled for the consent: pressing it says what is missing and points at the box. */}
+              <button type="button" className={hay ? chip(false) : btn} disabled={!!busy} onClick={() => {
+                if (sinConsent) {
+                  setNeedGdpr(true);
+                  gdprRef.current?.focus();
+                  return;
+                }
+                fileInput.current?.click();
+              }}>{busy ? <Spinner /> : null}{t.add}</button>
+              <button type="button" className={hay ? btn : chip(false)} disabled={!hay || !!busy} onClick={() => patchLocal({ terminado: true })}>{t.terminado}</button>
             </div>
-            {!token && !gdpr ? <p className="text-xs text-graphite">{t.falta([t.faltaGdpr])}</p> : !view?.archivos.length && <p className="text-xs text-graphite">{t.faltaArchivo}</p>}
+            {sinConsent ? (
+              <p className={needGdpr ? "text-sm font-medium text-rouge" : "text-xs text-graphite"} role={needGdpr ? "alert" : undefined}>{t.falta([t.faltaGdpr])}</p>
+            ) : !hay && <p className="text-xs text-graphite">{t.faltaArchivo}</p>}
           </div>
         );
+      }
       case "terminado":
         return (
           <div className="flex flex-wrap gap-2">
@@ -665,12 +706,8 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
 
   const canAsk = Boolean(token && view?.emailVerificado && view.estado !== "confirmada" && view.estado !== "sin_jurado");
   return (
-    <div className="relative mx-auto flex max-w-xl flex-col overflow-hidden rounded-2xl bg-cream/60" style={{ height: vh ? Math.max(420, Math.min(vh - 24, 900)) : "min(85dvh, 900px)" }}>
-      <div ref={scroller} className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4" onScroll={(e) => {
-        const b = e.currentTarget;
-        wasAtBottom.current = atBottom(b.scrollTop, b.clientHeight, b.scrollHeight);
-        if (wasAtBottom.current) setShowNew(false);
-      }}>
+    <div className="mx-auto max-w-xl rounded-2xl bg-cream/60">
+      <div className="p-3 sm:p-4">
       <ol className="flex flex-col gap-2" role="log" aria-live="polite" aria-relevant="additions">
         {messages.map((m, i) => (
           <li key={m.id} ref={i === messages.length - 1 ? lastRef : undefined} tabIndex={-1} className="flex flex-col outline-none">
@@ -680,13 +717,14 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
           </li>
         ))}
       </ol>
-      {busy && <p className="mt-2 text-xs text-graphite" aria-live="polite">{busy}</p>}
-      {error && <p className="mt-2 rounded-lg bg-rouge/5 px-3 py-2 text-sm text-rouge" role="alert">{error}</p>}
       </div>
+      <div ref={panelRef} onPointerDown={() => { wasAtBottom.current = true; }} className="sticky bottom-0 z-10 rounded-b-2xl border-t border-bleu/10 bg-white shadow-[0_-6px_16px_-8px_rgba(26,46,74,0.25)]">
       {showNew && (
-        <button type="button" onClick={toLast} className="absolute bottom-28 left-1/2 -translate-x-1/2 rounded-full bg-bleu px-3 py-1 text-xs font-semibold text-white shadow">{t.nuevos}</button>
+        <button type="button" onClick={toLast} className="absolute -top-10 left-1/2 -translate-x-1/2 rounded-full bg-bleu px-3 py-1 text-xs font-semibold text-white shadow">{t.nuevos}</button>
       )}
-      <div className="max-h-[60%] shrink-0 overflow-y-auto border-t border-bleu/10 bg-white p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+      <div className="max-h-[70vh] overflow-y-auto p-3 pr-16 sm:p-4 sm:pr-16 md:pr-4" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        {busy && <p className="mb-2 flex items-center gap-2 text-sm font-medium text-bleu" role="status"><Spinner />{busy}</p>}
+        {error && <p className="mb-2 rounded-lg bg-rouge/5 px-3 py-2 text-sm text-rouge" role="alert">{error}</p>}
         {duda !== null ? (
           <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void preguntar(duda); }}>
             <input autoFocus value={duda} onChange={(e) => setDuda(e.target.value)} placeholder={t.dudaPh} aria-label={t.duda} className={field} />
@@ -704,6 +742,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
             )}
           </>
         )}
+      </div>
       </div>
     </div>
   );

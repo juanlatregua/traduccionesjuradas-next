@@ -46,7 +46,7 @@ export async function generateMetadata({
 
   return {
     title: `Traductor Jurado en ${ciudad.nombre}${provinciaNote}${consuladoNote} · MAEC`,
-    description: `Traductor jurado en ${ciudad.nombre}: traducción jurada online válida ante ${validez}. Entrega en 24-48 h. Francés: 30 € + IVA por página; alemán: desde 40 € + IVA por documento.`,
+    description: `Traductor jurado en ${ciudad.nombre}: traducción jurada online válida ante ${validez}. Francés: hasta 5 páginas en 1 día hábil. Francés: 30 € + IVA por página; alemán: desde 40 € + IVA por documento.`,
     alternates: {
       canonical: `https://www.traduccionesjuradas.net/traductor-jurado/${ciudad.slug}`,
     },
@@ -74,12 +74,12 @@ const DOCUMENTOS_MARRUECOS = [
 
 // FAQ por ciudad → FAQPage server-side (AEO) + sección visible (texto único).
 // Respuestas verificables y honestas: servicio online, validez MAEC en toda
-// España, plazo 24-48 h (coincide con el resto de la copia). Sin datos inventados.
+// España, plazos de lib/knowledge/faq-cliente.ts. Sin datos inventados.
 function cityFaq(ciudad: Ciudad): { question: string; answer: string }[] {
   const faq = [
     {
-      question: `¿Hay que ir en persona a ${ciudad.nombre} para una traducción jurada?`,
-      answer: `No. El servicio es 100% online: envías el documento desde ${ciudad.nombre} y recibes la traducción jurada firmada y sellada por email (y en papel por mensajería si lo necesitas). No hay que desplazarse ni pedir cita.`,
+      question: `¿Hay que desplazarse en ${ciudad.nombre} para una traducción jurada?`,
+      answer: `No. El servicio es 100% online: envías el documento desde ${ciudad.nombre} y recibes la traducción jurada firmada y sellada por email (y en papel por mensajería si lo necesitas). No hay que desplazarse ni pedir cita: el servicio no tiene atención presencial.`,
     },
     {
       question: `¿La traducción jurada vale para la Administración de ${ciudad.provincia}?`,
@@ -87,7 +87,7 @@ function cityFaq(ciudad: Ciudad): { question: string; answer: string }[] {
     },
     {
       question: `¿Cuánto tarda una traducción jurada en ${ciudad.nombre}?`,
-      answer: `La entrega habitual es de 24-48 horas por email desde ${ciudad.nombre}, según el volumen. Recibes un presupuesto cerrado al instante antes de confirmar.`,
+      answer: `En francés, hasta 5 páginas se entregan en 1 día hábil; en el resto de idiomas el plazo lo fija el traductor jurado y figura en el presupuesto. Recibes el presupuesto antes de pagar y, si tienes prisa, dinos tu fecha límite: la urgencia lleva un recargo que verás en el presupuesto.`,
     },
   ];
   if (ciudad.altaInmigracionMarroqui) {
@@ -207,15 +207,23 @@ export default async function PaginaCiudad({
           <p className="mt-3 text-sm leading-relaxed text-sepia">
             Si necesitas una traducción jurada en {ciudad.nombre}, nuestro
             servicio online te permite enviar tus documentos desde{" "}
-            {ciudad.nombre} y recibirlos por email en 24-48 horas. La traducción
+            {ciudad.nombre} y recibirlos por email: en francés, hasta 5 páginas en 1 día
+            hábil; en otros idiomas, con el plazo del presupuesto. La traducción
             tiene plena validez oficial ante el Registro Civil, la
             Administración General del Estado, universidades y cualquier
             organismo público en España.
           </p>
+          <p className="mt-3 text-sm leading-relaxed text-sepia">
+            ¿Tu documento está en francés? Lo traduce y firma directamente{" "}
+            <Link href="/traductor-jurado-frances" className="text-bleu underline">
+              Juan Silva, traductor jurado de francés (MAEC nº 3850)
+            </Link>
+            .
+          </p>
           {ciudad.slug === "malaga" && (
             <p className="mt-3 text-sm leading-relaxed text-sepia">
-              Somos una empresa de traducción jurada con sede en Málaga (Calle
-              Esperanto, 9). El servicio es online, pero al estar basados aquí
+              Somos una empresa de traducción jurada basada en Málaga. El
+              servicio es 100 % online, pero al estar basados aquí
               conocemos de primera mano los trámites ante el Registro Civil, la
               Oficina de Extranjería y los juzgados de Málaga.
             </p>
@@ -405,8 +413,8 @@ export default async function PaginaCiudad({
             },
             {
               step: "3",
-              title: "Recibe la traducción por email en 24-48h",
-              desc: "Con validez oficial en toda España",
+              title: "Recibe la traducción por email",
+              desc: "Francés: hasta 5 páginas en 1 día hábil; otros idiomas, plazo en el presupuesto",
             },
           ].map((item) => (
             <div

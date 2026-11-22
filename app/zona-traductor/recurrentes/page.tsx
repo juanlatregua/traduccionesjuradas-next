@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import ContabilidadSubNav from "@/components/ContabilidadSubNav";
 import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { getStaffRole } from "@/lib/staff-access";
 import { prisma } from "@/lib/prisma";
@@ -65,22 +64,21 @@ export default async function ZonaTraductorRecurrentesPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <ContabilidadSubNav />
-        <h1 className="text-2xl font-semibold text-white">Facturas recurrentes</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-semibold text-[#1A2E4A]">Facturas recurrentes</h1>
+        <p className="mt-1 text-sm text-[#52606D]">
           Plantillas que se repiten cada mes (p.ej. la cuota de Oracle). Cada mes se genera un <strong>borrador</strong>{" "}
           que revisas y emites a mano en Facturas. Usa <code>{"{MES} {AÑO}"}</code> en el concepto.
         </p>
         {canManage ? (
           <RecurringInvoiceManager templates={templates} />
         ) : (
-          <p className="mt-6 text-slate-500">Solo ADMIN/PM puede gestionar plantillas recurrentes.</p>
+          <p className="mt-6 text-[#52606D]">Solo ADMIN/PM puede gestionar plantillas recurrentes.</p>
         )}
 
-        <h2 className="mt-12 text-2xl font-semibold text-white">Gastos recurrentes</h2>
-        <p className="mt-1 text-sm text-slate-400">
+        <h2 className="mt-12 text-2xl font-semibold text-[#1A2E4A]">Gastos recurrentes</h2>
+        <p className="mt-1 text-sm text-[#52606D]">
           Gastos fijos del mes (nómina, TGSS, asesoría, SaaS…). El cron crea el gasto el día indicado; los de importe
           variable quedan <strong>pendientes de confirmar</strong> en Contabilidad y no cuentan hasta que pongas el
           importe real. Usa <code>{"{MES} {AÑO}"}</code> en el concepto.
@@ -88,7 +86,7 @@ export default async function ZonaTraductorRecurrentesPage() {
         {canManage ? (
           <RecurringExpenseManager templates={expenseTemplates} />
         ) : (
-          <p className="mt-6 text-slate-500">Solo ADMIN/PM puede gestionar plantillas recurrentes.</p>
+          <p className="mt-6 text-[#52606D]">Solo ADMIN/PM puede gestionar plantillas recurrentes.</p>
         )}
       </div>
     </div>

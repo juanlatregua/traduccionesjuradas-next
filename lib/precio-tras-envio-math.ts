@@ -155,3 +155,10 @@ export const FROZEN_PAYMENT_ERROR = "Estamos actualizando tu presupuesto; te esc
 export function salidaPorPresupuestoNuevo(freezeKey: string | null | undefined, congelado: boolean, kind: SentPriceDecision["kind"]): "descongelar" | "salir" {
   return congelado && String(freezeKey || "").startsWith("volver:") && kind !== "perdida" ? "descongelar" : "salir";
 }
+
+export const FROZEN_SEND_ERROR = "Pago congelado: descongela antes de reenviar";
+
+/** Ningún envío del enlace de pago (reenvío, envío del staff) con el pago congelado. */
+export function frozenSendBlocked(q: { paymentFrozenAt: Date | string | null | undefined }): string | null {
+  return q.paymentFrozenAt ? FROZEN_SEND_ERROR : null;
+}

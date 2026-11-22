@@ -382,3 +382,6 @@ export const BLIND_PRICE_LANGS: ReadonlySet<string> = new Set(["de"]);
 export function isBlindPriceLang(lang: string | null | undefined): boolean {
   return !!lang && BLIND_PRICE_LANGS.has(lang.toLowerCase());
 }
+
+/** Un archivo sin tipo de documento no tiene análisis (puerta nueva): ni se aprende de él ni se tarifica como «other». */
+export const hasAnalysisType = (documentType: string | null | undefined) => String(documentType || "").trim().length > 0;

@@ -48,14 +48,14 @@ export default function SourceDocumentUpload({ reference }: Props) {
   }
 
   return (
-    <div className="mt-4 rounded-xl border border-dashed border-slate-600 bg-slate-950/50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-teal-300">
+    <div className="mt-4 rounded-xl border border-dashed border-[#D5DAE1] bg-[#F6F7F9] p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#1A2E4A]">
         Subir documento fuente
       </p>
-      <p className="mt-1 text-xs text-slate-400">
+      <p className="mt-1 text-xs text-[#52606D]">
         PDF, Word, imagen (max 12 MB)
       </p>
-      <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-teal-500/40 px-3 py-2 text-xs font-semibold text-teal-300 hover:bg-teal-500/10">
+      <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#D5DAE1] px-3 py-2 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]">
         {uploading ? "Subiendo..." : "Seleccionar archivo"}
         <input
           ref={fileRef}
@@ -66,8 +66,8 @@ export default function SourceDocumentUpload({ reference }: Props) {
           className="hidden"
         />
       </label>
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-      {success && <p className="mt-2 text-xs text-emerald-400">Subido: {success}</p>}
+      {error && <p className="mt-2 text-xs text-[#A12B2B]">{error}</p>}
+      {success && <p className="mt-2 text-xs text-[#1F6B45]">Subido: {success}</p>}
     </div>
   );
 }

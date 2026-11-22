@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { runFrAuto, type FrAutoData, type FrAutoIO } from "../../../lib/entrada/fr-auto.ts";
+import { frAutoReviewReasons, runFrAuto, type FrAutoData, type FrAutoIO } from "../../../lib/entrada/fr-auto.ts";
 import type { EntradaRow } from "../../../lib/entrada/store.ts";
 import { buildLines } from "../../../lib/lectura-constructor/lines.ts";
 import { computePagePricing } from "../../../lib/pricing-engine/page-pricing.ts";
@@ -157,4 +157,11 @@ test("3: si el envío lanza, avisa por SMS con el número y queda en borrador", 
   assert.equal(r.action, "drafted");
   assert.equal(r.quoteNumber, "2026-0001");
   assert.ok(calls.some((c) => c.startsWith("staff")));
+});
+
+test("fiscal/financiero o bilingüe: nunca sale solo aunque PUERTA_FR=fr (queda borrador)", async () => {
+  const fiscal = data([working("D1", [[1, 1]], {}, { category: "financial", type: "tax_return" })]);
+  assert.match(frAutoReviewReasons(fiscal, 0).join(" "), /fiscal/);
+  assert.match(frAutoReviewReasons(data([working("D1", [[1, 1]], {}, { isBilingualDuplicate: true })]), 0).join(" "), /bilingüe/);
+  assert.deepEqual(frAutoReviewReasons(data(), 0), []);
 });

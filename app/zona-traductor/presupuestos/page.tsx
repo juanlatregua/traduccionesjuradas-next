@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
+import { hrefCaso } from "@/lib/staff-links";
 import Link from "next/link";
-import ZonaTraductorSubNav from "@/components/ZonaTraductorSubNav";
 import DiscardLavoriLeadButton from "@/components/DiscardLavoriLeadButton";
 import RetireLavoriLeadButton from "@/components/RetireLavoriLeadButton";
 import { LIVE_WINDOW_DAYS } from "@/lib/lavori-dup-guard";
-import { authZonaTraductorOrRedirect, countExpedientesPendientes } from "@/lib/zona-traductor-data";
+import { authZonaTraductorOrRedirect } from "@/lib/zona-traductor-data";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber, QUOTE_STATUS_LABELS, type QuoteStatus } from "@/lib/quotes";
 import { FileText, ExternalLink } from "lucide-react";
@@ -15,14 +15,14 @@ export const metadata: Metadata = {
 };
 
 const STATUS_BADGE: Record<QuoteStatus, string> = {
-  DRAFT: "bg-slate-500/15 text-slate-300",
-  SENT: "bg-sky-500/15 text-sky-300",
-  OPENED: "bg-amber-500/15 text-amber-300",
-  ACCEPTED: "bg-violet-500/15 text-violet-300",
-  PAID: "bg-emerald-500/15 text-emerald-300",
-  IN_PROGRESS: "bg-cyan-500/15 text-cyan-300",
-  DELIVERED: "bg-teal-500/15 text-teal-300",
-  EXPIRED: "bg-rose-500/15 text-rose-300",
+  DRAFT: "bg-[#F6F7F9] text-[#1F2933]",
+  SENT: "bg-[#F6F7F9] text-[#1A2E4A]",
+  OPENED: "bg-[#FFF8E6] text-[#7A5A10]",
+  ACCEPTED: "bg-[#F6F7F9] text-[#1A2E4A]",
+  PAID: "bg-[#EEF7F1] text-[#1F6B45]",
+  IN_PROGRESS: "bg-[#F6F7F9] text-[#1A2E4A]",
+  DELIVERED: "bg-[#EEF7F1] text-[#1F6B45]",
+  EXPIRED: "bg-[#FDF2F2] text-[#A12B2B]",
 };
 
 function formatBytes(bytes: number) {
@@ -40,7 +40,6 @@ type Props = { searchParams?: { q?: string } };
 
 export default async function ZonaTraductorPresupuestosPage({ searchParams }: Props) {
   await authZonaTraductorOrRedirect();
-  const expedientesPendientes = await countExpedientesPendientes();
 
   const q = (searchParams?.q || "").trim();
 
@@ -143,31 +142,25 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
   });
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-[#F6F7F9]">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <ZonaTraductorSubNav
-          tabs={[
-            { href: "/zona-traductor/presupuestos", label: "Carpeta" },
-            { href: "/zona-traductor/expedientes", label: "Expedientes", badge: expedientesPendientes },
-          ]}
-        />
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-white">Presupuestos</h1>
-            <p className="mt-1 text-sm text-slate-400">
+            <h1 className="text-2xl font-semibold text-[#1A2E4A]">Presupuestos</h1>
+            <p className="mt-1 text-sm text-[#52606D]">
               Carpeta de presupuestos: cada uno con sus documentos fuente, su PDF y su pedido si existe.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/zona-traductor/tarifario"
-              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+              className="rounded-lg border border-[#D5DAE1] px-4 py-2 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
             >
               Tarifario aprendido
             </Link>
             <Link
               href="/zona-traductor/presupuesto"
-              className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
+              className="rounded-lg bg-[#1A2E4A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#243F66]"
             >
               + Nuevo presupuesto
             </Link>
@@ -180,11 +173,11 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
               name="q"
               defaultValue={q}
               placeholder="Buscar por número o cliente…"
-              className="w-64 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none"
+              className="w-64 rounded-lg border border-[#D5DAE1] bg-white px-3 py-2 text-sm text-[#1F2933] placeholder:text-[#8A96A3] focus:border-[#1A2E4A] focus:outline-none"
             />
             <button
               type="submit"
-              className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+              className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
             >
               Buscar
             </button>
@@ -192,35 +185,35 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
         </div>
 
         {lavoriLeads.length > 0 && (
-          <section className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+          <section className="mt-6 rounded-xl border border-[#BFE0CC] bg-[#EEF7F1] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[#1F6B45]">
                 Solicitudes de precio en lavori · sin presupuesto ({lavoriLeads.length})
               </h2>
-              <span className="text-xs text-slate-500">Primero las que ya tienen precio: «Montar presupuesto» abre el builder atado a la solicitud. Las que esperan precio se abren para reclamar o cambiar de candidato.</span>
+              <span className="text-xs text-[#52606D]">Primero las que ya tienen precio: «Montar presupuesto» abre el builder atado a la solicitud. Las que esperan precio se abren para reclamar o cambiar de candidato.</span>
             </div>
             <div className="mt-3 space-y-2">
               {lavoriLeads.map((lead) => {
                 const priced = lead.status === "PRICED" && lead.priceCents;
                 const href = `/zona-traductor/presupuesto?lead=${encodeURIComponent(lead.ref)}${lead.expedienteRef && !lead.expedienteRef.startsWith("puerta:") ? `&exp=${encodeURIComponent(lead.expedienteRef)}` : ""}`;
                 return (
-                  <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                  <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#D5DAE1] bg-white p-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-sm font-semibold text-cyan-300">{lead.ref}</span>
-                        <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs font-semibold text-slate-200">{lead.par}</span>
+                        <span className="font-mono text-sm font-semibold text-[#1A2E4A]">{lead.ref}</span>
+                        <span className="rounded bg-[#F6F7F9] px-2 py-0.5 text-xs font-semibold text-[#1F2933]">{lead.par}</span>
                         {priced ? (
-                          <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-300">
+                          <span className="rounded bg-[#EEF7F1] px-2 py-0.5 text-xs font-semibold text-[#1F6B45]">
                             {lead.miembroNombre || "Traductor"}: {(lead.priceCents! / 100).toFixed(2)} €{lead.plazoDias ? ` · ${lead.plazoDias} días` : ""}
                           </span>
                         ) : (
-                          <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                          <span className="rounded bg-[#FFF8E6] px-2 py-0.5 text-xs font-semibold text-[#7A5A10]">
                             esperando precio · {lead.candidatos.length} candidato{lead.candidatos.length === 1 ? "" : "s"}
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 text-sm text-slate-200">{lead.customerHint || "(cliente sin identificar)"}</div>
-                      <div className="text-xs text-slate-500">
+                      <div className="mt-1 text-sm text-[#1F2933]">{lead.customerHint || "(cliente sin identificar)"}</div>
+                      <div className="text-xs text-[#52606D]">
                         {lead.docsCount} doc{lead.docsCount === 1 ? "" : "s"}{lead.words ? ` · ~${lead.words} palabras` : ""} · {formatDate(lead.createdAt)}
                         {priced ? ` · neto 75/25 sugerido: ${(lead.priceCents! / 0.75 / 100).toFixed(2)} € + IVA` : ""}
                         {lead.expedienteRef?.startsWith("puerta:") ? " · documentos de la puerta (entran solos en el builder)" : lead.expedienteRef ? ` · exp. ${lead.expedienteRef}` : " · sin expediente (suelta los PDF en el builder)"}
@@ -229,8 +222,8 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                     <div className="flex items-center gap-2">
                       {lead.caso && (
                         <Link
-                          href={`/zona-traductor/casos/${lead.caso.id}`}
-                          className="rounded-lg border border-cyan-500/40 px-3 py-2 text-sm font-semibold text-cyan-300 hover:bg-cyan-500/10"
+                          href={hrefCaso(lead.caso.id)}
+                          className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-sm font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                           title={lead.caso.ref}
                         >
                           Ver caso
@@ -243,7 +236,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                       ) : (
                         <Link
                           href={href}
-                          className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+                          className="rounded-lg border border-[#D5DAE1] px-3 py-2 text-sm font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
                           title="Aún no hay precio del jurado: ábrela para reclamarlo o cambiar de candidato"
                         >
                           Esperando precio · abrir
@@ -259,22 +252,22 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
         )}
 
         {lavoriVivos.length > 0 && (
-          <details className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
-            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-rose-300">
+          <details className="mt-4 rounded-xl border border-[#F0C9C9] bg-[#FDF2F2] p-4">
+            <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-[#A12B2B]">
               Encargos vivos en lavori con presupuesto, aceptados o reabiertos ({lavoriVivos.length})
             </summary>
-            <p className="mt-2 text-xs text-slate-500">Si uno sobra (duplicado, cliente perdido, otro jurado), retíralo aquí: lavori lo cancela sin avisar a nadie. Si un jurado ya lo tiene, te dice quién.</p>
+            <p className="mt-2 text-xs text-[#52606D]">Si uno sobra (duplicado, cliente perdido, otro jurado), retíralo aquí: lavori lo cancela sin avisar a nadie. Si un jurado ya lo tiene, te dice quién.</p>
             <div className="mt-3 space-y-2">
               {lavoriVivos.map((lead) => (
-                <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                <div key={lead.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#D5DAE1] bg-white p-3">
                   <div className="min-w-0 text-sm">
-                    <span className="font-mono font-semibold text-cyan-300">{lead.ref}</span>{" "}
-                    <span className="rounded bg-slate-700/60 px-2 py-0.5 text-xs font-semibold text-slate-200">{lead.par}</span>{" "}
-                    <span className="text-xs font-semibold text-amber-300">
+                    <span className="font-mono font-semibold text-[#1A2E4A]">{lead.ref}</span>{" "}
+                    <span className="rounded bg-[#F6F7F9] px-2 py-0.5 text-xs font-semibold text-[#1F2933]">{lead.par}</span>{" "}
+                    <span className="text-xs font-semibold text-[#7A5A10]">
                       {lead.status === "ESCALATED" ? "reabierta sin retirar" : lead.status === "ACCEPTED" ? `aceptada${lead.miembroNombre ? ` · ${lead.miembroNombre}` : ""}` : lead.status === "PRICED" ? `con precio${lead.miembroNombre ? ` · ${lead.miembroNombre}` : ""}` : "esperando precio"}
                       {lead.quoteId ? " · con presupuesto" : ""}
                     </span>
-                    <div className="text-xs text-slate-400">{lead.customerHint || "(cliente sin identificar)"} · {formatDate(lead.createdAt)}</div>
+                    <div className="text-xs text-[#52606D]">{lead.customerHint || "(cliente sin identificar)"} · {formatDate(lead.createdAt)}</div>
                   </div>
                   <RetireLavoriLeadButton id={lead.id} leadRef={lead.ref} />
                 </div>
@@ -284,7 +277,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
         )}
 
         {quotes.length === 0 ? (
-          <p className="mt-10 text-slate-500">
+          <p className="mt-10 text-[#52606D]">
             {q ? `Sin resultados para «${q}».` : "No hay presupuestos todavía."}
           </p>
         ) : (
@@ -295,50 +288,50 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                 : [];
               const status = quote.status as QuoteStatus;
               return (
-                <div key={quote.id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                <div key={quote.id} className="rounded-xl border border-[#D5DAE1] bg-white p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="font-mono text-base font-semibold text-cyan-300">{quote.quoteNumber}</span>
+                      <span className="font-mono text-base font-semibold text-[#1A2E4A]">{quote.quoteNumber}</span>
                       <span className={`rounded px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE[status] || STATUS_BADGE.DRAFT}`}>
                         {QUOTE_STATUS_LABELS[status] || status}
                       </span>
                       {quote.deletedAt && (
-                        <span className="rounded bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-300">
+                        <span className="rounded bg-[#FDF2F2] px-2 py-0.5 text-xs font-semibold text-[#A12B2B]">
                           Eliminado
                         </span>
                       )}
                     </div>
                     <div className="text-right">
-                      <div className="text-base font-semibold tabular-nums text-white">
+                      <div className="text-base font-semibold tabular-nums text-[#1A2E4A]">
                         {decimalToNumber(quote.total).toFixed(2)} €
                       </div>
-                      <div className="text-xs text-slate-500">{formatDate(quote.issuedAt)}</div>
+                      <div className="text-xs text-[#52606D]">{formatDate(quote.issuedAt)}</div>
                     </div>
                   </div>
 
                   <div className="mt-2">
-                    <div className="text-sm text-slate-200">{quote.customerName}</div>
-                    <div className="text-xs text-slate-500">{quote.customerEmail}</div>
+                    <div className="text-sm text-[#1F2933]">{quote.customerName}</div>
+                    <div className="text-xs text-[#52606D]">{quote.customerEmail}</div>
                   </div>
 
                   {quoteDocs.length > 0 && (
-                    <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <div className="mt-3 rounded-lg border border-[#D5DAE1] bg-[#F6F7F9] p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-[#52606D]">
                         Documentos fuente ({quote.expedienteRef})
                       </div>
                       <ul className="mt-2 space-y-1">
                         {quoteDocs.map((doc, i) => (
                           <li key={i} className="flex items-center gap-2 text-sm">
-                            <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                            <FileText className="h-3.5 w-3.5 shrink-0 text-[#52606D]" />
                             <a
                               href={doc.fileUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="truncate text-slate-300 hover:text-cyan-300 hover:underline"
+                              className="truncate text-[#1F2933] hover:text-[#1A2E4A] hover:underline"
                             >
                               {doc.fileName}
                             </a>
-                            <span className="shrink-0 text-xs tabular-nums text-slate-500">
+                            <span className="shrink-0 text-xs tabular-nums text-[#52606D]">
                               {formatBytes(doc.fileSize)}
                             </span>
                           </li>
@@ -352,13 +345,13 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                       href={quote.pdfUrl || `/api/quotes/${quote.id}/preview-pdf`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                      className="inline-flex items-center gap-1 rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
                     >
                       <FileText className="h-3.5 w-3.5" /> Ver PDF{quote.pdfUrl ? "" : " (borrador)"}
                     </a>
                     <Link
                       href={`/zona-traductor/presupuestos/${quote.id}`}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                      className="inline-flex items-center gap-1 rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
                     >
                       <ExternalLink className="h-3.5 w-3.5" /> Detalle
                     </Link>
@@ -366,7 +359,7 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                       <Link
                         key={order.reference}
                         href={`/zona-traductor/pedido/${order.reference}`}
-                        className="inline-flex items-center gap-1 rounded-lg bg-cyan-700/40 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-700/60"
+                        className="inline-flex items-center gap-1 rounded-lg bg-[#F6F7F9] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                       >
                         Pedido {order.reference}
                       </Link>
@@ -379,18 +372,18 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
         )}
 
         <div className="mt-12">
-          <h2 className="text-lg font-semibold text-white">Presupuestos del módulo de facturas</h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <h2 className="text-lg font-semibold text-[#1A2E4A]">Presupuestos del módulo de facturas</h2>
+          <p className="mt-1 text-sm text-[#52606D]">
             Emitidos con serie propia P·AA_NNN desde Facturas (docKind «quote»). No son facturas ni entran en contabilidad.
           </p>
           {invoiceQuotes.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-500">
+            <p className="mt-4 text-sm text-[#52606D]">
               {q ? `Sin resultados para «${q}».` : "Ninguno."}
             </p>
           ) : (
-            <div className="mt-4 overflow-x-auto rounded-xl border border-slate-800">
-              <table className="w-full text-sm text-slate-200">
-                <thead className="bg-slate-800/60 text-left text-xs uppercase tracking-wide text-slate-400">
+            <div className="mt-4 overflow-x-auto rounded-xl border border-[#D5DAE1]">
+              <table className="w-full text-sm text-[#1F2933]">
+                <thead className="bg-[#F6F7F9] text-left text-xs uppercase tracking-wide text-[#52606D]">
                   <tr>
                     <th className="px-4 py-2">Número</th>
                     <th className="px-4 py-2">Cliente</th>
@@ -400,31 +393,31 @@ export default async function ZonaTraductorPresupuestosPage({ searchParams }: Pr
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800">
+                <tbody className="divide-y divide-[#D5DAE1]">
                   {invoiceQuotes.map((inv) => (
                     <tr key={inv.id}>
-                      <td className="px-4 py-3 font-mono text-cyan-300">{inv.number || "borrador"}</td>
+                      <td className="px-4 py-3 font-mono text-[#1A2E4A]">{inv.number || "borrador"}</td>
                       <td className="px-4 py-3">
-                        <div className="text-white">{inv.fiscalName}</div>
-                        {inv.clientName && <div className="text-xs text-slate-400">{inv.clientName}</div>}
+                        <div className="text-[#1A2E4A]">{inv.fiscalName}</div>
+                        {inv.clientName && <div className="text-xs text-[#52606D]">{inv.clientName}</div>}
                       </td>
-                      <td className="px-4 py-3 text-slate-400">{inv.concept || "—"}</td>
+                      <td className="px-4 py-3 text-[#52606D]">{inv.concept || "—"}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{(inv.totalCents / 100).toFixed(2)} €</td>
-                      <td className="px-4 py-3 text-slate-400">{formatDate(inv.issuedAt || inv.createdAt)}</td>
+                      <td className="px-4 py-3 text-[#52606D]">{formatDate(inv.issuedAt || inv.createdAt)}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <a
                             href={`/api/invoices/${inv.id}/pdf`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                            className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9]"
                           >
                             Ver PDF
                           </a>
                           {inv.order?.reference && (
                             <Link
                               href={`/zona-traductor/pedido/${inv.order.reference}`}
-                              className="rounded-lg bg-cyan-700/40 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-700/60"
+                              className="rounded-lg bg-[#F6F7F9] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
                             >
                               Pedido
                             </Link>

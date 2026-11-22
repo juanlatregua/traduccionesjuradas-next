@@ -118,7 +118,7 @@ export const READING_JSON_SCHEMA: Schema = obj({
   targetLangBasis: enumOf(TARGET_LANG_BASES),
   deadline: str("Fecha límite que dijo el cliente: AAAA-MM-DD si se puede, si no tal cual; vacío si no la dijo"),
   clientLang: str("ISO 639-1 del idioma en que escribe el cliente; vacío si no hay mensaje"),
-  questions: arr(obj({ kind: enumOf(QUESTION_KINDS), aboutParts: PARTS("Páginas a las que se refiere"), aboutDocumentId: str("Documento al que se refiere; vacío si ninguno"), textEs: str("Pregunta concreta al cliente, en español") })),
+  questions: arr(obj({ kind: enumOf(QUESTION_KINDS), aboutParts: PARTS("Páginas a las que se refiere"), aboutDocumentId: str("Documento al que se refiere; vacío si ninguno"), textEs: str("Pregunta concreta al cliente, en el idioma de las preguntas") })),
 });
 
 export const READING_OUTPUT_FORMAT = { type: "json_schema" as const, schema: READING_JSON_SCHEMA };

@@ -157,6 +157,8 @@ export type RawAction = {
   estado?: string;
   /** Botones de un clic firmados (p. ej. motivo de pérdida): se pintan junto a «abrir». */
   botones?: { label: string; href: string }[];
+  /** Alerta de dinero (coste sin registrar, pérdida): nunca se oculta por estar ya en otra lista. */
+  alertaDinero?: boolean;
 };
 export type ActionRow = RawAction & { extras?: string[] };
 
@@ -179,6 +181,7 @@ export function consolidate(actions: RawAction[]): ActionRow[] {
       estado: list.find((a) => a.estado)?.estado,
       botones: list.flatMap((a) => a.botones || []).length ? list.flatMap((a) => a.botones || []) : undefined,
       persona: list.find((a) => a.persona)?.persona ?? head.persona,
+      alertaDinero: list.some((a) => a.alertaDinero) || undefined,
       extras: extras.length ? extras : undefined,
     });
   }

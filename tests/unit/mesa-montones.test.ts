@@ -1,0 +1,354 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { clasificarCaso, montarMesa, tarjetasDeLeads, etapasHechas, esPropio, duracion, quePasoFicha, type CasoMesa, type PedidoMesa, type LprMesa } from "../../lib/mesa/montones.ts";
+import { siguientePaso, type QuotePaso } from "../../lib/caso/siguiente-paso.ts";
+import { consolidate } from "../../lib/vigia-persona.ts";
+import { accionesFueraDeLaPila, fueraDeLaPila, refsDeLaPila, relativo } from "../../lib/mesa/agenda.ts";
+import type { SlaLead } from "../../lib/lead-sla-core.ts";
+import { mesaV2On } from "../../lib/mesa/flag.ts";
+
+const AHORA = new Date("2026-11-21T10:00:00Z"); // sábado 11:00 en Madrid
+const antes = (h: number) => new Date(AHORA.getTime() - h * 36e5);
+const dentro = (dias: number) => new Date(AHORA.getTime() + dias * 864e5);
+const BASE = "https://www.traduccionesjuradas.net";
+
+const quote = (o: Partial<QuotePaso> = {}): QuotePaso => ({
+  id: "q1",
+  quoteNumber: "2026-00420",
+  status: "SENT",
+  deletedAt: null,
+  lostReason: null,
+  lostReasonNote: null,
+  liveCasoKey: "c1",
+  supersededAt: null,
+  expiredAt: null,
+  paymentFrozenAt: null,
+  paidAt: null,
+  sentAt: antes(2),
+  openedAt: null,
+  publicToken: "tok",
+  createdAt: antes(2),
+  ...o,
+});
+const lpr = (o: Partial<LprMesa> = {}): LprMesa => ({
+  ref: "LEAD-X1",
+  par: "DE>ES",
+  status: "SENT",
+  priceCents: null,
+  miembroNombre: "Morton",
+  candidatos: ["m1"],
+  quoteId: null,
+  expedienteRef: "puerta:abc",
+  createdAt: antes(2),
+  updatedAt: antes(2),
+  ...o,
+});
+const pedido = (o: Partial<PedidoMesa> = {}): PedidoMesa => ({
+  reference: "26_ABC123",
+  status: "PAID",
+  paymentStatus: "PAID",
+  deliveryState: "EN_PROCESO",
+  langPair: "fr->es",
+  dueDate: dentro(3),
+  traductor: null,
+  plazoJurado: null,
+  entregaJuradoAt: null,
+  ...o,
+});
+const caso = (o: Partial<CasoMesa> = {}): CasoMesa => ({
+  id: "c1",
+  ref: "CASO-AAA111",
+  estado: "ABIERTO",
+  nombre: "Odile G.",
+  email: "odile@correo.example",
+  phone9: null,
+  pares: ["FR>ES"],
+  origen: "puerta",
+  dudoso: false,
+  urgency: null,
+  neededBy: null,
+  createdAt: antes(1),
+  lastActivityAt: antes(1),
+  quotes: [],
+  lprs: [],
+  pedidos: [],
+  sesion: "sess1",
+  ...o,
+});
+const tarjeta = (o: Partial<CasoMesa> = {}) => clasificarCaso(caso(o), AHORA, BASE);
+
+test("lead recién llegado: me toca, reloj de 3 h que no ha vencido", () => {
+  const t = tarjeta()!;
+  assert.equal(t.monton, "yo");
+  assert.equal(t.clave, "sin_nada");
+  assert.equal(t.reloj?.tipo, "lead");
+  assert.equal(t.reloj?.estado, "ok");
+  assert.equal(t.reloj?.vence.toISOString(), "2026-11-21T12:00:00.000Z");
+  assert.match(t.reloj!.texto, /Responder a las 13:00 \(quedan 2 h\)/);
+  assert.equal(t.accion?.href, "/zona-traductor/presupuesto?session=sess1");
+  assert.equal(t.ficha, "/zona-traductor/caso/c1");
+  assert.equal(t.canal, "Web");
+});
+
+test("lead a 2 h 30: reloj pronto; a 4 h: vencido", () => {
+  assert.equal(tarjeta({ createdAt: antes(2.5) })!.reloj?.estado, "pronto");
+  const t = tarjeta({ createdAt: antes(4) })!;
+  assert.equal(t.reloj?.estado, "vencido");
+  assert.match(t.reloj!.texto, /Plazo de 3 h pasado hace 1 h/);
+});
+
+test("esperando precio del jurado: espero a otro, pasa a mí a las 24 h", () => {
+  const t = tarjeta({ lprs: [lpr()] })!;
+  assert.equal(t.monton, "espera");
+  assert.equal(t.reloj?.tipo, "precio_jurado");
+  assert.match(t.reloj!.texto, /pasa a ti mañana a las 09:00/);
+});
+
+test("jurado sin precio a las 30 h: me toca, reloj vencido", () => {
+  const t = tarjeta({ lprs: [lpr({ createdAt: antes(30), updatedAt: antes(30) })] })!;
+  assert.equal(t.monton, "yo");
+  assert.equal(t.clave, "jurado_no_responde");
+  assert.equal(t.reloj?.estado, "vencido");
+});
+
+test("precio recibido hace 3 h: me toca enviar, ya pasado el plazo de 2 h", () => {
+  const t = tarjeta({ lprs: [lpr({ status: "PRICED", priceCents: 4500, updatedAt: antes(3) })] })!;
+  assert.equal(t.monton, "yo");
+  assert.equal(t.clave, "precio_recibido");
+  assert.equal(t.reloj?.tipo, "enviar");
+  assert.equal(t.reloj?.estado, "vencido");
+  assert.match(t.accion!.href, /lead=LEAD-X1/);
+});
+
+test("borrador de hoy lleva el reloj del lead; borrador viejo no", () => {
+  const hoy = tarjeta({ quotes: [quote({ status: "DRAFT", sentAt: null })] })!;
+  assert.equal(hoy.monton, "yo");
+  assert.equal(hoy.reloj?.tipo, "lead");
+  assert.equal(tarjeta({ createdAt: antes(40), quotes: [quote({ status: "DRAFT", sentAt: null })] })!.reloj, null);
+});
+
+test("presupuesto enviado: espero al cliente; recordatorio a 24 h, cierre a 48 h, luego sin reloj", () => {
+  const a = tarjeta({ quotes: [quote()] })!;
+  assert.equal(a.monton, "espera");
+  assert.equal(a.reloj?.tipo, "recordatorio");
+  assert.equal(a.reloj?.estado, "ok");
+  const b = tarjeta({ quotes: [quote({ sentAt: antes(30) })] })!;
+  assert.equal(b.reloj?.tipo, "cierre");
+  assert.equal(tarjeta({ quotes: [quote({ sentAt: antes(50) })] })!.reloj, null);
+  assert.equal(a.accion?.copiar, true);
+});
+
+test("pedido francés de Juan: en marcha si falta, me toca si vence mañana o no tiene fecha", () => {
+  const lejos = tarjeta({ estado: "EN_CURSO", pedidos: [pedido()] })!;
+  assert.equal(lejos.monton, "marcha");
+  assert.equal(lejos.clave, "traducir_yo");
+  assert.equal(lejos.reloj?.tipo, "entrega");
+  assert.equal(lejos.accion?.href, "/zona-traductor/pedido/26_ABC123");
+  assert.equal(tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ dueDate: dentro(1) })] })!.monton, "yo");
+  const sinFecha = tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ dueDate: null })] })!;
+  assert.equal(sinFecha.monton, "yo");
+  assert.match(sinFecha.detalle!, /sin fecha/);
+});
+
+test("Juan Silva puesto como traductor sigue siendo trabajo propio", () => {
+  assert.equal(esPropio({ langPair: "fr->es", traductor: "Juan Silva Moreno" }), true);
+  assert.equal(esPropio({ langPair: "pt->es", traductor: null }), false);
+  assert.equal(esPropio({ langPair: "fr->es", traductor: "Otra Jurada" }), false);
+});
+
+test("jurado externo traduciendo: espero con su plazo; plazo pasado → me toca reclamar", () => {
+  const ok = tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ langPair: "pt->es", traductor: "Cristina", dueDate: dentro(2) })] })!;
+  assert.equal(ok.monton, "espera");
+  assert.equal(ok.reloj?.tipo, "entrega_jurado");
+  assert.match(ok.reloj!.texto, /Entrega de Cristina/);
+  const plazoPropio = tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ langPair: "pt->es", traductor: "Cristina", dueDate: dentro(5), plazoJurado: dentro(-1) })] })!;
+  assert.equal(plazoPropio.monton, "yo");
+  assert.equal(plazoPropio.clave, "jurado_tarde");
+  assert.equal(plazoPropio.accion?.label, "Reclamar entrega");
+});
+
+test("el jurado ya entregó: me toca verificar y enviar", () => {
+  const t = tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ langPair: "de->es", traductor: "Morton", entregaJuradoAt: antes(1) })] })!;
+  assert.equal(t.monton, "yo");
+  assert.equal(t.clave, "verificar_entrega");
+  assert.equal(t.accion?.label, "Verificar y entregar");
+});
+
+test("pagado sin traductor (no francés): me toca asignar", () => {
+  const t = tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ langPair: "nl->es" })] })!;
+  assert.equal(t.monton, "yo");
+  assert.equal(t.clave, "sin_traductor");
+});
+
+test("pedido sin cobrar: espero al cliente", () => {
+  assert.equal(tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ paymentStatus: "PENDING", status: "PENDING_PAYMENT" })] })!.monton, "espera");
+});
+
+test("fuera de la mesa: entregado, cancelado y perdido sin nada pagable", () => {
+  assert.equal(tarjeta({ estado: "ENTREGADO", pedidos: [pedido({ status: "DELIVERED" })] }), null);
+  assert.equal(tarjeta({ estado: "PERDIDO", quotes: [quote({ status: "EXPIRED", expiredAt: antes(5) })] }), null);
+  assert.equal(tarjeta({ estado: "PERDIDO" }), null);
+});
+
+test("perdido con presupuesto aún pagable: espero al cliente", () => {
+  const t = tarjeta({ estado: "PERDIDO", quotes: [quote({ lostReason: "NO_RESPONSE", lostReasonNote: "auto:sin_respuesta", sentAt: antes(60) })] })!;
+  assert.equal(t.clave, "pagable_cerrado");
+  assert.equal(t.monton, "espera");
+  assert.equal(t.plegada, true);
+  assert.equal(tarjeta({ quotes: [quote()] })!.plegada, false);
+});
+
+test("fecha del cliente urgente se marca en la tarjeta", () => {
+  const t = tarjeta({ urgency: "ASAP" })!;
+  assert.equal(t.urgente, true);
+  assert.equal(t.plazoCliente, "Lo necesita: lo antes posible");
+});
+
+const lead = (o: Partial<SlaLead> = {}): SlaLead => ({
+  root: "r1",
+  keyBase: "e:nuevo@correo.example",
+  altBases: [],
+  name: "Nuevo",
+  email: "nuevo@correo.example",
+  phone: null,
+  pairs: ["en→es"],
+  motor: null,
+  firstAt: antes(0.5),
+  minutes: 30,
+  stage: 1,
+  hasDraft: false,
+  noPresupuestable: null,
+  via: ["email"],
+  links: ["https://www.traduccionesjuradas.net/admin/inbox?vista=todos"],
+  deadline: null,
+  urgent: false,
+  ...o,
+});
+
+test("leads sueltos: entran en me toca con reloj de 3 h y enlace relativo; los que ya tienen tarjeta no se repiten", () => {
+  const yaEsta = tarjeta()!;
+  const ts = tarjetasDeLeads([lead(), lead({ root: "r2", email: "ODILE@correo.example" }), lead({ root: "r3", email: null, phone: "+34 600 111 222" })], [yaEsta, tarjeta({ id: "c2", email: null, phone9: "600111222" })!], AHORA);
+  assert.equal(ts.length, 1);
+  assert.equal(ts[0].monton, "yo");
+  assert.equal(ts[0].accion?.href, "/admin/inbox?vista=todos");
+  assert.equal(ts[0].accion?.label, "Abrir en la bandeja");
+  assert.equal(ts[0].reloj?.tipo, "lead");
+  assert.equal(ts[0].ficha, null);
+});
+
+test("montarMesa: reparte, lo más nuevo arriba y cuenta vencidos y entregas de hoy", () => {
+  const m = montarMesa({
+    casos: [
+      caso({ id: "a", createdAt: antes(1) }),
+      caso({ id: "b", createdAt: antes(5), email: "b@x.example" }),
+      caso({ id: "c", estado: "EN_CURSO", email: "c@x.example", pedidos: [pedido({ dueDate: new Date("2026-11-21T18:00:00Z") })] }),
+      caso({ id: "d", email: "d@x.example", lprs: [lpr()] }),
+      caso({ id: "e", estado: "EN_CURSO", email: "e@x.example", pedidos: [pedido({ dueDate: dentro(6) })] }),
+      caso({ id: "f", estado: "ENTREGADO", email: "f@x.example", pedidos: [pedido({ status: "DELIVERED" })] }),
+    ],
+    leads: [lead()],
+    ahora: AHORA,
+    baseUrl: BASE,
+  });
+  assert.deepEqual(m.yo.map((t) => t.key), ["lead:r1", "a", "c", "b"]);
+  assert.deepEqual(m.espera.map((t) => t.key), ["d"]);
+  assert.deepEqual(m.marcha.map((t) => t.key), ["e"]);
+  assert.equal(m.vencidos, 1);
+  assert.equal(m.entreganHoy, 1);
+});
+
+test("etapas de la ficha: acumulativas", () => {
+  assert.equal(etapasHechas({ entradas: 0, quotes: [], pedidos: [] }), 0);
+  assert.equal(etapasHechas({ entradas: 2, quotes: [], pedidos: [] }), 1);
+  assert.equal(etapasHechas({ entradas: 1, quotes: [quote()], pedidos: [] }), 2);
+  assert.equal(etapasHechas({ entradas: 1, quotes: [quote({ paidAt: antes(1) })], pedidos: [pedido()] }), 3);
+  assert.equal(etapasHechas({ entradas: 1, quotes: [quote({ paidAt: antes(1) })], pedidos: [pedido({ entregaJuradoAt: antes(1) })] }), 4);
+  assert.equal(etapasHechas({ entradas: 1, quotes: [quote({ paidAt: antes(1) })], pedidos: [pedido({ status: "DELIVERED" })] }), 5);
+  assert.equal(etapasHechas({ entradas: 1, quotes: [quote({ deletedAt: antes(1) })], pedidos: [] }), 1);
+});
+
+test("duración legible", () => {
+  assert.equal(duracion(-45 * 6e4), "45 min");
+  assert.equal(duracion(150 * 6e4), "2 h 30 min");
+  assert.equal(duracion(3 * 864e5), "3 días");
+});
+
+test("interruptor MESA_V2: kill-switch, solo «off» exacto apaga", () => {
+  for (const v of ["on", undefined, "", "ON", "1", "true"]) assert.equal(mesaV2On({ MESA_V2: v }), true);
+  assert.equal(mesaV2On({ MESA_V2: "off" }), false);
+});
+
+// Fase 3: la ficha de la mesa sustituye a la antigua; ningún «qué toca» de siguientePaso se pierde.
+const CASOS_PASO: [string, Partial<CasoMesa>][] = [
+  ["congelado", { quotes: [quote({ paymentFrozenAt: antes(1) })] }],
+  ["pedido_sin_cobrar", { estado: "EN_CURSO", pedidos: [pedido({ status: "PENDING_PAYMENT", paymentStatus: "PENDING" })] }],
+  ["pedido_en_curso", { estado: "EN_CURSO", pedidos: [pedido()] }],
+  ["entregado", { estado: "ENTREGADO", pedidos: [pedido({ status: "DELIVERED", deliveryState: "TRADUCIDO" })] }],
+  ["cancelado", { estado: "CANCELADO", pedidos: [pedido({ status: "CANCELLED", paymentStatus: "REFUNDED" })] }],
+  ["borrador", { quotes: [quote({ status: "DRAFT", sentAt: null })] }],
+  ["presupuesto_enviado", { quotes: [quote()] }],
+  ["pagable_cerrado", { estado: "PERDIDO", quotes: [quote({ lostReason: "NO_RESPONSE", lostReasonNote: "auto:silencio" })] }],
+  ["presupuesto_muerto", { estado: "PERDIDO", quotes: [quote({ status: "EXPIRED", expiredAt: antes(1) })] }],
+  ["precio_recibido", { lprs: [lpr({ status: "PRICED", priceCents: 4500 })] }],
+  ["esperando_precio", { lprs: [lpr()] }],
+  ["jurado_no_responde", { lprs: [lpr({ createdAt: antes(30) })] }],
+  ["sin_nada", {}],
+  ["perdido", { estado: "PERDIDO" }],
+];
+
+test("ficha: cada caso de siguientePaso con botón sigue teniendo botón en la ficha nueva", () => {
+  const vistos = new Set<string>();
+  for (const [clave, o] of CASOS_PASO) {
+    const c = caso(o);
+    const paso = siguientePaso({ casoId: c.id, estado: c.estado, quotes: c.quotes, lprs: c.lprs, pedidos: c.pedidos, baseUrl: BASE, ahora: AHORA, sesion: c.sesion });
+    assert.equal(paso.clave, clave, `fixture de ${clave}`);
+    vistos.add(paso.clave);
+    const toca = quePasoFicha(c, AHORA, BASE);
+    assert.ok(toca.titulo, clave);
+    if (paso.accion) assert.ok(toca.accion, `${clave}: la ficha se queda sin botón`);
+    else assert.equal(toca.accion, null, clave);
+  }
+  assert.equal(vistos.size, CASOS_PASO.length);
+});
+
+test("ficha: si el caso no está en la mesa, enseña el siguientePaso (cerrados con «Ver pedido»/«Ir al presupuesto»)", () => {
+  for (const clave of ["entregado", "cancelado", "presupuesto_muerto"]) {
+    const c = caso(CASOS_PASO.find(([k]) => k === clave)![1]);
+    assert.equal(clasificarCaso(c, AHORA, BASE), null, clave);
+    const toca = quePasoFicha(c, AHORA, BASE);
+    assert.equal(toca.tarjeta, null);
+    assert.ok(toca.accion?.href, clave);
+  }
+  const enMesa = quePasoFicha(caso(), AHORA, BASE);
+  assert.equal(enMesa.tarjeta?.clave, "sin_nada");
+  assert.equal(enMesa.accion, enMesa.tarjeta?.accion);
+});
+
+test("agenda en Hoy: lo que ya está en «Me toca a mí» no se repite (clave: referencia del pedido)", () => {
+  const pila = [
+    tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ reference: "26_AAA", entregaJuradoAt: antes(2), traductor: "Morton", langPair: "de->es" })] })!,
+    tarjeta({ quotes: [quote({ status: "DRAFT", sentAt: null })] })!,
+  ];
+  assert.equal(pila[0].accion?.href, "/zona-traductor/pedido/26_AAA");
+  const refs = refsDeLaPila(pila);
+  assert.deepEqual([...refs], ["26_AAA"]);
+  assert.deepEqual(fueraDeLaPila([{ ref: "26_AAA" }, { ref: "26_BBB" }], refs).map((i) => i.ref), ["26_BBB"]);
+  const filas = accionesFueraDeLaPila([{ key: "o:26_AAA" }, { key: "o:26_BBB" }, { key: "q:26_AAA" }, { key: null }, {}], refs);
+  assert.deepEqual(filas, [{ key: "o:26_BBB" }, { key: "q:26_AAA" }, { key: null }, {}]);
+  assert.equal(relativo("https://www.traduccionesjuradas.net/zona-traductor/pedido/26_BBB"), "/zona-traductor/pedido/26_BBB");
+  assert.equal(relativo("/admin/inbox"), "/admin/inbox");
+});
+
+test("agenda en Hoy: una alerta de dinero (pagado SIN COSTE) de un pedido que está en «Me toca» no se oculta", () => {
+  const refs = refsDeLaPila([tarjeta({ estado: "EN_CURSO", pedidos: [pedido({ reference: "26_AAA", traductor: null, langPair: "de->es" })] })!]);
+  assert.ok(refs.has("26_AAA"));
+  const filas = consolidate([
+    { stake: 90, urgencia: 5, que: "Pedido 26_AAA pagado SIN TRADUCTOR → asignar", link: "x", key: "o:26_AAA", tier: 0 },
+    { stake: 90, urgencia: 4, que: "Pedido 26_AAA pagado hace 2 d SIN COSTE registrado → ponlo en la ficha", link: "x", key: "o:26_AAA", tier: 0, alertaDinero: true },
+  ]);
+  assert.equal(filas.length, 1);
+  const visibles = accionesFueraDeLaPila(filas, refs);
+  assert.equal(visibles.length, 1);
+  assert.ok([visibles[0].que, ...(visibles[0].extras || [])].some((t) => /SIN COSTE/.test(t)));
+  assert.equal(accionesFueraDeLaPila([{ key: "o:26_AAA", que: "sin traductor" }], refs).length, 0);
+});

@@ -7,9 +7,9 @@ import { WHATSAPP_LINK } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title:
-    "Subsanación regularización 2026 · Traducción jurada en 24h · MAEC nº 3850",
+    "Subsanación regularización 2026 · Traducción jurada en 1 día hábil · MAEC nº 3850",
   description:
-    "¿Requerimiento de subsanación urgente? Traducción jurada de antecedentes penales, actas y apostilla en 24 horas. Francés 25 €/documento (Marruecos, Senegal, Mali…). Traductor jurado MAEC nº 3850.",
+    "¿Requerimiento de subsanación urgente? Traducción jurada de antecedentes penales, actas y apostilla: francés hasta 5 páginas en 1 día hábil. Francés 25 €/documento (Marruecos, Senegal, Mali…). Traductor jurado MAEC nº 3850.",
   alternates: {
     canonical: "https://www.traduccionesjuradas.net/regularizacion-2026",
   },
@@ -19,12 +19,12 @@ const FAQ_ITEMS = [
   {
     question: "¿Qué hago si me llega un requerimiento de subsanación?",
     answer:
-      "Tienes el plazo que fije la notificación (máximo 15 días, RD 316/2026) para aportar lo que falte por sede electrónica o, hasta el 30 de septiembre de 2026, presencialmente en las oficinas de Correos seleccionadas; si no respondes, se te tiene por desistido de la solicitud. En los casos que nos llegan, lo que más falta es la apostilla y la traducción jurada de los antecedentes penales o de las actas. Envíanos el requerimiento y el documento: te confirmamos qué falta y entregamos la traducción jurada en 24 horas.",
+      "Tienes el plazo que fije la notificación (máximo 15 días, RD 316/2026) para aportar lo que falte por sede electrónica o, hasta el 30 de septiembre de 2026, presencialmente en las oficinas de Correos seleccionadas; si no respondes, se te tiene por desistido de la solicitud. En los casos que nos llegan, lo que más falta es la apostilla y la traducción jurada de los antecedentes penales o de las actas. Envíanos el requerimiento y el documento: te confirmamos qué falta y entregamos la traducción jurada en 1 día hábil (francés, hasta 5 páginas).",
   },
   {
     question: "¿Me da tiempo a traducir dentro del plazo de subsanación?",
     answer:
-      "Sí. Entregamos en 24 horas en PDF con firma electrónica cualificada (Orden AUC/213/2025), válido para presentar en la sede electrónica sin esperar papel. El documento en papel, si lo necesitas después, va por mensajería.",
+      "Sí. En francés, hasta 5 páginas se entregan en 1 día hábil, en PDF con firma electrónica cualificada (Orden AUC/213/2025), válido para presentar en la sede electrónica sin esperar papel. El documento en papel, si lo necesitas después, va por mensajería.",
   },
   {
     question: "¿Hasta cuándo puedo presentar la solicitud?",
@@ -54,7 +54,7 @@ const FAQ_ITEMS = [
   {
     question: "¿Cuánto cuesta traducir mis documentos para la regularización?",
     answer:
-      "25 € por documento (tarifa especial regularización 2026, francés). Aplica a antecedentes penales, acta de nacimiento y acta de matrimonio de Marruecos, Senegal, Costa de Marfil, Mali, Guinea, Camerún, Burkina Faso, Togo, Benín, RD Congo. Entrega 24h en PDF firmado digitalmente. Pago con Bizum, tarjeta, PayPal o transferencia.",
+      "25 € por documento (tarifa especial regularización 2026, francés). Aplica a antecedentes penales, acta de nacimiento y acta de matrimonio de Marruecos, Senegal, Costa de Marfil, Mali, Guinea, Camerún, Burkina Faso, Togo, Benín, RD Congo. Entrega en 1 día hábil (hasta 5 páginas) en PDF firmado digitalmente. Pago con tarjeta, transferencia o Bizum.",
   },
 ];
 
@@ -138,7 +138,7 @@ export default function Regularizacion2026Page() {
           antecedentes penales o de las actas.
         </p>
         <p className="mt-2 text-sepia">
-          Ese plazo sí nos da: <strong>traducción jurada en 24 horas</strong>, en
+          Ese plazo sí nos da: <strong>traducción jurada en 1 día hábil</strong>, en
           PDF con firma electrónica cualificada (válida en la sede electrónica,
           Orden AUC/213/2025), 25 € por documento en francés. Envíanos el
           requerimiento y el documento y te confirmamos al momento qué falta y
@@ -351,7 +351,7 @@ export default function Regularizacion2026Page() {
 
       <section className="mt-10 space-y-4 text-sm text-sepia">
         <h2 className="text-lg font-semibold text-encre">
-          Países francófonos cubiertos · entrega 24-48h
+          Países francófonos cubiertos · entrega en 1 día hábil
         </h2>
         <p>
           Como traductor jurado oficial de francés (MAEC nº 3850), traducimos
@@ -460,14 +460,14 @@ export default function Regularizacion2026Page() {
         </p>
         <ul className="mt-3 space-y-2 text-sepia">
           <li>
-            <strong>Antecedentes penales (francés):</strong> 25 € — entrega 24h
+            <strong>Antecedentes penales (francés):</strong> 25 € — entrega en 1 día hábil
           </li>
           <li>
             <strong>Acta de nacimiento (francés / bilingüe árabe-francés):</strong>{" "}
-            25 € — entrega 24h
+            25 € — entrega en 1 día hábil
           </li>
           <li>
-            <strong>Acta de matrimonio (francés):</strong> 25 € — entrega 24-48h
+            <strong>Acta de matrimonio (francés):</strong> 25 € — entrega en 1 día hábil
           </li>
           <li>
             <strong>Pack expediente</strong> (varios documentos): mismo precio
@@ -487,8 +487,8 @@ export default function Regularizacion2026Page() {
           Pago fácil: Bizum, tarjeta o transferencia
         </h2>
         <p className="mt-2 text-sepia">
-          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys),
-          PayPal o transferencia bancaria. Recibo electrónico inmediato.
+          Aceptamos pago con <strong>Bizum</strong>, tarjeta (Stripe / Redsys) o
+          transferencia bancaria. Recibo electrónico inmediato.
           Empezamos a tramitar en cuanto recibimos el pago.
         </p>
       </section>

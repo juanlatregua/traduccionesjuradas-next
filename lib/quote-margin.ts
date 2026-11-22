@@ -21,7 +21,7 @@ import { LEAD_PAIRABLE_STATUSES } from "@/lib/lavori-lead-match";
 
 import { evaluateLinesMargin, evaluateChannelPrice, MIN_AUTO_MARGIN_PCT, type StaffQuoteLine } from "@/lib/learned-rates-math";
 import { isFrenchPair } from "@/lib/workflow";
-import { closedPriceLangOfPair } from "@/lib/lavori-directo-math";
+import { isClosedCostExempt } from "@/lib/encargo-cerrado-math";
 
 export const MARGIN_BLOCK_CODE = "MARGEN_INSUFICIENTE";
 export const CHANNEL_BLOCK_CODE = "CANAL_SIN_VERIFICAR";
@@ -141,7 +141,8 @@ export async function verifyTranslatorChannelPrice(input: {
   // presupuesto queda sellado con el jurado (sealClosedPriceQuote); al cobrar sale
   // el encargo con ese coste cerrado. No se exige solicitud previa en lavori, salvo
   // que ya haya una atada al presupuesto (entonces se compara contra su cifra).
-  const exentoCerrado = Boolean(closedPriceLangOfPair(input.sourceLang, input.targetLang)) && input.lines.some((l) => Number(l.supplierUnitCost) > 0);
+  // Todas las líneas con coste: una a 0 € no tiene precio del jurado que la respalde.
+  const exentoCerrado = isClosedCostExempt(input);
 
   const { prisma } = await import("@/lib/prisma");
   const req = await prisma.lavoriPriceRequest.findFirst({

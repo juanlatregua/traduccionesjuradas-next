@@ -16,6 +16,8 @@ export type ApiDeps = {
   /** Null when reading can run here; otherwise why not (e.g. no explicit RSS ceiling). */
   readyToRead(): string | null;
   findQuote(quoteId: string): Promise<{ id: string; casoId: string | null; sourceLang: string; targetLang: string } | null>;
+  /** The lote comes from an entrada with ?p=regularizacion-2026: FR lines at the campaign tariff. */
+  regularization?(sessionKey: string | null): Promise<boolean>;
   newId(): string;
 };
 export type ApiResponse = { status: number; body: unknown; headers?: Record<string, string> };
@@ -83,10 +85,10 @@ export type LoteView = {
   payload: QuotePayload | null;
 };
 
-export function viewOf(data: { lote: LoteRow; files: FileRow[]; documents: WorkingDocument[] }): LoteView {
+export function viewOf(data: { lote: LoteRow; files: FileRow[]; documents: WorkingDocument[] }, opts: { regularization?: boolean } = {}): LoteView {
   const { lote, files, documents } = data;
   const target = lote.targetLang ?? "";
-  const result = buildLines(documents, files, target);
+  const result = buildLines(documents, files, target, opts);
   const reasons = Array.isArray(lote.reasons) ? (lote.reasons as { code: string; detail: string; documentId?: string }[]) : [];
   const stored = lote.status === "confirmed" ? ((lote.lines as { payload?: QuotePayload } | null)?.payload ?? null) : null;
   return {
@@ -103,6 +105,9 @@ export function viewOf(data: { lote: LoteRow; files: FileRow[]; documents: Worki
     payload: stored,
   };
 }
+
+const campaign = async (deps: ApiDeps, data: { lote: LoteRow }) => ({ regularization: deps.regularization ? await deps.regularization(data.lote.sessionKey).catch(() => false) : false });
+const viewWith = async (deps: ApiDeps, data: { lote: LoteRow; files: FileRow[]; documents: WorkingDocument[] }) => viewOf(data, await campaign(deps, data));
 
 export async function handleStart(req: Request, deps: ApiDeps): Promise<ApiResponse> {
   const g = await gate(req, deps, "start", 20);
@@ -124,7 +129,7 @@ export async function handleStart(req: Request, deps: ApiDeps): Promise<ApiRespo
     return json(503, { ok: false, busy: true, loteId: r.loteId, attempt: r.attempt, maxRetries: r.maxRetries, error: r.reasonEs }, { "Retry-After": "60" });
   }
   const data = await deps.store.get(r.loteId);
-  return json(200, { ok: true, reused: r.reused, view: data ? viewOf(data) : null });
+  return json(200, { ok: true, reused: r.reused, view: data ? await viewWith(deps, data) : null });
 }
 
 export async function handleGet(req: Request, id: string, deps: ApiDeps): Promise<ApiResponse> {
@@ -132,7 +137,7 @@ export async function handleGet(req: Request, id: string, deps: ApiDeps): Promis
   if ("status" in g) return g;
   const data = await deps.store.get(id);
   if (!data) return json(404, { ok: false, error: "Lectura no encontrada." });
-  return json(200, { ok: true, view: viewOf(data) });
+  return json(200, { ok: true, view: await viewWith(deps, data) });
 }
 
 export async function handleEdit(req: Request, id: string, deps: ApiDeps): Promise<ApiResponse> {
@@ -145,7 +150,7 @@ export async function handleEdit(req: Request, id: string, deps: ApiDeps): Promi
   const e = parsed.data;
   if (e.op === "linkQuote") {
     if (data.lote.status !== "confirmed") return json(409, { ok: false, error: "Primero se confirman las líneas." });
-    if (data.lote.quoteId === e.quoteId) return json(200, { ok: true, view: viewOf(data) });
+    if (data.lote.quoteId === e.quoteId) return json(200, { ok: true, view: await viewWith(deps, data) });
     if (data.lote.quoteId) return json(409, { ok: false, error: "Esta lectura ya está enlazada a otro presupuesto." });
     const quote = await deps.findQuote(e.quoteId);
     if (!quote) return json(404, { ok: false, error: "Ese presupuesto no existe." });
@@ -157,13 +162,13 @@ export async function handleEdit(req: Request, id: string, deps: ApiDeps): Promi
     }
     if (!(await deps.store.linkQuote(id, e.quoteId))) return json(409, { ok: false, error: "Esta lectura ya está enlazada a otro presupuesto." });
     const after = await deps.store.get(id);
-    return json(200, { ok: true, view: after ? viewOf(after) : null });
+    return json(200, { ok: true, view: after ? await viewWith(deps, after) : null });
   }
   if (data.lote.status !== "ok") return json(409, { ok: false, error: data.lote.status === "confirmed" ? "Las líneas ya están confirmadas: no se cambian." : "Esta lectura no se puede corregir." });
   if (e.op === "setTargetLang") {
     if (!(await deps.store.setTargetLang(id, e.targetLang))) return json(409, { ok: false, error: "La lectura ha cambiado de estado: recárgala." });
     const after = await deps.store.get(id);
-    return json(200, { ok: true, view: after ? viewOf(after) : null });
+    return json(200, { ok: true, view: after ? await viewWith(deps, after) : null });
   }
   let op: EditOp;
   try {
@@ -175,7 +180,7 @@ export async function handleEdit(req: Request, id: string, deps: ApiDeps): Promi
   if (!result.ok) return json(422, { ok: false, error: result.error });
   if (!(await deps.store.replaceDocuments(id, result.documents))) return json(409, { ok: false, error: "La lectura ha cambiado de estado: recárgala." });
   const after = await deps.store.get(id);
-  return json(200, { ok: true, view: after ? viewOf(after) : null });
+  return json(200, { ok: true, view: after ? await viewWith(deps, after) : null });
 }
 
 export async function handleConfirm(req: Request, id: string, deps: ApiDeps): Promise<ApiResponse> {
@@ -185,15 +190,15 @@ export async function handleConfirm(req: Request, id: string, deps: ApiDeps): Pr
   if (!parsed.success) return invalid(parsed.error);
   const data = await deps.store.get(id);
   if (!data) return json(404, { ok: false, error: "Lectura no encontrada." });
-  if (data.lote.status === "confirmed") return json(200, { ok: true, view: viewOf(data) });
+  if (data.lote.status === "confirmed") return json(200, { ok: true, view: await viewWith(deps, data) });
   if (data.lote.status !== "ok") return json(409, { ok: false, error: "Solo se confirma una lectura terminada." });
   const seen = new Date(parsed.data.expectedUpdatedAt);
-  if (seen.getTime() !== data.lote.updatedAt.getTime()) return json(409, { ok: false, error: "El lote cambió desde que lo viste: recarga y revisa antes de confirmar.", view: viewOf(data) });
-  const result = buildLines(data.documents, data.files, data.lote.targetLang ?? "");
+  if (seen.getTime() !== data.lote.updatedAt.getTime()) return json(409, { ok: false, error: "El lote cambió desde que lo viste: recarga y revisa antes de confirmar.", view: await viewWith(deps, data) });
+  const result = buildLines(data.documents, data.files, data.lote.targetLang ?? "", await campaign(deps, data));
   const payload = quotePayload(result);
-  if (!payload) return json(422, { ok: false, error: "Hay líneas sin resolver.", view: viewOf(data) });
+  if (!payload) return json(422, { ok: false, error: "Hay líneas sin resolver.", view: await viewWith(deps, data) });
   const snapshot = { payload, documents: result.lines.map((l) => ({ documentId: l.documentId, priceSource: l.priceSource, tariffCents: l.tariffCents, unitPriceCents: l.unitPriceCents })) };
   if (!(await deps.store.confirm(id, g.email, snapshot, data.lote.updatedAt))) return json(409, { ok: false, error: "El lote cambió mientras confirmabas: recarga y revisa." });
   const after = await deps.store.get(id);
-  return json(200, { ok: true, view: after ? viewOf(after) : null });
+  return json(200, { ok: true, view: after ? await viewWith(deps, after) : null });
 }

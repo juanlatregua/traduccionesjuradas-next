@@ -76,21 +76,21 @@ export default function OrderCreditPanel({ reference, clientName, amountCents, c
     const draft = monthly.status === "DRAFT";
     const overdue = !draft && monthly.dueDate ? new Date(monthly.dueDate) < new Date() : false;
     return (
-      <div className={`rounded-xl border p-3 ${overdue ? "border-red-500/40 bg-red-500/10" : "border-violet-500/40 bg-violet-500/10"}`}>
-        <p className={`text-xs font-semibold ${overdue ? "text-red-300" : "text-violet-300"}`}>
+      <div className={`rounded-xl border p-3 ${overdue ? "border-[#F0C9C9] bg-[#FDF2F2]" : "border-[#D5DAE1] bg-[#F6F7F9]"}`}>
+        <p className={`text-xs font-semibold ${overdue ? "text-[#A12B2B]" : "text-[#1A2E4A]"}`}>
           {overdue ? "Crédito VENCIDO" : draft ? "A crédito · en la factura del mes" : "A crédito · factura del mes emitida"}
         </p>
-        <p className="mt-1 text-sm text-slate-200">
+        <p className="mt-1 text-sm text-[#1F2933]">
           {draft
             ? `Factura agrupada de ${monthly.periodLabel} (borrador) · ${eur} EUR de este pedido`
             : `Factura ${monthly.number} (${monthly.periodLabel}) · vence ${monthly.dueDate ? new Date(monthly.dueDate).toLocaleDateString("es-ES") : "—"}`}
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-[#52606D]">
           Se puede traducir y entregar.{" "}
           {draft ? "La factura se emite a fin de mes desde la ficha del cliente." : "Cuando entre el dinero, marca cobrada la factura del mes: sus pedidos se cobran solos."}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <a href={`/zona-traductor/clientes/${encodeURIComponent(monthly.customerEmail)}`} className="text-xs text-cyan-400 hover:underline">
+          <a href={`/zona-traductor/clientes/${encodeURIComponent(monthly.customerEmail)}`} className="text-xs text-[#1A2E4A] hover:underline">
             Ver factura del mes
           </a>
           {draft && (
@@ -98,12 +98,12 @@ export default function OrderCreditPanel({ reference, clientName, amountCents, c
               type="button"
               onClick={() => call("revoke")}
               disabled={busy}
-              className="rounded-lg border border-slate-600 px-2 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg border border-[#D5DAE1] px-2 py-1 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50"
             >
               Descolgar de la factura del mes
             </button>
           )}
-          {msg && <span className={`text-xs ${msg.kind === "ok" ? "text-emerald-300" : "text-red-400"}`}>{msg.text}</span>}
+          {msg && <span className={`text-xs ${msg.kind === "ok" ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{msg.text}</span>}
         </div>
       </div>
     );
@@ -112,17 +112,17 @@ export default function OrderCreditPanel({ reference, clientName, amountCents, c
   if (credit && !credit.paidAt) {
     const overdue = credit.daysToDue !== null && credit.daysToDue < 0;
     return (
-      <div className={`rounded-xl border p-3 ${overdue ? "border-red-500/40 bg-red-500/10" : "border-violet-500/40 bg-violet-500/10"}`}>
-        <p className={`text-xs font-semibold ${overdue ? "text-red-300" : "text-violet-300"}`}>
+      <div className={`rounded-xl border p-3 ${overdue ? "border-[#F0C9C9] bg-[#FDF2F2]" : "border-[#D5DAE1] bg-[#F6F7F9]"}`}>
+        <p className={`text-xs font-semibold ${overdue ? "text-[#A12B2B]" : "text-[#1A2E4A]"}`}>
           {overdue ? "Crédito VENCIDO" : "A crédito · sin cobrar"}
         </p>
-        <p className="mt-1 text-sm text-slate-200">
+        <p className="mt-1 text-sm text-[#1F2933]">
           Factura {credit.invoiceNumber || "(sin nº)"} · {eur} EUR · vence {new Date(credit.dueDate).toLocaleDateString("es-ES")}
           {credit.daysToDue !== null && (
-            <span className="text-slate-400"> ({credit.daysToDue >= 0 ? `faltan ${credit.daysToDue} días` : `hace ${-credit.daysToDue} días`})</span>
+            <span className="text-[#52606D]"> ({credit.daysToDue >= 0 ? `faltan ${credit.daysToDue} días` : `hace ${-credit.daysToDue} días`})</span>
           )}
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-[#52606D]">
           Se puede traducir y entregar. Cuando entre el dinero: «Marcar cobrado» aquí mismo y conciliar a mano.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -130,11 +130,11 @@ export default function OrderCreditPanel({ reference, clientName, amountCents, c
             type="button"
             onClick={() => call("revoke")}
             disabled={busy}
-            className="rounded-lg border border-slate-600 px-2 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+            className="rounded-lg border border-[#D5DAE1] px-2 py-1 text-xs font-semibold text-[#1F2933] hover:bg-[#F6F7F9] disabled:opacity-50"
           >
             Retirar autorización
           </button>
-          {msg && <span className={`text-xs ${msg.kind === "ok" ? "text-emerald-300" : "text-red-400"}`}>{msg.text}</span>}
+          {msg && <span className={`text-xs ${msg.kind === "ok" ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{msg.text}</span>}
         </div>
       </div>
     );
@@ -142,42 +142,42 @@ export default function OrderCreditPanel({ reference, clientName, amountCents, c
 
   if (!creditEnabled) {
     return (
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-[#52606D]">
         ¿Trabajar y entregar antes de cobrar? Marca a {clientName} como cliente de crédito en su ficha (Clientes → Editar ficha).
       </p>
     );
   }
 
   return (
-    <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-3">
+    <div className="rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] p-3">
       {!open ? (
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setOpen(true)}
             disabled={busy}
-            className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+            className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
           >
             Autorizar a crédito (trabajar y entregar antes de cobrar)
           </button>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-[#52606D]">
             {isMonthly ? `Mete los ${eur} EUR en la factura agrupada del mes (se emite a fin de mes).` : `Emite la factura de ${eur} EUR con vencimiento a ${creditDays} días.`}
           </span>
-          {msg && <span className={`text-xs ${msg.kind === "ok" ? "text-emerald-300" : "text-red-400"}`}>{msg.text}</span>}
+          {msg && <span className={`text-xs ${msg.kind === "ok" ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{msg.text}</span>}
         </div>
       ) : (
         <div className="space-y-2">
-          <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <label className="block text-[11px] font-semibold uppercase tracking-wide text-[#52606D]">
             Motivo (queda en el registro del pedido)
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={2}
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm normal-case tracking-normal text-slate-200 focus:border-violet-500 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-2 text-sm normal-case tracking-normal text-[#1F2933] focus:border-[#D5DAE1] focus:outline-none"
             />
           </label>
           {!isMonthly && (
-            <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <label className="block text-[11px] font-semibold uppercase tracking-wide text-[#52606D]">
               Vencimiento
               <input
                 type="date"
@@ -185,7 +185,7 @@ export default function OrderCreditPanel({ reference, clientName, amountCents, c
                 min={isoPlusDays(1)}
                 max={isoPlusDays(90)}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="mt-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200 focus:border-violet-500 focus:outline-none"
+                className="mt-1 rounded-lg border border-[#D5DAE1] bg-[#fff] px-3 py-1.5 text-sm text-[#1F2933] focus:border-[#D5DAE1] focus:outline-none"
               />
             </label>
           )}
@@ -194,14 +194,14 @@ export default function OrderCreditPanel({ reference, clientName, amountCents, c
               type="button"
               onClick={() => call("authorize")}
               disabled={busy || reason.trim().length < 10}
-              className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+              className="rounded-lg bg-[#1A2E4A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#243F66] disabled:opacity-50"
             >
               {busy ? "Autorizando…" : isMonthly ? `Autorizar → factura del mes (${eur} EUR)` : `Emitir factura de ${eur} EUR y autorizar`}
             </button>
-            <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-400 hover:text-slate-200">
+            <button type="button" onClick={() => setOpen(false)} className="text-xs text-[#52606D] hover:text-[#1F2933]">
               Cancelar
             </button>
-            {msg && <span className={`text-xs ${msg.kind === "ok" ? "text-emerald-300" : "text-red-400"}`}>{msg.text}</span>}
+            {msg && <span className={`text-xs ${msg.kind === "ok" ? "text-[#1F6B45]" : "text-[#A12B2B]"}`}>{msg.text}</span>}
           </div>
         </div>
       )}

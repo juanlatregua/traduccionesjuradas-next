@@ -56,6 +56,8 @@ async function handle(req: Request, mayAuthorizeSend: boolean) {
     where: {
       deletedAt: null,
       paidAt: null,
+      // Pago congelado: no se manda el enlace de pago hasta descongelar.
+      paymentFrozenAt: null,
       status: { in: ["DRAFT", "SENT", "OPENED", "ACCEPTED", "EXPIRED"] },
     },
     select: {

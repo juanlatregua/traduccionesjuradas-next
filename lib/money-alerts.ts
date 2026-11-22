@@ -5,6 +5,7 @@ import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { costAlertAlreadySent, AMOUNT_MISMATCH_EVENT, AMOUNT_MISMATCH_MARK } from "@/lib/money-alerts-math";
+import { abs, hrefPedido, hrefPresupuesto } from "./staff-links.ts";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const adminEmail = () => process.env.ADMIN_EMAIL || "hola@traduccionesjuradas.net";
@@ -27,7 +28,7 @@ export async function alertUnpricedAssignment(input: {
       select: { reference: true, clientName: true, langPair: true, amountCents: true },
     });
     if (!order) return;
-    const ficha = `${SITE}/zona-traductor/pedido/${order.reference}`;
+    const ficha = abs(hrefPedido(order.reference), SITE);
     const texto = [
       `El pedido ${order.reference} se ha asignado a ${input.translator} SIN COSTE (${input.origin}).`,
       "",
@@ -80,7 +81,7 @@ export async function alertQuoteBridgeFailure(input: {
       `Evento Stripe: ${input.stripeEventId}`,
       "",
       "El presupuesto está PAID sin pedido: nadie ha pedido traductor. Stripe reintentará el evento; si sigue sin pedido, créalo desde el presupuesto.",
-      `${SITE}/zona-traductor/presupuestos/${input.quoteId}`,
+      abs(hrefPresupuesto(input.quoteId), SITE),
     ].join("\n");
     await prisma.messageLog.create({
       data: { quoteId: input.quoteId, channel: "EMAIL", type: "PAID_CONFIRMATION", recipient: "staff", subject: BRIDGE_FAILED_MARK, body: texto, status: "NOTICE" },
@@ -114,7 +115,7 @@ export async function alertQuoteBridgeResolved(input: { quoteId: string; quoteNu
     ]);
     if (fallos === 0 || resuelto > 0) return;
     const order = await prisma.order.findFirst({ where: { quoteId: input.quoteId }, select: { reference: true } });
-    const texto = `Resuelto: el presupuesto ${input.quoteNumber} ya tiene pedido${order ? ` (${order.reference})` : ""} tras ${fallos} intento(s) fallido(s) del puente.${order ? `\n${SITE}/zona-traductor/pedido/${order.reference}` : ""}`;
+    const texto = `Resuelto: el presupuesto ${input.quoteNumber} ya tiene pedido${order ? ` (${order.reference})` : ""} tras ${fallos} intento(s) fallido(s) del puente.${order ? `\n${abs(hrefPedido(order.reference), SITE)}` : ""}`;
     await prisma.messageLog.create({
       data: { quoteId: input.quoteId, channel: "EMAIL", type: "PAID_CONFIRMATION", recipient: "staff", subject: BRIDGE_RESOLVED_MARK, body: texto, status: "NOTICE" },
     });

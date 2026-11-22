@@ -97,10 +97,10 @@ type Props = {
 
 function PaymentBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    PAID: { label: "Pagado", cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-    PENDING: { label: "Pendiente", cls: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-    FAILED: { label: "Fallido", cls: "bg-red-500/20 text-red-300 border-red-500/30" },
-    REFUNDED: { label: "Reembolsado", cls: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
+    PAID: { label: "Pagado", cls: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]" },
+    PENDING: { label: "Pendiente", cls: "bg-[#FFF8E6] text-[#7A5A10] border-[#E9D8A6]" },
+    FAILED: { label: "Fallido", cls: "bg-[#FDF2F2] text-[#A12B2B] border-[#F0C9C9]" },
+    REFUNDED: { label: "Reembolsado", cls: "bg-[#F6F7F9] text-[#1F2933] border-[#D5DAE1]" },
   };
   const info = map[status] || map.PENDING;
   return (
@@ -112,9 +112,9 @@ function PaymentBadge({ status }: { status: string }) {
 
 function DeliveryBadge({ state }: { state: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    PRESUPUESTO: { label: "Presupuesto", cls: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
-    EN_PROCESO: { label: "En proceso", cls: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-    TRADUCIDO: { label: "Traducido", cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+    PRESUPUESTO: { label: "Presupuesto", cls: "bg-[#F6F7F9] text-[#1F2933] border-[#D5DAE1]" },
+    EN_PROCESO: { label: "En proceso", cls: "bg-[#F6F7F9] text-[#1A2E4A] border-[#D5DAE1]" },
+    TRADUCIDO: { label: "Traducido", cls: "bg-[#EEF7F1] text-[#1F6B45] border-[#BFE0CC]" },
   };
   const info = map[state] || map.PRESUPUESTO;
   return (
@@ -133,7 +133,7 @@ function BandejaOrderCard({ order }: { order: BandejaOrder }) {
     params.set("lineDescription", order.title || "Traducción jurada");
     params.set("lineAmount", (Math.max(0, order.amountCents) / 100).toFixed(2));
     if (order.langPair) params.set("langPair", order.langPair);
-    return `/admin/quotes/new?${params.toString()}`;
+    return `/zona-traductor/presupuesto?${params.toString()}`;
   }, [order]);
 
   const borderColor = order.overdue
@@ -145,47 +145,47 @@ function BandejaOrderCard({ order }: { order: BandejaOrder }) {
         : "";
 
   return (
-    <div className={`rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-4 transition-colors hover:border-slate-600 hover:bg-slate-800/50 ${borderColor}`}>
+    <div className={`rounded-2xl border border-[#D5DAE1] bg-[#fff] px-5 py-4 transition-colors hover:border-[#52606D] hover:bg-[#F6F7F9] ${borderColor}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-mono text-sm font-bold text-cyan-300">{order.reference}</span>
-        {order.langPair && <span className="text-xs text-slate-500">{order.langPair}</span>}
+        <span className="font-mono text-sm font-bold text-[#1A2E4A]">{order.reference}</span>
+        {order.langPair && <span className="text-xs text-[#52606D]">{order.langPair}</span>}
         <PaymentBadge status={order.paymentStatus} />
         <DeliveryBadge state={order.deliveryState} />
         {order.collaboratorAssignments.some((a) => a.status === "DELIVERED" && a.deliveredFileUrl) && (
-          <span className="inline-block rounded-full border bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300 border-emerald-500/30">
+          <span className="inline-block rounded-full border bg-[#EEF7F1] px-2 py-0.5 text-[10px] font-bold uppercase text-[#1F6B45] border-[#BFE0CC]">
             Entrega pendiente
           </span>
         )}
       </div>
-      <p className="mt-1 truncate text-sm text-slate-300">{order.title}</p>
-      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+      <p className="mt-1 truncate text-sm text-[#1F2933]">{order.title}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#52606D]">
         <span>{order.clientEmail}</span>
-        <span className="font-medium text-slate-200">{(order.amountCents / 100).toFixed(2)} EUR</span>
+        <span className="font-medium text-[#1F2933]">{(order.amountCents / 100).toFixed(2)} EUR</span>
         <span>
           {new Date(order.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit" })}
         </span>
-        <span className={order.acquisitionSource === "WHATSAPP" ? "font-semibold text-emerald-400" : "text-slate-500"}>
+        <span className={order.acquisitionSource === "WHATSAPP" ? "font-semibold text-[#1F6B45]" : "text-[#52606D]"}>
           {order.acquisitionSource === "WHATSAPP" ? "WA" : "Web"}
         </span>
         {order.dueDate && (
-          <span className={order.overdue ? "font-semibold text-red-400" : order.dueSoon ? "font-semibold text-amber-400" : ""}>
+          <span className={order.overdue ? "font-semibold text-[#A12B2B]" : order.dueSoon ? "font-semibold text-[#7A5A10]" : ""}>
             Entrega: {new Date(order.dueDate).toLocaleDateString("es-ES")}
             {order.overdue && " (vencido)"}
           </span>
         )}
-        {order.assignedTo && <span className="text-amber-300/80">→ {order.assignedTo}</span>}
+        {order.assignedTo && <span className="text-[#7A5A10]">→ {order.assignedTo}</span>}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <a
           href={`/zona-traductor/pedido/${order.reference}`}
-          className="rounded-lg border border-emerald-500/50 bg-emerald-500/15 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/25"
+          className="rounded-lg border border-[#BFE0CC] bg-[#EEF7F1] px-3 py-1.5 text-xs font-semibold text-[#1F6B45] hover:bg-[#EEF7F1]"
         >
           Abrir pedido
         </a>
         {order.nextBestAction.tab === "presupuesto" && (
           <a
             href={quickQuoteHref}
-            className="rounded-lg border border-cyan-500/40 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10"
+            className="rounded-lg border border-[#D5DAE1] px-3 py-1.5 text-xs font-semibold text-[#1A2E4A] hover:bg-[#F6F7F9]"
           >
             {order.nextBestAction.label}
           </a>
@@ -202,10 +202,10 @@ type FilterKey = "todos" | "urgentes" | "a-trabajar" | "en-curso" | "mis-pedidos
 type GroupKey = "urgente" | "aTrabajar" | "enCurso" | "pendientes";
 
 const GROUP_META: Record<GroupKey, { label: string; color: string; defaultOpen: boolean }> = {
-  urgente: { label: "URGENTE", color: "text-red-400", defaultOpen: true },
-  aTrabajar: { label: "A TRABAJAR", color: "text-amber-400", defaultOpen: true },
-  enCurso: { label: "EN CURSO", color: "text-blue-400", defaultOpen: false },
-  pendientes: { label: "PENDIENTES", color: "text-slate-400", defaultOpen: false },
+  urgente: { label: "URGENTE", color: "text-[#A12B2B]", defaultOpen: true },
+  aTrabajar: { label: "A TRABAJAR", color: "text-[#7A5A10]", defaultOpen: true },
+  enCurso: { label: "EN CURSO", color: "text-[#1A2E4A]", defaultOpen: false },
+  pendientes: { label: "PENDIENTES", color: "text-[#52606D]", defaultOpen: false },
 };
 
 function classifyOrder(order: BandejaOrder): GroupKey {
@@ -287,8 +287,8 @@ export default function BandejaEntrada({ orders, staffEmail }: Props) {
             onClick={() => setFiltro(p.key)}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
               filtro === p.key
-                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                : "bg-slate-800/60 text-slate-400 border border-slate-700 hover:text-slate-200 hover:border-slate-600"
+                ? "bg-[#F6F7F9] text-[#1A2E4A] border border-[#D5DAE1]"
+                : "bg-[#F6F7F9] text-[#52606D] border border-[#D5DAE1] hover:text-[#1F2933] hover:border-[#52606D]"
             }`}
           >
             {p.label}
@@ -297,7 +297,7 @@ export default function BandejaEntrada({ orders, staffEmail }: Props) {
       </div>
 
       {filteredOrders.length === 0 && (
-        <p className="text-center text-sm text-slate-500 py-8">No hay pedidos con este filtro.</p>
+        <p className="text-center text-sm text-[#52606D] py-8">No hay pedidos con este filtro.</p>
       )}
 
       {/* Groups */}
@@ -315,7 +315,7 @@ export default function BandejaEntrada({ orders, staffEmail }: Props) {
               className="flex w-full items-center gap-2 py-2 text-left"
             >
               <svg
-                className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                className={`h-4 w-4 shrink-0 text-[#52606D] transition-transform ${isCollapsed ? "" : "rotate-90"}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -326,7 +326,7 @@ export default function BandejaEntrada({ orders, staffEmail }: Props) {
               <span className={`text-xs font-bold uppercase tracking-wider ${meta.color}`}>
                 {meta.label}
               </span>
-              <span className="text-xs text-slate-500">({items.length})</span>
+              <span className="text-xs text-[#52606D]">({items.length})</span>
             </button>
 
             {!isCollapsed && (
