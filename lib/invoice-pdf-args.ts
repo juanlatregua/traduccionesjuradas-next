@@ -7,6 +7,7 @@ import path from "path";
 import { getBrand } from "@/lib/invoice-brands";
 import type { ClientInvoice } from "@prisma/client";
 import type { LayoutLine } from "@/lib/client-invoice";
+import { PAYMENT_ACCOUNTS, type PaymentAccount } from "@/lib/payment-labels";
 
 // Carga el logo de marca (PNG) como data URL si el archivo existe.
 export async function loadBrandLogo(brandKey: string): Promise<string | undefined> {
@@ -22,6 +23,9 @@ export async function loadBrandLogo(brandKey: string): Promise<string | undefine
 
 // Clientes cuya factura va sin logo: Vatel/SORENGAN (Juan, 21-sep-2026).
 const NO_LOGO_NIFS = new Set(["B88144597"]);
+// Vatel cobra en Sabadell aunque la marca holabonjour cobre en BBVA (Juan, 23-nov-2026).
+const SABADELL_NIFS = new Set(["B88144597"]);
+const SABADELL = PAYMENT_ACCOUNTS.sabadell as Extract<PaymentAccount, { kind: "transfer" }>;
 
 export function invoiceLinesOf(invoice: ClientInvoice): LayoutLine[] | undefined {
   return Array.isArray(invoice.lineItemsJson) ? (invoice.lineItemsJson as unknown as LayoutLine[]) : undefined;
@@ -32,6 +36,7 @@ export function clientInvoicePdfArgs(
   logoDataUrl: string | undefined
 ) {
   const lines = invoiceLinesOf(invoice);
+  const nif = (invoice.nif || "").replace(/[^0-9A-Z]/gi, "").toUpperCase();
   return {
     reference: invoice.order?.reference,
     title: invoice.concept || lines?.[0]?.description || "Traducción jurada",
@@ -41,7 +46,8 @@ export function clientInvoicePdfArgs(
     vatRate: invoice.vatRate,
     brand: invoice.brand,
     logoDataUrl,
-    noLogo: NO_LOGO_NIFS.has((invoice.nif || "").replace(/[^0-9A-Z]/gi, "").toUpperCase()),
+    noLogo: NO_LOGO_NIFS.has(nif),
+    bankAccount: SABADELL_NIFS.has(nif) ? { bic: SABADELL.bic, iban: SABADELL.iban } : undefined,
     poNumber: invoice.poNumber,
     holderNames: invoice.holderNames,
     simplified: invoice.simplified,

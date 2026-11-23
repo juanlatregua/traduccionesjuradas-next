@@ -29,6 +29,7 @@ type InvoiceData = {
   brand?: string; // marca/actividad emisora (traduccionesjuradas | holabonjour)
   logoDataUrl?: string; // PNG en data URL para marcas con logo de imagen
   noLogo?: boolean; // factura sin logo (p. ej. Vatel/SORENGAN, orden de Juan 21-sep-2026)
+  bankAccount?: { bic: string; iban: string }; // cuenta de cobro distinta de la de la marca
   poNumber?: string | null; // Purchase Order / nº de pedido del cliente
   holderNames?: string | null; // titulares de los certificados (informativo)
   langPair?: string | null;
@@ -417,8 +418,8 @@ export function generateInvoicePdf(data: InvoiceData): Buffer {
     doc.text("BIC/SWIFT", margin + 5, footY + 6);
     doc.text("CUENTA BANCARIA / Bank account", margin + 5, footY + 11.5);
     doc.setFont("helvetica", "normal");
-    doc.text(brand.bic, margin + 60, footY + 6);
-    doc.text(brand.iban, margin + 60, footY + 11.5);
+    doc.text(data.bankAccount?.bic ?? brand.bic, margin + 60, footY + 6);
+    doc.text(data.bankAccount?.iban ?? brand.iban, margin + 60, footY + 11.5);
   }
 
   // ── Marca de agua de borrador (proforma, sin valor fiscal) ────────────
