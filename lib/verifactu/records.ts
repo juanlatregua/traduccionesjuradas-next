@@ -280,13 +280,15 @@ async function toSendInput(r: PendingRow): Promise<ProviderSendInput> {
   }
   let sinRegistroPrevio = false;
   let flags = { subsanacion: false, rechazoPrevio: false };
+  let notCensused = false;
   if (r.kind === "ANULACION") {
     const altas = await prisma.invoiceRecord.findMany({ where: { invoiceId: r.invoiceId, kind: "ALTA" }, select: { sendStatus: true } });
     if (anulacionMustWait(altas.map((a) => a.sendStatus))) throw new DeferredRecord(`Anulación de ${r.numSerie} a la espera de que se confirme su alta.`);
     sinRegistroPrevio = anulacionSinRegistroPrevio(altas.map((a) => a.sendStatus));
   } else {
-    const earlier = await prisma.invoiceRecord.findMany({ where: { invoiceId: r.invoiceId, kind: "ALTA", chainIndex: { lt: r.chainIndex } }, select: { sendStatus: true } });
+    const earlier = await prisma.invoiceRecord.findMany({ where: { invoiceId: r.invoiceId, kind: "ALTA", chainIndex: { lt: r.chainIndex } }, select: { sendStatus: true, providerResponse: true } });
     flags = subsanacionFlags(earlier.map((a) => a.sendStatus));
+    notCensused = earlier.some((a) => a.sendStatus === "REJECTED" && String((a.providerResponse as { codigoError?: unknown } | null)?.codigoError ?? "") === "1239");
   }
   return {
     recordId: r.id,
@@ -302,7 +304,7 @@ async function toSendInput(r: PendingRow): Promise<ProviderSendInput> {
     prevHash: r.prevHash,
     prev: prevRec,
     generatedAtIso: r.generatedAtIso,
-    recipient: r.invoiceType === "F2" || r.invoiceType === "R5" ? null : { name: r.invoice.fiscalName, nif: r.invoice.nif, country: r.invoice.country },
+    recipient: r.invoiceType === "F2" || r.invoiceType === "R5" ? null : { name: r.invoice.fiscalName, nif: r.invoice.nif, country: r.invoice.country, notCensused },
     rectifies,
     sinRegistroPrevio,
     ...flags,

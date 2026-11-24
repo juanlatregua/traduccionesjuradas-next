@@ -118,7 +118,8 @@ export function recipientXml(r: NonNullable<ProviderSendInput["recipient"]>): st
   let ident: string;
   if (iso === "ES") {
     if (!SPANISH_NIF.test(id)) throw new AeatDataError(`NIF español «${r.nif}» con formato no válido (9 caracteres).`);
-    ident = el("NIF", id);
+    // NIF correcto pero aún fuera del censo de la AEAT (NIE recién asignado, error 1239): IDOtro ES 07 «No censado».
+    ident = r.notCensused ? `<sf:IDOtro>${el("CodigoPais", "ES")}${el("IDType", "07")}${el("ID", id)}</sf:IDOtro>` : el("NIF", id);
   } else {
     const vatPrefix = iso === "GR" ? "EL" : iso;
     const isVat = EU.has(iso) && id.startsWith(vatPrefix) && id.length > 4;

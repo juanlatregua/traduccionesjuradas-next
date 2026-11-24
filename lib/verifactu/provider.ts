@@ -24,7 +24,7 @@ export type ProviderSendInput = {
   prevHash: string | null;
   prev?: { emitterNif: string; numSerie: string; issueDate: string } | null; // registro anterior de la cadena
   generatedAtIso: string;
-  recipient?: { name: string; nif?: string | null; country?: string | null } | null;
+  recipient?: { name: string; nif?: string | null; country?: string | null; notCensused?: boolean } | null;
   lines?: { description: string; baseCents: number; vatRate: number; vatCents: number }[];
   rectifies?: { numSerie: string; issueDate: string } | null;
   subsanacion?: boolean; // alta que corrige un registro anterior de la misma factura (Subsanacion=S)

@@ -82,6 +82,12 @@ test("F1 extranjera: IDOtro 02 con NIF-IVA UE, 06 para el resto, error si no hay
   assert.throws(() => registroXml(alta({ recipient: null })), AeatDataError);
 });
 
+test("NIF español no censado (tras 1239): IDOtro ES 07 con el mismo NIF", () => {
+  const xml = registroXml(alta({ recipient: { name: "Karim", nif: "Z4715416F", country: "España", notCensused: true } }));
+  assert.match(xml, /<sf:IDOtro><sf:CodigoPais>ES<\/sf:CodigoPais><sf:IDType>07<\/sf:IDType><sf:ID>Z4715416F<\/sf:ID><\/sf:IDOtro>/);
+  assert.doesNotMatch(xml, /<sf:NIF>Z4715416F/);
+});
+
 test("país texto libre → ISO 3166-1 alfa-2", () => {
   assert.equal(countryToIso("España"), "ES");
   assert.equal(countryToIso(" Spain "), "ES");
