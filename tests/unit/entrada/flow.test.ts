@@ -139,6 +139,24 @@ test("client corrects (excludes a document) and confirms with deadline → Juan 
   assert.equal((await deps.store.get(r.entrada.id))!.estado, "confirmada");
 });
 
+test("confirmar sin idioma elegido guarda el detectado en la entrada y en sus archivos; el elegido manda", async () => {
+  const w = mundo();
+  const deps = flowDeps(w, { read: (fs) => okReading(fs) });
+  const r = await entrar(deps, "web", { email: "ana@x.com" }, [`${BLOB}/web/pasaporte.jpg`]);
+  assert.equal(r.entrada.sourceLang, null);
+  const lote = r.read.ok ? r.read.view.lectura!.loteUpdatedAt : null;
+  const c = await confirmarEntrada(deps, r.entrada, { urgency: "ASAP", neededBy: null, organismo: null, notas: null, loteUpdatedAt: lote });
+  assert.equal(c.ok, true);
+  assert.equal((await deps.store.get(r.entrada.id))!.sourceLang, "fr");
+  assert.ok(w.docs.length > 0 && w.docs.every((x) => x.sourceLang === "fr"));
+  const w2 = mundo();
+  const deps2 = flowDeps(w2, { read: (fs) => okReading(fs) });
+  const r2 = await entrar(deps2, "web", { email: "bea@x.com" }, [`${BLOB}/web/pasaporte.jpg`], { s: "de" });
+  const lote2 = r2.read.ok ? r2.read.view.lectura!.loteUpdatedAt : null;
+  await confirmarEntrada(deps2, r2.entrada, { urgency: "ASAP", neededBy: null, organismo: null, notas: null, loteUpdatedAt: lote2 });
+  assert.equal((await deps2.store.get(r2.entrada.id))!.sourceLang, "de");
+});
+
 test("language without sworn translator: declared pair closes without spending a reading", async () => {
   const w = mundo();
   const deps = flowDeps(w, { read: (fs) => okReading(fs, "el"), jurado: (s, t) => (s === "el" || t === "el" ? "no" : "si") });

@@ -74,6 +74,13 @@ export function prismaEntradaStore(db: PrismaClient): EntradaStore {
       const r = await db.entrada.updateMany({ where: { id, codeAttempts: { lt: max } }, data: { codeAttempts: { increment: 1 } } });
       return r.count === 1;
     },
+    async syncFilesLang(entradaId, sourceLang, targetLang) {
+      if (!sourceLang && !targetLang) return;
+      await db.documentAnalysis.updateMany({
+        where: { sessionToken: sessionKeyOf(entradaId), orderId: null },
+        data: { ...(sourceLang ? { sourceLanguage: sourceLang } : {}), ...(targetLang ? { targetLanguage: targetLang } : {}) },
+      });
+    },
     async linkFilesToCaso(entradaId, casoId) {
       await db.documentAnalysis.updateMany({ where: { sessionToken: sessionKeyOf(entradaId), casoId: null }, data: { casoId } });
     },

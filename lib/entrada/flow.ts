@@ -13,6 +13,7 @@ import { clientView, ownLote, type ClientView, type ReadingExtras } from "./view
 import type { FrAutoData, FrAutoResult } from "./fr-auto.ts";
 import { fingerprintOf } from "../lectura-constructor/run.ts";
 import { staffOnlyReason } from "./aviso.ts";
+import { resolveSourceLang } from "./idioma.ts";
 
 export const MAX_ARCHIVOS = 40;
 export const EXCLUDED_BY_CLIENT = "el cliente indica que no hace falta traducirlo";
@@ -279,6 +280,14 @@ export type ClientEdit =
   | { op: "setTargetLang"; targetLang: string }
   | { op: "setLangs"; sourceLang: string | null; targetLangs: string[] };
 
+async function syncLang(deps: FlowDeps, id: string, sourceLang: string | null, targetLang: string | null) {
+  try {
+    await deps.store.syncFilesLang(id, sourceLang, targetLang);
+  } catch (err) {
+    console.error("[entrada] syncFilesLang", err);
+  }
+}
+
 /** Languages always belong to the entrada; on its own lote they also change each document's pair. Never a new reading. */
 async function cambiarIdiomas(deps: FlowDeps, e: EntradaRow, sourceLang: string | null, targetLangs: string[]): Promise<Outcome> {
   if (e.estado !== "abierta" && e.estado !== "leida") return fail(409, "Esta solicitud ya está enviada.");
@@ -288,6 +297,7 @@ async function cambiarIdiomas(deps: FlowDeps, e: EntradaRow, sourceLang: string 
   if (sourceLang && targets.includes(sourceLang)) return fail(422, "El idioma del documento y el de la traducción no pueden ser el mismo.");
   const patch = { sourceLang, targetLang: targets[0], targetLangs: targets };
   if (!(await deps.store.update(e.id, patch, ["abierta", "leida"]))) return fail(409, "Esta solicitud ha cambiado: recarga la página.");
+  await syncLang(deps, e.id, sourceLang, targets[0]);
   const data = e.loteId ? await deps.lectura.store.get(e.loteId) : null;
   if (data && data.lote.status === "ok" && ownLote(e, data.lote)) {
     await deps.lectura.store.setTargetLang(e.loteId!, targets[0]);
@@ -330,15 +340,17 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
   }
   const now = deps.now();
   const respuestas = c.respuestas?.length ? c.respuestas : null;
-  const patch = { estado: "confirmada" as const, confirmedAt: now, urgency: c.urgency, neededBy: c.neededBy, organismo: c.organismo, notas: c.notas, pais: c.pais ?? null, respuestas };
+  const sourceLang = resolveSourceLang(e.sourceLang, data?.documents ?? []);
+  const patch = { estado: "confirmada" as const, confirmedAt: now, ...(sourceLang ? { sourceLang } : {}), urgency: c.urgency, neededBy: c.neededBy, organismo: c.organismo, notas: c.notas, pais: c.pais ?? null, respuestas };
   if (!(await deps.store.update(e.id, patch, ["leida"]))) return fail(409, "Esta solicitud ha cambiado: recarga la página.");
   const done: EntradaRow = { ...e, ...patch };
+  if (sourceLang) await syncLang(deps, e.id, sourceLang, null);
   const documentos = data?.documents.filter((d) => d.included).length ?? 0;
   const excluidos = data?.documents.filter((d) => !d.included).map((d) => ({ id: d.id, motivo: d.excludedReason })) ?? [];
   if (!joinedExisting(e)) await deps.caso.plazo(e.casoId, c.urgency, c.neededBy);
   await deps.caso.evento(e.casoId, "entrada_confirmada", actorOf(e), {
     entradaId: e.id, loteId: e.loteId, documentos, excluidos, urgency: c.urgency, neededBy: c.neededBy?.toISOString() ?? null, organismo: c.organismo, pais: c.pais ?? null,
-    notas: c.notas, respuestas, sourceLang: e.sourceLang, targetLangs: targetsOf(e),
+    notas: c.notas, respuestas, sourceLang: done.sourceLang, targetLangs: targetsOf(e),
   });
   let presupuestoEnviado = false;
   let presupuesto: string | null = null;

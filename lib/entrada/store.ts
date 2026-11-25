@@ -63,6 +63,8 @@ export type EntradaStore = {
   removeFile(entradaId: string, fileId: string): Promise<boolean>;
   /** Applies only while the entrada is in one of `onlyIn`. */
   update(id: string, patch: EntradaPatch, onlyIn: readonly EntradaEstado[]): Promise<boolean>;
+  /** Pair of the entrada's files not yet in an order; null fields are left untouched. */
+  syncFilesLang(entradaId: string, sourceLang: string | null, targetLang: string | null): Promise<void>;
   linkFilesToCaso(entradaId: string, casoId: string): Promise<void>;
   /** Consumes one verification attempt while fewer than `max` were used; false when none are left. */
   takeAttempt(id: string, max: number): Promise<boolean>;

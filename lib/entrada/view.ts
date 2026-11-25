@@ -1,6 +1,7 @@
 // Lo que ve el cliente: documentos, lo que falta y lo que no se incluye. Nunca precios, palabras ni tarifas.
 import { labelOf, type WorkingDocument } from "../lectura-constructor/documents.ts";
 import type { FileRow, LoteRow } from "../lectura-constructor/store.ts";
+import { resolveSourceLang } from "./idioma.ts";
 import { sessionKeyOf, type ArchivoRow, type EntradaRow } from "./store.ts";
 
 export const MAEC_URL = "https://www.exteriores.gob.es/es/ServiciosAlCiudadano/Paginas/Buscador-STIJ.aspx";
@@ -150,8 +151,7 @@ export function clientView(entrada: EntradaRow, archivos: ArchivoRow[], data: Lo
       ? "Estamos revisando el conjunto de tus archivos."
       : "Tus archivos los revisa Juan personalmente.";
   const preguntas = fase === "lista" ? (extras?.questions ?? []).filter((q) => Boolean(q.textEs)) : [];
-  const detectados = new Set(fase === "lista" ? documents.filter((d) => d.included).map((d) => String(d.sourceLang || "").trim().toLowerCase()).filter((c) => /^[a-z]{2,3}$/.test(c)) : []);
-  const detectado = !entrada.sourceLang && detectados.size === 1 ? [...detectados][0] : null;
+  const detectado = fase === "lista" && !entrada.sourceLang ? resolveSourceLang(null, documents) : null;
   const soloLectura = lote.status !== "ok" ? null : lote.sessionKey !== sessionKeyOf(entrada.id) ? "otra_entrada" : entrada.regla === "huella" || entrada.regla === "contacto" ? "caso_existente" : null;
   return {
     ...base,

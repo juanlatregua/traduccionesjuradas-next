@@ -13,7 +13,7 @@ export const sha = (b: Uint8Array) => createHash("sha256").update(b).digest("hex
 export const bytesOf = (s: string) => new TextEncoder().encode(s);
 
 export type Caso = CasoFila & { origen: string; dudoso: boolean };
-export type Doc = { id: string; casoId: string | null; session: string | null; url: string; name: string; size: number; hash: string | null; mimeType: string; pages?: number | null };
+export type Doc = { id: string; casoId: string | null; session: string | null; url: string; name: string; size: number; hash: string | null; mimeType: string; pages?: number | null; sourceLang?: string; targetLang?: string };
 
 /** One in-memory «database» shared by the gate, the entradas and the lectura store. */
 export function world(blobs: Record<string, Uint8Array> = {}) {
@@ -128,6 +128,9 @@ export function world(blobs: Record<string, Uint8Array> = {}) {
       if (e.codeAttempts >= max) return false;
       e.codeAttempts += 1;
       return true;
+    },
+    async syncFilesLang(id, s, t) {
+      for (const d of docs.filter((x) => x.session === sessionKeyOf(id))) Object.assign(d, { ...(s ? { sourceLang: s } : {}), ...(t ? { targetLang: t } : {}) });
     },
     async linkFilesToCaso(id, casoId) {
       for (const d of docs) if (d.session === sessionKeyOf(id) && !d.casoId) d.casoId = casoId;
