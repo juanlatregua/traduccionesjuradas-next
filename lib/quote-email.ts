@@ -5,7 +5,6 @@ import { smsAcuseSolicitudPrecio, type SmsLang } from "@/lib/sms-templates";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { findRecurrentClient } from "@/lib/recurrent-client-db";
 import { priceRequestAckText, ackLangOf, ackAreaLine } from "@/lib/price-request-ack";
-import { GOOGLE_RATING } from "@/lib/google-rating";
 
 export function isQuoteEmailConfigured() {
   return isEmailConfigured();
@@ -106,7 +105,7 @@ export async function sendPriceRequestAckToClient(opts: {
     if (email && !isPlaceholderEmail(email)) {
       // Solo coincidencia por EMAIL (el cliente que vuelve); va a su propio buzón, nunca a pantalla pública.
       const recurrent = (await findRecurrentClient({ email, phone: null })).kind === "recurrent";
-      const { subject, body } = priceRequestAckText(lang, { name: opts.name, translatorLangName: opts.translatorLangName, askDeadline: opts.askDeadline, inReview: opts.inReview, byJuan: opts.byJuan, recurrent, reviews: GOOGLE_RATING.reviews });
+      const { subject, body } = priceRequestAckText(lang, { name: opts.name, translatorLangName: opts.translatorLangName, askDeadline: opts.askDeadline, inReview: opts.inReview, byJuan: opts.byJuan, recurrent });
       await sendMail({
         to: email,
         subject,

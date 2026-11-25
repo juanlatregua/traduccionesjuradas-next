@@ -7,6 +7,7 @@ import { bytesOf, flowDeps, sha, world, type World } from "./fakes.ts";
 import { entradaResumen, routingPair, staffLinks, staffOnlyReason, staffTo } from "../../../lib/entrada/aviso.ts";
 import { hasAnalysisType } from "../../../lib/learned-rates-math.ts";
 import { viewOf } from "../../../lib/lectura-constructor/api.ts";
+import { smsAcuseSolicitudPrecio } from "../../../lib/sms-templates.ts";
 import { ackLangOf, includesFrench, priceRequestAckText } from "../../../lib/price-request-ack.ts";
 import { keepEntradaFiles, isEntradaSession } from "../../../lib/entrada/retencion.ts";
 import { madridHour, recordatorioEmail, recordatorioEmailKey, recordatorioHourOk, selectRecordatorios, type EntradaAMedias } from "../../../lib/entrada/recordatorio.ts";
@@ -165,21 +166,37 @@ test("routing pair: the entrada's languages, else the only one the reading found
 
 test("ack in the entrada language (es/fr/en/de/pt); es and fr are the texts of always", () => {
   assert.deepEqual(["fr", "en", "de", "pt", "it", null].map(ackLangOf), ["fr", "en", "de", "pt", "es", "es"]);
-  const es = priceRequestAckText("es", { name: "Ana", askDeadline: true, reviews: 12, byJuan: true });
+  const es = priceRequestAckText("es", { name: "Ana", askDeadline: true, byJuan: true });
   assert.equal(es.subject, "Tu solicitud está en marcha — traduccionesjuradas.net");
   assert.match(es.body, /^Hola Ana,\nHemos recibido tu solicitud de presupuesto y ya está en marcha: un traductor jurado nombrado por el MAEC está estudiando/);
   assert.match(es.body, /¿Tienes una fecha límite\?/);
-  assert.match(es.body, /Traductor jurado MAEC nº 3850 · 12 reseñas en Google$/);
-  const esGen = priceRequestAckText("es", { reviews: 56 });
+  assert.match(es.body, /\nTraductor jurado MAEC nº 3850$/);
+  const esGen = priceRequestAckText("es", {});
   assert.match(esGen.body, /Te respondemos desde traduccionesjuradas\.net: recibirás/);
-  assert.match(esGen.body, /\ntraduccionesjuradas\.net · 56 reseñas en Google$/);
+  assert.match(esGen.body, /\ntraduccionesjuradas\.net$/);
   assert.match(esGen.body, /nombrado por el MAEC/);
   assert.doesNotMatch(esGen.body, /Juan Silva|3850/);
   assert.match(priceRequestAckText("fr", { byJuan: true }).body, /C'est Juan Silva Moreno, traducteur assermenté nº 3850/);
-  const frGen = priceRequestAckText("fr", { reviews: 56 });
+  const frGen = priceRequestAckText("fr", {});
   assert.match(frGen.body, /Nous vous répondons depuis traduccionesjuradas\.net/);
-  assert.match(frGen.body, /traduccionesjuradas\.net · 56 avis sur Google$/);
-  for (const l of ["en", "de", "pt"] as const) assert.doesNotMatch(priceRequestAckText(l, {}).body, /Juan Silva|3850/);
+  assert.match(frGen.body, /\ntraduccionesjuradas\.net$/);
+  for (const l of ["es", "fr", "en", "de", "pt"] as const) {
+    const gen = priceRequestAckText(l, {}).body;
+    assert.doesNotMatch(gen, /Juan Silva|3850|reseñas|avis sur|reviews|Bewertungen|avaliações/);
+    for (const inReview of [false, true]) {
+      const b = priceRequestAckText(l, { inReview, byJuan: l === "fr" }).body;
+      assert.match(b, /VALIDe/);
+      assert.match(b, /https:\/\/valide\.redsara\.es/);
+      assert.match(b, /MAEC/);
+      assert.ok(b.indexOf("VALIDe") < b.indexOf("traduccionesjuradas.net"));
+    }
+  }
+  assert.match(priceRequestAckText("es", {}).body, /\n\nSerá una traducción jurada oficial\./);
+  for (const lang of ["es", "fr"] as const) for (const byJuan of [true, false]) {
+    const sms = smsAcuseSolicitudPrecio(lang, byJuan);
+    assert.match(sms, /VALIDe/);
+    assert.equal(/3850|Juan Silva/.test(sms), byJuan);
+  }
   assert.deepEqual([["fr", "es"], ["ES>FR"], ["fr->es"], ["de", "es"], [null, undefined], ["es", "it"]].map((a) => includesFrench(...a)), [true, true, true, false, false, false]);
   assert.match(priceRequestAckText("fr", { translatorLangName: "Alemán" }).body, /traducteur assermenté \(alemán\)/);
   const review = priceRequestAckText("pt", { inReview: true });

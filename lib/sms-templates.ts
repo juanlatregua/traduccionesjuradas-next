@@ -51,14 +51,14 @@ export function smsAcuseSolicitudPrecio(lang: SmsLang = "es", byJuan = false, no
   if (lang === "fr") {
     return (
       "Merci pour votre demande. Vos documents seront traités directement par un " +
-      "traducteur assermenté nommé par le MAEC ; Juan Silva Moreno (nº 3850) vous enverra le devis " +
-      `${plazo}. Merci de votre confiance.\n— Traducciones Juradas · traduccionesjuradas.net`
+      `traducteur assermenté nommé par le MAEC ; ${byJuan ? "Juan Silva Moreno (nº 3850) vous enverra" : "nous vous enverrons"} le devis ` +
+      `${plazo}. Traduction assermentée officielle ; en PDF, signature électronique qualifiée vérifiable sur VALIDe (gouvernement espagnol).\n— Traducciones Juradas · traduccionesjuradas.net`
     );
   }
   return (
     "Gracias por su solicitud. Sus documentos van a ser tratados directamente " +
-    "por un traductor jurado nombrado por el MAEC; Juan Silva Moreno (nº 3850) le enviará el " +
-    `presupuesto ${plazo}. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net`
+    `por un traductor jurado nombrado por el MAEC; ${byJuan ? "Juan Silva Moreno (nº 3850) le enviará" : "le enviaremos"} el ` +
+    `presupuesto ${plazo}. Traducción jurada oficial; en PDF, con firma electrónica cualificada verificable en VALIDe (Gobierno de España).\n— Traducciones Juradas · traduccionesjuradas.net`
   );
 }
 
