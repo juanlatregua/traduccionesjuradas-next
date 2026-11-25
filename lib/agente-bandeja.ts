@@ -336,6 +336,7 @@ async function processInbound(row: Inbound, mode: AgenteBandejaMode, deadlineAt:
     isFr,
     payUrl: `${SITE}/q/${quote.publicToken}`,
     askDeadline,
+    askHowKnown: true,
   };
 
   if (action.action === "draft") {

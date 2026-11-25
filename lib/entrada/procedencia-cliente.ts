@@ -10,12 +10,20 @@ function hostOfReferrer(): string {
   }
 }
 
+const PRIVATE = /^\/(q|entrega|expediente|encargo|pedido|caso|area-cliente)(\/|$)/;
+
+function landingOf(path: string): string {
+  const m = PRIVATE.exec(path);
+  return m ? `/${m[1]}` : path;
+}
+
 function llegadaActual() {
   const q = new URLSearchParams(location.search);
-  return { referrer: hostOfReferrer(), landing: location.pathname, utm_source: q.get("utm_source"), utm_medium: q.get("utm_medium"), utm_campaign: q.get("utm_campaign") };
+  return { referrer: hostOfReferrer(), landing: landingOf(location.pathname), utm_source: q.get("utm_source"), utm_medium: q.get("utm_medium"), utm_campaign: q.get("utm_campaign") };
 }
 
 export function registrarLlegada(): void {
+  if (/^\/(admin|zona-traductor)(\/|$)/.test(location.pathname)) return;
   try {
     if (!sessionStorage.getItem(KEY)) sessionStorage.setItem(KEY, JSON.stringify(llegadaActual()));
   } catch {}

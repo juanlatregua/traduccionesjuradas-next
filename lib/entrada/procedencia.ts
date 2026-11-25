@@ -30,7 +30,7 @@ export function sanearProcedencia(raw: unknown): Procedencia | null {
   const out: Procedencia = { referrer: hostOf(r.referrer), ...(landing?.startsWith("/") ? { landing } : {}) };
   for (const k of UTM_KEYS) {
     const v = cut(r[k], 60);
-    if (v) out[k] = v;
+    if (v && !v.includes("@")) out[k] = v;
   }
   return out;
 }

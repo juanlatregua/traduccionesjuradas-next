@@ -118,6 +118,11 @@ test("precio FR: Bulletin n°3 de 1 página = 30 € (caso 2026-00347)", () => {
   assert.match(r.lines[0].description, /^Certificado de antecedentes penales \(francés→español, 1 pág\.\)$/);
 });
 
+test("sin askHowKnown no pregunta cómo nos conoció (puerta FR automática)", () => {
+  const body = buildQuoteReply({ lang: "es", name: null, items: [{ label: "Acta", pages: 1 }], netEur: 30, totalEur: 36.3, deliveryTerm: FR_DELIVERY_TERM, isFr: true, payUrl: "https://x/q/a", askDeadline: false });
+  assert.doesNotMatch(body, /cómo nos ha conocido/);
+});
+
 test("precio FR: 2 páginas 35 €, apostilla +5 €, varios documentos suman", () => {
   const r = priceFrSegments([seg({ pages: 2 }), seg({ specificType: "birth_certificate", hasApostille: true })]);
   assert.equal(r.ok, true);
@@ -180,6 +185,7 @@ test("respuesta FR en español: precio, plazo, firma, traductor, enlace y pregun
     isFr: true,
     payUrl: "https://www.traduccionesjuradas.net/q/abc",
     askDeadline: true,
+    askHowKnown: true,
   });
   assert.match(body, /^Hola Marie:/);
   assert.match(body, /30 € \+ IVA = 36,30 €/);

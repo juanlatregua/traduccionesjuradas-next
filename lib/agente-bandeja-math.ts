@@ -378,6 +378,7 @@ export type QuoteReplyInput = {
   isFr: boolean;
   payUrl: string;
   askDeadline: boolean;
+  askHowKnown?: boolean;
   /** PDF no adjuntado (no se pudo bajar): se da el enlace en su lugar. */
   pdfLink?: string | null;
   /** Borrador de un presupuesto aún en DRAFT: nota interna arriba, sin enlace /q ni «le adjunto». */
@@ -424,9 +425,7 @@ Délai : ${term}
 Livraison : PDF avec signature électronique qualifiée.
 Traducteur : ${translator}
 
-Pour confirmer, il suffit de payer ici : ${pay}${pdfLine("Vous trouverez le devis en PDF en pièce jointe.", "Le devis en PDF : ")}${o.askDeadline ? "\n\nPour quelle date en avez-vous besoin ?" : ""}
-
-${HOW_KNOWN.fr}
+Pour confirmer, il suffit de payer ici : ${pay}${pdfLine("Vous trouverez le devis en PDF en pièce jointe.", "Le devis en PDF : ")}${o.askDeadline ? "\n\nPour quelle date en avez-vous besoin ?" : ""}${o.askHowKnown ? "\n\n" + HOW_KNOWN.fr : ""}
 
 Bien cordialement,
 ${signature}`;
@@ -442,9 +441,7 @@ Turnaround: ${term}
 Delivery: PDF with a qualified electronic signature.
 Translator: ${translator}
 
-To go ahead, simply pay here: ${pay}${pdfLine("The quote is attached as a PDF.", "The quote as a PDF: ")}${o.askDeadline ? "\n\nBy what date do you need it?" : ""}
-
-${HOW_KNOWN.en}
+To go ahead, simply pay here: ${pay}${pdfLine("The quote is attached as a PDF.", "The quote as a PDF: ")}${o.askDeadline ? "\n\nBy what date do you need it?" : ""}${o.askHowKnown ? "\n\n" + HOW_KNOWN.en : ""}
 
 Kind regards,
 ${signature}`;
@@ -459,9 +456,7 @@ Plazo: ${term}
 Entrega: PDF con firma electrónica cualificada.
 Traductor: ${translator}
 
-Para confirmarlo basta con pagar aquí: ${pay}${pdfLine("Le adjunto el presupuesto en PDF.", "El presupuesto en PDF: ")}${o.askDeadline ? "\n\n¿Para qué fecha lo necesita?" : ""}
-
-${HOW_KNOWN.es}
+Para confirmarlo basta con pagar aquí: ${pay}${pdfLine("Le adjunto el presupuesto en PDF.", "El presupuesto en PDF: ")}${o.askDeadline ? "\n\n¿Para qué fecha lo necesita?" : ""}${o.askHowKnown ? "\n\n" + HOW_KNOWN.es : ""}
 
 Un saludo,
 ${signature}`;
