@@ -6,6 +6,7 @@ import type { EntradaLang } from "@/lib/entrada/i18n";
 import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
 import { buildHilo, LOCAL_VACIO, progressSteps, type Ask, type EditKey, type HiloLocal, type Msg, type Urgency } from "@/lib/entrada/hilo";
 import { isQuestion } from "@/lib/entrada/conserje";
+import { leerProcedencia } from "@/lib/entrada/procedencia-cliente";
 import type { ClientView } from "@/lib/entrada/view";
 
 const TOKEN_KEY = "tj-entrada";
@@ -224,7 +225,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
   /** The entrada is born anonymous with the first upload (privacy consent given), carrying the languages already chosen. */
   async function ensureEntrada(): Promise<string | null> {
     if (token) return token;
-    const { data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: local.origen, targetLangs: local.destinos, source, lang });
+    const { data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: local.origen, targetLangs: local.destinos, source, lang, procedencia: leerProcedencia() });
     if (!data.ok || !data.token) return apply(data), null;
     storage(TOKEN_KEY, data.token);
     setToken(data.token);

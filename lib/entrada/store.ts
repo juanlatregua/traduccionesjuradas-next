@@ -1,4 +1,5 @@
 import type { Canal } from "./identidad.ts";
+import type { Procedencia } from "./procedencia.ts";
 
 export const ENTRADA_ESTADOS = ["abierta", "leida", "confirmada", "sin_jurado", "prueba"] as const;
 export type EntradaEstado = (typeof ENTRADA_ESTADOS)[number];
@@ -23,6 +24,7 @@ export type EntradaRow = {
   targetLangs: string[];
   pais: string | null;
   respuestas: { pregunta: string; respuesta: string }[] | null;
+  procedencia?: Procedencia | null;
   urgency: string | null;
   neededBy: Date | null;
   organismo: string | null;
@@ -38,7 +40,7 @@ export type EntradaRow = {
   updatedAt: Date;
 };
 
-export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nombre" | "sourceLang" | "targetLang" | "targetLangs" | "source" | "lang" | "marketingConsentAt"> & {
+export type NuevaEntrada = Pick<EntradaRow, "canal" | "email" | "phone9" | "nombre" | "sourceLang" | "targetLang" | "targetLangs" | "source" | "lang" | "marketingConsentAt" | "procedencia"> & {
   tokenHash: string;
   ipHash: string | null;
   emailVerifiedAt: Date | null;

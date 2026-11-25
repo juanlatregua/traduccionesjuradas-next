@@ -10,6 +10,7 @@ import type { EntradaLang } from "@/lib/entrada/i18n";
 import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
 import { progressSteps, isLangQuestion } from "@/lib/entrada/hilo";
 import { isQuestion } from "@/lib/entrada/conserje";
+import { leerProcedencia } from "@/lib/entrada/procedencia-cliente";
 import { ETAPA, PORTADA_VACIA, conAviso, esFalloDeRed, fmtEspera, hojasDe, nombreCorto, normalizarLocal, paginasDe, pasoAtras, pasoDe, respuestasDe, type Paso, type PortadaLocal, type Urgency } from "@/lib/entrada/portada";
 import { ACUSE_BOTONES, acuseRespuesta, conSeguimiento } from "@/lib/entrada/acuse";
 import { enIdioma } from "@/lib/entrada/errores-i18n";
@@ -331,7 +332,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
   // Uploading is the acceptance (the line under the zone says so): the request itself is the legal basis.
   async function ensureEntrada(): Promise<string | null> {
     if (token) return token;
-    const { status, data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: origen || null, targetLangs: destinos.length ? destinos : ["es"], source, lang });
+    const { status, data } = await call("/api/entrada", "POST", { gdprConsent: true, sourceLang: origen || null, targetLangs: destinos.length ? destinos : ["es"], source, lang, procedencia: leerProcedencia() });
     if (!data.ok || !data.token) return apply({ ...data, ok: false }, status), null;
     storage(TOKEN_KEY, data.token);
     setToken(data.token);

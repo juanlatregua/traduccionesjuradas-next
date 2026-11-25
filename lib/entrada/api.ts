@@ -6,6 +6,7 @@ import type { EntradaRow } from "./store.ts";
 import { answerQuestion, type ConserjeCall } from "./conserje.ts";
 import type { EntradaLang } from "./i18n.ts";
 import { ENTRADA_SOURCES } from "./sources.ts";
+import { sanearProcedencia } from "./procedencia.ts";
 
 export type ApiResponse = { status: number; body: unknown; headers?: Record<string, string> };
 export type EntradaApiDeps = FlowDeps & {
@@ -59,6 +60,7 @@ export const OpenBody = z.strictObject({
   lang: z.enum(ENTRADA_LANGS).nullable().optional(),
   gdprConsent: z.literal(true),
   marketingConsent: z.boolean().optional(),
+  procedencia: z.unknown().optional(),
 });
 
 export const EmailBody = z.strictObject({
@@ -156,7 +158,7 @@ export async function handleOpen(req: Request, deps: EntradaApiDeps): Promise<Ap
   if (b.telefono && !phone9) return json(400, { ok: false, error: "Ese teléfono no parece válido." });
   const { token } = await abrirEntrada(deps, {
     canal: "web", email, phone9, nombre: b.nombre || null, sourceLang: b.sourceLang ?? null, targetLang: b.targetLang ?? null, targetLangs: b.targetLangs,
-    ipHash: deps.ipHash(ip), marketing: Boolean(email), source: b.source ?? null, lang: b.lang ?? null,
+    ipHash: deps.ipHash(ip), marketing: Boolean(email), source: b.source ?? null, lang: b.lang ?? null, procedencia: sanearProcedencia(b.procedencia),
   });
   if (!email) return json(200, { ok: true, token, codeSent: false });
   const entrada = await deps.store.byTokenHash(tokenHashOf(token));

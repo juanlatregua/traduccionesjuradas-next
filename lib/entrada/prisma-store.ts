@@ -10,7 +10,7 @@ type EntradaRecord = Prisma.EntradaGetPayload<{}>;
 const toEntrada = (r: EntradaRecord): EntradaRow => ({
   id: r.id, canal: r.canal as Canal, estado: r.estado as EntradaEstado, casoId: r.casoId, loteId: r.loteId, regla: r.regla, posibles: r.posibles, relacionados: r.relacionados, source: r.source, lang: r.lang,
   email: r.email, phone9: r.phone9, nombre: r.nombre, sourceLang: r.sourceLang, targetLang: r.targetLang, targetLangs: r.targetLangs, pais: r.pais,
-  respuestas: Array.isArray(r.respuestasJson) ? (r.respuestasJson as EntradaRow["respuestas"]) : null, urgency: r.urgency, neededBy: r.neededBy,
+  procedencia: (r.procedencia as EntradaRow["procedencia"]) ?? null, respuestas: Array.isArray(r.respuestasJson) ? (r.respuestasJson as EntradaRow["respuestas"]) : null, urgency: r.urgency, neededBy: r.neededBy,
   organismo: r.organismo, notas: r.notas, confirmedAt: r.confirmedAt,
   emailVerifiedAt: r.emailVerifiedAt, codeHash: r.codeHash, linkHash: r.linkHash, codeExpiresAt: r.codeExpiresAt, codeAttempts: r.codeAttempts,
   marketingConsentAt: r.marketingConsentAt, createdAt: r.createdAt, updatedAt: r.updatedAt,
@@ -19,7 +19,7 @@ const toEntrada = (r: EntradaRecord): EntradaRow => ({
 export function prismaEntradaStore(db: PrismaClient): EntradaStore {
   return {
     async create(data) {
-      return toEntrada(await db.entrada.create({ data: { ...data, estado: "abierta" } }));
+      return toEntrada(await db.entrada.create({ data: { ...data, procedencia: data.procedencia ?? Prisma.DbNull, estado: "abierta" } }));
     },
     async byTokenHash(tokenHash) {
       const r = await db.entrada.findUnique({ where: { tokenHash } });

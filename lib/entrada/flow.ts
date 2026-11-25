@@ -6,6 +6,7 @@ import { applyEdit } from "../lectura-constructor/documents.ts";
 import type { StartInput, StartResult } from "../lectura-constructor/run.ts";
 import type { LecturaStore } from "../lectura-constructor/store.ts";
 import type { Canal } from "./identidad.ts";
+import type { Procedencia } from "./procedencia.ts";
 import { sha256, type GateInput, type GateResult } from "./puerta.ts";
 import { CODE_MAX_ATTEMPTS, CODE_TTL_MS, codeHashOf, codeMatches, linkHashOf, newCode, newLinkToken } from "./codigo.ts";
 import { sessionKeyOf, type ArchivoRow, type EntradaRow, type EntradaStore } from "./store.ts";
@@ -71,11 +72,11 @@ export const targetsOf = (e: Pick<EntradaRow, "targetLang" | "targetLangs">): st
 export const tokenHashOf = (token: string) => createHash("sha256").update(token).digest("hex");
 const actorOf = (e: EntradaRow) => `cliente:${e.email ?? e.phone9 ?? e.id}`;
 
-export async function abrirEntrada(deps: FlowDeps, input: { canal: Canal; email: string | null; phone9: string | null; nombre: string | null; sourceLang: string | null; targetLang: string | null; targetLangs?: string[]; ipHash: string | null; marketing: boolean; source?: string | null; lang?: string | null }) {
+export async function abrirEntrada(deps: FlowDeps, input: { canal: Canal; email: string | null; phone9: string | null; nombre: string | null; sourceLang: string | null; targetLang: string | null; targetLangs?: string[]; ipHash: string | null; marketing: boolean; source?: string | null; lang?: string | null; procedencia?: Procedencia | null }) {
   const token = randomBytes(24).toString("base64url");
   const now = deps.now();
   const entrada = await deps.store.create({
-    canal: input.canal, email: input.email, phone9: input.phone9, nombre: input.nombre, sourceLang: input.sourceLang, targetLang: input.targetLangs?.[0] ?? input.targetLang, targetLangs: input.targetLangs?.length ? input.targetLangs : input.targetLang ? [input.targetLang] : [], source: input.source ?? null, lang: input.lang ?? null,
+    canal: input.canal, email: input.email, phone9: input.phone9, nombre: input.nombre, sourceLang: input.sourceLang, targetLang: input.targetLangs?.[0] ?? input.targetLang, targetLangs: input.targetLangs?.length ? input.targetLangs : input.targetLang ? [input.targetLang] : [], source: input.source ?? null, lang: input.lang ?? null, procedencia: input.procedencia ?? null,
     tokenHash: tokenHashOf(token), ipHash: input.ipHash, gdprConsentAt: now, marketingConsentAt: input.marketing ? now : null,
     emailVerifiedAt: VERIFIED_CANALES.has(input.canal) ? now : null,
   });
@@ -351,7 +352,7 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
   if (!joinedExisting(e)) await deps.caso.plazo(e.casoId, c.urgency, c.neededBy);
   await deps.caso.evento(e.casoId, "entrada_confirmada", actorOf(e), {
     entradaId: e.id, loteId: e.loteId, documentos, excluidos, urgency: c.urgency, neededBy: c.neededBy?.toISOString() ?? null, organismo: c.organismo, pais: c.pais ?? null,
-    notas: c.notas, respuestas, sourceLang: done.sourceLang, targetLangs: targetsOf(e),
+    notas: c.notas, respuestas, sourceLang: done.sourceLang, targetLangs: targetsOf(e), procedencia: e.procedencia ?? null,
   });
   let presupuestoEnviado = false;
   let presupuesto: string | null = null;

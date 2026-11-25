@@ -12,6 +12,7 @@ import { SITE_SEARCH_INDEX } from "@/lib/search/site-index";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import ProcedenciaTracker from "@/components/ProcedenciaTracker";
 
 const ChatWidget = dynamic(() => import("@/components/ChatWidget"), {
   ssr: false,
@@ -277,6 +278,7 @@ export default function RootLayout({
           Saltar al contenido
         </a>
 
+        <ProcedenciaTracker />
         <Header searchIndex={SITE_SEARCH_INDEX} />
         <SiteTopBars />
 
