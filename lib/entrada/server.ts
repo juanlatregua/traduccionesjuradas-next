@@ -21,6 +21,7 @@ import { codeEmail } from "./codigo.ts";
 import { DEFAULT_LIMITS, prepareBatch } from "@/lib/lectura/index.ts";
 import { explicitRssCeilingMb } from "@/lib/lectura-constructor/flag.ts";
 import { sessionKeyOf, type EntradaRow } from "./store.ts";
+import { includesFrench } from "../price-request-ack.ts";
 import { runFrAuto, type FrAutoData, type FrAutoIO } from "./fr-auto.ts";
 import { puertaFrMode } from "../puerta-fr-math.ts";
 
@@ -228,7 +229,7 @@ export const flowDeps: FlowDeps = {
   routeQuote,
   ackClient: async (e, { enMarcha }) => {
     const { sendPriceRequestAckToClient } = await import("@/lib/quote-email");
-    await sendPriceRequestAckToClient({ name: e.nombre, email: e.email, phone: e.phone9, locale: e.lang, translatorLangName: null, askDeadline: !e.urgency, inReview: !enMarcha });
+    await sendPriceRequestAckToClient({ name: e.nombre, email: e.email, phone: e.phone9, locale: e.lang, translatorLangName: null, askDeadline: !e.urgency, inReview: !enMarcha, byJuan: includesFrench(e.sourceLang, e.targetLang, ...e.targetLangs) });
   },
   funnel: async (e, step) => {
     await prisma.funnelEvent

@@ -84,6 +84,8 @@ export async function sendPriceRequestAckToClient(opts: {
   askDeadline?: boolean;
   /** Nada ha salido todavía hacia un jurado: Juan lo revisa antes (no decir «ya está en marcha»). */
   inReview?: boolean;
+  /** El par incluye francés: responde Juan; en otro caso, firma genérica. */
+  byJuan?: boolean;
 }): Promise<{ channel: "email" | "sms" | null }> {
   const lang = ackLangOf(opts.locale);
   const smsLang: SmsLang = lang === "fr" ? "fr" : "es";
@@ -102,7 +104,7 @@ export async function sendPriceRequestAckToClient(opts: {
     if (email && !isPlaceholderEmail(email)) {
       // Solo coincidencia por EMAIL (el cliente que vuelve); va a su propio buzón, nunca a pantalla pública.
       const recurrent = (await findRecurrentClient({ email, phone: null })).kind === "recurrent";
-      const { subject, body } = priceRequestAckText(lang, { name: opts.name, translatorLangName: opts.translatorLangName, askDeadline: opts.askDeadline, inReview: opts.inReview, recurrent, reviews: GOOGLE_RATING.reviews });
+      const { subject, body } = priceRequestAckText(lang, { name: opts.name, translatorLangName: opts.translatorLangName, askDeadline: opts.askDeadline, inReview: opts.inReview, byJuan: opts.byJuan, recurrent, reviews: GOOGLE_RATING.reviews });
       await sendMail({
         to: email,
         subject,

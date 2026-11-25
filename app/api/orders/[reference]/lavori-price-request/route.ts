@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getDocumentsFromOrder } from "@/lib/collaborators";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
+import { includesFrench } from "@/lib/price-request-ack";
 import {
   lavoriLangFromPair,
   lavoriManualRoute,
@@ -221,6 +222,7 @@ export async function POST(req: Request, { params }: Params) {
         email: order.clientEmail,
         phone: order.clientPhone,
         locale: order.clientLocale,
+        byJuan: includesFrench(order.langPair),
       });
     }
 

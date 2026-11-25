@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { sendMail } from "@/lib/azure-mail";
 import { renderSimpleEmailHtml } from "@/lib/quote-messages";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
+import { includesFrench } from "@/lib/price-request-ack";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { getLanguageName } from "@/lib/pricing-engine/languages";
 import { findLiveSiblingLeadRequest, leadFromPuertaSession, resolveLeadRoute, sendLeadPriceRequest } from "@/lib/lavori-lead";
@@ -102,6 +103,12 @@ async function reclamarAvisoHumano(
 }
 
 export type PuertaQuoteResult = { status: number; body: Record<string, unknown> };
+
+async function casoTienePlazo(casoId: string | null | undefined): Promise<boolean> {
+  if (!casoId) return false;
+  const c = await prisma.caso.findUnique({ where: { id: casoId }, select: { urgency: true } }).catch(() => null);
+  return Boolean(c?.urgency);
+}
 
 function out(body: Record<string, unknown>, init?: { status?: number }): PuertaQuoteResult {
   return { status: init?.status ?? 200, body };
@@ -211,6 +218,7 @@ export async function routePuertaQuoteRequest(input: {
     // solo aviso a Juan con [DUPLICADO?] y enlace al abierto. Misma persona y par pero otro
     // documento → flujo normal + aviso [MISMA PERSONA]. Solo teléfono = aviso, nunca bloqueo.
     // La respuesta pública es idéntica en todos los casos.
+    const byJuan = includesFrench(lead?.sourceLang, lead?.targetLang, ...docs.flatMap((d) => [d.sourceLanguage, d.targetLanguage]));
     const parLead = lead?.sourceLang ? parFromLangs(lead.sourceLang, lead.targetLang) : null;
     // Caso en sombra (F2): se resuelve aquí, antes de crear nada, y se estampa en la sesión.
     // Las guardas de abajo siguen decidiendo; si el resolver falla, caso = null y nada cambia.
@@ -284,7 +292,7 @@ export async function routePuertaQuoteRequest(input: {
         `${plazoAsunto ? "URGENTE · " : ""}${recurrenteSms}[DUPLICADO?] ${(lead?.sourceLang || "?").toUpperCase()}>${(lead?.targetLang || "es").toUpperCase()} · ya abierto ${bloqueo.ref} (${describeSibling(bloqueo).split("(")[1]?.replace(")", "") || ""}) · ${bloqueo.url}`,
         "puerta_duplicado"
       ).catch(() => {});
-      await sendPriceRequestAckToClient({ name: docs[0]?.clientName, email: contactEmail, phone: contactPhone, locale, translatorLangName: null, askDeadline: !plazo });
+      await sendPriceRequestAckToClient({ name: docs[0]?.clientName, email: contactEmail, phone: contactPhone, locale, translatorLangName: null, askDeadline: !plazo && !(await casoTienePlazo(caso?.casoId)), byJuan });
       return out({ ok: true, lavori: { sent: false } });
     }
 
@@ -585,7 +593,8 @@ export async function routePuertaQuoteRequest(input: {
       phone: contactPhone,
       locale,
       translatorLangName: lavoriSent?.langName ?? null,
-      askDeadline: !plazo,
+      askDeadline: !plazo && !(await casoTienePlazo(caso?.casoId)),
+      byJuan,
     });
 
     return out({ ok: true, lavori: lavoriSent ? { sent: true, ...lavoriSent, ...(esDirecto ? { directo: true } : {}) } : { sent: false } });

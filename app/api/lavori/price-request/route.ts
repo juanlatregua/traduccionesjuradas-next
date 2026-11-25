@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { prisma } from "@/lib/prisma";
 import { sendPriceRequestAckToClient } from "@/lib/quote-email";
+import { includesFrench } from "@/lib/price-request-ack";
 import { findLiveSiblingLeadRequest, sendLeadPriceRequest, validarAntesDeRetirar, type LeadDoc, type LeadRequestInput } from "@/lib/lavori-lead";
 import { retireLeadRequest } from "@/lib/lavori-retire";
 import { freezeQuoteForRepricing, handleLeadPriceOnSentQuote } from "@/lib/precio-tras-envio";
@@ -262,6 +263,7 @@ export async function POST(req: Request) {
           name: body?.customerName,
           email: body?.customerEmail,
           phone: body?.customerPhone,
+          byJuan: includesFrench(body?.sourceLang, body?.targetLang),
         });
       }
 

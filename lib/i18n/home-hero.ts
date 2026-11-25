@@ -222,5 +222,5 @@ export const HOME_HERO = {
       "Entrega em PDF assinado ou em papel"
     ),
   ],
-  ratingAria: tr("4,8 de 5", "4,8 sur 5", "4.8 out of 5", "4,8 von 5", "4,8 em 5"),
+  ratingAria: tr("4,9 de 5", "4,9 sur 5", "4.9 out of 5", "4,9 von 5", "4,9 em 5"),
 };
