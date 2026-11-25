@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title: "Traductor Jurado de Italiano · Traducción Oficial Italiano↔Español · MAEC",
+  title: "Traductor jurado de Italiano",
   description:
     "Traductor jurado de italiano acreditado MAEC. Traducción jurada italiano-español y español-italiano: certificati di nascita, casellario giudiziale, diplomi, contratti. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto, entrega en PDF firmado. Precio cerrado en el presupuesto.",
   alternates: {

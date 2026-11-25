@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title: "Traductor Jurado de Sueco · Traducción Oficial Sueco↔Español · MAEC",
+  title: "Traductor jurado de Sueco",
   description:
     "Traductor jurado de sueco acreditado MAEC. Traducción jurada sueco-español y español-sueco: personbevis, belastningsregister, betyg, anställningsavtal. Válida en España y Suecia. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Desde 50 €.",
   alternates: {
