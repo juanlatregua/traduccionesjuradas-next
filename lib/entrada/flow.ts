@@ -340,7 +340,8 @@ export async function confirmarEntrada(deps: FlowDeps, e: EntradaRow, c: Confirm
   }
   const now = deps.now();
   const respuestas = c.respuestas?.length ? c.respuestas : null;
-  const sourceLang = resolveSourceLang(e.sourceLang, data?.documents ?? []);
+  const resolved = resolveSourceLang(e.sourceLang, data?.documents ?? []);
+  const sourceLang = resolved && !targetsOf(e).includes(resolved) ? resolved : null;
   const patch = { estado: "confirmada" as const, confirmedAt: now, ...(sourceLang ? { sourceLang } : {}), urgency: c.urgency, neededBy: c.neededBy, organismo: c.organismo, notas: c.notas, pais: c.pais ?? null, respuestas };
   if (!(await deps.store.update(e.id, patch, ["leida"]))) return fail(409, "Esta solicitud ha cambiado: recarga la página.");
   const done: EntradaRow = { ...e, ...patch };
