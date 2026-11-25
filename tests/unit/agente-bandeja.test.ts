@@ -189,6 +189,7 @@ test("respuesta FR en español: precio, plazo, firma, traductor, enlace y pregun
   assert.match(body, /https:\/\/www\.traduccionesjuradas\.net\/q\/abc/);
   assert.match(body, /Le adjunto el presupuesto en PDF/);
   assert.match(body, /¿Para qué fecha lo necesita\?/);
+  assert.match(body, /¿cómo nos ha conocido\? \(Google, ChatGPT, recomendación…\)[^]*Un saludo,\nJuan Silva/);
   assert.match(body, /Juan Silva Moreno · traductor jurado n\.º 3850 · traduccionesjuradas\.net$/);
 });
 

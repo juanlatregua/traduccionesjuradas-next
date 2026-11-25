@@ -332,12 +332,20 @@ Díganos también para qué fecha lo necesita.
 Un saludo,`;
 }
 
+const HOW_KNOWN: Record<ReplyLang, string> = {
+  es: "Por cierto, ¿cómo nos ha conocido? (Google, ChatGPT, recomendación…). Nos ayuda mucho saberlo.",
+  fr: "Au fait, comment nous avez-vous connus ? (Google, ChatGPT, recommandation…). Cela nous aide beaucoup de le savoir.",
+  en: "By the way, how did you hear about us? (Google, ChatGPT, a recommendation…) It really helps us to know.",
+};
+
 /** Acuse para Juan cuando no hay precio automático: lo revisa, pone precio y responde. */
 export function buildHoldingDraft(o: { lang: ReplyLang; name: string | null; askDeadline: boolean }): string {
   if (o.lang === "fr") {
     return `Bonjour${o.name ? ` ${o.name}` : ""},
 
 Merci pour votre message et pour le document. Nous l'examinons et vous envoyons le devis très rapidement.${o.askDeadline ? "\n\nPour quelle date en avez-vous besoin ?" : ""}
+
+${HOW_KNOWN.fr}
 
 Bien cordialement,`;
   }
@@ -346,11 +354,15 @@ Bien cordialement,`;
 
 Thank you for your message and the document. We are reviewing it and will send you the quote shortly.${o.askDeadline ? "\n\nBy what date do you need it?" : ""}
 
+${HOW_KNOWN.en}
+
 Kind regards,`;
   }
   return `Hola${o.name ? ` ${o.name}` : ""}:
 
 Gracias por escribirnos y por el documento. Lo estamos revisando y le enviamos el presupuesto enseguida.${o.askDeadline ? "\n\n¿Para qué fecha lo necesita?" : ""}
+
+${HOW_KNOWN.es}
 
 Un saludo,`;
 }
@@ -414,6 +426,8 @@ Traducteur : ${translator}
 
 Pour confirmer, il suffit de payer ici : ${pay}${pdfLine("Vous trouverez le devis en PDF en pièce jointe.", "Le devis en PDF : ")}${o.askDeadline ? "\n\nPour quelle date en avez-vous besoin ?" : ""}
 
+${HOW_KNOWN.fr}
+
 Bien cordialement,
 ${signature}`;
   }
@@ -430,6 +444,8 @@ Translator: ${translator}
 
 To go ahead, simply pay here: ${pay}${pdfLine("The quote is attached as a PDF.", "The quote as a PDF: ")}${o.askDeadline ? "\n\nBy what date do you need it?" : ""}
 
+${HOW_KNOWN.en}
+
 Kind regards,
 ${signature}`;
   }
@@ -444,6 +460,8 @@ Entrega: PDF con firma electrónica cualificada.
 Traductor: ${translator}
 
 Para confirmarlo basta con pagar aquí: ${pay}${pdfLine("Le adjunto el presupuesto en PDF.", "El presupuesto en PDF: ")}${o.askDeadline ? "\n\n¿Para qué fecha lo necesita?" : ""}
+
+${HOW_KNOWN.es}
 
 Un saludo,
 ${signature}`;
