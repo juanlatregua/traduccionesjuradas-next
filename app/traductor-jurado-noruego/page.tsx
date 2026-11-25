@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title: "Traductor jurado de Noruego",
+  title: "Traductor jurado de noruego",
   description:
     "Traductor jurado de noruego acreditado MAEC. Traducción jurada noruego-español y español-noruego: fødselsattest, vandelsattest, vitnemål, kontrakter. Válida ante organismos españoles. Atención personalizada: un traductor jurado valora tu documento y tu presupuesto. Precio cerrado en el presupuesto.",
   alternates: {

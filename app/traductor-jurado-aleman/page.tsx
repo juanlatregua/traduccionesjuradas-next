@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PaginaIdioma from "@/components/PaginaIdioma";
 
 export const metadata: Metadata = {
-  title: "Traductor jurado de Alemán",
+  title: "Traductor jurado de alemán",
   description:
     "Traducción jurada de alemán por traductor oficial MAEC. Documentos legales, certificados, títulos universitarios. Alemán-español y español-alemán. Precio cerrado en el día, confirmado por el traductor jurado, desde 40€ + IVA por documento.",
   alternates: {
