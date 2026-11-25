@@ -4,6 +4,8 @@
 // (Order.clientLocale, capturado en la puerta): el francófono recibe el aviso
 // post-pago en francés, no en español.
 
+import { plazoPresupuesto } from "./plazo-presupuesto.ts";
+
 export type SmsLang = "es" | "fr";
 
 /** Plazo de entrega localizado para el SMS de pago confirmado. */
@@ -44,18 +46,19 @@ export function smsRecordatorioPago(data: {
 
 /** Acuse al cliente al salir su solicitud de precio hacia el traductor (lavori).
  *  Texto único del carril del lead (12-ago); lo comparten lead y ficha del pedido. */
-export function smsAcuseSolicitudPrecio(lang: SmsLang = "es"): string {
+export function smsAcuseSolicitudPrecio(lang: SmsLang = "es", byJuan = false, now: Date = new Date()): string {
+  const plazo = plazoPresupuesto(lang === "fr" ? "fr" : "es", byJuan, now);
   if (lang === "fr") {
     return (
       "Merci pour votre demande. Vos documents seront traités directement par un " +
       "traducteur assermenté nommé par le MAEC ; Juan Silva Moreno (nº 3850) vous enverra le devis " +
-      "en général dans la journée. Merci de votre confiance.\n— Traducciones Juradas · traduccionesjuradas.net"
+      `${plazo}. Merci de votre confiance.\n— Traducciones Juradas · traduccionesjuradas.net`
     );
   }
   return (
     "Gracias por su solicitud. Sus documentos van a ser tratados directamente " +
     "por un traductor jurado nombrado por el MAEC; Juan Silva Moreno (nº 3850) le enviará el " +
-    "presupuesto normalmente en el día. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net"
+    `presupuesto ${plazo}. Gracias por su atención.\n— Traducciones Juradas · traduccionesjuradas.net`
   );
 }
 

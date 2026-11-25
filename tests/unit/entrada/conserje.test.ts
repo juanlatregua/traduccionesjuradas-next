@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { answerQuestion, asksPrice, hasMoney, isQuestion, NO_PRICE, NOT_SURE, CONSERJE_SYSTEM } from "../../../lib/entrada/conserje.ts";
+import { answerQuestion, asksPrice, hasMoney, isQuestion, NO_PRICE, noPrice, NOT_SURE, CONSERJE_SYSTEM } from "../../../lib/entrada/conserje.ts";
 import { buildHilo, LOCAL_VACIO, scrollPlan, withDudas, type Msg } from "../../../lib/entrada/hilo.ts";
 import { HILO_T } from "../../../lib/entrada/hilo-i18n.ts";
 import { handleOpen, handleQuestion, DOUBTS_PER_ENTRADA_DAY, type EntradaApiDeps } from "../../../lib/entrada/api.ts";
@@ -19,10 +19,13 @@ test("a question in a free field is detected; an answer is not", () => {
 test("never prices: a price question never reaches the model, and a model answer with money is replaced", async () => {
   let calls = 0;
   const call = async () => { calls++; return "Cuesta 30 € + IVA por página."; };
-  const r1 = await answerQuestion(call, "es", "¿Cuánto cuesta traducir el testamento?", ctx);
-  assert.deepEqual([r1.answer, r1.via, calls], [NO_PRICE.es, "precio", 0]);
-  const r2 = await answerQuestion(call, "fr", "Faut-il une apostille ?", ctx);
-  assert.deepEqual([r2.answer, r2.via, calls], [NO_PRICE.fr, "precio", 1]);
+  const lunes10 = new Date("2026-11-23T09:00:00Z");
+  const r1 = await answerQuestion(call, "es", "¿Cuánto cuesta traducir el testamento?", ctx, lunes10);
+  assert.deepEqual([r1.answer, r1.via, calls], [noPrice("es", true, lunes10), "precio", 0]);
+  assert.match(r1.answer, /en 1 hora o menos/);
+  assert.match((await answerQuestion(call, "es", "¿Cuánto cuesta?", { ...ctx, destinos: ["de"] }, lunes10)).answer, /en breve/);
+  const r2 = await answerQuestion(call, "fr", "Faut-il une apostille ?", ctx, lunes10);
+  assert.deepEqual([r2.answer, r2.via, calls], [noPrice("fr", true, lunes10), "precio", 1]);
   assert.equal(hasMoney("Son 45 euros"), true);
   assert.equal(hasMoney("Hacen falta 2 páginas y la apostilla"), false);
   assert.equal(asksPrice("how much is it?"), true);

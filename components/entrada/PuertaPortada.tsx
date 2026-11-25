@@ -7,7 +7,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type
 import Link from "next/link";
 import { Camera, Check, AlertTriangle, MessageCircle, Plus, Upload, Mail, Lock } from "lucide-react";
 import type { EntradaLang } from "@/lib/entrada/i18n";
-import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
+import { HILO_T, PAISES, textoEnviado } from "@/lib/entrada/hilo-i18n";
+import { includesFrench } from "@/lib/price-request-ack";
 import { progressSteps, isLangQuestion } from "@/lib/entrada/hilo";
 import { isQuestion } from "@/lib/entrada/conserje";
 import { leerProcedencia } from "@/lib/entrada/procedencia-cliente";
@@ -616,6 +617,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
       return [{ archivo: a, page: pt.page, label: pt.rol === "apostilla" ? p.rolApostilla : pt.rol === "anexo" ? p.rolAnexo : hojaLabel(a, pt.page) }];
     });
 
+  const esFr = includesFrench(view?.idiomas.origen ?? origen, ...(view?.idiomas.destinos.length ? view.idiomas.destinos : destinos));
   const detectado = view ? (view.idiomas.origen ? null : view.idiomas.detectado ?? null) : null;
   const origenActual = view?.idiomas.origen ?? detectado ?? (origen || null);
   const destinosActuales = view?.idiomas.destinos.length ? view.idiomas.destinos : destinos;
@@ -811,7 +813,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
             <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white ${paso === "enviado" ? "bg-vert" : "bg-or"}`} aria-hidden>{paso === "enviado" ? <Check className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}</span>
             <div>
               <h2 id="puerta-titulo" ref={headRef} tabIndex={-1} className="font-baskerville text-xl font-bold text-encre outline-none sm:text-2xl">{paso === "enviado" ? p.enviadoTitulo : p.sinJuradoTitulo}</h2>
-              {paso === "enviado" && view?.email && <p className="text-sm text-graphite">{p.enviadoSub(view.email)}</p>}
+              {paso === "enviado" && view?.email && <p className="text-sm text-graphite">{p.enviadoSub(view.email, esFr, new Date())}</p>}
             </div>
           </div>
           {paso === "sin_jurado" ? (
@@ -821,7 +823,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
             </>
           ) : (
             <>
-              <Burbuja>{(view?.presupuestoEnviado ? t.enviadoPresupuesto : t.enviado).replace(/^[^.!]+[.!]\s*/, "")}</Burbuja>
+              <Burbuja>{(view?.presupuestoEnviado ? t.enviadoPresupuesto : textoEnviado(lang, esFr, new Date())).replace(/^[^.!]+[.!]\s*/, "")}</Burbuja>
               {incluidos.length > 0 && (
                 <div className="rounded-xl border border-cream bg-parchment/50 p-4">
                   <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-or-dark">{p.loPedido}</p>

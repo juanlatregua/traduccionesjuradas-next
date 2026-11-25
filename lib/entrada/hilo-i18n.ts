@@ -1,4 +1,5 @@
 import type { EntradaLang } from "./i18n.ts";
+import { plazoPresupuesto } from "../plazo-presupuesto.ts";
 
 export type HiloStrings = {
   hola: string; desde: string; email: string; name: string; whatsapp: string; start: string;
@@ -20,7 +21,7 @@ export type HiloStrings = {
 };
 
 const es: HiloStrings = {
-  hola: "Hola. Cuéntame qué necesitas traducir: dime los idiomas y sube tus documentos. Los revisamos todos juntos y te enviamos el presupuesto cerrado, normalmente en el día.",
+  hola: "Hola. Cuéntame qué necesitas traducir: dime los idiomas y sube tus documentos. Los revisamos todos juntos y te enviamos el presupuesto cerrado en breve.",
   desde: "Traducción jurada desde 30 € + IVA por documento. Aquí no pagas nada: te enviamos el presupuesto cerrado.",
   email: "Email", name: "Nombre (opcional)", whatsapp: "WhatsApp (opcional)", start: "Empezar",
   faltaEmail: "un email válido", consentUnico: "Consiento que tratéis mis documentos para preparar el presupuesto de traducción jurada y que me lo enviéis por email, con un recordatorio si no lo completo. Los documentos se borran solos 30 días después de la entrega.", falta: (i) => `Para seguir falta: ${i.join(" y ")}.`,
@@ -41,7 +42,7 @@ const es: HiloStrings = {
   pidePlazo: "¿Para cuándo lo necesitas?", asap: "Lo antes posible", fecha: "Para una fecha", sinPrisa: "Sin prisa", para: (d) => `Para el ${d}`,
   pideLugar: "¿Dónde lo vas a presentar? Elige el país y, si lo sabes, el organismo.", pais: "País", organismo: "Organismo", organismoPh: "Ej.: Registro Civil, consulado, universidad…", continuar: "Continuar", noSeAun: "Aún no lo sé",
   resumen: "¿Algo más que debamos saber? (si lo necesitas en papel, a nombre de quién va…)", notas: "Algo más (opcional)", notasPh: "Escribe aquí…", enviar: "Pedir mi presupuesto",
-  enviado: "Recibido. Revisamos tus documentos y te enviamos el presupuesto cerrado por email, normalmente en el día. Si falta algo, te lo pedimos.",
+  enviado: "Recibido. Revisamos tus documentos y te enviamos el presupuesto cerrado por email {plazo}. Si falta algo, te lo pedimos.",
   enviadoPresupuesto: "Recibido. Te hemos enviado el presupuesto a tu email. Si falta algo, te lo pedimos.",
   sinJurado: (l) => `Ahora mismo no tenemos traductor jurado de ${l}. Preferimos decírtelo ya: el Ministerio de Asuntos Exteriores publica la lista oficial de traductores jurados por idioma y provincia.`,
   maec: "Buscar en la lista oficial del MAEC", tocar: "Toca para cambiar", cancelar: "Cancelar",
@@ -61,7 +62,7 @@ const es: HiloStrings = {
 };
 
 const fr: HiloStrings = {
-  hola: "Bonjour. Dites-moi ce que vous devez faire traduire : les langues et vos documents. Nous les examinons ensemble et vous envoyons le devis définitif, en général dans la journée.",
+  hola: "Bonjour. Dites-moi ce que vous devez faire traduire : les langues et vos documents. Nous les examinons ensemble et vous envoyons le devis définitif sous peu.",
   desde: "Traduction assermentée à partir de 30 € + TVA par document. Ici, vous ne payez rien : nous vous envoyons le devis définitif.",
   email: "E-mail", name: "Nom (facultatif)", whatsapp: "WhatsApp (facultatif)", start: "Commencer",
   faltaEmail: "un e-mail valide", consentUnico: "J'accepte que vous traitiez mes documents pour préparer le devis de traduction assermentée et que vous me l'envoyiez par e-mail, avec un rappel si je ne le finalise pas. Les documents sont supprimés automatiquement 30 jours après la livraison.", falta: (i) => `Pour continuer, il manque : ${i.join(" et ")}.`,
@@ -82,7 +83,7 @@ const fr: HiloStrings = {
   pidePlazo: "Pour quand en avez-vous besoin ?", asap: "Au plus vite", fecha: "Pour une date", sinPrisa: "Sans urgence", para: (d) => `Pour le ${d}`,
   pideLugar: "Où allez-vous le présenter ? Choisissez le pays et, si vous le savez, l'organisme.", pais: "Pays", organismo: "Organisme", organismoPh: "Ex. : état civil, consulat, université…", continuar: "Continuer", noSeAun: "Je ne sais pas encore",
   resumen: "Autre chose que nous devrions savoir ? (sur papier, au nom de qui…)", notas: "Autre chose (facultatif)", notasPh: "Écrivez ici…", enviar: "Demander mon devis",
-  enviado: "Bien reçu. Nous examinons vos documents et vous envoyons le devis définitif par e-mail, en général dans la journée. S'il manque quelque chose, nous vous le demanderons.",
+  enviado: "Bien reçu. Nous examinons vos documents et vous envoyons le devis définitif par e-mail {plazo}. S'il manque quelque chose, nous vous le demanderons.",
   enviadoPresupuesto: "Bien reçu. Nous vous avons envoyé le devis par e-mail. S'il manque quelque chose, nous vous le demanderons.",
   sinJurado: (l) => `Nous n'avons pas de traducteur assermenté de ${l} pour le moment. Le ministère espagnol des Affaires étrangères publie la liste officielle par langue et province.`,
   maec: "Chercher dans la liste officielle du MAEC", tocar: "Touchez pour modifier", cancelar: "Annuler",
@@ -102,7 +103,7 @@ const fr: HiloStrings = {
 };
 
 const en: HiloStrings = {
-  hola: "Hello. Tell me what you need translated: the languages and your documents. We review them all together and send you the final quote, usually the same day.",
+  hola: "Hello. Tell me what you need translated: the languages and your documents. We review them all together and send you the final quote shortly.",
   desde: "Sworn translation from €30 + VAT per document. You pay nothing here: we send you the final quote.",
   email: "Email", name: "Name (optional)", whatsapp: "WhatsApp (optional)", start: "Start",
   faltaEmail: "a valid email", consentUnico: "I agree to you processing my documents to prepare the sworn translation quote and sending it to me by email, with a reminder if I don't complete it. Documents are deleted automatically 30 days after delivery.", falta: (i) => `To continue we still need: ${i.join(" and ")}.`,
@@ -123,7 +124,7 @@ const en: HiloStrings = {
   pidePlazo: "When do you need it?", asap: "As soon as possible", fecha: "By a date", sinPrisa: "No rush", para: (d) => `By ${d}`,
   pideLugar: "Where will you submit it? Choose the country and, if you know it, the authority.", pais: "Country", organismo: "Authority", organismoPh: "E.g. civil registry, consulate, university…", continuar: "Continue", noSeAun: "I don't know yet",
   resumen: "Anything else we should know? (on paper, whose name it goes under…)", notas: "Anything else (optional)", notasPh: "Type here…", enviar: "Request my quote",
-  enviado: "Received. We'll review your documents and email you the final quote, usually the same day. If anything is missing, we'll ask you.",
+  enviado: "Received. We'll review your documents and email you the final quote {plazo}. If anything is missing, we'll ask you.",
   enviadoPresupuesto: "Received. We've emailed you the quote. If anything is missing, we'll ask you.",
   sinJurado: (l) => `We don't have a sworn translator for ${l} right now. The Spanish Ministry of Foreign Affairs publishes the official list by language and province.`,
   maec: "Search the official MAEC list", tocar: "Tap to change", cancelar: "Cancel",
@@ -143,7 +144,7 @@ const en: HiloStrings = {
 };
 
 const de: HiloStrings = {
-  hola: "Hallo. Sagen Sie mir, was übersetzt werden soll: die Sprachen und Ihre Dokumente. Wir prüfen alle zusammen und schicken Ihnen das verbindliche Angebot, meist am selben Tag.",
+  hola: "Hallo. Sagen Sie mir, was übersetzt werden soll: die Sprachen und Ihre Dokumente. Wir prüfen alle zusammen und schicken Ihnen das verbindliche Angebot in Kürze.",
   desde: "Beglaubigte Übersetzung ab 30 € + MwSt. pro Dokument. Hier zahlen Sie nichts: Wir senden Ihnen das verbindliche Angebot.",
   email: "E-Mail", name: "Name (optional)", whatsapp: "WhatsApp (optional)", start: "Los geht's",
   faltaEmail: "eine gültige E-Mail", consentUnico: "Ich willige ein, dass Sie meine Dokumente zur Erstellung des Angebots für die beglaubigte Übersetzung verarbeiten und es mir per E-Mail senden, mit einer Erinnerung, falls ich es nicht abschließe. Die Dokumente werden 30 Tage nach der Lieferung automatisch gelöscht.", falta: (i) => `Zum Weitermachen fehlt: ${i.join(" und ")}.`,
@@ -164,7 +165,7 @@ const de: HiloStrings = {
   pidePlazo: "Bis wann brauchen Sie es?", asap: "So bald wie möglich", fecha: "Bis zu einem Datum", sinPrisa: "Keine Eile", para: (d) => `Bis ${d}`,
   pideLugar: "Wo reichen Sie es ein? Wählen Sie das Land und, falls bekannt, die Behörde.", pais: "Land", organismo: "Behörde", organismoPh: "z. B. Standesamt, Konsulat, Universität…", continuar: "Weiter", noSeAun: "Weiß ich noch nicht",
   resumen: "Sollten wir sonst noch etwas wissen? (auf Papier, auf wessen Namen…)", notas: "Sonstiges (optional)", notasPh: "Hier schreiben…", enviar: "Mein Angebot anfordern",
-  enviado: "Erhalten. Wir prüfen Ihre Dokumente und schicken Ihnen das verbindliche Angebot per E-Mail, meist am selben Tag. Falls etwas fehlt, fragen wir nach.",
+  enviado: "Erhalten. Wir prüfen Ihre Dokumente und schicken Ihnen das verbindliche Angebot per E-Mail {plazo}. Falls etwas fehlt, fragen wir nach.",
   enviadoPresupuesto: "Erhalten. Wir haben Ihnen das Angebot per E-Mail geschickt. Falls etwas fehlt, fragen wir nach.",
   sinJurado: (l) => `Derzeit haben wir keinen vereidigten Übersetzer für ${l}. Das spanische Außenministerium veröffentlicht die offizielle Liste nach Sprache und Provinz.`,
   maec: "In der offiziellen MAEC-Liste suchen", tocar: "Zum Ändern tippen", cancelar: "Abbrechen",
@@ -184,7 +185,7 @@ const de: HiloStrings = {
 };
 
 const pt: HiloStrings = {
-  hola: "Olá. Conte o que precisa traduzir: os idiomas e seus documentos. Revisamos todos juntos e enviamos o orçamento fechado, normalmente no mesmo dia.",
+  hola: "Olá. Conte o que precisa traduzir: os idiomas e seus documentos. Revisamos todos juntos e enviamos o orçamento fechado em breve.",
   desde: "Tradução juramentada a partir de 30 € + IVA por documento. Aqui você não paga nada: enviamos o orçamento fechado.",
   email: "E-mail", name: "Nome (opcional)", whatsapp: "WhatsApp (opcional)", start: "Começar",
   faltaEmail: "um e-mail válido", consentUnico: "Autorizo o tratamento dos meus documentos para preparar o orçamento de tradução juramentada e o envio por e-mail, com um lembrete se eu não o concluir. Os documentos são apagados automaticamente 30 dias após a entrega.", falta: (i) => `Para continuar falta: ${i.join(" e ")}.`,
@@ -205,7 +206,7 @@ const pt: HiloStrings = {
   pidePlazo: "Para quando precisa?", asap: "O quanto antes", fecha: "Para uma data", sinPrisa: "Sem pressa", para: (d) => `Para ${d}`,
   pideLugar: "Onde vai apresentar? Escolha o país e, se souber, o órgão.", pais: "País", organismo: "Órgão", organismoPh: "Ex.: cartório, consulado, universidade…", continuar: "Continuar", noSeAun: "Ainda não sei",
   resumen: "Algo mais que devamos saber? (em papel, em nome de quem…)", notas: "Algo mais (opcional)", notasPh: "Escreva aqui…", enviar: "Pedir meu orçamento",
-  enviado: "Recebido. Revisamos seus documentos e enviamos o orçamento fechado por e-mail, normalmente no mesmo dia. Se faltar algo, pedimos.",
+  enviado: "Recebido. Revisamos seus documentos e enviamos o orçamento fechado por e-mail {plazo}. Se faltar algo, pedimos.",
   enviadoPresupuesto: "Recebido. Enviamos o orçamento para o seu e-mail. Se faltar algo, pedimos.",
   sinJurado: (l) => `No momento não temos tradutor juramentado de ${l}. O Ministério de Assuntos Exteriores da Espanha publica a lista oficial por idioma e província.`,
   maec: "Buscar na lista oficial do MAEC", tocar: "Toque para mudar", cancelar: "Cancelar",
@@ -225,6 +226,9 @@ const pt: HiloStrings = {
 };
 
 export const HILO_T: Record<EntradaLang, HiloStrings> = { es, fr, en, de, pt };
+
+export const textoEnviado = (lang: EntradaLang, isFr: boolean, now: Date): string =>
+  (HILO_T[lang] ?? HILO_T.es).enviado.replace("{plazo}", plazoPresupuesto(lang, isFr, now));
 
 /** Countries offered in the «where» step (ISO 3166-1); names come from Intl in the client's language. */
 export const PAISES = [

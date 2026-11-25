@@ -1,5 +1,6 @@
 // Textos de la puerta de portada (los del hilo siguen en hilo-i18n.ts y se reutilizan). Sin precios salvo el «desde».
 import type { EntradaLang } from "./i18n.ts";
+import { plazoPresupuesto } from "../plazo-presupuesto.ts";
 
 const es = {
   subirTitulo: "Sube o fotografía tus documentos",
@@ -86,7 +87,7 @@ const es = {
   enEspera: "En espera: sale al confirmar tu email",
   dudaChips: ["¿Hace falta la apostilla?", "¿Y si no tengo una página?"],
   enviadoTitulo: "Recibido, gracias",
-  enviadoSub: (e: string) => `Te escribimos a ${e}, normalmente en el día`,
+  enviadoSub: (e: string, isFr: boolean, now: Date) => `Te escribimos a ${e} ${plazoPresupuesto("es", isFr, now)}`,
   loPedido: "Lo que nos has pedido",
   pasos: [["1. Hoy", "Juan revisa tus documentos y te manda el presupuesto cerrado."], ["2. Tú decides", "Lo aceptas y pagas desde el propio email. Sin compromiso."], ["3. Entrega", "Recibes la traducción jurada firmada, con validez oficial."]],
   tengoDuda: "Tengo una duda",
@@ -216,7 +217,7 @@ const fr: PortadaStrings = {
   enEspera: "En attente : part à la confirmation de votre e-mail",
   dudaChips: ["Faut-il l'apostille ?", "Et s'il me manque une page ?"],
   enviadoTitulo: "Bien reçu, merci",
-  enviadoSub: (e) => `Nous vous écrivons à ${e}, en général dans la journée`,
+  enviadoSub: (e, isFr, now) => `Nous vous écrivons à ${e} ${plazoPresupuesto("fr", isFr, now)}`,
   loPedido: "Ce que vous nous avez demandé",
   pasos: [["1. Aujourd'hui", "Juan vérifie vos documents et vous envoie le devis définitif."], ["2. Vous décidez", "Vous l'acceptez et payez depuis l'e-mail. Sans engagement."], ["3. Livraison", "Vous recevez la traduction assermentée signée, avec valeur officielle."]],
   tengoDuda: "J'ai une question",
@@ -344,7 +345,7 @@ const en: PortadaStrings = {
   enEspera: "Waiting: sent once you confirm your email",
   dudaChips: ["Do I need the apostille?", "What if a page is missing?"],
   enviadoTitulo: "Received, thank you",
-  enviadoSub: (e) => `We will write to ${e}, usually the same day`,
+  enviadoSub: (e, isFr, now) => `We will write to ${e} ${plazoPresupuesto("en", isFr, now)}`,
   loPedido: "What you asked us for",
   pasos: [["1. Today", "Juan reviews your documents and sends you the fixed quote."], ["2. You decide", "Accept and pay from the email itself. No commitment."], ["3. Delivery", "You receive the signed sworn translation, officially valid."]],
   tengoDuda: "I have a question",
@@ -472,7 +473,7 @@ const de: PortadaStrings = {
   enEspera: "Wartet: wird nach der Bestätigung gesendet",
   dudaChips: ["Brauche ich die Apostille?", "Und wenn mir eine Seite fehlt?"],
   enviadoTitulo: "Erhalten, danke",
-  enviadoSub: (e) => `Wir schreiben an ${e}, meist am selben Tag`,
+  enviadoSub: (e, isFr, now) => `Wir schreiben an ${e} ${plazoPresupuesto("de", isFr, now)}`,
   loPedido: "Ihre Anfrage",
   pasos: [["1. Heute", "Juan prüft Ihre Dokumente und schickt Ihnen das Festpreisangebot."], ["2. Sie entscheiden", "Annehmen und direkt aus der E-Mail bezahlen. Unverbindlich."], ["3. Lieferung", "Sie erhalten die unterschriebene beeidigte Übersetzung mit amtlicher Gültigkeit."]],
   tengoDuda: "Ich habe eine Frage",
@@ -600,7 +601,7 @@ const pt: PortadaStrings = {
   enEspera: "Em espera: sai ao confirmar o seu e-mail",
   dudaChips: ["Preciso da apostila?", "E se me faltar uma página?"],
   enviadoTitulo: "Recebido, obrigado",
-  enviadoSub: (e) => `Escrevemos para ${e}, normalmente no mesmo dia`,
+  enviadoSub: (e, isFr, now) => `Escrevemos para ${e} ${plazoPresupuesto("pt", isFr, now)}`,
   loPedido: "O que nos pediu",
   pasos: [["1. Hoje", "Juan revisa os seus documentos e envia o orçamento fechado."], ["2. Você decide", "Aceita e paga a partir do próprio e-mail. Sem compromisso."], ["3. Entrega", "Recebe a tradução juramentada assinada, com validade oficial."]],
   tengoDuda: "Tenho uma dúvida",

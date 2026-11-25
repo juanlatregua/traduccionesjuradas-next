@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { puertaT } from "@/lib/i18n/puerta";
 import type { EntradaLang } from "@/lib/entrada/i18n";
-import { HILO_T, PAISES } from "@/lib/entrada/hilo-i18n";
+import { HILO_T, PAISES, textoEnviado } from "@/lib/entrada/hilo-i18n";
+import { includesFrench } from "@/lib/price-request-ack";
 import { buildHilo, LOCAL_VACIO, progressSteps, type Ask, type EditKey, type HiloLocal, type Msg, type Urgency } from "@/lib/entrada/hilo";
 import { isQuestion } from "@/lib/entrada/conserje";
 import { leerProcedencia } from "@/lib/entrada/procedencia-cliente";
@@ -514,7 +515,7 @@ export default function PuertaV2({ source = null, lang = "es" }: { source?: stri
       case "nota": return local.notas[m.index!];
       case "duda": return local.dudas[m.index!]?.q;
       case "respuesta_duda": return local.dudas[m.index]?.a ?? t.pensando;
-      case "enviado": return view?.presupuestoEnviado ? t.enviadoPresupuesto : t.enviado;
+      case "enviado": return view?.presupuestoEnviado ? t.enviadoPresupuesto : textoEnviado(lang, includesFrench(origen, ...destinosActuales), new Date());
       case "sin_jurado":
         return (
           <div className="space-y-2">

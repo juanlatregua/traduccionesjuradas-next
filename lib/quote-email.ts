@@ -115,7 +115,7 @@ export async function sendPriceRequestAckToClient(opts: {
     if (phone) {
       const acuse = await sendClientNotification({
         to: formatPhoneSpain(phone),
-        body: smsAcuseSolicitudPrecio(smsLang),
+        body: smsAcuseSolicitudPrecio(smsLang, Boolean(opts.byJuan)),
       });
       if (!acuse.ok) {
         console.error("[price-request] acuse SMS al cliente fallo:", acuse.error);

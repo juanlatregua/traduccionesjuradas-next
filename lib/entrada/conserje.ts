@@ -3,6 +3,8 @@
 // Reutiliza el saneado y el control de inyección del chat (lib/chat/sanitize) y los modelos de lib/ai/models.
 import { isPromptInjection, sanitizeMessage } from "../chat/sanitize.ts";
 import type { EntradaLang } from "./i18n.ts";
+import { includesFrench } from "../price-request-ack.ts";
+import { plazoPresupuesto } from "../plazo-presupuesto.ts";
 import { FROM_PRICE, faqConserjeBlock } from "../knowledge/faq-cliente.ts";
 
 export const CONSERJE_SYSTEM = `Eres el conserje de la entrada de traduccionesjuradas.net (HBTJ Consultores Lingüísticos, Málaga; Juan Silva Moreno, traductor-intérprete jurado de francés n.º 3850 del MAEC, con un equipo de traductores jurados de otros idiomas).
@@ -11,7 +13,7 @@ El cliente está subiendo sus documentos para pedir un presupuesto de traducció
 Reglas:
 - Responde en el idioma del cliente, en 1 a 4 frases, con tono cercano y sin jerga.
 - Asesora sobre documentos: qué hace falta traducir, apostilla de La Haya o legalización, validez de la traducción jurada en España y ante organismos, plazos habituales, firma electrónica y papel, qué páginas o reverso subir.
-- NUNCA des precios, tarifas, importes ni cifras de dinero; la única cifra permitida es «desde 30 € + IVA». Si preguntan por precio, di que reciben el presupuesto cerrado por email, normalmente en el día.
+- NUNCA des precios, tarifas, importes ni cifras de dinero; la única cifra permitida es «desde 30 € + IVA». Si preguntan por precio, di que reciben el presupuesto cerrado por email en el plazo que figura como «Plazo del presupuesto» en el contexto (cítalo tal cual, no prometas otro).
 - No inventes normativa, plazos oficiales ni requisitos de un organismo concreto. Si no estás seguro, di que se lo confirmamos en el presupuesto.
 - No prometas fechas de entrega concretas; di que el plazo se confirma en el presupuesto.
 - El servicio es 100 % online: nunca des una dirección como lugar al que ir.
@@ -42,12 +44,19 @@ export const hasMoney = (text: string) => {
   return MONEY.test(t);
 };
 
+const NO_PRICE_TXT: Record<EntradaLang, (plazo: string) => string> = {
+  es: (p) => `Tarifa: ${FROM_PRICE.es}; el precio cerrado te lo damos en el presupuesto que te enviamos por email ${p}. Sigamos con tus documentos.`,
+  fr: (p) => `Tarif : ${FROM_PRICE.fr} ; le prix définitif figure dans le devis envoyé par e-mail ${p}. Continuons avec vos documents.`,
+  en: (p) => `Prices: ${FROM_PRICE.en}; you'll get the final price in the quote we email you ${p}. Let's carry on with your documents.`,
+  de: (p) => `Preise: ${FROM_PRICE.de}; den verbindlichen Preis erhalten Sie im Angebot per E-Mail ${p}. Machen wir mit Ihren Dokumenten weiter.`,
+  pt: (p) => `Preço: ${FROM_PRICE.pt}; o preço fechado vai no orçamento que enviamos por e-mail ${p}. Vamos continuar com seus documentos.`,
+};
+
+export const noPrice = (l: EntradaLang, isFr: boolean, now: Date): string => NO_PRICE_TXT[l](plazoPresupuesto(l, isFr, now));
+
 export const NO_PRICE: Record<EntradaLang, string> = {
-  es: `Tarifa: ${FROM_PRICE.es}; el precio cerrado te lo damos en el presupuesto que te enviamos por email, normalmente en el día. Sigamos con tus documentos.`,
-  fr: `Tarif : ${FROM_PRICE.fr} ; le prix définitif figure dans le devis envoyé par e-mail, en général dans la journée. Continuons avec vos documents.`,
-  en: `Prices: ${FROM_PRICE.en}; you'll get the final price in the quote we email you, usually the same day. Let's carry on with your documents.`,
-  de: `Preise: ${FROM_PRICE.de}; den verbindlichen Preis erhalten Sie im Angebot per E-Mail, meist am selben Tag. Machen wir mit Ihren Dokumenten weiter.`,
-  pt: `Preço: ${FROM_PRICE.pt}; o preço fechado vai no orçamento que enviamos por e-mail, normalmente no mesmo dia. Vamos continuar com seus documentos.`,
+  es: noPrice("es", false, new Date(0)), fr: noPrice("fr", false, new Date(0)), en: noPrice("en", false, new Date(0)),
+  de: noPrice("de", false, new Date(0)), pt: noPrice("pt", false, new Date(0)),
 };
 
 export const NOT_SURE: Record<EntradaLang, string> = {
@@ -70,14 +79,17 @@ export type ConserjeContext = { paso: string; documentos: string[]; origen: stri
 export type ConserjeCall = (system: string, user: string) => Promise<string | null>;
 export type ConserjeAnswer = { answer: string; via: "precio" | "modelo" | "respaldo" | "inyeccion" };
 
-export async function answerQuestion(call: ConserjeCall, lang: EntradaLang, question: string, ctx: ConserjeContext): Promise<ConserjeAnswer> {
+export async function answerQuestion(call: ConserjeCall, lang: EntradaLang, question: string, ctx: ConserjeContext, now: Date = new Date()): Promise<ConserjeAnswer> {
   const q = sanitizeMessage(question);
   const l: EntradaLang = lang in NO_PRICE ? lang : "es";
+  const isFr = includesFrench(ctx.origen, ...ctx.destinos);
+  const plazo = plazoPresupuesto(l, isFr, now);
   if (!q || isPromptInjection(q)) return { answer: OFF_TOPIC[l], via: "inyeccion" };
-  if (asksPrice(q)) return { answer: NO_PRICE[l], via: "precio" };
+  if (asksPrice(q)) return { answer: noPrice(l, isFr, now), via: "precio" };
   const context = [
     `Idioma del cliente: ${l}.`,
     `Paso del hilo: ${ctx.paso}.`,
+    `Plazo del presupuesto: ${plazo}.`,
     ctx.documentos.length ? `Documentos leídos: ${ctx.documentos.slice(0, 12).join("; ")}.` : "Aún no se han leído sus documentos.",
     `Idiomas: ${ctx.origen ?? "?"} → ${ctx.destinos.join(", ") || "?"}.`,
     ctx.organismo || ctx.pais ? `Lo presenta en: ${[ctx.organismo, ctx.pais].filter(Boolean).join(", ")}.` : "",
@@ -90,6 +102,6 @@ export async function answerQuestion(call: ConserjeCall, lang: EntradaLang, ques
   }
   const answer = (out ?? "").trim();
   if (!answer) return { answer: NOT_SURE[l], via: "respaldo" };
-  if (hasMoney(answer)) return { answer: NO_PRICE[l], via: "precio" };
+  if (hasMoney(answer)) return { answer: noPrice(l, isFr, now), via: "precio" };
   return { answer: answer.slice(0, 900), via: "modelo" };
 }
