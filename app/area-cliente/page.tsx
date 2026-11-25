@@ -7,7 +7,8 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
 import GuestOrderLookup from "@/components/GuestOrderLookup";
 import ClientAccessForm from "@/components/ClientAccessForm";
 import { prisma } from "@/lib/prisma";
-import { getClientPortalData } from "@/lib/client-portal";
+import { getClientPortalData, getClientSolicitudes } from "@/lib/client-portal";
+import { langLabel } from "@/lib/client-solicitudes";
 import { verifyClientToken } from "@/lib/client-token";
 import { buildSignedOrderUrl } from "@/lib/order-token";
 import { decimalToNumber } from "@/lib/quotes";
@@ -91,10 +92,11 @@ export default async function AreaClientePage({
   const invoices = data?.invoices || [];
   const customer = data?.customer || null;
   const isStaff = isStaffEmail(clientEmail);
+  const solicitudes = await getClientSolicitudes(clientEmail, [...orders, ...quotes]);
 
   // El idioma del cliente vive en Order.clientLocale (no en Customer): usamos el del
   // pedido más reciente (orders viene ordenado por createdAt desc).
-  const lang = orders[0]?.clientLocale;
+  const lang = orders[0]?.clientLocale ?? solicitudes[0]?.lang;
   const t = getAc(lang).index;
   const tc = getAc(lang).common;
   const intl = acIntl(lang);
@@ -187,6 +189,26 @@ export default async function AreaClientePage({
               </a>
             ))}
           </div>
+        </section>
+      )}
+
+      {solicitudes.length > 0 && (
+        <section className="mt-6 rounded-3xl border border-cream bg-card p-6 shadow-sm sm:p-8">
+          <h2 className="text-lg font-semibold text-encre">{t.mySolicitudes}</h2>
+          <ul className="mt-3 space-y-2 text-sm text-sepia">
+            {solicitudes.map((s) => {
+              const pair = [langLabel(s.source, intl), s.targets.map((c) => langLabel(c, intl)).filter(Boolean).join(", ")].filter(Boolean).join(" → ");
+              const plazo = s.urgency === "ASAP" ? t.solicitudAsap : s.urgency === "FLEXIBLE" ? t.solicitudFlexible : s.neededBy ? t.solicitudFor(s.neededBy.toLocaleDateString(intl, { timeZone: "Europe/Madrid" })) : "";
+              const detail = [pair, t.solicitudDocs(s.documentos, s.paginas), plazo].filter(Boolean).join(" · ");
+              return (
+                <li key={s.id} className="rounded-2xl border border-cream bg-parchment px-4 py-3">
+                  <p className="font-semibold text-encre">{t.solicitudSent(s.date.toLocaleDateString(intl, { timeZone: "Europe/Madrid" }))}</p>
+                  {detail && <p className="mt-0.5">{detail}</p>}
+                  <p className="mt-1 text-xs font-semibold text-bleu">{t.solicitudStatus}</p>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       )}
 

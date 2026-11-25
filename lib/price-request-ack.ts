@@ -104,3 +104,16 @@ export function priceRequestAckText(lang: AckLang, i: { name?: string | null; tr
 /** Juan solo traduce francés: true si algún idioma o par ("fr->es", "ES>FR") lo incluye. */
 export const includesFrench = (...langs: Array<string | null | undefined>): boolean =>
   langs.some((l) => String(l || "").toLowerCase().split(/[^a-z]+/).includes("fr"));
+
+/** Enlace «Ver tu solicitud» al área de cliente (URL firmada); vacío si no hay URL. */
+const AREA_LINK: Record<AckLang, string> = {
+  es: "Ver tu solicitud",
+  fr: "Voir votre demande",
+  en: "View your request",
+  de: "Ihre Anfrage ansehen",
+  pt: "Ver o seu pedido",
+};
+
+export const areaLinkLabel = (locale: string | null | undefined): string => AREA_LINK[ackLangOf(locale)];
+
+export const ackAreaLine = (lang: AckLang, url: string | null | undefined): string => (url ? `${AREA_LINK[lang]}: ${url}` : "");

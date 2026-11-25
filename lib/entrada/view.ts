@@ -60,6 +60,8 @@ export type ClientView = {
   soloLectura: null | "otra_entrada" | "caso_existente";
   /** Solo en la respuesta de la confirmación: el presupuesto ya salió por email (PUERTA_FR=fr). */
   presupuestoEnviado?: boolean;
+  /** Entrada confirmada con email verificado: enlace firmado a su área de cliente. */
+  areaUrl?: string;
 };
 
 const FASE: Record<string, "leyendo" | "lista" | "revision_manual"> = {

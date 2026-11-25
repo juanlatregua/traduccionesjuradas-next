@@ -15,6 +15,7 @@ import { leerProcedencia } from "@/lib/entrada/procedencia-cliente";
 import { ETAPA, PORTADA_VACIA, conAviso, esFalloDeRed, fmtEspera, hojasDe, nombreCorto, normalizarLocal, paginasDe, pasoAtras, pasoDe, respuestasDe, type Paso, type PortadaLocal, type Urgency } from "@/lib/entrada/portada";
 import { ACUSE_BOTONES, acuseRespuesta, conSeguimiento } from "@/lib/entrada/acuse";
 import { enIdioma } from "@/lib/entrada/errores-i18n";
+import { areaLinkLabel } from "@/lib/price-request-ack";
 import { PORTADA_T } from "@/lib/entrada/portada-i18n";
 import type { ClientView } from "@/lib/entrada/view";
 import { Miniatura, Visor, olvidarMiniaturas, type Hoja } from "@/components/entrada/Miniaturas";
@@ -847,6 +848,7 @@ export default function PuertaPortada({ lang = "es", source = null, asistente = 
             </>
           )}
           <div id={paso === "enviado" && (verDuda || local.dudas.length > 0) ? undefined : "preguntar"} className="flex scroll-mt-24 flex-wrap gap-3">
+            {paso === "enviado" && view?.areaUrl && <a href={view.areaUrl} className={secondary}>{areaLinkLabel(lang)}</a>}
             <button type="button" className={secondary} onClick={restart}>{t.otros}</button>
             {paso === "enviado" && !verDuda && local.dudas.length === 0 && <button type="button" className={secondary} onClick={() => setVerDuda(true)}><MessageCircle className="h-4 w-4" aria-hidden />{p.tengoDuda}</button>}
           </div>

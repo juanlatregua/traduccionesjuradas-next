@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { SONNET_MODEL, assertNotRefused } from "@/lib/ai/models";
 import { prisma } from "@/lib/prisma";
+import { buildClientPortalUrl } from "@/lib/client-token";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { isOwnBlobUrl } from "@/lib/q-journey";
 import { sendMail } from "@/lib/azure-mail";
@@ -190,6 +191,15 @@ const frAutoIO: FrAutoIO = {
   },
 };
 
+function areaUrlOf(e: EntradaRow): string | null {
+  if (!e.emailVerifiedAt || !e.email) return null;
+  try {
+    return buildClientPortalUrl(e.email);
+  } catch {
+    return null;
+  }
+}
+
 export const flowDeps: FlowDeps = {
   store: prismaEntradaStore(prisma),
   gate: (input) => resolverEntrada(gateDeps, input),
@@ -229,8 +239,9 @@ export const flowDeps: FlowDeps = {
   routeQuote,
   ackClient: async (e, { enMarcha }) => {
     const { sendPriceRequestAckToClient } = await import("@/lib/quote-email");
-    await sendPriceRequestAckToClient({ name: e.nombre, email: e.email, phone: e.phone9, locale: e.lang, translatorLangName: null, askDeadline: !e.urgency, inReview: !enMarcha, byJuan: includesFrench(e.sourceLang, e.targetLang, ...e.targetLangs) });
+    await sendPriceRequestAckToClient({ name: e.nombre, email: e.email, phone: e.phone9, locale: e.lang, translatorLangName: null, askDeadline: !e.urgency, inReview: !enMarcha, byJuan: includesFrench(e.sourceLang, e.targetLang, ...e.targetLangs), areaUrl: areaUrlOf(e) });
   },
+  areaUrl: areaUrlOf,
   funnel: async (e, step) => {
     await prisma.funnelEvent
       .create({ data: { sessionId: sessionKeyOf(e.id), reference: (e.source ?? "entrada").slice(0, 60), step, metadata: { canal: e.canal, lang: e.lang, casoId: e.casoId } } })

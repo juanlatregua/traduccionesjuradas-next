@@ -4,7 +4,7 @@ import { sendClientNotification, formatPhoneSpain } from "@/lib/sms";
 import { smsAcuseSolicitudPrecio, type SmsLang } from "@/lib/sms-templates";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { findRecurrentClient } from "@/lib/recurrent-client-db";
-import { priceRequestAckText, ackLangOf } from "@/lib/price-request-ack";
+import { priceRequestAckText, ackLangOf, ackAreaLine } from "@/lib/price-request-ack";
 import { GOOGLE_RATING } from "@/lib/google-rating";
 
 export function isQuoteEmailConfigured() {
@@ -86,6 +86,8 @@ export async function sendPriceRequestAckToClient(opts: {
   inReview?: boolean;
   /** El par incluye francés: responde Juan; en otro caso, firma genérica. */
   byJuan?: boolean;
+  /** Email verificado: enlace firmado al área de cliente («Ver tu solicitud»). */
+  areaUrl?: string | null;
 }): Promise<{ channel: "email" | "sms" | null }> {
   const lang = ackLangOf(opts.locale);
   const smsLang: SmsLang = lang === "fr" ? "fr" : "es";
@@ -108,7 +110,7 @@ export async function sendPriceRequestAckToClient(opts: {
       await sendMail({
         to: email,
         subject,
-        html: renderSimpleEmailHtml(body),
+        html: renderSimpleEmailHtml([body, ackAreaLine(lang, opts.areaUrl)].filter(Boolean).join("\n")),
       });
       return { channel: "email" };
     }

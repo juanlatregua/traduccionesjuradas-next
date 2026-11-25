@@ -52,6 +52,8 @@ export type FlowDeps = {
   routeQuote?(e: EntradaRow, data: FrAutoData | null, x: { casoRef: string | null; documentos: number; excluidos: string[] }): Promise<{ handled: boolean; quoteSent: boolean }>;
   /** «Hemos recibido tu solicitud», in the entrada language; deduplicated per recipient (24 h). enMarcha=false: Juan reviews it first. */
   ackClient?(e: EntradaRow, x: { enMarcha: boolean }): Promise<void>;
+  /** Signed link to the client area for a verified email; null otherwise. */
+  areaUrl?(e: EntradaRow): string | null;
   /** One FunnelEvent per entrada and step; never throws. */
   funnel?(e: EntradaRow, step: string): Promise<void>;
   /** linkToken: the one-time «Confirmar mi email» button, bound to this entrada. */
@@ -99,7 +101,9 @@ export async function vistaEntrada(deps: FlowDeps, e: EntradaRow): Promise<Clien
   const files = await deps.store.files(e.id);
   const data = e.loteId ? await deps.lectura.store.get(e.loteId) : null;
   const extras = e.loteId && data && (data.lote.status === "ok" || data.lote.status === "confirmed" || data.lote.status === "nothing_to_translate") ? await deps.lectura.extras(e.loteId) : null;
-  return clientView(e, files, data, extras, await sinJuradoDe(deps, e, e.loteId));
+  const view = clientView(e, files, data, extras, await sinJuradoDe(deps, e, e.loteId));
+  const areaUrl = e.estado === "confirmada" ? deps.areaUrl?.(e) : null;
+  return areaUrl ? { ...view, areaUrl } : view;
 }
 
 export async function enviarCodigo(deps: FlowDeps, e: EntradaRow): Promise<Outcome> {
