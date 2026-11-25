@@ -218,7 +218,7 @@ export async function routePuertaQuoteRequest(input: {
     // solo aviso a Juan con [DUPLICADO?] y enlace al abierto. Misma persona y par pero otro
     // documento → flujo normal + aviso [MISMA PERSONA]. Solo teléfono = aviso, nunca bloqueo.
     // La respuesta pública es idéntica en todos los casos.
-    const byJuan = includesFrench(lead?.sourceLang, lead?.targetLang, ...docs.flatMap((d) => [d.sourceLanguage, d.targetLanguage]));
+    const byJuan = lead?.sourceLang ? includesFrench(lead.sourceLang, lead.targetLang) : includesFrench(...docs.flatMap((d) => [d.sourceLanguage, d.targetLanguage]));
     const parLead = lead?.sourceLang ? parFromLangs(lead.sourceLang, lead.targetLang) : null;
     // Caso en sombra (F2): se resuelve aquí, antes de crear nada, y se estampa en la sesión.
     // Las guardas de abajo siguen decidiendo; si el resolver falla, caso = null y nada cambia.

@@ -12,6 +12,7 @@ import { SelloMinisterio } from "@/components/SelloMinisterio";
 import { HOME, type HomeLang } from "@/lib/i18n/home";
 import { TRANSLATOR_DROPDOWN, DOCS_DROPDOWN } from "@/lib/i18n/nav";
 import { CIUDADES } from "@/src/data/ciudades";
+import { GOOGLE_RATING } from "@/lib/google-rating";
 
 // Ciudades principales para la portada ES (las páginas de ciudad son en
 // español): las 12 indexables más pobladas, como enlaces normales rastreables.
@@ -53,7 +54,7 @@ export default function HomeV2({ lang, hero }: { lang: HomeLang; hero?: ReactNod
                 ))}
               </ul>
               <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-graphite">
-                <span className="text-or-dark" aria-label="4,8/5">★★★★★</span>
+                <span className="text-or-dark" aria-label={`${String(GOOGLE_RATING.stars).replace(".", ",")}/5`}>★★★★★</span>
                 <span><b className="text-encre">{h.hero.ratingNote[lang]}</b></span>
                 <span className="hidden h-4 w-px bg-bleu/15 sm:block" aria-hidden="true" />
                 <span>{h.hero.priceLine[lang]}</span>
