@@ -6,7 +6,7 @@ import { QUOTE_PDF_LANGS, QUOTE_PDF_LANG_LABELS } from "@/lib/quote-pdf-langs";
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { Loader2, Upload, X, FileText, CheckCircle2, AlertTriangle, Scissors, Merge } from "lucide-react";
-import { autoClientPriceForRow, clientPriceFromCost, isFrenchForeign, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
+import { autoClientPriceForRow, clientPriceFromCost, isFrenchForeign, computeQuoteTotals, PAPER_SHIPPING_BASE_EUR, PAPER_SHIPPING_MALAGA_EUR, paperShippingBase } from "@/lib/quote-math";
 import { computeBase } from "@/lib/pricing-engine/calculator";
 import { PAGE_PRICED_LANGS, APOSTILLE_EXTRA_EUR, pairApostilles } from "@/lib/pricing-engine/page-pricing";
 import { isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
@@ -439,6 +439,8 @@ export default function StaffExpedienteIntake({
   const [deliveryType, setDeliveryType] = useState<"DIGITAL_PDF" | "PAPER_SHIP">(
     (ef ? ef.deliveryType : initialData?.deliveryType) === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF"
   );
+  const [shippingInput, setShippingInput] = useState<string>(String(ef ? ef.shippingBase : PAPER_SHIPPING_BASE_EUR));
+  const shippingBaseNum = paperShippingBase(shippingInput);
   const [deliveryNote, setDeliveryNote] = useState(ef ? ef.deliveryTerm : initialDeliveryNote || "");
   // Orden Juan 24-ago: la cuenta de los presupuestos es SIEMPRE Sabadell — BBVA
   // está en cierre y NO debe salir en presupuestos nuevos.
@@ -1237,9 +1239,9 @@ export default function StaffExpedienteIntake({
         discountValue: discountPct,
         vatRate: 0.21,
         deliveryType,
-        shippingBase: PAPER_SHIPPING_BASE_EUR,
+        shippingBase: shippingBaseNum,
       }),
-    [includedDocs, rowClientPrice, discountPct, deliveryType]
+    [includedDocs, rowClientPrice, discountPct, deliveryType, shippingBaseNum]
   );
   // Modo edición: las líneas que guardaría el PATCH y sus totales, con la misma función
   // que el servidor. Fila sin tocar = la línea guardada, exacta.
@@ -1252,6 +1254,7 @@ export default function StaffExpedienteIntake({
         sourceLang,
         targetLang,
         deliveryType,
+        shippingBase: shippingBaseNum,
         discountType: discountKind,
         discountValue: discountPct,
         validityDays,
@@ -1315,6 +1318,7 @@ export default function StaffExpedienteIntake({
     setMarginPct(f.marginPct);
     setPdfLang(f.pdfLang || "es");
     setDeliveryType(f.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF");
+    setShippingInput(String(f.shippingBase));
     setDeliveryNote(f.deliveryTerm);
     setPaymentMethods(f.paymentMethods);
     setContactWhatsapp(f.contactWhatsapp);
@@ -1538,6 +1542,7 @@ export default function StaffExpedienteIntake({
           sourceLang,
           targetLang,
           deliveryType,
+          shippingBase: deliveryType === "PAPER_SHIP" ? shippingBaseNum : undefined,
           expedienteRef: expedienteRef || undefined,
           lavoriLeadRef: lavoriLeadRef || leadRefRecienEnviada || lavoriLeadRefSent || yaPedida?.ref || undefined,
           pdfLang,
@@ -1566,7 +1571,7 @@ export default function StaffExpedienteIntake({
       setSubmitError("Error de conexión al crear el presupuesto.");
       setSubmitting(false);
     }
-  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, yaPedida, composeLine, marginPct, paymentMethods, contactWhatsapp, deliveryType, deliveryNote, pdfLang, editQuote]);
+  }, [includedDocs, customerName, customerEmail, customerPhone, sourceLang, targetLang, discountPct, validityDays, notesLegal, holderNames, expedienteRef, lavoriLeadRef, lavoriLeadRefSent, yaPedida, composeLine, marginPct, paymentMethods, contactWhatsapp, deliveryType, shippingBaseNum, deliveryNote, pdfLang, editQuote]);
 
   // "Pedir precio y dejar en espera" (19-sep-2026, orden de Juan: «hay momentos
   // que no quiero aventurarme»). Hace los DOS pasos en el único orden que ata la
@@ -2319,9 +2324,19 @@ export default function StaffExpedienteIntake({
                 Tipo de entrega
                 <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value as "DIGITAL_PDF" | "PAPER_SHIP")} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]">
                   <option value="DIGITAL_PDF">PDF con certificado digital</option>
-                  <option value="PAPER_SHIP">Envío en papel (+12 € + IVA)</option>
+                  <option value="PAPER_SHIP">Envío en papel</option>
                 </select>
               </label>
+              {deliveryType === "PAPER_SHIP" && (
+                <div className="text-xs text-[#52606D]">
+                  <label htmlFor="shipping-base">Envío (€ + IVA)</label>
+                  <input id="shipping-base" type="number" min={0} step="0.01" value={shippingInput} placeholder={String(PAPER_SHIPPING_BASE_EUR)} onChange={(e) => setShippingInput(e.target.value)} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2" />
+                  <div className="mt-1 flex gap-2">
+                    <button type="button" onClick={() => setShippingInput(String(PAPER_SHIPPING_MALAGA_EUR))} className="rounded border border-[#D5DAE1] px-2 py-1 text-[#1A2E4A] hover:bg-[#F6F7F9]">Málaga {PAPER_SHIPPING_MALAGA_EUR} €</button>
+                    <button type="button" onClick={() => setShippingInput(String(PAPER_SHIPPING_BASE_EUR))} className="rounded border border-[#D5DAE1] px-2 py-1 text-[#1A2E4A] hover:bg-[#F6F7F9]">Fuera {PAPER_SHIPPING_BASE_EUR} €</button>
+                  </div>
+                </div>
+              )}
               <label className="text-xs text-[#52606D]">
                 Idioma del cliente (PDF y página de pago)
                 <select value={pdfLang} onChange={(e) => { setPdfLangTouched(true); setPdfLang(e.target.value); }} className="mt-1 w-full rounded border border-[#D5DAE1] bg-white px-2 py-2 text-[#1F2933]">

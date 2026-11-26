@@ -14,6 +14,8 @@ export {
   computeQuoteTotals,
   round2,
   PAPER_SHIPPING_BASE_EUR,
+  PAPER_SHIPPING_MALAGA_EUR,
+  paperShippingBase,
   DEFAULT_VAT_RATE,
 } from "./quote-math.ts";
 export type {

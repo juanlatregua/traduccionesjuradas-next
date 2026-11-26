@@ -4,7 +4,7 @@
 // rango de páginas), el cuerpo del PATCH /api/quotes/[id] (mismo formato que
 // QuoteEditForm), qué deja hacer cada estado y la guarda del pago congelado.
 
-import { round2, PAPER_SHIPPING_BASE_EUR } from "./quote-math.ts";
+import { round2, paperShippingBase, PAPER_SHIPPING_BASE_EUR } from "./quote-math.ts";
 import { MIN_AUTO_MARGIN_PCT } from "./learned-rates-math.ts";
 
 export function presupuestoPaginaUnicaOn(env: Record<string, string | undefined> = process.env): boolean {
@@ -301,7 +301,7 @@ export function editFormFromQuote(q: EditableQuote): EditForm {
     sourceLang: q.sourceLang || "",
     targetLang: q.targetLang || "",
     deliveryType: q.deliveryType === "PAPER_SHIP" ? "PAPER_SHIP" : "DIGITAL_PDF",
-    shippingBase: Number(q.shippingBase) || 0,
+    shippingBase: q.deliveryType === "PAPER_SHIP" ? paperShippingBase(q.shippingBase) : PAPER_SHIPPING_BASE_EUR,
     discountType: q.discountType === "PERCENT" || q.discountType === "FIXED" ? q.discountType : "NONE",
     discountValue: Number(q.discountValue) || 0,
     vatRate: Number.isFinite(Number(q.vatRate)) ? Number(q.vatRate) : 0.21,
@@ -316,9 +316,8 @@ export function editFormFromQuote(q: EditableQuote): EditForm {
   };
 }
 
-/** shippingBase que el PATCH recalcula: el guardado si sigue en papel; si no, el estándar. */
 export function shippingBaseFor(form: Pick<EditForm, "deliveryType" | "shippingBase">): number {
-  return form.deliveryType === "PAPER_SHIP" ? form.shippingBase || PAPER_SHIPPING_BASE_EUR : 0;
+  return form.deliveryType === "PAPER_SHIP" ? paperShippingBase(form.shippingBase) : 0;
 }
 
 export function buildQuotePatchPayload(

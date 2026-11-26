@@ -35,7 +35,7 @@ import {
   type EditableLine,
   type EditableQuote,
 } from "../../lib/quote-edit-hydrate.ts";
-import { computeQuoteTotals, normalizeQuoteLines } from "../../lib/quotes.ts";
+import { computeQuoteTotals, normalizeQuoteLines, paperShippingBase } from "../../lib/quotes.ts";
 import { frozenSendBlocked, FROZEN_SEND_ERROR } from "../../lib/precio-tras-envio-math.ts";
 import { quoteContentVersion } from "../../lib/quote-content-version.ts";
 
@@ -91,7 +91,7 @@ function serverRecompute(body: ReturnType<typeof buildQuotePatchPayload>) {
     discountValue: body.discountValue,
     vatRate: body.vatRate,
     deliveryType: body.deliveryType as any,
-    shippingBase: body.deliveryType === "PAPER_SHIP" ? body.shippingBase || 12 : 0,
+    shippingBase: body.deliveryType === "PAPER_SHIP" ? paperShippingBase(body.shippingBase) : 0,
   });
 }
 
@@ -197,7 +197,8 @@ test("form desde el presupuesto: todo lo que el PATCH reescribe", () => {
 for (const [name, over] of [
   ["papel + descuento % + IVA 21", {}],
   ["descuento fijo + IVA 0 (extranjero) + digital", { discountType: "FIXED", discountValue: 12.5, vatRate: 0, deliveryType: "DIGITAL_PDF", shippingBase: 0 }],
-  ["sin descuento + papel con base guardada 0 → estándar", { discountType: "NONE", discountValue: 0, shippingBase: 0 }],
+  ["sin descuento + papel con base guardada 0 (recogida en mano)", { discountType: "NONE", discountValue: 0, shippingBase: 0 }],
+  ["papel con envío de la jurada 19 €", { shippingBase: 19 }],
   ["margen auto (null)", { marginPct: null }],
 ] as const) {
   test(`ida y vuelta sin tocar nada: mismos totales, líneas, costes y margen (${name})`, () => {
@@ -206,9 +207,7 @@ for (const [name, over] of [
     const lines = rows.map((r) => editLineFor(r, () => assert.fail("una fila sin tocar no se recompone")));
     const body = buildQuotePatchPayload(editFormFromQuote(q), lines);
     const after = serverRecompute(body);
-    const before = q.shippingBase === 0 && q.deliveryType === "PAPER_SHIP"
-      ? computeQuoteTotals({ ...storedTotalsArgs(q), shippingBase: 12 })
-      : storedTotals(q);
+    const before = storedTotals(q);
     assert.equal(after.subtotal, before.subtotal);
     assert.equal(after.discountAmount, before.discountAmount);
     assert.equal(after.shippingAmount, before.shippingAmount);
@@ -222,16 +221,6 @@ for (const [name, over] of [
     assert.equal(body.discountType, q.discountType);
     assert.equal(body.pdfLang, q.pdfLang);
   });
-}
-
-function storedTotalsArgs(q: EditableQuote) {
-  return {
-    lines: q.lines.map((l) => ({ ...l, supplierUnitCost: l.supplierUnitCost ?? undefined, sourceFileUrl: l.sourceFileUrl ?? undefined, pageStart: l.pageStart ?? undefined, pageEnd: l.pageEnd ?? undefined, docKind: l.docKind ?? undefined })),
-    discountType: q.discountType as any,
-    discountValue: q.discountValue,
-    vatRate: q.vatRate,
-    deliveryType: q.deliveryType as any,
-  };
 }
 
 test("coste null se conserva (no se vuelve 0 €) aunque la fila se toque sin ponerle coste", () => {
@@ -269,7 +258,27 @@ test("cuerpo del PATCH: mismo formato que QuoteEditForm + pdfLang/shippingBase; 
   assert.equal(b2.overrideLowMargin, true);
   assert.equal(b2.frozenRepair, true);
   assert.equal(shippingBaseFor({ deliveryType: "DIGITAL_PDF", shippingBase: 14 }), 0);
-  assert.equal(shippingBaseFor({ deliveryType: "PAPER_SHIP", shippingBase: 0 }), 12);
+  assert.equal(shippingBaseFor({ deliveryType: "PAPER_SHIP", shippingBase: 0 }), 0);
+});
+
+test("envío en papel: 0 explícito se respeta; falta o no-número → 12; digital → 0", () => {
+  assert.equal(shippingBaseFor({ deliveryType: "PAPER_SHIP", shippingBase: 0 }), 0);
+  assert.equal(shippingBaseFor({ deliveryType: "PAPER_SHIP", shippingBase: 19 }), 19);
+  assert.equal(shippingBaseFor({ deliveryType: "PAPER_SHIP", shippingBase: 6 }), 6);
+  assert.equal(shippingBaseFor({ deliveryType: "PAPER_SHIP", shippingBase: undefined as any }), 12);
+  assert.equal(shippingBaseFor({ deliveryType: "PAPER_SHIP", shippingBase: NaN }), 12);
+  assert.equal(shippingBaseFor({ deliveryType: "DIGITAL_PDF", shippingBase: 0 }), 0);
+  assert.equal(paperShippingBase(null), 12);
+  assert.equal(paperShippingBase(""), 12);
+  assert.equal(paperShippingBase("abc"), 12);
+  assert.equal(paperShippingBase(-5), 12);
+  assert.equal(paperShippingBase("0"), 0);
+  assert.equal(paperShippingBase("19.5"), 19.5);
+  const paper = quoteOf({ deliveryType: "PAPER_SHIP", shippingBase: 0 });
+  assert.equal(editFormFromQuote(paper).shippingBase, 0);
+  assert.equal(buildQuotePatchPayload(editFormFromQuote(paper), []).shippingBase, 0);
+  assert.equal(computeQuoteTotals({ lines: [{ description: "x", quantity: 1, unitPrice: 30 }], discountType: "NONE", discountValue: 0, vatRate: 0.21, deliveryType: "PAPER_SHIP", shippingBase: 0 }).shippingAmount, 0);
+  assert.equal(editFormFromQuote(quoteOf({ deliveryType: "DIGITAL_PDF", shippingBase: 0 })).shippingBase, 12);
 });
 
 test("guarda de pago congelado: bloquea dinero sin frozenRepair; deja datos sin dinero y la reparación", () => {

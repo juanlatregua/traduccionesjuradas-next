@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PAPER_SHIPPING_BASE_EUR } from "@/lib/quote-math";
+import { PAPER_SHIPPING_BASE_EUR, paperShippingBase } from "@/lib/quote-math";
 
 const PAYMENT_METHOD_OPTIONS = [
   { id: "sabadell", label: "Banco Sabadell" },
@@ -38,6 +38,7 @@ type Quote = {
   sourceLang: string;
   targetLang: string;
   deliveryType?: string;
+  shippingBase?: number;
   discountType?: string;
   discountValue?: number;
   vatRate?: number;
@@ -106,7 +107,8 @@ export default function QuoteEditForm({
         ? Number(discountValue) || 0
         : 0;
   const base = Math.max(0, subtotal - discount);
-  const shipping = deliveryType === "PAPER_SHIP" ? PAPER_SHIPPING_BASE_EUR : 0;
+  const savedShipping = quote.deliveryType === "PAPER_SHIP" ? paperShippingBase(quote.shippingBase) : PAPER_SHIPPING_BASE_EUR;
+  const shipping = deliveryType === "PAPER_SHIP" ? savedShipping : 0;
   const total = base + shipping + (base + shipping) * vatRate;
 
   function setLine(i: number, patch: Partial<Line>) {
@@ -138,6 +140,7 @@ export default function QuoteEditForm({
           sourceLang,
           targetLang,
           deliveryType,
+          shippingBase: shipping,
           discountType,
           discountValue: Number(discountValue) || 0,
           vatRate,
@@ -235,7 +238,7 @@ export default function QuoteEditForm({
             <label className={label}>Tipo de entrega</label>
             <select value={deliveryType} onChange={(e) => setDeliveryType(e.target.value)} className={input}>
               <option value="DIGITAL_PDF">Digital (PDF firmado)</option>
-              <option value="PAPER_SHIP">Papel + envío (+{PAPER_SHIPPING_BASE_EUR} €)</option>
+              <option value="PAPER_SHIP">Papel + envío (+{savedShipping} €)</option>
             </select>
           </div>
           <div>

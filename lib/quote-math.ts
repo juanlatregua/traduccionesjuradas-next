@@ -20,6 +20,13 @@ export type QuoteDiscountType = "NONE" | "PERCENT" | "FIXED";
 export type QuoteDeliveryType = "DIGITAL_PDF" | "PAPER_SHIP";
 
 export const PAPER_SHIPPING_BASE_EUR = 12;
+export const PAPER_SHIPPING_MALAGA_EUR = 6;
+
+export function paperShippingBase(value: unknown): number {
+  if (value === null || value === undefined || value === "") return PAPER_SHIPPING_BASE_EUR;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : PAPER_SHIPPING_BASE_EUR;
+}
 export const DEFAULT_VAT_RATE = 0.21;
 
 export function round2(value: number) {

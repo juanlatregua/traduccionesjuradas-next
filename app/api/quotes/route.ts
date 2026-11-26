@@ -8,7 +8,6 @@ import {
   computeQuoteTotals,
   generateQuoteNumber,
   generateQuoteToken,
-  PAPER_SHIPPING_BASE_EUR,
 } from "@/lib/quotes";
 import { parseCreateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
@@ -98,7 +97,7 @@ export async function POST(req: Request) {
       deliveryType: parsed.data.deliveryType,
       shippingBase:
         parsed.data.deliveryType === "PAPER_SHIP"
-          ? parsed.data.shippingBase || PAPER_SHIPPING_BASE_EUR
+          ? parsed.data.shippingBase
           : 0,
     });
 
@@ -217,7 +216,7 @@ export async function POST(req: Request) {
           deliveryType: parsed.data.deliveryType,
           shippingBase:
             parsed.data.deliveryType === "PAPER_SHIP"
-              ? parsed.data.shippingBase || PAPER_SHIPPING_BASE_EUR
+              ? parsed.data.shippingBase
               : 0,
           vatRate: totals.vatRate,
           discountType: parsed.data.discountType,

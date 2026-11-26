@@ -1,7 +1,7 @@
 import { QUOTE_PDF_LANGS } from "@/lib/quote-pdf-langs";
 import {
   DEFAULT_VAT_RATE,
-  PAPER_SHIPPING_BASE_EUR,
+  paperShippingBase,
   normalizeQuoteLines,
   type QuoteDeliveryType,
   type QuoteDiscountType,
@@ -157,7 +157,7 @@ export function parseCreateQuoteInput(raw: any) {
 
   const shippingBase =
     common.data.deliveryType === "PAPER_SHIP"
-      ? Math.max(0, normalizeNumber(raw.shippingBase, PAPER_SHIPPING_BASE_EUR))
+      ? paperShippingBase(raw.shippingBase)
       : 0;
 
   return {

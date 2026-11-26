@@ -2,7 +2,7 @@ import { PAGE_TARIFF_MARK } from "@/lib/pricing-engine/page-pricing";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { computeQuoteTotals, calculateValidUntil, PAPER_SHIPPING_BASE_EUR } from "@/lib/quotes";
+import { computeQuoteTotals, calculateValidUntil } from "@/lib/quotes";
 import { parseUpdateQuoteInput } from "@/lib/quote-validators";
 import { serializeQuote } from "@/lib/quote-serializer";
 import { sealClosedPriceQuote } from "@/lib/lavori-directo";
@@ -86,7 +86,7 @@ export async function PATCH(req: Request, { params }: Params) {
       deliveryType: parsed.data.deliveryType,
       shippingBase:
         parsed.data.deliveryType === "PAPER_SHIP"
-          ? parsed.data.shippingBase || PAPER_SHIPPING_BASE_EUR
+          ? parsed.data.shippingBase
           : 0,
     });
 
@@ -169,7 +169,7 @@ export async function PATCH(req: Request, { params }: Params) {
           deliveryType: parsed.data.deliveryType,
           shippingBase:
             parsed.data.deliveryType === "PAPER_SHIP"
-              ? parsed.data.shippingBase || PAPER_SHIPPING_BASE_EUR
+              ? parsed.data.shippingBase
               : 0,
           vatRate: totals.vatRate,
           discountType: parsed.data.discountType,
