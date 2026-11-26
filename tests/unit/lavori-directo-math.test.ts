@@ -247,15 +247,24 @@ test("un precio_propuesto o encargo_aceptado sobre una solicitud DESCARTADA no l
   );
 });
 
-test("la solicitud directa de PT va solo a Juan Amor (Cristina, a la reapertura; Nielson fuera 16-nov)", async () => {
+test("la solicitud directa de PT va solo a Cristina, en base (26-nov; Juan Amor y Nielson fuera)", async () => {
   const { readFile } = await import("node:fs/promises");
   const src = await readFile(new URL("../../lib/lavori-directo.ts", import.meta.url), "utf8");
   const pt = src.slice(src.indexOf("  pt: {"), src.indexOf("  it: {"));
-  assert.match(pt, /rk1x2kq63rm6ba6mco7c6u2k/);
-  assert.doesNotMatch(pt, /nhucqnd3q4znddxhe8qs5c51/);
+  assert.match(pt, /nhucqnd3q4znddxhe8qs5c51.*priceBasis: "base"/);
+  assert.doesNotMatch(pt, /rk1x2kq63rm6ba6mco7c6u2k/);
   assert.doesNotMatch(pt, /zyuep34us3e33h3fd98w3yyz/);
   const puerta = await readFile(new URL("../../lib/puerta-request-quote.ts", import.meta.url), "utf8");
   assert.match(puerta, /candidatos: directos\.map\(\(d\) => d\.miembroId\)/);
+});
+
+test("puerta NL/PT sin encargo cerrado: pide precio al directo; el aviso «sin directo» solo si no salió", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const puerta = await readFile(new URL("../../lib/puerta-request-quote.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(puerta, /\} else if \(closedLang\) \{/);
+  assert.match(puerta, /if \(!esDirecto && closedLang\) \{/);
+  assert.ok(puerta.indexOf("await directMembersFor(leadLang)") < puerta.indexOf("if (!esDirecto && closedLang)"));
+  assert.ok(puerta.indexOf("} else if (hermana) {") < puerta.indexOf("await directMembersFor(leadLang)"));
 });
 
 test("workingHoursMadrid: la ventana del carril directo no cuenta la noche (Gabriel, 23-sep)", async () => {

@@ -43,10 +43,10 @@ export const LAVORI_DIRECT: Record<string, { miembros: DirectMember[]; enabled: 
   de: { miembros: [{ miembroId: "ngus1uku6x5uw2pqbmflpbbt", nombre: "Morton Sebastian Peter Münster", priceBasis: "base" }], enabled: true },
   en: { miembros: [{ miembroId: "exwzhhwv5fyegllvblt76uvb", nombre: "María Lourdes Yagüe", priceBasis: "base" }], enabled: true },
   ro: { miembros: [{ miembroId: "8npqw6hd5vavn4maio2173lq", nombre: "Maria Murariu", priceBasis: "base" }], enabled: true },
-  // Juan Amor (orden Juan 16-nov-2026: Nielson fuera); si no cotiza,
-  // la reapertura a 6 h va al resto de la cartera PT (Cristina).
+  // Cristina (orden Juan 26-nov-2026, la misma del encargo cerrado PT); si no
+  // cotiza, la reapertura a 6 h va al resto de la cartera PT.
   pt: {
-    miembros: [{ miembroId: "rk1x2kq63rm6ba6mco7c6u2k", nombre: "Juan Amor Fernández", priceBasis: "base" }],
+    miembros: [{ miembroId: "nhucqnd3q4znddxhe8qs5c51", nombre: "Cristina Aguilera Viladés", priceBasis: "base" }],
     enabled: true,
   },
   // Ya tiene Collaborator (alta 15-sep) pero apagado a propósito: hasta que

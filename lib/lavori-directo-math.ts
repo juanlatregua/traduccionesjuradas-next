@@ -190,7 +190,7 @@ export function exceedsQuotedCost(basePriceCents: number, quotedCostCents: numbe
 
 const CLOSED_PRICE_DIRECT_LANGS = new Set(["nl", "pt"]);
 
-/** NL/PT: la puerta nunca pide precio previo al jurado; el precio sale de la tarifa o de Juan (orden Juan 8-nov-2026). */
+/** NL/PT: precio cerrado; sin encargo cerrado la puerta pide precio solo al jurado directo (orden Juan 26-nov-2026). */
 export function isClosedPriceDirectLang(lang: string | null | undefined): boolean {
   return CLOSED_PRICE_DIRECT_LANGS.has(String(lang || "").trim().toLowerCase());
 }

@@ -446,12 +446,6 @@ export async function routePuertaQuoteRequest(input: {
       ].join(" · ");
       lavoriEmail = `Ya está en lavori: ${h.ref} enviada a ${h.miembroNombre || `${h.candidatos.length} jurado(s)`} el ${horaMadrid(h.createdAt)} (${detalle}). NO se ha enviado otra. Solicitud: ${abs(hrefConstructor({ lead: h.ref }), baseUrl)}`;
       lavoriSms = `Ya en curso ${h.ref} (${h.status}) — sin 2.ª solicitud`;
-    } else if (closedLang) {
-      // NL/PT/DE (orden Juan 8-nov-2026): la puerta NUNCA pide precio previo al
-      // jurado. Sin tarifa aprobada el borrador llega a Juan, que pone el precio.
-      const sugerencia = await closedPriceCostHint(closedLang, parDelLead).catch(() => null);
-      lavoriEmail = `NO se ha enviado a lavori (${getLanguageName(closedLang).toLowerCase()}: sin tarifa aprobada, el precio lo pones tú): presupuestar a mano en el builder y al cobrar sale el encargo con precio cerrado. ${builderUrl}${sugerencia ? ` Sugerencia de coste (solo orientativa): ${sugerencia}` : ""}`;
-      lavoriSms = `Sin tarifa ${closedLang.toUpperCase()}: pon el precio en el builder: ${builderUrl}`;
     } else {
       // Carril directo (orden Juan 25-ago/15-sep/21-sep): para ciertas lenguas hay
       // jurado(s) DIRECTO(s) — la solicitud va SOLO a ellos y, con la primera
@@ -496,7 +490,13 @@ export async function routePuertaQuoteRequest(input: {
           lavoriSms = directoReq.repetido ? `Ya en lavori ${directoReq.ref} — sin 2.ª solicitud` : `✓ Directa a ${nombres} (lavori)`;
         }
       }
-      if (!esDirecto) {
+      if (!esDirecto && closedLang) {
+        // NL/PT (orden Juan 26-nov-2026): sin encargo cerrado se pide precio SOLO al
+        // jurado directo; si no está libre o falla el envío, el precio lo pone Juan.
+        const sugerencia = await closedPriceCostHint(closedLang, parDelLead).catch(() => null);
+        lavoriEmail = `NO se ha enviado a lavori (${getLanguageName(closedLang).toLowerCase()}: ${directos.length ? `falló el envío a ${directos.map((d) => d.nombre).join(", ")}` : "jurado directo no disponible"}; el precio lo pones tú): presupuestar a mano en el builder y al cobrar sale el encargo con precio cerrado. ${builderUrl}${sugerencia ? ` Sugerencia de coste (solo orientativa): ${sugerencia}` : ""}`;
+        lavoriSms = `${closedLang.toUpperCase()} sin directo: pon el precio en el builder: ${builderUrl}`;
+      } else if (!esDirecto) {
         if (carril && lead && leadLang && autoLangs.has(leadLang)) {
           const auto = await sendLeadPriceRequest({
             docs: lead.docs,
