@@ -472,9 +472,9 @@ export async function POST(req: Request, { params }: Params) {
         })
         .catch((err) => console.error("[orders-delivery] delivery notification event failed", err));
 
-      // 2) Envio real con adjuntos (TODAS las traducciones + factura si emitida) en
-      //    background para no bloquear la respuesta de la entrega.
-      void (async () => {
+      // 2) Envio real con adjuntos (TODAS las traducciones + factura si emitida).
+      //    Se espera: en Vercel lo que corre tras responder puede congelarse (26_863695 no salió).
+      await (async () => {
         const multi = deliveryFiles.length > 1;
         const fileAttachments = await Promise.all(
           deliveryFiles.map((f, i) =>

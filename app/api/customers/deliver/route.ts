@@ -151,7 +151,8 @@ export async function POST(req: Request) {
         })
         .catch((err) => console.error("[customers-deliver] notif event failed", err));
 
-      void (async () => {
+      // Se espera: en Vercel lo que corre tras responder puede congelarse (26_863695 no salió).
+      await (async () => {
         const multi = translations.length > 1;
         const fileAttachments = await Promise.all(
           translations.map((f, i) => fetchFileAsAttachment(f.url, f.filename || `Traduccion-jurada-${reference}${multi ? `-${i + 1}` : ""}.pdf`))
