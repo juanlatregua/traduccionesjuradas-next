@@ -71,9 +71,10 @@ test("email del buzón no avisa; WhatsApp de persona nueva sí; con quoteId o co
   assert.equal(run({ inbound: [waMsg], quotes: [old] }).length, 0, "cliente con historial: seguimiento, no lead nuevo");
 });
 
-test("solicitud a lavori SENT sin precio cuenta; con precio no", () => {
+test("solicitud a lavori SENT sin precio: se espera al jurado, sin aviso; con precio tampoco cuenta", () => {
   const sol = (priceCents: number | null) => ({ ref: "LEAD-1", customerHint: "Pepe pepe@x.com", expedienteRef: null, quoteId: null, status: "SENT", priceCents, par: "NL>ES", createdAt: ago(100) });
-  assert.equal(run({ solicitudes: [sol(null)] }).length, 1);
+  assert.equal(run({ solicitudes: [sol(null)] }).length, 0);
+  assert.equal(run({ solicitudes: [{ ...sol(null), createdAt: ago(60) }], docs: [doc("pepe@x.com", 90)] }).length, 0, "pedido al jurado tras la llegada: calla");
   assert.equal(run({ solicitudes: [sol(5000)] }).length, 0);
   const oldSol = { ...sol(null), ref: "LEAD-OLD", createdAt: ago(60 * 30) };
   assert.equal(run({ solicitudes: [oldSol] }).length, 0, "solicitud de hace más de 24 h es historia, no llegada");
@@ -187,4 +188,10 @@ test("v2: no presupuestable (sin jurado, par desconocido, 0 palabras leídas)", 
   assert.equal(run({ docs: [doc("a@x.com", 70, { targetLanguage: "unknown" })], v2: true })[0].noPresupuestable?.code, "par_desconocido");
   assert.equal(run({ docs: [doc("a@x.com", 70, { estimatedWords: 0, analyzed: true })], v2: true })[0].noPresupuestable?.code, "sin_palabras");
   assert.equal(run({ docs: [doc("a@x.com", 70)], v2: true })[0].noPresupuestable, null);
+});
+
+test("borrador marcado «esperando al jurado»: su persona no recibe aviso", () => {
+  const q = { id: "Q1", email: "pepe@x.com", phone: null, expRef: null, sentAt: null, createdAt: ago(80) };
+  assert.equal(run({ docs: [doc("pepe@x.com", 90)], quotes: [q], v2: true }).length, 1);
+  assert.equal(run({ docs: [doc("pepe@x.com", 90)], quotes: [q], v2: true, waitingQuoteIds: new Set(["Q1"]) }).length, 0);
 });

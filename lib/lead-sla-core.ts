@@ -43,6 +43,8 @@ export type SlaInput = {
   staffEmails?: string[];
   /** AVISO_NO_PRESUPUESTABLES=on: aviso a 3 h, el borrador no calla el de 1 h, y «no presupuestable» aparte. */
   v2?: boolean;
+  /** Borradores marcados «esperando al jurado»: su persona no recibe aviso. */
+  waitingQuoteIds?: Set<string>;
 };
 
 export type SlaLead = {
@@ -148,12 +150,17 @@ export function selectLeadSla(input: SlaInput): SlaLead[] {
   }
   const pendingSols = solicitudes.filter((s) => s.status === "SENT" && s.priceCents == null && s.createdAt.getTime() >= since);
   pendingSols.forEach((s, i) => push(g.rootOf(g.solKeys(s)), solArrivals[i]));
+  const waitingSols = new Set(solicitudes.filter((s) => s.status === "SENT" && s.priceCents == null && now.getTime() - s.createdAt.getTime() < 4 * 864e5));
 
   const out: SlaLead[] = [];
   for (const [root, items] of byRoot) {
     if (attendedRoots.has(root)) continue;
     if (items.every((a) => a.kind === "whatsapp") && ((g.quotesOfRoot.get(root) || []).some((q) => q.sentAt) || g.solsOfRoot.get(root)?.length)) continue;
     const firstAt = new Date(Math.min(...items.map((a) => a.at.getTime())));
+    // Precio pedido al jurado para esta llegada (solicitud sin contestar o borrador marcado): se espera, no se avisa.
+    const fromArrival = firstAt.getTime() - 2 * 36e5;
+    if (g.solsOfRoot.get(root)?.some((s) => waitingSols.has(s as SlaSolicitud) && (s as SlaSolicitud).createdAt.getTime() >= fromArrival)) continue;
+    if ((g.quotesOfRoot.get(root) || []).some((q) => !q.sentAt && input.waitingQuoteIds?.has(q.id))) continue;
     // Un presupuesto enviado antes de que llegara la petición no la contesta.
     if ((g.quotesOfRoot.get(root) || []).some((q) => q.sentAt && q.sentAt.getTime() >= firstAt.getTime() - 2 * 36e5)) continue;
     if (firstAt.getTime() < since) continue;

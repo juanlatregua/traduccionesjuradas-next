@@ -85,6 +85,10 @@ export type InformeInput = {
   retenerUrl?: (quoteId: string) => string | null;
   /** LECTURA_CONSTRUCTOR=on (por defecto, el entorno): sin él /zona-traductor/lectura da 404 y el enlace cae al constructor. */
   lecturaOn?: boolean;
+  /** Precio pedido al jurado: borradores marcados (quoteId → desde) y solicitudes sin contestar (refs/emails). */
+  esperas?: Map<string, Date>;
+  waitingSols?: { refs: string[]; emails: string[]; since: Date }[];
+  esperaUrl?: (quoteId: string) => string | null;
 };
 
 export type InformeItem = {
@@ -100,7 +104,9 @@ export type InformeItem = {
   pair: string;
   words: number | null;
   price: number | null;
-  draft: { id: string; quoteNumber: string; held: string[] | null; autoAt: Date | null; retener: string | null } | null;
+  draft: { id: string; quoteNumber: string; held: string[] | null; autoAt: Date | null; retener: string | null; espera: string | null } | null;
+  /** Precio pedido al jurado desde esta hora: no cuenta como «sin presupuesto». */
+  waitingSince: Date | null;
   link: string;
   noPresupuestable: NoPresupuestable | null;
 };
@@ -115,11 +121,17 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
   const held = new Map<string, string[]>();
   for (const h of input.held || []) held.set(h.quoteId, [...(held.get(h.quoteId) || []), ...h.reasons]);
 
-  const base: (Omit<InformeItem, "draft" | "minutes" | "minutesLeft"> & { refs: string[]; casoId: string | null; hashes: (string | null)[] })[] = [];
+  const base: (Omit<InformeItem, "draft" | "minutes" | "minutesLeft" | "waitingSince"> & { refs: string[]; casoId: string | null; hashes: (string | null)[] })[] = [];
 
-  const bySession = new Map<string, PuertaDocRow[]>();
-  for (const d of input.docs) bySession.set(d.sessionToken, [...(bySession.get(d.sessionToken) || []), d]);
-  for (const [token, rows] of bySession) {
+  // Una persona (email, si no teléfono) = una fila, entre tanto como entre por la puerta; el mismo archivo subido dos veces cuenta una.
+  const personOf = (d: PuertaDocRow) => (d.clientEmail ? `e:${normEmail(d.clientEmail)}` : d.clientPhone ? `p:${d.clientPhone.replace(/\D/g, "").slice(-9)}` : `s:${d.sessionToken}`);
+  const byPerson = new Map<string, PuertaDocRow[]>();
+  for (const d of input.docs) byPerson.set(personOf(d), [...(byPerson.get(personOf(d)) || []), d]);
+  for (const [person, all] of byPerson) {
+    const seenHash = new Set<string>();
+    const rows = all.filter((r) => !r.fileHash || (seenHash.has(r.fileHash) ? false : (seenHash.add(r.fileHash), true)));
+    const tokens = [...new Set(all.slice().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).map((r) => r.sessionToken))];
+    const token = tokens[0];
     const firstAt = new Date(Math.min(...rows.map((r) => r.createdAt.getTime())));
     if (firstAt.getTime() < since) continue;
     const email = rows.map((r) => r.clientEmail).find(Boolean) || null;
@@ -130,7 +142,7 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
     const tgt = rows.map((r) => r.targetLanguage).find(Boolean) || null;
     const analyzed = rows.every((r) => ANALYZED.has(r.status));
     base.push({
-      key: `s:${token}`,
+      key: person.startsWith("s:") ? person : `s:${person}`,
       kind: "puerta",
       firstAt,
       files: rows.length,
@@ -142,7 +154,7 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
       price: prices.length ? Math.round(prices.reduce((s, p) => s + p, 0) * 100) / 100 : null,
       link: abs(hrefConstructor({ session: token }), SITE),
       noPresupuestable: noPresupuestable({ sourceLanguage: src, targetLanguage: tgt, estimatedWords: words, analyzed }),
-      refs: [`puerta:${token}`, `puerta:exp:${token}`],
+      refs: tokens.flatMap((t) => [`puerta:${t}`, `puerta:exp:${t}`]),
       casoId: rows.map((r) => r.casoId).find(Boolean) || null,
       hashes: rows.map((r) => r.fileHash),
     });
@@ -153,6 +165,16 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
     if (e.estado === "prueba" || e.createdAt.getTime() < since) continue;
     if (isExcludedLeadEmail(e.email, staff)) continue;
     const session = `entrada:${e.id}`;
+    const email = e.email ? normEmail(e.email) : null;
+    const same = base.find((b) => (!!email && b.email === email) || (!!e.phone9 && b.phone === e.phone9) || (!!e.casoId && b.casoId === e.casoId));
+    if (same) {
+      same.refs.push(session, `puerta:${session}`);
+      same.files += e.files;
+      same.casoId = same.casoId || e.casoId;
+      same.hashes.push(e.fileHash);
+      if (e.createdAt < same.firstAt) same.firstAt = e.createdAt;
+      continue;
+    }
     base.push({
       key: `e:${e.id}`,
       kind: "entrada",
@@ -166,7 +188,7 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
       price: null,
       link: lecturaOn ? (e.casoId ? abs(hrefLectura({ caso: e.casoId }), SITE) : abs(hrefLectura({ session }), SITE)) : abs(hrefConstructor({ session }), SITE),
       noPresupuestable: noPresupuestable({ sourceLanguage: e.sourceLang, targetLanguage: e.targetLang, noJurado: e.estado === "sin_jurado", hasFiles: e.files > 0 }),
-      refs: [session],
+      refs: [session, `puerta:${session}`],
       casoId: e.casoId,
       hashes: [e.fileHash],
     });
@@ -182,6 +204,8 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
     if ((b.email || b.phone) && hasPaidOrder({ email: b.email, phone: b.phone, at: b.firstAt, hashes: b.hashes }, input.paidOrders)) continue;
     const d = ours.filter((q) => !q.sentAt).sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())[0];
     const minutes = Math.max(0, Math.floor((now.getTime() - b.firstAt.getTime()) / 60000));
+    const sol = (input.waitingSols || []).find((w) => w.since.getTime() >= b.firstAt.getTime() - 2 * 36e5 && (w.refs.some((r) => b.refs.includes(r)) || (!!b.email && w.emails.includes(b.email))));
+    const waitingSince = (d && input.esperas?.get(d.id)) || sol?.since || null;
     const { refs, casoId, hashes, ...item } = b;
     const h = d ? held.get(d.id) ?? null : null;
     const auto = !!d && !h && !!input.autoenvioOn && !!AUTOENVIO_ORIGINS[String(d.adminCreatedBy || "")] && !isFrPairLoose(d.sourceLang, d.targetLang);
@@ -189,7 +213,8 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
       ...item,
       minutes,
       minutesLeft: DECISION_MIN - minutes,
-      draft: d ? { id: d.id, quoteNumber: d.quoteNumber, held: h, autoAt: auto ? autoSendAt(b.firstAt, d.createdAt) : null, retener: auto ? input.retenerUrl?.(d.id) ?? null : null } : null,
+      draft: d ? { id: d.id, quoteNumber: d.quoteNumber, held: h, autoAt: auto ? autoSendAt(b.firstAt, d.createdAt) : null, retener: auto ? input.retenerUrl?.(d.id) ?? null : null, espera: waitingSince ? null : input.esperaUrl?.(d.id) ?? null } : null,
+      waitingSince,
     });
   }
   return out.sort((a, b) => b.minutes - a.minutes);
@@ -197,6 +222,7 @@ export function selectClientesAMedias(input: InformeInput): InformeItem[] {
 
 /** Estado de una fila para decidir si hay algo NUEVO que contar. */
 export function itemState(i: InformeItem): string {
+  if (i.waitingSince) return `${i.key}|espera`;
   const phase = i.minutes >= DECISION_MIN ? "3h" : i.minutes >= 150 ? "2h30" : i.minutes >= 60 ? "1h" : "0";
   const what = i.noPresupuestable ? `np-${i.noPresupuestable.code}` : i.draft ? (i.draft.held ? "retenido" : "borrador") : i.email || i.phone ? "lead" : "anonimo";
   return `${i.key}|${what}|${phase}`;
@@ -212,7 +238,7 @@ export function smsWorthy(items: InformeItem[], fresh: Iterable<string>, leadSla
     const s = itemState(i);
     if (!f.has(s)) return false;
     if (leadSlaV2 && (i.email || i.phone)) return false;
-    return s.endsWith("|3h") || s.includes("|np-");
+    return !i.waitingSince && (s.endsWith("|3h") || s.includes("|np-"));
   });
 }
 
@@ -236,8 +262,9 @@ function progress(i: InformeItem): string {
 }
 
 export function renderInforme(items: InformeItem[], day: DayCounter, fresh: Set<string>): { subject: string; html: string; sms: string } {
-  const normal = items.filter((i) => !i.noPresupuestable);
-  const np = items.filter((i) => i.noPresupuestable);
+  const waiting = items.filter((i) => i.waitingSince);
+  const normal = items.filter((i) => !i.noPresupuestable && !i.waitingSince);
+  const np = items.filter((i) => i.noPresupuestable && !i.waitingSince);
   const late = normal.filter((i) => i.minutesLeft <= 30).length;
   const nuevo = (i: InformeItem) => (fresh.has(itemState(i)) ? ' <b style="color:#1d4ed8">NUEVO</b>' : "");
   const row = (i: InformeItem) => {
@@ -249,7 +276,7 @@ export function renderInforme(items: InformeItem[], day: DayCounter, fresh: Set<
             : i.draft.autoAt
             ? ` — <b>saldrá solo a las ${hhmm(i.draft.autoAt)} si no lo retienes</b>${i.draft.retener ? ` · <a href="${esc(i.draft.retener)}">Retener</a>` : ""}`
             : " — revisa y envía"
-        }`
+        }${i.draft.espera ? ` · <a href="${esc(i.draft.espera)}">Esperando al jurado</a>` : ""}`
       : "";
     const np = i.noPresupuestable;
     const d = np ? mailtoDraft(i.email, clientDraft(np, i.name)) : null;
@@ -261,6 +288,11 @@ export function renderInforme(items: InformeItem[], day: DayCounter, fresh: Set<
     counter +
     `<h3>Sin presupuesto (últimas ${INFORME_WINDOW_HOURS} h): ${normal.length}</h3>` +
     (normal.length ? `<ul style="padding-left:18px">${normal.map(row).join("")}</ul>` : "<p>Ninguno.</p>") +
+    (waiting.length
+      ? `<h3>Esperando precio del jurado: ${waiting.length}</h3><ul style="padding-left:18px">${waiting
+          .map((i) => `<li style="margin-bottom:8px">${esc(i.name || i.email || i.phone || "Anónimo")} — desde las ${hhmm(i.waitingSince!)} · ${esc(progress(i))}${i.draft ? ` · <a href="${abs(hrefPresupuesto(esc(i.draft.id)), SITE)}">Borrador ${esc(i.draft.quoteNumber)}</a>` : ""}</li>`)
+          .join("")}</ul>`
+      : "") +
     (np.length ? `<h3>No presupuestables: ${np.length}</h3><p>Falta un dato del cliente: el borrador está listo, nadie lo ha enviado.</p><ul style="padding-left:18px">${np.map(row).join("")}</ul>` : "");
   const subject = `${late ? "URGENTE · " : ""}Clientes a medias: ${normal.length} sin presupuesto${np.length ? ` · ${np.length} no presupuestable${np.length > 1 ? "s" : ""}` : ""} · hoy ${day.pagados} pagado${day.pagados === 1 ? "" : "s"}`;
   const oldest = normal[0];

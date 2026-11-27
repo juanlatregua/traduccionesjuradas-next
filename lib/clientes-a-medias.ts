@@ -8,7 +8,8 @@ import { wrapClientEmailHtml } from "@/lib/email";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { getStaffEmails } from "@/lib/staff-access";
 import { paidSince } from "@/lib/paid-orders";
-import { loadHolds, retenerUrl } from "@/lib/autoenvio-150-holds";
+import { esperaUrl, loadEsperas, loadHolds, retenerUrl } from "@/lib/autoenvio-150-holds";
+import { normEmail } from "@/lib/vigia-persona";
 import { autoenvio150On } from "@/lib/autoenvio-150-core";
 import { avisoNoPresupuestablesOn } from "@/lib/lead-sla-core";
 import { madridMidnightUtc, parseYmd, todayMadrid, madridParts } from "@/lib/panel-period";
@@ -79,7 +80,17 @@ export async function loadClientesAMedias(now: Date) {
     }),
     prisma.order.findMany({ where: { paymentStatus: "PAID", paidAt: { gte: paidSince(now) } }, select: { clientEmail: true, clientPhone: true, paidAt: true, documentAnalyses: { select: { fileHash: true } } } }),
   ]);
-  const holds = await loadHolds(quotes.filter((q) => !q.sentAt).map((q) => q.id));
+  const drafts = quotes.filter((q) => !q.sentAt).map((q) => q.id);
+  const [holds, esperas, sols] = await Promise.all([
+    loadHolds(drafts),
+    loadEsperas(drafts),
+    prisma.lavoriPriceRequest.findMany({ where: { status: "SENT", priceCents: null, createdAt: { gte: new Date(now.getTime() - 4 * 864e5) } }, select: { expedienteRef: true, customerHint: true, createdAt: true } }),
+  ]);
+  const waitingSols = sols.map((s) => ({
+    refs: s.expedienteRef ? [s.expedienteRef] : [],
+    emails: (s.customerHint?.match(/[^\s·<>()]+@[^\s·<>()]+/g) || []).map(normEmail).filter((e): e is string => !!e),
+    since: s.createdAt,
+  }));
   const held: HeldDraft[] = [...holds].flatMap(([quoteId, h]) => {
     const reasons = [...(h.retenido ? ["retenido por Juan"] : []), ...h.carril, ...h.hold];
     return reasons.length ? [{ quoteId, quoteNumber: "", reasons: [...new Set(reasons)] }] : [];
@@ -104,6 +115,9 @@ export async function loadClientesAMedias(now: Date) {
     held,
     autoenvioOn: autoenvio150On(),
     retenerUrl,
+    esperas,
+    waitingSols,
+    esperaUrl,
   });
 }
 

@@ -55,3 +55,32 @@ export async function loadHolds(quoteIds: string[]): Promise<Map<string, QuoteHo
   }
   return out;
 }
+
+// «Esperando al jurado» (FunnelEvent «espera_jurado», mismo sessionId): el precio está pedido a un
+// jurado (también fuera del puente, desde lavori). Calla el aviso de lead sin presupuesto y saca el
+// borrador de «sin presupuesto» del informe; se ve aparte, sin urgencia. Se pone con un toque.
+export const ESPERA_STEP = "espera_jurado";
+export const ESPERA_PURPOSE = "espera-jurado";
+
+export async function recordEsperaJurado(quoteId: string, quoteNumber: string): Promise<void> {
+  await put(ESPERA_STEP, quoteId, { quoteId, quoteNumber, since: new Date().toISOString() });
+}
+
+export function esperaUrl(quoteId: string): string | null {
+  try {
+    return `${SITE}/api/espera-jurado?q=${encodeURIComponent(quoteId)}&t=${generateCierreToken(quoteId, 3 * 24 * 3600, ESPERA_PURPOSE)}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Borradores marcados «esperando al jurado» → desde cuándo. */
+export async function loadEsperas(quoteIds: string[]): Promise<Map<string, Date>> {
+  const out = new Map<string, Date>();
+  if (!quoteIds.length) return out;
+  const rows = await prisma.funnelEvent
+    .findMany({ where: { sessionId: { in: quoteIds.map(sid) }, step: ESPERA_STEP }, select: { sessionId: true, createdAt: true } })
+    .catch(() => []);
+  for (const r of rows) out.set(r.sessionId.slice("autoenvio-150:".length), r.createdAt);
+  return out;
+}

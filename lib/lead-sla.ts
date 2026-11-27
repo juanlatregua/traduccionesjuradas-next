@@ -14,6 +14,7 @@ import { loadEntradaLeads } from "@/lib/entrada/leads-db";
 import { ENTRADA_SESSION_PREFIX } from "@/lib/entrada/leads";
 import { paidSince } from "@/lib/paid-orders";
 import { clientDraft, mailtoDraft } from "@/lib/no-presupuestable";
+import { loadEsperas } from "@/lib/autoenvio-150-holds";
 import { SLA_WINDOW_HOURS, avisoNoPresupuestablesOn, dedupeId, selectLeadSla, smsAllowed, type SlaLead } from "@/lib/lead-sla-core";
 
 const STEP = "lead_sla";
@@ -50,7 +51,9 @@ export async function loadLeadSla(now: Date, v2 = avisoNoPresupuestablesOn()): P
   ];
   const hashesOfQuote = await loadQuoteHashes([...new Set([...quotes.map((q) => q.id), ...paidOrders.map((o) => o.quoteId).filter((x): x is string => !!x)])]);
   const staffEmails = [...getStaffEmails(), process.env.PRESUPUESTO_TO, process.env.ADMIN_EMAIL, process.env.EMAIL_FROM, "info@traduccionesjuradas.net"].filter((e): e is string => !!e);
+  const esperas = await loadEsperas(quotes.filter((q) => !q.sentAt).map((q) => q.id));
   return selectLeadSla({
+    waitingQuoteIds: new Set(esperas.keys()),
     now,
     docs: docs.map((d) => ({ ...d, quoteAmount: d.quoteAmount == null ? null : Number(d.quoteAmount) })),
     inbound: inbound.map((m) => ({ ...m, channel: String(m.channel), status: String(m.status) })),

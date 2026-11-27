@@ -72,7 +72,7 @@ test("presupuesto enviado o pedido pagado lo sacan; un borrador se muestra (y si
   assert.equal(run({ docs: [doc()], quotes: [q({ sentAt: ago(5) })] }).length, 0);
   assert.equal(run({ docs: [doc()], paidOrders: [{ clientEmail: "ana@x.com", clientPhone: null, paidAt: ago(20) }] }).length, 0);
   const d = run({ docs: [doc()], quotes: [q()], held: [{ quoteId: "Q1", quoteNumber: "2026-0100", reasons: ["margen bajo"] }] })[0];
-  assert.deepEqual(d.draft, { id: "Q1", quoteNumber: "2026-0100", held: ["margen bajo"], autoAt: null, retener: null });
+  assert.deepEqual(d.draft, { id: "Q1", quoteNumber: "2026-0100", held: ["margen bajo"], autoAt: null, retener: null, espera: null });
   assert.equal(run({ entradas: [ent()], quotes: [q({ expedienteRef: null, customerEmail: "otro@x.com", casoId: "C1", sentAt: ago(1) })] }).length, 0, "por caso");
 });
 
@@ -146,4 +146,37 @@ test("SMS del informe solo con un estado nuevo «3h» o «np»; con lead-sla v2 
   assert.equal(smsWorthy(late, fresh(late), true), false, "lead-sla v2 ya manda su SMS de 3 h");
   const np = run({ entradas: [ent({ files: 0, email: null, emailVerified: false })] });
   assert.equal(smsWorthy(np, fresh(np), true), true, "anónimo no presupuestable");
+});
+
+test("una persona = una fila aunque entre varias veces; el mismo archivo dos veces cuenta uno", () => {
+  const out = run({
+    docs: [
+      doc({ sessionToken: "S1", createdAt: ago(70), fileHash: "a", estimatedWords: 300 }),
+      doc({ sessionToken: "S2", createdAt: ago(60), fileHash: "a", estimatedWords: 300 }),
+      doc({ sessionToken: "S2", createdAt: ago(60), fileHash: "b", estimatedWords: 100 }),
+      doc({ sessionToken: "S3", createdAt: ago(50), clientEmail: "ANA@x.com", fileHash: "c", estimatedWords: 50 }),
+    ],
+    entradas: [ent({ email: "ana@x.com", casoId: null, files: 1 })],
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].files, 4);
+  assert.equal(out[0].words, 450);
+  assert.equal(out[0].minutes, 70);
+});
+
+test("esperando al jurado: marcado o con solicitud sin contestar sale aparte, sin urgencia ni SMS, y no repite", () => {
+  const q = { id: "Q1", quoteNumber: "2026-0100", sentAt: null, createdAt: ago(10), customerEmail: "ana@x.com", expedienteRef: "puerta:S1", casoId: null };
+  const marked = run({ docs: [doc({ createdAt: ago(200) })], quotes: [q], esperas: new Map([["Q1", ago(5)]]) });
+  assert.equal(marked[0].waitingSince?.getTime(), ago(5).getTime());
+  assert.equal(itemState(marked[0]), `${marked[0].key}|espera`);
+  const r = renderInforme(marked, { entradas: 1, leads: 1, subidasSinEmail: 0, enviados: 0, pagados: 0 }, new Set(newStates(marked, [])));
+  assert.match(r.subject, /^Clientes a medias: 0 sin presupuesto/);
+  assert.match(r.html, /Esperando precio del jurado: 1/);
+  assert.equal(smsWorthy(marked, newStates(marked, []), false), false);
+  const bySol = run({ docs: [doc()], waitingSols: [{ refs: [], emails: ["ana@x.com"], since: ago(30) }] });
+  assert.ok(bySol[0].waitingSince);
+  const oldSol = run({ docs: [doc()], waitingSols: [{ refs: [], emails: ["ana@x.com"], since: ago(60 * 30) }] });
+  assert.equal(oldSol[0].waitingSince, null, "una solicitud de antes de esta llegada no la atiende");
+  const link = run({ docs: [doc()], quotes: [q], esperaUrl: (id) => `https://x/espera?q=${id}` });
+  assert.equal(link[0].draft?.espera, "https://x/espera?q=Q1");
 });
