@@ -158,7 +158,7 @@ export async function POST(req: Request) {
         );
         const transAttachments = fileAttachments.filter(Boolean) as NonNullable<(typeof fileAttachments)[number]>[];
         const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
-        const fallbackLinks = translations.filter((_, i) => !fileAttachments[i]).map((f) => f.url);
+        const fallbackLinks = translations.filter((_, i) => !fileAttachments[i]).map((f) => ({ url: f.url, name: f.filename }));
         await sendEmailWithRetry(() =>
           sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach, billingRequestUrl })
         );

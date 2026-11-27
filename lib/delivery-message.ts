@@ -57,6 +57,7 @@ const COPY = {
     bye: "Un saludo,",
     subject: (ref: string, c: boolean) => `Traducción jurada${c ? " corregida" : ""} — pedido ${ref}`,
     download: "Descarga",
+    tooBig: "Estos documentos pesan demasiado para ir adjuntos; puede descargarlos aquí:",
   },
   fr: {
     hello: (n: string, _now?: Date) => (n ? `Bonjour ${n},` : "Bonjour,"),
@@ -68,6 +69,7 @@ const COPY = {
     bye: "Cordialement,",
     subject: (ref: string, c: boolean) => `Traduction assermentée${c ? " corrigée" : ""} — commande ${ref}`,
     download: "Téléchargement",
+    tooBig: "Ces documents sont trop volumineux pour être joints ; vous pouvez les télécharger ici :",
   },
   en: {
     hello: (n: string, _now?: Date) => (n ? `Hello ${n},` : "Hello,"),
@@ -79,6 +81,7 @@ const COPY = {
     bye: "Kind regards,",
     subject: (ref: string, c: boolean) => `Sworn translation${c ? " (corrected)" : ""} — order ${ref}`,
     download: "Download",
+    tooBig: "These documents are too large to attach; you can download them here:",
   },
 } as const;
 
@@ -139,10 +142,28 @@ export function appendBillingRequest(text: string, lang: DeliveryLang, url: stri
   return parts.join("\n\n");
 }
 
-// Si algún adjunto no pudo ir en el correo, su enlace se añade antes de la reseña.
-export function appendDownloadLinks(text: string, lang: DeliveryLang, links: string[]): string {
+export type DownloadLink = { url: string; name?: string | null };
+
+// «Aliounen - 04 Boletín de notas semestre 6 (… - jurada firmada.pdf» → «Boletín de notas semestre 6 (…)».
+export function documentDisplayName(filename: string): string {
+  let n = filename.replace(/\.[a-z0-9]{2,4}$/i, "").replace(/\s+/g, " ").trim();
+  n = n.replace(/\s*-?\s*jurada (firmada|para firmar)$/i, "").trim();
+  n = n.replace(/^[^-\d]{1,40}\s-\s\d{1,2}\s+/, "");
+  const open = (n.match(/\(/g) || []).length - (n.match(/\)/g) || []).length;
+  if (open > 0) n += ")".repeat(open);
+  return n;
+}
+
+// Si algún adjunto no pudo ir en el correo, su enlace se añade antes de la reseña:
+// una frase que lo explica y una línea «• Nombre <url>» por documento (en HTML, el nombre es el enlace).
+export function appendDownloadLinks(text: string, lang: DeliveryLang, links: (string | DownloadLink)[]): string {
   if (links.length === 0) return text;
-  const block = links.map((u) => `${COPY[lang].download}: ${u}`).join("\n");
+  const lines = links.map((l) => {
+    const { url, name } = typeof l === "string" ? { url: l, name: null } : l;
+    const label = (name && documentDisplayName(name)) || COPY[lang].download;
+    return `• ${label} <${url}>`;
+  });
+  const block = [COPY[lang].tooBig, ...lines].join("\n");
   const parts = text.split("\n\n");
   parts.splice(Math.max(parts.length - 2, 1), 0, block);
   return parts.join("\n\n");
@@ -157,7 +178,10 @@ export function deliveryTextToHtml(text: string): string {
   return text
     .split(/\n{2,}/)
     .map((p) => {
-      const html = escapeHtml(p.trim()).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, "<br>");
+      const html = escapeHtml(p.trim())
+        .replace(/^• (.+?) &lt;(https?:\/\/[^\s&]+)&gt;$/gm, '• <a href="$2">$1</a>')
+        .replace(/(?<!href=")(https?:\/\/[^\s<"]+)/g, '<a href="$1">$1</a>')
+        .replace(/\n/g, "<br>");
       return `<p style="margin:0 0 14px 0;">${html}</p>`;
     })
     .join("");

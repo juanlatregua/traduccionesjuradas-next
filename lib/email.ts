@@ -9,6 +9,7 @@ import { sendStaffAlertSMS } from "@/lib/sms";
 import { escapeHtml } from "@/lib/collaborator-emails";
 import {
   appendDownloadLinks,
+  type DownloadLink,
   appendBillingRequest,
   buildDeliveryText,
   deliveryTextToHtml,
@@ -275,7 +276,7 @@ export function buildTranslationReadyEmail(data: {
   // Asunto editado por el staff; sustituye al de por defecto.
   subject?: string | null;
   // Enlaces de los archivos que no cupieron como adjunto.
-  fallbackLinks?: string[];
+  fallbackLinks?: DownloadLink[];
   correction?: boolean;
   // Enlace al formulario de facturación cuando faltan datos para la factura completa.
   billingRequestUrl?: string | null;
@@ -306,7 +307,7 @@ export async function sendTranslationReadyEmail(data: {
   invoiceNumber?: string | null;
   message?: string | null;
   subject?: string | null;
-  fallbackLinks?: string[];
+  fallbackLinks?: DownloadLink[];
   attachments?: MailAttachment[];
   invoiceAttached?: boolean;
   correction?: boolean;

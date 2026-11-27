@@ -486,7 +486,7 @@ export async function POST(req: Request, { params }: Params) {
         );
         const transAttachments = fileAttachments.filter(Boolean) as NonNullable<(typeof fileAttachments)[number]>[];
         const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
-        const fallbackLinks = deliveryFiles.filter((_, i) => !fileAttachments[i]).map((f) => f.url);
+        const fallbackLinks = deliveryFiles.filter((_, i) => !fileAttachments[i]).map((f) => ({ url: f.url, name: f.filename }));
         await sendEmailWithRetry(() =>
           sendTranslationReadyEmail({
             toEmail: order.clientEmail,
