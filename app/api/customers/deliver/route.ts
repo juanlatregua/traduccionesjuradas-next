@@ -23,6 +23,7 @@ import { NextResponse } from "next/server";
 import { createOrder, confirmManualPayment, updateDeliveryState } from "@/lib/orders";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { sendTranslationReadyEmail, buildTranslationReadyEmail } from "@/lib/email";
+import { getReferralForDeliveryEmail } from "@/lib/referral";
 import { toDeliveryLang } from "@/lib/delivery-message";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { fetchFileAsAttachment, buildIssuedInvoiceAttachment } from "@/lib/delivery-attachments";
@@ -134,6 +135,7 @@ export async function POST(req: Request) {
       const invAttach = await buildIssuedInvoiceAttachment(reference);
       const invoiceNumber = invAttach ? invAttach.name.replace(/\.pdf$/i, "") : null;
       const billingRequestUrl = invAttach ? null : await billingRequestUrlFor(order.id).catch(() => null);
+      const referral = await getReferralForDeliveryEmail(order.id);
       const composed = buildTranslationReadyEmail({
         reference,
         lang,
@@ -143,6 +145,7 @@ export async function POST(req: Request) {
         clientEmail,
         attachedFiles: translations.map((f) => ({ name: f.filename })),
         houseSignature: !includesFrench(langPair),
+        referral,
       });
       await prisma.orderEvent
         .create({
@@ -165,7 +168,7 @@ export async function POST(req: Request) {
         const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
         const fallbackLinks = translations.filter((_, i) => !fileAttachments[i]).map((f) => ({ url: f.url, name: f.filename }));
         await sendEmailWithRetry(() =>
-          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach, billingRequestUrl, houseSignature: !includesFrench(langPair) })
+          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach, billingRequestUrl, houseSignature: !includesFrench(langPair), referral })
         );
       })().catch((e) => console.error("[customers-deliver] ready email failed", e));
     }

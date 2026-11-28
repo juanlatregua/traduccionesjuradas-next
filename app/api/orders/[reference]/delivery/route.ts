@@ -1,6 +1,7 @@
 import { includesFrench } from "@/lib/price-request-ack";
 import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
+import { getReferralForDeliveryEmail } from "@/lib/referral";
 import {
   buildTranslationReadyEmail,
   composeInvoiceOnlyEmail,
@@ -438,6 +439,7 @@ export async function POST(req: Request, { params }: Params) {
       const customSubject =
         isCorrection && subjectIn && !/correg|corrig|correct/i.test(subjectIn) ? undefined : subjectIn;
       const customMessage = resolveInvoicePlaceholder(body.message || "", invoiceNumber).trim() || null;
+      const referral = isCorrection ? null : await getReferralForDeliveryEmail(order.id);
       const composed = buildTranslationReadyEmail({
         reference: order.reference,
         lang: deliveryLang,
@@ -450,6 +452,7 @@ export async function POST(req: Request, { params }: Params) {
         clientEmail: order.clientEmail,
         attachedFiles: deliveryFiles.map((f) => ({ name: f.filename })),
         houseSignature: !includesFrench(order.langPair),
+        referral,
       });
       await prisma.orderEvent
         .create({
@@ -506,6 +509,7 @@ export async function POST(req: Request, { params }: Params) {
             correction: isCorrection,
             billingRequestUrl,
             houseSignature: !includesFrench(order.langPair),
+            referral,
           })
         );
       })().catch((e) => console.error("[orders-delivery] ready email failed", e));
