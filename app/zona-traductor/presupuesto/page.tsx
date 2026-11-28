@@ -13,6 +13,7 @@ import { parFromLangs } from "@/lib/lavori-dup-guard";
 import { priceBasisForMember } from "@/lib/lavori-directo";
 import { channelPriceToBaseCents } from "@/lib/lavori-directo-math";
 import { lecturaConstructorOn } from "@/lib/lectura-constructor/flag.ts";
+import { expedienteAgruparOn } from "@/lib/expediente-agrupar";
 
 export const metadata: Metadata = {
   title: "Zona traductor — Presupuesto",
@@ -291,6 +292,7 @@ export default async function ZonaTraductorPresupuestoPage({
 
         <StaffExpedienteIntake
           initialDocs={initialDocs}
+          agrupar={expedienteAgruparOn()}
           initialCustomer={initialCustomer}
           initialData={expRef ? undefined : builderInitial}
           expedienteRef={expRef}

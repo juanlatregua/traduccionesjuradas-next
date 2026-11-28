@@ -17,6 +17,7 @@ import type { EmailBrief } from "@/lib/ai/email-brief";
 import { UNREAD_PAGES_TYPE_ES } from "@/lib/ai/unread-pages";
 import { aplicarCosteJurado } from "@/lib/caso/coste-lead";
 import ContadorProgreso from "@/components/ContadorProgreso";
+import { applyGrouping, type GroupFile, type GroupingMapping } from "@/lib/expediente-agrupar";
 import {
   buildQuotePatchPayload,
   editFormFromQuote,
@@ -96,6 +97,7 @@ function buildDocRow(d: any, mode: "text" | "vision" | undefined, isSplit: boole
     pageEnd: d.pageEnd,
     absorbedPages: d.absorbedPages || undefined,
     analysisId: !isSplit && typeof d.id === "string" ? d.id : undefined,
+    sourceAnalysisId: typeof d.id === "string" ? d.id : undefined,
   };
 }
 
@@ -150,6 +152,9 @@ type DocRow = {
   absorbedPages?: number[]; // páginas sin texto que el análisis unió a este documento
   priorFrom?: string; // nº del presupuesto anterior cuyo precio y coste lleva la línea
   analysisId?: string; // DocumentAnalysis.id (estado del contador de TraduCAT en escaneados)
+  sourceAnalysisId?: string; // DocumentAnalysis.id del archivo del que sale la fila (agrupación por documento)
+  groupNote?: string;
+  groupFiles?: GroupFile[]; // documento agrupado de varios archivos: todos viajan al jurado
   // Página única (mode="edit"): línea del presupuesto guardado de la que sale la fila.
   lineDescription?: string; // texto de la línea tal cual (editable)
   origLine?: EditableLine;
@@ -221,6 +226,7 @@ const LANGS: { code: string; name: string }[] = [
 ];
 
 const CONCURRENCY = 3;
+const GROUP_TIMEOUT_MS = 90_000;
 const ACCEPTED = ".pdf,.jpg,.jpeg,.png,.heic,.tiff,.tif,.webp";
 
 type PriorPrice = {
@@ -371,6 +377,8 @@ type Props = {
   quote?: EditableQuote;
   analysisDocs?: AnalysisDoc[];
   nuevaLinea?: boolean;
+  // EXPEDIENTE_AGRUPAR=on: al soltar ≥2 archivos se lee el conjunto y se agrupa por documento.
+  agrupar?: boolean;
 };
 
 export default function StaffExpedienteIntake({
@@ -389,6 +397,7 @@ export default function StaffExpedienteIntake({
   quote,
   analysisDocs = [],
   nuevaLinea = false,
+  agrupar = false,
 }: Props = {}) {
   const editQuote = mode === "edit" && quote ? quote : null;
   const router = useRouter();
@@ -680,6 +689,7 @@ export default function StaffExpedienteIntake({
         unitPrice: 0,
       }));
       setDocs((prev) => [...prev, ...rows]);
+      if (agrupar && autoCount && !editQuote && files.length >= 2) groupPendingRef.current = true;
       if (!discountTouched) {
         autoDiscountRef.current = true;
         setDiscountPct(suggestVolumeDiscountPct(docs.length + rows.length));
@@ -701,8 +711,9 @@ export default function StaffExpedienteIntake({
         });
       }
     },
-    [docs.length, discountTouched, processFile]
+    [docs.length, discountTouched, processFile, agrupar, autoCount, editQuote]
   );
+
 
   // Preload: expediente entrante ya subido por el cliente → analizar por id.
   useEffect(() => {
@@ -778,6 +789,78 @@ export default function StaffExpedienteIntake({
       return cur;
     });
   }, [discountTouched]);
+
+  // Agrupar por documento (EXPEDIENTE_AGRUPAR): con los análisis por archivo ya
+  // terminados se lee el CONJUNTO y la lista pasa a una línea por documento.
+  const docsRef = useRef(docs);
+  docsRef.current = docs;
+  const groupPendingRef = useRef(false);
+  const groupUndoRef = useRef<DocRow[] | null>(null);
+  const [grouping, setGrouping] = useState<
+    | { phase: "idle" }
+    | { phase: "running" }
+    | { phase: "done"; documents: number; excluded: number; questions: GroupingMapping["questions"] }
+    | { phase: "failed"; msg: string }
+  >({ phase: "idle" });
+  const [groupTick, setGroupTick] = useState(0);
+  useEffect(() => {
+    if (grouping.phase !== "running") return;
+    const t = setInterval(() => setGroupTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [grouping.phase]);
+
+  const runGrouping = useCallback(async (analysisIds: string[]) => {
+    const deadline = Date.now() + GROUP_TIMEOUT_MS;
+    setGroupTick(0);
+    setGrouping({ phase: "running" });
+    try {
+      for (;;) {
+        const left = deadline - Date.now();
+        if (left <= 0) throw new Error("La lectura del conjunto tarda demasiado: se queda la lista por archivo.");
+        const res = await fetch("/api/zona-traductor/expediente/agrupar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ analysisIds, targetLang: targetLang || undefined }),
+          signal: AbortSignal.timeout(left),
+        });
+        const data = await res.json().catch(() => null);
+        if (res.status === 409 && data?.retry) {
+          await new Promise((r) => setTimeout(r, 4000));
+          continue;
+        }
+        if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo leer el conjunto.");
+        const mapping: GroupingMapping = data.mapping;
+        const prev = docsRef.current;
+        if (prev.some((d) => d.status === "uploading" || d.status === "analyzing")) throw new Error("La lista ha cambiado mientras se leía el conjunto.");
+        const r = applyGrouping(prev, mapping, uid);
+        if (!r.applied) throw new Error(r.reasonEs || "No se pudo agrupar.");
+        groupUndoRef.current = prev;
+        setDocs(r.rows);
+        setGrouping({ phase: "done", documents: r.documents, excluded: r.excluded, questions: mapping.questions });
+        resuggestDiscount();
+        return;
+      }
+    } catch (err: any) {
+      const msg = err?.name === "TimeoutError" ? "La lectura del conjunto tarda demasiado: se queda la lista por archivo." : err?.message || "No se pudo agrupar.";
+      setGrouping({ phase: "failed", msg });
+    }
+  }, [targetLang, resuggestDiscount]);
+
+  useEffect(() => {
+    if (!groupPendingRef.current || docs.some((d) => d.status === "uploading" || d.status === "analyzing")) return;
+    groupPendingRef.current = false;
+    const ids = Array.from(new Set(docs.filter((d) => d.sourceAnalysisId && (d.status === "done" || d.status === "split")).map((d) => d.sourceAnalysisId!)));
+    if (ids.length >= 2) void runGrouping(ids);
+  }, [docs, runGrouping]);
+
+  const undoGrouping = useCallback(() => {
+    const before = groupUndoRef.current;
+    if (!before) return;
+    groupUndoRef.current = null;
+    setDocs(before);
+    setGrouping({ phase: "idle" });
+    resuggestDiscount();
+  }, [resuggestDiscount]);
 
   const splitRowByPages = useCallback(
     (localId: string) => {
@@ -1331,7 +1414,7 @@ export default function StaffExpedienteIntake({
   const vat = shownTotals.vatAmount;
   const total = shownTotals.total;
 
-  const busy = docs.some((d) => d.status === "uploading" || d.status === "analyzing");
+  const busy = docs.some((d) => d.status === "uploading" || d.status === "analyzing") || grouping.phase === "running";
   const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
   const hasPhone = customerPhone.trim().length >= 6;
   const missing: string[] = [];
@@ -1432,14 +1515,16 @@ export default function StaffExpedienteIntake({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           confirmarCongelar: confirmarCongelar || undefined,
-          docs: lavoriDocs.map((d) => ({
-            url: d.blobUrl,
-            // Nombre neutro (tipo documental); el fichero original del cliente
-            // puede llevar su nombre y no debe viajar.
-            name: d.documentTypeEs || undefined,
-            pageStart: d.pageStart,
-            pageEnd: d.pageEnd,
-          })),
+          docs: lavoriDocs.flatMap((d) =>
+            (d.groupFiles?.length ? d.groupFiles : [{ url: d.blobUrl!, pageStart: d.pageStart, pageEnd: d.pageEnd }]).map((f) => ({
+              url: f.url,
+              // Nombre neutro (tipo documental); el fichero original del cliente
+              // puede llevar su nombre y no debe viajar.
+              name: d.documentTypeEs || undefined,
+              pageStart: f.pageStart,
+              pageEnd: f.pageEnd,
+            }))
+          ),
           sourceLang: sourceLang || "es",
           targetLang: targetLang || "es",
           words: lavoriDocs.reduce((acc, d) => acc + (d.words || 0), 0) || undefined,
@@ -1874,6 +1959,41 @@ export default function StaffExpedienteIntake({
       </div>
       )}
 
+      {grouping.phase === "running" && (
+        <div role="status" aria-live="polite" className="flex items-center gap-2 rounded-xl border border-[#D5DAE1] bg-[#F6F7F9] px-4 py-3 text-sm text-[#1A2E4A]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Agrupando documentos… leyendo el conjunto para juntar páginas, apostillas y duplicados ({groupTick} s)
+        </div>
+      )}
+      {grouping.phase === "failed" && (
+        <p className="flex items-center gap-1 text-xs text-[#52606D]">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {grouping.msg}
+        </p>
+      )}
+      {grouping.phase === "done" && (
+        <div className="rounded-xl border border-[#D5DAE1] bg-white px-4 py-3 text-sm text-[#1F2933]">
+          <div className="flex flex-wrap items-center gap-2">
+            <Merge className="h-4 w-4 text-[#1A2E4A]" />
+            <span>
+              Lista agrupada: {grouping.documents} documento{grouping.documents === 1 ? "" : "s"}
+              {grouping.excluded ? ` · ${grouping.excluded} fuera (duplicados o no se traducen)` : ""}
+            </span>
+            {groupUndoRef.current && !readOnly && (
+              <button type="button" onClick={undoGrouping} className="ml-auto rounded-lg border border-[#D5DAE1] px-3 py-1 text-xs hover:bg-[#F6F7F9]">
+                Deshacer agrupación
+              </button>
+            )}
+          </div>
+          {grouping.questions.length > 0 && (
+            <ul className="mt-2 list-disc space-y-0.5 pl-6 text-xs text-[#7A5A10]">
+              {grouping.questions.map((q, i) => (
+                <li key={i}>{q.aboutDocument ? `${q.aboutDocument}: ` : ""}{q.textEs}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Tabla de documentos */}
       {docs.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-[#D5DAE1]">
@@ -1985,6 +2105,22 @@ export default function StaffExpedienteIntake({
                             )}
                           </p>
                         ) : null}
+                        {d.groupFiles && d.groupFiles.length > 1 && (
+                          <div className="ml-6 mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-[#52606D]">
+                            {d.groupFiles.map((f, fi) => (
+                              <a
+                                key={fi}
+                                href={docViewUrl({ ...d, blobUrl: f.url, pageStart: f.pageStart, pageEnd: f.pageEnd })!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[#1A2E4A] hover:underline"
+                              >
+                                {f.fileName}{f.pageEnd > f.pageStart ? ` (págs ${f.pageStart}-${f.pageEnd})` : ""}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                        {d.groupNote && <p className="ml-6 mt-0.5 text-[11px] text-[#52606D]">{d.groupNote}</p>}
                       </div>
                     )}
                   </td>
