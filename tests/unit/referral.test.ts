@@ -10,6 +10,8 @@ import {
   redeemOwnerCreditOnQuote,
   referralInvoiceLines,
   releaseReferralOnDeadQuote,
+  referralUndiscountedTotalCents,
+  dropReferralDiscountBelowFloor,
   voidReferralRewardForOrder,
 } from "../../lib/referral-core.ts";
 
@@ -540,4 +542,63 @@ test("crédito del dueño canjeado en un presupuesto que caduca → vuelve a EAR
   assert.equal(c.rewardStatus, "EARNED");
   assert.equal(c.rewardRedeemedOnQuoteId, null);
   assert.equal(c.usedOnOrderId, "ord-inv");
+});
+
+// ── Revisión: webhook al precio entero, suelo con coste nuevo, suelo del sucesor ──
+
+test("webhook: el precio entero (sesión de antes del código) es pago válido y libera el código", async () => {
+  const db = makeDb({ quotes: [quote("q1")], customers: [OWNER], codes: [code()] });
+  assert.equal(await referralUndiscountedTotalCents(db, "q1"), null, "sin código: el webhook sigue como siempre");
+  const fullCents = cents(db.store.quote[0].total);
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  const accepted = await referralUndiscountedTotalCents(db, "q1");
+  assert.equal(accepted, fullCents, "el webhook acepta 72,60 € aunque el total vigente sea 65,34 €");
+  // El pedido nace con lo cobrado y el pago lo registra: el código queda libre, sin descuento en la factura.
+  const r = await markReferralEarnedForPaidOrder(db, { orderId: "ord-inv", quoteId: "q1", paidCents: accepted!, now: NOW });
+  assert.equal(r.earned, 0);
+  assert.equal(db.store.referralCode[0].usedAt, null);
+  assert.equal(db.store.quote[0].discountAmount, 0);
+  assert.equal(await referralUndiscountedTotalCents(db, "q1"), null, "otro importe cualquiera ya no se acepta");
+});
+
+test("suelo con coste nuevo: si la base descontada cae bajo coste × 1,10, se retira el descuento", async () => {
+  const lines = [{ description: "Urkunde", quantity: 1, unitPrice: 100, supplierUnitCost: 50 }];
+  const db = makeDb({ quotes: [quote("q1", { sourceLang: "de", lines })], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  assert.equal(db.store.quote[0].discountAmount, 10);
+  assert.equal(await dropReferralDiscountBelowFloor(db, { quoteId: "q1", realCostCents: 8000 }), null, "90 ≥ 88: se respeta");
+  const r = await dropReferralDiscountBelowFloor(db, { quoteId: "q1", realCostCents: 8500 });
+  assert.deepEqual(r?.codes, ["MARIE-7K2Q"]);
+  assert.equal(r?.floorCents, 9350);
+  assert.equal(db.store.quote[0].discountAmount, 0);
+  assert.equal(db.store.quote[0].total, 121);
+  assert.equal(db.store.referralCode[0].usedAt, null);
+  assert.equal(db.store.referralCode[0].rewardStatus, "NONE");
+});
+
+test("suelo con coste nuevo: el francés de Juan no tiene suelo", async () => {
+  const db = makeDb({ quotes: [quote("q1")], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  assert.equal(await dropReferralDiscountBelowFloor(db, { quoteId: "q1", realCostCents: 999999 }), null);
+});
+
+test("sucesor: el suelo se recalcula con sus líneas; si no lo cumple, el código se libera", async () => {
+  const lines = [{ description: "Urkunde", quantity: 1, unitPrice: 100, supplierUnitCost: 50 }];
+  const db = makeDb({ quotes: [quote("q1", { casoId: "caso-1", sourceLang: "de", lines })], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  // Versión nueva con el mismo 10 € de descuento pero coste 85: el suelo deja solo 6,50 €.
+  db.store.quote.push(
+    quote("q1b", { casoId: "caso-1", sourceLang: "de", status: "DRAFT", discountType: "FIXED", discountValue: 10, discountAmount: 10, createdAt: NOW, lines: [{ description: "Urkunde", quantity: 1, unitPrice: 100, supplierUnitCost: 85 }] })
+  );
+  db.store.quote[0].supersededAt = NOW;
+  const r = await releaseReferralOnDeadQuote(db, { quoteId: "q1" });
+  assert.equal(r.transferredTo, null);
+  assert.deepEqual(r.released, ["MARIE-7K2Q"]);
+  assert.equal(db.store.referralCode[0].usedOnQuoteId, null);
+
+  const ok = makeDb({ quotes: [quote("q1", { casoId: "caso-1", sourceLang: "de", lines })], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(ok, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  ok.store.quote.push(quote("q1b", { casoId: "caso-1", sourceLang: "de", status: "DRAFT", discountType: "FIXED", discountValue: 10, discountAmount: 10, createdAt: NOW, lines }));
+  ok.store.quote[0].supersededAt = NOW;
+  assert.equal((await releaseReferralOnDeadQuote(ok, { quoteId: "q1" })).transferredTo, "q1b", "con el suelo cumplido, pasa");
 });

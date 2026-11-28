@@ -107,7 +107,19 @@ export async function processQuoteStripeEvent(event: any) {
     const isBalance = metadata.paymentKind === "balance";
     const expectedCents = moneyToCents(decimalToNumber(isBalance ? quote.balanceAmount : quote.total));
     const receivedCents = Math.round(amountRaw * 100);
-    if (!paidAmountMatches(expectedCents, receivedCents)) {
+    // Sesión abierta antes del código de recomendación: cobra el precio sin descuento. Es un
+    // pago válido; el pedido nace con lo cobrado y updateOrderPayment libera el código.
+    const fullPriceBeforeReferral =
+      !isBalance && !paidAmountMatches(expectedCents, receivedCents)
+        ? await import("@/lib/referral-core")
+            .then((m) => m.referralUndiscountedTotalCents(prisma, quote.id))
+            .then((full) => full != null && paidAmountMatches(full, receivedCents))
+            .catch((e) => {
+              console.error("[quotes:webhook] referral full price check failed", e);
+              return false;
+            })
+        : false;
+    if (!fullPriceBeforeReferral && !paidAmountMatches(expectedCents, receivedCents)) {
       await alertPaymentAmountMismatch({
         via: isBalance ? "Stripe (segundo pago)" : "Stripe (presupuesto)",
         ref: quote.quoteNumber,

@@ -154,13 +154,15 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
   const baseCents = channelPriceToBaseCents(lead.priceCents, priceBasisForMember(lead.miembroId));
   const realCostCents = baseCents + otras.reduce((a, o) => a + channelPriceToBaseCents(o.priceCents!, priceBasisForMember(o.miembroId)), 0);
 
-  const decision = decideSentQuotePrice({
-    lines: quote.lines.map((l) => ({ quantity: decimalToNumber(l.quantity), unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) })),
-    discountCents: Math.round(decimalToNumber(quote.discountAmount) * 100),
-    realCostCents,
-    otherPricedRequests: otras.length > 0,
-    foreignLinesReason: foreignLinesReason({ descriptions: quote.lines.map((l) => l.description), leadPar: lead.par, sourceLang: quote.sourceLang, targetLang: quote.targetLang }),
-  });
+  const decideWith = (discountCents: number) =>
+    decideSentQuotePrice({
+      lines: quote.lines.map((l) => ({ quantity: decimalToNumber(l.quantity), unitPrice: decimalToNumber(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : decimalToNumber(l.supplierUnitCost) })),
+      discountCents,
+      realCostCents,
+      otherPricedRequests: otras.length > 0,
+      foreignLinesReason: foreignLinesReason({ descriptions: quote.lines.map((l) => l.description), leadPar: lead.par, sourceLang: quote.sourceLang, targetLang: quote.targetLang }),
+    });
+  let decision = decideWith(Math.round(decimalToNumber(quote.discountAmount) * 100));
   if (nuevo) {
     const reason = `hay un presupuesto más reciente ${nuevo.quoteNumber} (${nuevo.status}) del mismo cliente y par: revisa ese, el ${quote.quoteNumber} no se ha tocado`;
     // Congelado por «volver a pedir» y la nueva cifra no deja pérdida: se descongela (nada más).
@@ -173,8 +175,29 @@ export async function handleLeadPriceOnSentQuote(leadId: string): Promise<SentQu
     }
     return { handled: false, reason };
   }
-  const key = freezeKeyFor(lead.ref, lead.priceCents, lead.miembroId);
   const ficha = abs(hrefPresupuesto(quote.id), SITE);
+  // Código de recomendación aplicado y el coste real rompe su suelo (coste × 1,10): fuera el
+  // descuento. Si sin él sigue habiendo pérdida, se congela como siempre (abajo).
+  const { dropReferralDiscountBelowFloor } = await import("@/lib/referral-core");
+  const caido = await dropReferralDiscountBelowFloor(prisma, { quoteId: quote.id, realCostCents }).catch((e) => {
+    console.error("[precio-tras-envio] suelo del código de recomendación falló:", e);
+    return null;
+  });
+  if (caido) {
+    decision = decideWith(0);
+    const txt = `Descuento por recomendación ${caido.codes.join(", ")} RETIRADO en ${quote.quoteNumber}: con el coste real ${eur(realCostCents)} la base descontada ${eur(caido.discountedBaseCents)} queda bajo el suelo ${eur(caido.floorCents)} (coste × 1,10). Código liberado; el presupuesto vuelve al precio sin descuento${caido.restoredTotal != null ? ` (${caido.restoredTotal.toFixed(2)} € IVA incl.)` : ""}${decision.kind === "perdida" ? " y aun así hay pérdida: se congela" : ""}.`;
+    const logId = (await rastro(quote.id, `recomendación retirada ${quote.quoteNumber}`, txt))?.id ?? null;
+    await expireOpenStripeSessions(quote.id);
+    await import("@/lib/referral").then((m) => m.refreshQuotePdf(quote.id)).catch((e) => console.error("[precio-tras-envio] PDF no regenerado", e));
+    await avisar({
+      logId,
+      subject: `⚠ ${quote.quoteNumber}: descuento por recomendación retirado (suelo del jurado)`,
+      lines: [txt, `Avisa al cliente del precio nuevo: ${ficha}`],
+      sms: txt.slice(0, 300),
+      smsContext: `recomendacion_suelo ${quote.quoteNumber}`,
+    });
+  }
+  const key = freezeKeyFor(lead.ref, lead.priceCents, lead.miembroId);
   const miembro = lead.miembroNombre || lead.miembroId || "el jurado";
   const cifra = baseCents === lead.priceCents ? eur(lead.priceCents) : `${eur(lead.priceCents)} (${eur(baseCents)} base)`;
   const resumen = [

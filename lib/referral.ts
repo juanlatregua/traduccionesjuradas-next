@@ -35,7 +35,11 @@ async function afterQuoteDiscount(quoteId: string, result: ApplyResult) {
   if (!result.ok) return;
   if (result.clamped) console.warn(`[referral] ${result.code} recortado al suelo en presupuesto ${quoteId}: ${result.note}`);
   await expireSessionsAfterPriceChange(quoteId);
-  // El PDF de /q enseñaba el total viejo: se regenera (best-effort, el total vivo ya es el bueno).
+  await refreshQuotePdf(quoteId);
+}
+
+/** El PDF de /q enseñaba el total viejo: se regenera (best-effort, el total vivo ya es el bueno). */
+export async function refreshQuotePdf(quoteId: string) {
   try {
     const quote = await prisma.quote.findUnique({ where: { id: quoteId }, include: { lines: { orderBy: { createdAt: "asc" } } } });
     if (!quote) return;

@@ -85,7 +85,7 @@ type BillingSnapshot = {
 };
 
 async function referralInvoiceLinesForOrder(orderId: string, baseCents: number) {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { quoteId: true } });
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { quoteId: true, quote: { select: { discountAmount: true } } } });
   const ref = await prisma.referralCode.findFirst({
     where: {
       OR: [
@@ -97,7 +97,8 @@ async function referralInvoiceLinesForOrder(orderId: string, baseCents: number) 
   });
   if (!ref) return null;
   const isInvitee = ref.usedOnOrderId === orderId || (!!order?.quoteId && ref.usedOnQuoteId === order.quoteId);
-  const discountCents = (isInvitee ? ref.discountCents : ref.rewardDiscountCents) || 0;
+  // El descuento que de verdad lleva el presupuesto (si se retiró, no hay línea), no el anotado en el código.
+  const discountCents = order?.quote ? Math.round(Number(order.quote.discountAmount) * 100) : (isInvitee ? ref.discountCents : ref.rewardDiscountCents) || 0;
   return referralInvoiceLines({ baseCents, discountCents, code: ref.code, kind: isInvitee ? "invitee" : "owner_credit" });
 }
 
@@ -149,7 +150,9 @@ export async function issueOrUpdateInvoice(input: {
   const forYear = (input.issuedAt ?? new Date()).getFullYear();
   const { baseCents, vatCents, totalCents } = totalsFromGross(input.amountCents, 0.21);
   // Descuento por recomendación: la base ya viene descontada (el IVA va sobre ella); la línea lo dice.
-  const referralLines = await referralInvoiceLinesForOrder(input.orderId, baseCents);
+  // Nunca pisa líneas ya puestas (borrador editado a mano o factura no-borrador).
+  const keepLines = !!linked && (linked.status !== "DRAFT" || linked.lineItemsJson != null);
+  const referralLines = keepLines ? null : await referralInvoiceLinesForOrder(input.orderId, baseCents);
 
   // Auto-numeración con reintento anti-colisión (carrera con otra emisión); con
   // número manual no se reintenta: la colisión es un error del operador.
