@@ -6,6 +6,8 @@ import {
   buildReminderEmail,
   buildPaidDigitalEmail,
   buildPaidPaperEmail,
+  payLinkDecorFromQuote,
+  renderPayLinkEmailHtml,
 } from "@/lib/quote-messages";
 import { previewQuoteEmail } from "@/lib/quote-email";
 import { calculateEtaDate } from "@/lib/quotes";
@@ -44,6 +46,8 @@ export async function GET(req: Request, { params }: Params) {
       targetLang: true,
       deliveryTerm: true,
       vatRate: true,
+      vatAmount: true,
+      lines: { orderBy: { createdAt: "asc" }, select: { description: true, lineTotal: true } },
     },
   });
   if (!quote) {
@@ -58,6 +62,7 @@ export async function GET(req: Request, { params }: Params) {
 
   let subject = "";
   let body = "";
+  let html: string | undefined;
 
   if (template === "REMINDER") {
     const msg = buildReminderEmail({
@@ -96,9 +101,10 @@ export async function GET(req: Request, { params }: Params) {
     });
     subject = msg.subject;
     body = msg.body;
+    html = renderPayLinkEmailHtml(body, payLinkDecorFromQuote(quote));
   }
 
-  const preview = previewQuoteEmail({ subject, body });
+  const preview = previewQuoteEmail({ subject, body, html });
   return NextResponse.json({
     ok: true,
     template,

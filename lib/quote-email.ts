@@ -21,7 +21,7 @@ export function isPlaceholderEmail(email: string | null | undefined) {
  * que el llamador pueda registrar el fallo (MessageLog FAILED) y avisar al staff.
  */
 export async function sendQuoteEmailWithRetry(
-  params: { to: string; subject: string; body: string; attachments?: MailAttachment[] },
+  params: { to: string; subject: string; body: string; html?: string; attachments?: MailAttachment[] },
   maxRetries = 3
 ) {
   let lastErr: unknown;
@@ -42,9 +42,11 @@ export async function sendQuoteEmail(params: {
   to: string;
   subject: string;
   body: string;
+  /** HTML ya compuesto (p. ej. renderPayLinkEmailHtml); sin él, el cuerpo con la plantilla de la casa. */
+  html?: string;
   attachments?: MailAttachment[];
 }) {
-  const html = renderSimpleEmailHtml(params.body);
+  const html = params.html || renderSimpleEmailHtml(params.body);
 
   await sendMail({
     to: params.to,
@@ -130,10 +132,10 @@ export async function sendPriceRequestAckToClient(opts: {
   return { channel: null };
 }
 
-export function previewQuoteEmail(params: { subject: string; body: string }) {
+export function previewQuoteEmail(params: { subject: string; body: string; html?: string }) {
   return {
     subject: params.subject,
     body: params.body,
-    html: renderSimpleEmailHtml(params.body),
+    html: params.html || renderSimpleEmailHtml(params.body),
   };
 }

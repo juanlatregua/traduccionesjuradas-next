@@ -1,6 +1,8 @@
 import { formatDateEs } from "./quotes.ts";
 import { PAYMENT_LABELS } from "./payment-labels.ts";
 import { localeFor, pickPublicLang, type PublicLang } from "./quote-public-i18n.ts";
+import { includesFrench } from "./price-request-ack.ts";
+import { C, SANS, SERIF, emailLayout, emailQuestionsBox, escapeHtml, textLinesToHtml, type SignatureKind } from "./email-layout.ts";
 
 export { PAYMENT_LABELS };
 
@@ -76,7 +78,7 @@ const MSG: Record<PublicLang, MsgDict> = {
     firstPayment: "Primer pago",
     secondPayment: "Segundo pago",
     delivery: "Entrega",
-    cta: "Ver el presupuesto y pagar",
+    cta: "Ver y pagar mi presupuesto",
     translator: (n, m) => `La traducción la realiza ${n}, traductor/a-intérprete jurado/a${m ? ` nº ${m} del MAEC` : ""}.`,
     paper: "El envío en papel (12 € + IVA) está incluido en el total.",
     verify: "Seguridad: la traducción en PDF lleva firma electrónica cualificada. Puede comprobar su validez en el servicio del Gobierno de España: valide.redsara.es",
@@ -289,33 +291,85 @@ export function cardPayUrl(payUrl: string): string | null {
   }
 }
 
-export function renderSimpleEmailHtml(body: string) {
-  const escaped = body
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  const content = escaped
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => `<p style="margin:0 0 12px 0; font-family:Arial, sans-serif; font-size:15px; color:#0f172a;">${line}</p>`)
+export function renderSimpleEmailHtml(body: string, opts: { label?: string | null; title?: string | null; signature?: SignatureKind | null } = {}) {
+  return emailLayout({ content: textLinesToHtml(body), ...opts });
+}
+
+const PAY_TITLE: Record<PublicLang, string> = {
+  es: "Su presupuesto está listo",
+  en: "Your quote is ready",
+  fr: "Votre devis est prêt",
+  pt: "O seu orçamento está pronto",
+  it: "Il suo preventivo è pronto",
+  de: "Ihr Angebot ist fertig",
+};
+const QUOTE_LABEL: Record<PublicLang, string> = { es: "Presupuesto", en: "Quote", fr: "Devis", pt: "Orçamento", it: "Preventivo", de: "Angebot" };
+const VAT_LABEL: Record<PublicLang, string> = { es: "IVA", en: "VAT", fr: "TVA", pt: "IVA", it: "IVA", de: "MwSt." };
+
+export type PayLinkDecor = {
+  lang?: string | null;
+  quoteNumber?: string | null;
+  lines?: { description: string; amountEur: number }[];
+  vatRate?: number | null;
+  vatEur?: number | null;
+  totalEur?: number | null;
+  houseSignature?: boolean;
+};
+
+function breakdownTable(d: PayLinkDecor, lang: PublicLang) {
+  const lines = d.lines || [];
+  if (!lines.length || d.totalEur == null) return "";
+  const td = `font-family:${SANS};font-size:15px;color:${C.navy};`;
+  const rows = lines
+    .map(
+      (l) =>
+        `<tr><td style="${td}padding:14px 20px;border-bottom:1px solid ${C.rule};font-weight:bold;">${escapeHtml(l.description)}</td><td align="right" style="${td}padding:14px 20px;border-bottom:1px solid ${C.rule};white-space:nowrap;">${moneyIn(l.amountEur, lang)}</td></tr>`
+    )
     .join("");
-  return `
-    <div style="background:#f8fafc; padding:24px 12px;">
-      <div style="max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:22px;">
-        <div style="margin-bottom:14px;">
-          <a href="https://www.traduccionesjuradas.net" style="text-decoration:none;" target="_blank" rel="noopener noreferrer">
-            <img src="https://www.traduccionesjuradas.net/brand/logo-horizontal.svg" alt="Traducciones Juradas" style="height:44px; width:auto; max-width:240px;" />
-          </a>
-        </div>
-        ${content}
-        <hr style="margin:18px 0 12px 0; border:0; border-top:1px solid #e2e8f0;" />
-        <p style="margin:0; font-family:Arial, sans-serif; font-size:12px; color:#64748b;">
-          TraduccionesJuradas.net · hola@traduccionesjuradas.net · 951 333 614
-        </p>
-      </div>
-    </div>
-  `;
+  const vat =
+    d.vatEur != null && d.vatEur > 0
+      ? `<tr><td style="font-family:${SANS};font-size:14px;color:${C.muted};padding:12px 20px 4px 20px;">${VAT_LABEL[lang]}${d.vatRate ? ` ${Math.round(d.vatRate <= 1 ? d.vatRate * 100 : d.vatRate)} %` : ""}</td><td align="right" style="font-family:${SANS};font-size:14px;color:${C.muted};padding:12px 20px 4px 20px;white-space:nowrap;">${moneyIn(d.vatEur, lang)}</td></tr>`
+      : "";
+  const total = `<tr><td style="font-family:${SANS};font-size:16px;font-weight:bold;color:${C.navy};padding:6px 20px 18px 20px;">${MSG[lang].total}</td><td align="right" style="font-family:${SERIF};font-size:26px;color:${C.navy};padding:6px 20px 18px 20px;white-space:nowrap;">${moneyIn(d.totalEur, lang)}</td></tr>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.white}" style="background:${C.white};border:1px solid ${C.border};border-radius:10px;border-collapse:separate;margin:8px 0 20px 0;">${rows}${vat}${total}</table>`;
+}
+
+type Num = number | string | { toString(): string } | null | undefined;
+const num = (v: Num) => (v == null ? null : Number(v.toString()));
+
+// Decorado del email a partir del presupuesto: desglose (base por línea), IVA y total.
+export function payLinkDecorFromQuote(q: {
+  pdfLang?: string | null;
+  quoteNumber: string;
+  sourceLang?: string | null;
+  targetLang?: string | null;
+  vatRate?: Num;
+  vatAmount?: Num;
+  total?: Num;
+  lines?: { description: string; lineTotal: Num }[];
+}): PayLinkDecor {
+  return {
+    lang: q.pdfLang,
+    quoteNumber: q.quoteNumber,
+    lines: (q.lines || []).map((l) => ({ description: l.description, amountEur: num(l.lineTotal) ?? 0 })),
+    vatRate: num(q.vatRate),
+    vatEur: num(q.vatAmount),
+    totalEur: num(q.total),
+    houseSignature: !includesFrench(q.sourceLang, q.targetLang),
+  };
+}
+
+// Email del presupuesto (/q) con la imagen de la casa: el cuerpo (el estándar o el que edita
+// el staff) manda; el desglose va antes del botón y la caja de las dos preguntas al final.
+export function renderPayLinkEmailHtml(body: string, d: PayLinkDecor = {}) {
+  const lang = pickPublicLang(d.lang);
+  const content = textLinesToHtml(body, { onFirstButton: breakdownTable(d, lang) }) + emailQuestionsBox(lang);
+  return emailLayout({
+    content,
+    label: d.quoteNumber ? `${QUOTE_LABEL[lang]} ${d.quoteNumber}` : null,
+    title: PAY_TITLE[lang],
+    signature: d.houseSignature ? "house" : "juan",
+  });
 }
 
 export function buildPayLinkEmail(data: CommonData) {
@@ -389,7 +443,7 @@ export function buildReminderEmail(data: {
   const subject = "Recordatorio: presupuesto pendiente de confirmación";
   const body = `Estimado/a ${knownName(data.name) || "cliente"},
 Le recordamos que el presupuesto ${data.quoteNumber} enviado el ${formatDateEs(data.sentDate)} sigue pendiente de confirmación.
-Puede revisarlo y realizar el pago aquí: ${data.payUrl}
+Ver y pagar mi presupuesto: ${data.payUrl}
 Quedo a su disposición. – Juan Silva`;
   return { subject, body };
 }

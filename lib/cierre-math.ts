@@ -109,12 +109,23 @@ export const NO_RESPONSE_NOTE = AUTO_LOST_NOTES.NO_RESPONSE;
 export const CLOSE_AFTER_HOURS = 24; // tras el 2º contacto
 export const RETRY_FAILED_AFTER_HOURS = 20; // el cron corre 4×/día: un FAILED reciente no se reintenta
 
+// Rastreadores de vistas previas (iMessage se anuncia como «facebookexternalhit … Facebot Twitterbot»).
 export const LINK_PREVIEW_UA =
-  /WhatsApp|TelegramBot|facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|SkypeUriPreview|Googlebot|bingbot|Applebot|preview/i;
+  /WhatsApp|TelegramBot|facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|LinkedInBot|SkypeUriPreview|Googlebot|Google-InspectionTool|GoogleOther|AdsBot-Google|bingbot|Applebot|YandexBot|DuckDuckBot|Pinterestbot|redditbot|Embedly|Iframely|vkShare|Mastodon|Bluesky|Cardyb|preview/i;
+
+export function isLinkPreviewBot(ua: string | null | undefined): boolean {
+  return !!ua && LINK_PREVIEW_UA.test(ua);
+}
+
+/** Apertura de /q/<token>: un rastreador ni deja AccessEvent ni pasa el presupuesto a OPENED. */
+export function openTracking(ua: string | null | undefined, status: string): { record: boolean; markOpened: boolean } {
+  if (isLinkPreviewBot(ua)) return { record: false, markOpened: false };
+  return { record: true, markOpened: status === "SENT" };
+}
 
 /** Apertura humana: algún AccessEvent cuyo user-agent no es una vista previa de enlace. */
 export function hasHumanOpen(events: { userAgent: string | null }[]): boolean {
-  return events.some((e) => !(e.userAgent && LINK_PREVIEW_UA.test(e.userAgent)));
+  return events.some((e) => !isLinkPreviewBot(e.userAgent));
 }
 
 export type FollowUpInput = {

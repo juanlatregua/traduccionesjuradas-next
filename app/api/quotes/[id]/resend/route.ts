@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
-import { buildPayLinkEmail, buildWhatsAppPayText } from "@/lib/quote-messages";
+import { buildPayLinkEmail, buildWhatsAppPayText, payLinkDecorFromQuote, renderPayLinkEmailHtml } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { buildAndUploadFinalQuotePdf, MAX_EMAIL_ATTACH_BYTES } from "@/lib/quote-send";
 import { frozenSendBlocked } from "@/lib/precio-tras-envio-math";
@@ -70,6 +70,7 @@ export async function POST(req: Request, { params }: Params) {
         to: quote.customerEmail,
         subject: msg.subject,
         body: msg.body,
+        html: renderPayLinkEmailHtml(msg.body, payLinkDecorFromQuote(quote)),
         attachments:
           pdfBuffer && pdfBuffer.length <= MAX_EMAIL_ATTACH_BYTES
             ? [{ name: `Presupuesto-${quote.quoteNumber}.pdf`, contentType: "application/pdf", contentBytes: pdfBuffer.toString("base64") }]

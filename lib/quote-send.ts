@@ -7,7 +7,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
 import { buildQuotePdfBuffer, hashPdf, uploadFinalQuotePdf } from "@/lib/quote-pdf";
-import { buildPayLinkEmail, buildWhatsAppPayText } from "@/lib/quote-messages";
+import { buildPayLinkEmail, buildWhatsAppPayText, payLinkDecorFromQuote, renderPayLinkEmailHtml } from "@/lib/quote-messages";
 import { sendQuoteEmailWithRetry, isPlaceholderEmail } from "@/lib/quote-email";
 import { transitionWorkflowState } from "@/lib/workflow-server";
 import { sealClosedPriceQuote } from "@/lib/lavori-directo";
@@ -234,7 +234,7 @@ export async function finalizeAndSendQuote(opts: {
       if (!attachments.length) {
         console.warn(`[quote-send] ${quote.quoteNumber}: PDF de ${pdfBuffer.length} bytes, se envia el email SOLO con enlace.`);
       }
-      sendResult = await sendQuoteEmailWithRetry({ to: quote.customerEmail, subject: emailCopy.subject, body: emailCopy.body, attachments });
+      sendResult = await sendQuoteEmailWithRetry({ to: quote.customerEmail, subject: emailCopy.subject, body: emailCopy.body, html: renderPayLinkEmailHtml(emailCopy.body, payLinkDecorFromQuote(quote)), attachments });
     }
 
     const whatsappBody = buildWhatsAppPayText(msgData);

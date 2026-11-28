@@ -1,3 +1,4 @@
+import { includesFrench } from "@/lib/price-request-ack";
 import { NextResponse } from "next/server";
 import { getOrderDetail, updateDeliveryState } from "@/lib/orders";
 import {
@@ -446,6 +447,9 @@ export async function POST(req: Request, { params }: Params) {
         subject: customSubject,
         correction: isCorrection,
         billingRequestUrl,
+        clientEmail: order.clientEmail,
+        attachedFiles: deliveryFiles.map((f) => ({ name: f.filename })),
+        houseSignature: !!order.langPair && !includesFrench(order.langPair),
       });
       await prisma.orderEvent
         .create({
@@ -501,6 +505,7 @@ export async function POST(req: Request, { params }: Params) {
             invoiceAttached: !!invAttach,
             correction: isCorrection,
             billingRequestUrl,
+            houseSignature: !!order.langPair && !includesFrench(order.langPair),
           })
         );
       })().catch((e) => console.error("[orders-delivery] ready email failed", e));

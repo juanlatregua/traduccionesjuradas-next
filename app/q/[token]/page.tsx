@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { LINK_PREVIEW_UA } from "@/lib/cierre-math";
+import { openTracking } from "@/lib/cierre-math";
+import { quoteShare, quoteShareText } from "@/lib/q-share";
 import {
   decimalToNumber,
   hashValue,
@@ -39,10 +40,22 @@ type Props = {
 
 export async function generateMetadata({ params }: Pick<Props, "params">): Promise<Metadata> {
   const row = await prisma.quote
-    .findUnique({ where: { publicToken: params.token }, select: { pdfLang: true, quoteNumber: true } })
+    .findUnique({
+      where: { publicToken: params.token },
+      select: { pdfLang: true, quoteNumber: true, status: true, tokenExpiresAt: true, total: true, balanceAmount: true, vatRate: true },
+    })
     .catch(() => null);
   const title = row ? `${publicDict(pickPublicLang(row.pdfLang)).pageTitle} ${row.quoteNumber}` : "Presupuesto";
-  return { title, robots: { index: false, follow: false } };
+  // Vista previa al compartir: número y total, nunca el nombre ni los documentos.
+  const share = quoteShareText(
+    quoteShare(row ? { ...row, total: Number(row.total), balanceAmount: row.balanceAmount == null ? null : Number(row.balanceAmount), vatRate: Number(row.vatRate) } : null)
+  );
+  return {
+    title,
+    robots: { index: false, follow: false },
+    openGraph: { title: share.title, description: share.description, siteName: "Traducciones Juradas", type: "website" },
+    twitter: { card: "summary_large_image", title: share.title, description: share.description },
+  };
 }
 
 function langName(code: string, loc: string) {
@@ -61,8 +74,11 @@ function resolveIp() {
 }
 
 async function trackOpen(quote: { id: string; status: string }) {
-  const ip = resolveIp();
   const ua = headers().get("user-agent") || null;
+  // Vista previa del enlace (WhatsApp, iMessage, Telegram…): ni cuenta como apertura ni marca OPENED.
+  const decision = openTracking(ua, quote.status);
+  if (!decision.record) return;
+  const ip = resolveIp();
   const salt = process.env.NEXTAUTH_SECRET || "quote-open";
   const ipHash = hashValue(`${ip}:${salt}`);
   const now = new Date();
@@ -77,10 +93,7 @@ async function trackOpen(quote: { id: string; status: string }) {
     },
   });
 
-  // Vista previa del enlace (WhatsApp, Telegram…): se registra, pero no es que el cliente lo haya abierto.
-  if (ua && LINK_PREVIEW_UA.test(ua)) return;
-
-  if (quote.status === "SENT") {
+  if (decision.markOpened) {
     await prisma.quote.update({
       where: { id: quote.id },
       data: {
