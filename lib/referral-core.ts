@@ -387,11 +387,10 @@ async function freeRow(tx: ReferralDb, row: any, quoteId: string): Promise<numbe
   return res.count;
 }
 
-/** Quita del presupuesto el descuento FIXED que puso el código (y solo ese); devuelve el total sin descuento. */
-async function stripQuoteDiscount(tx: ReferralDb, quoteId: string, discountCents: number, onlyIfTotalCents?: number): Promise<number | null> {
-  const q = await tx.quote.findUnique({ where: { id: quoteId }, select: QUOTE_SELECT });
+/** Totales del presupuesto sin el descuento FIXED del código; null si su descuento no es ese. */
+function undiscountedTotals(q: QuoteForReferral | null, discountCents: number) {
   if (!q || String(q.discountType) !== "FIXED" || Math.round(Number(q.discountValue) * 100) !== discountCents) return null;
-  const before = computeQuoteTotals({
+  return computeQuoteTotals({
     lines: q.lines.map((l: any) => ({ description: l.description, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) })),
     vatRate: Number(q.vatRate),
     deliveryType: String(q.deliveryType) as QuoteDeliveryType,
@@ -399,6 +398,23 @@ async function stripQuoteDiscount(tx: ReferralDb, quoteId: string, discountCents
     discountType: "NONE",
     discountValue: 0,
   });
+}
+
+/** Total (céntimos, IVA incl.) del presupuesto sin el descuento de recomendación que lleva; null si no lleva ninguno.
+ *  El webhook acepta ese importe: es una sesión de pago abierta antes de aplicar el código. */
+export async function referralUndiscountedTotalCents(db: ReferralDb, quoteId: string): Promise<number | null> {
+  const rows = await db.referralCode.findMany({ where: linkedRowsWhere(quoteId) });
+  if (rows.length !== 1) return null;
+  const q = await db.quote.findUnique({ where: { id: quoteId }, select: QUOTE_SELECT });
+  const before = undiscountedTotals(q, rowDiscountCents(rows[0], quoteId));
+  return before ? Math.round(before.total * 100) : null;
+}
+
+/** Quita del presupuesto el descuento FIXED que puso el código (y solo ese); devuelve el total sin descuento. */
+async function stripQuoteDiscount(tx: ReferralDb, quoteId: string, discountCents: number, onlyIfTotalCents?: number): Promise<number | null> {
+  const q = await tx.quote.findUnique({ where: { id: quoteId }, select: QUOTE_SELECT });
+  const before = undiscountedTotals(q, discountCents);
+  if (!before) return null;
   if (onlyIfTotalCents != null && Math.round(before.total * 100) !== onlyIfTotalCents) return null;
   const res = await tx.quote.updateMany({
     where: { id: quoteId, discountType: "FIXED", discountValue: round2(discountCents / 100) },
@@ -488,13 +504,23 @@ export async function releaseReferralOnDeadQuote(db: ReferralDb, input: { quoteI
               discountType: "FIXED", discountValue: round2(cents / 100),
             },
             orderBy: { createdAt: "desc" },
-            select: { id: true },
+            select: { id: true, sourceLang: true, targetLang: true, lines: QUOTE_SELECT.lines },
           })
         : null;
-      const taken = next
+      // La versión nueva puede tener otras líneas u otro coste: el suelo se recalcula con las suyas.
+      const fits = next
+        ? (() => {
+            const d = computeReferralDiscount({
+              lines: next.lines.map((l: any) => ({ description: l.description, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), supplierUnitCost: l.supplierUnitCost == null ? null : Number(l.supplierUnitCost) })),
+              isFrench: isFrenchQuote(next),
+            });
+            return d.ok && d.discountCents === cents;
+          })()
+        : false;
+      const taken = next && fits
         ? await tx.referralCode.findFirst({ where: { OR: [{ usedOnQuoteId: next.id }, { rewardRedeemedOnQuoteId: next.id }] }, select: { id: true } })
         : null;
-      if (next && !taken) {
+      if (next && fits && !taken) {
         const moved = await tx.referralCode.updateMany({
           where: isCredit ? { id: row.id, rewardRedeemedOnQuoteId: q.id, rewardStatus: "REDEEMED" } : { id: row.id, usedOnQuoteId: q.id, rewardStatus: "PENDING" },
           data: isCredit ? { rewardRedeemedOnQuoteId: next.id } : { usedOnQuoteId: next.id },
@@ -581,4 +607,29 @@ export async function ensureReferralCodeForOrder(
     }
   }
   throw new Error("[referral] no se pudo generar un código único");
+}
+
+export type FloorDropResult = { codes: string[]; floorCents: number; discountedBaseCents: number; restoredTotal: number | null };
+
+/** El coste del jurado cambió con el código ya aplicado: si la base descontada queda por debajo de
+ *  coste × 1,10, el descuento se retira (código libre, o crédito devuelto al dueño). Francés: sin suelo. */
+export async function dropReferralDiscountBelowFloor(db: ReferralDb, input: { quoteId: string; realCostCents: number }): Promise<FloorDropResult | null> {
+  return db.$transaction(async (tx: ReferralDb) => {
+    const rows = await tx.referralCode.findMany({ where: linkedRowsWhere(input.quoteId) });
+    if (rows.length === 0) return null;
+    const q: QuoteForReferral | null = await tx.quote.findUnique({ where: { id: input.quoteId }, select: QUOTE_SELECT });
+    if (!q || q.paidAt || isFrenchQuote(q)) return null;
+    const lineBase = q.lines.reduce((a, l) => a + lineCents(Number(l.quantity), Number(l.unitPrice)), 0);
+    const floorCents = Math.ceil(Math.max(0, input.realCostCents) * REFERRAL_FLOOR_MULTIPLIER);
+    const discountedBaseCents = lineBase - Math.round(Number(q.discountAmount) * 100);
+    if (discountedBaseCents >= floorCents) return null;
+    const out: FloorDropResult = { codes: [], floorCents, discountedBaseCents, restoredTotal: null };
+    for (const row of rows) {
+      const discountCents = rowDiscountCents(row, q.id);
+      if ((await freeRow(tx, row, q.id)) !== 1) continue;
+      out.codes.push(row.code);
+      out.restoredTotal = (await stripQuoteDiscount(tx, q.id, discountCents)) ?? out.restoredTotal;
+    }
+    return out.codes.length ? out : null;
+  });
 }
