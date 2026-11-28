@@ -21,7 +21,7 @@ test("email del presupuesto: total, entrega y enlace en las 3 primeras líneas",
   const [l1, l2, l3] = body.split("\n");
   assert.equal(l1, "Estimado/a Marta:");
   assert.match(l2, /^Total 90,00\s€ \(IVA incl\.\) · Entrega: 2-3 días hábiles$/);
-  assert.equal(l3, `Ver el presupuesto y pagar: ${base.payUrl}`);
+  assert.equal(l3, `Ver y pagar mi presupuesto: ${base.payUrl}`);
   assert.match(body, /La traducción la realiza Ana Ruiz, traductor\/a-intérprete jurado\/a nº 1234 del MAEC\./);
   assert.match(body, /Juan Silva — TraduccionesJuradas\.net$/);
 });
@@ -69,7 +69,7 @@ test("WhatsApp: saludo, total·entrega y un solo enlace", () => {
   const lines = text.split("\n");
   assert.equal(lines[0], "Hola Marta 👋");
   assert.match(lines[1], /Total 90,00\s€ \(IVA incl\.\) · Entrega: 2-3 días hábiles/);
-  assert.equal(lines[2], `Ver el presupuesto y pagar: ${base.payUrl}`);
+  assert.equal(lines[2], `Ver y pagar mi presupuesto: ${base.payUrl}`);
   assert.equal(text.match(/https?:\/\//g)?.length, 1);
 });
 

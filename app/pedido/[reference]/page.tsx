@@ -13,6 +13,8 @@ import { pickPublicLang } from "@/lib/quote-public-i18n";
 export const metadata: Metadata = {
   title: "Estado de tu pedido — Traducciones Juradas",
   robots: { index: false, follow: false },
+  openGraph: { title: "Estado de tu pedido — Traducciones Juradas", description: "Traducción jurada oficial · Málaga", siteName: "Traducciones Juradas", type: "website" },
+  twitter: { card: "summary_large_image", title: "Estado de tu pedido — Traducciones Juradas" },
 };
 
 type Props = {

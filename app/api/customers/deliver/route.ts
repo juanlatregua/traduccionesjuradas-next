@@ -18,6 +18,7 @@
 //    crea sin quoteId; si existiera un Quote y se pagara por /q, el puente crearía un
 //    pedido aparte (no se enlaza el Quote a propósito: el form no tiene ese selector).
 
+import { includesFrench } from "@/lib/price-request-ack";
 import { NextResponse } from "next/server";
 import { createOrder, confirmManualPayment, updateDeliveryState } from "@/lib/orders";
 import { transitionWorkflowState } from "@/lib/workflow-server";
@@ -139,6 +140,9 @@ export async function POST(req: Request) {
         clientName: order.clientName,
         invoiceNumber,
         billingRequestUrl,
+        clientEmail,
+        attachedFiles: translations.map((f) => ({ name: f.filename })),
+        houseSignature: !includesFrench(langPair),
       });
       await prisma.orderEvent
         .create({
@@ -161,7 +165,7 @@ export async function POST(req: Request) {
         const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
         const fallbackLinks = translations.filter((_, i) => !fileAttachments[i]).map((f) => ({ url: f.url, name: f.filename }));
         await sendEmailWithRetry(() =>
-          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach, billingRequestUrl })
+          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach, billingRequestUrl, houseSignature: !includesFrench(langPair) })
         );
       })().catch((e) => console.error("[customers-deliver] ready email failed", e));
     }

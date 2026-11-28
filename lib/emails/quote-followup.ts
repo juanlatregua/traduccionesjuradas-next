@@ -1,30 +1,11 @@
 // lib/emails/quote-followup.ts — Email follow-up tras presupuesto IA
 import { sendMail } from "@/lib/azure-mail";
+import { C, SERIF, SITE, emailButton, emailLayout } from "@/lib/email-layout";
 
-const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
-const BRAND_LOGO_URL = `${BRAND_HOME_URL}/brand/logo-horizontal.svg`;
+const BRAND_HOME_URL = SITE;
 
 function wrapHtml(content: string) {
-  return `
-    <div style="background:#f8fafc; padding:24px 12px;">
-      <div style="max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:22px;">
-        <div style="margin-bottom:14px;">
-          <a href="${BRAND_HOME_URL}" style="text-decoration:none;" target="_blank" rel="noopener noreferrer">
-            <img src="${BRAND_LOGO_URL}" alt="Traducciones Juradas" style="height:44px; width:auto; max-width:240px;" />
-          </a>
-        </div>
-        <div style="font-family:Arial, sans-serif; color:#0f172a; font-size:15px; line-height:1.45;">
-          ${content}
-        </div>
-        <hr style="margin:18px 0 12px 0; border:0; border-top:1px solid #e2e8f0;" />
-        <p style="margin:0; font-family:Arial, sans-serif; font-size:12px; color:#64748b;">
-          TraduccionesJuradas.net &middot; M&aacute;laga &middot;
-          <a href="mailto:hola@traduccionesjuradas.net" style="color:#0f6b66; text-decoration:none;">hola@traduccionesjuradas.net</a>
-          &middot; <a href="tel:+34951333614" style="color:#0f6b66; text-decoration:none;">951 333 614</a>
-        </p>
-      </div>
-    </div>
-  `;
+  return emailLayout({ content });
 }
 
 export type QuoteFollowupData = {
@@ -47,7 +28,7 @@ export async function sendQuoteFollowupEmail(data: QuoteFollowupData) {
   const subject = `Tu presupuesto de traducción jurada — ${data.totalPrice.toFixed(2)} EUR`;
 
   const html = wrapHtml(`
-    <h2 style="margin:0 0 8px 0; font-size:20px; color:#0f172a;">Tu presupuesto está listo</h2>
+    <h1 style="margin:0 0 16px 0; font-family:${SERIF}; font-weight:normal; font-size:28px; line-height:1.3; color:${C.navy};">Tu presupuesto está listo</h1>
     <p>${data.name?.trim() ? `Hola ${data.name.trim()},` : "Hola,"}</p>
     <p>Hemos analizado tu documento con IA y este es tu presupuesto:</p>
 
@@ -70,21 +51,17 @@ export async function sendQuoteFollowupEmail(data: QuoteFollowupData) {
       </tr>` : ""}
     </table>
 
-    <div style="text-align:center; margin:20px 0; padding:20px; background:#f0fdfa; border:1px solid #99f6e4; border-radius:12px;">
+    <div style="text-align:center; margin:20px 0; padding:20px; background:${C.white}; border:1px solid ${C.border}; border-radius:10px;">
       <p style="margin:0 0 4px 0; font-size:14px; color:#64748b;">Base imponible: ${data.price.toFixed(2)} &euro; &middot; IVA (21%): ${ivaAmount.toFixed(2)} &euro;</p>
-      <p style="margin:0 0 4px 0; font-size:32px; font-weight:700; color:#0f766e;">${data.totalPrice.toFixed(2)} &euro;</p>
+      <p style="margin:0 0 4px 0; font-family:${SERIF}; font-size:32px; color:${C.navy};">${data.totalPrice.toFixed(2)} &euro;</p>
       <p style="margin:0; font-size:13px; color:#64748b;">IVA incluido &middot; Precio cerrado</p>
     </div>
 
-    <p style="text-align:center;">
-      <a href="${BRAND_HOME_URL}/presupuesto-instantaneo${data.resumeToken ? `?r=${encodeURIComponent(data.resumeToken)}` : ""}" style="display:inline-block; background:#0f766e; color:#ffffff; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px;">
-        Continuar con mi pedido
-      </a>
-    </p>
+    ${emailButton("Continuar con mi pedido", `${BRAND_HOME_URL}/presupuesto-instantaneo${data.resumeToken ? `?r=${encodeURIComponent(data.resumeToken)}` : ""}`)}
 
     <p style="font-size:13px; color:#64748b; margin-top:16px;">
       Si tienes cualquier duda, responde a este correo o escr&iacute;benos por
-      <a href="https://wa.me/34951333614" style="color:#0f766e; text-decoration:none;">WhatsApp</a>.
+      <a href="https://wa.me/34951333614" style="color:${C.navy};">WhatsApp</a>.
     </p>
 
     <p>Gracias por confiar en nosotros.<br/>Equipo de traduccionesjuradas.net</p>

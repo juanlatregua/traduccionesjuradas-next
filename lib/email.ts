@@ -7,8 +7,9 @@ import { blobDownloadUrl } from "@/lib/blob-download-url";
 import type { MailAttachment } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { escapeHtml } from "@/lib/collaborator-emails";
+import { emailButton, emailLayout, stripTextSignature } from "@/lib/email-layout";
+import { renderDeliveryEmailHtml, type Referral } from "@/lib/emails/delivery-email";
 import {
-  appendDownloadLinks,
   type DownloadLink,
   appendBillingRequest,
   buildDeliveryText,
@@ -53,30 +54,9 @@ export type PresupuestoPayload = {
   website?: string;
 };
 
-const BRAND_HOME_URL = "https://www.traduccionesjuradas.net";
-const BRAND_LOGO_URL = `${BRAND_HOME_URL}/brand/logo-horizontal.svg`;
-
+// Envoltura única de la casa (lib/email-layout.ts): todos los emails cambian de imagen con ella.
 export function wrapClientEmailHtml(content: string) {
-  return `
-    <div style="background:#f8fafc; padding:24px 12px;">
-      <div style="max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; padding:22px;">
-        <div style="margin-bottom:14px;">
-          <a href="${BRAND_HOME_URL}" style="text-decoration:none;" target="_blank" rel="noopener noreferrer">
-            <img src="${BRAND_LOGO_URL}" alt="Traducciones Juradas" style="height:44px; width:auto; max-width:240px;" />
-          </a>
-        </div>
-        <div style="font-family:Arial, sans-serif; color:#0f172a; font-size:15px; line-height:1.45;">
-          ${content}
-        </div>
-        <hr style="margin:18px 0 12px 0; border:0; border-top:1px solid #e2e8f0;" />
-        <p style="margin:0; font-family:Arial, sans-serif; font-size:12px; color:#64748b;">
-          TraduccionesJuradas.net · Málaga ·
-          <a href="mailto:hola@traduccionesjuradas.net" style="color:#0f6b66; text-decoration:none;">hola@traduccionesjuradas.net</a>
-          · <a href="tel:+34951333614" style="color:#0f6b66; text-decoration:none;">951 333 614</a>
-        </p>
-      </div>
-    </div>
-  `;
+  return emailLayout({ content });
 }
 
 // Envío de un mensaje EDITABLE por el staff al cliente (cuerpo de texto plano que
@@ -85,27 +65,17 @@ export function wrapClientEmailHtml(content: string) {
 // Compartido entre sendCustomClientEmail y la respuesta desde /admin/inbox
 // para que TODO mensaje manual salga con el mismo formato.
 export function renderClientMessageHtml(bodyText: string, opts: { houseSignature?: boolean } = {}) {
-  const safe = String(bodyText)
+  const safe = stripTextSignature(String(bodyText))
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
   // houseSignature: firma de la casa sin el nombre ni el nº de jurado de Juan (pares no FR).
-  const signer = opts.houseSignature
-    ? `<strong>TraduccionesJuradas.net</strong><br/>`
-    : `<strong>Juan Silva Moreno</strong><br/>
-    Jefe de proyectos · Traductor jurado de francés (Nº3850)<br/>`;
   // Firma completa + nota legal: SOLO en el email (el WhatsApp va sin firma).
-  const signatureHtml = `
-    <p style="margin:12px 0 4px 0;">${signer}
-    HBTJ Consultores Lingüísticos S.L. · CIF B93712784<br/>
-    Calle Esperanto, 9 · 29007 Málaga<br/>
-    Tel: <a href="tel:+34951333614">${WHATSAPP_DISPLAY}</a></p>
-    <p style="font-size:12px; color:#6b7280; margin:8px 0 0 0;"><strong>NOTA LEGAL</strong> – Este documento se dirige exclusivamente a su destinatario y puede contener información confidencial sometida a secreto profesional. Si no es el destinatario autorizado, su uso o divulgación está prohibido; por favor comuníquelo y destrúyalo. Las comunicaciones por email pueden ser modificadas o interceptadas; el remitente no asume responsabilidad por errores u omisiones.</p>
-    <p style="font-size:12px; color:#6b7280; margin:6px 0 0 0;"><strong>Protección de datos:</strong> Los datos se incorporan a un fichero responsabilidad de HBTJ Consultores Lingüísticos S.L. para gestionar su encargo y comunicaciones. Puede ejercer derechos de acceso, rectificación, supresión y oposición en Calle Esperanto, 9 · 29007 Málaga o en <a href="mailto:hola@traduccionesjuradas.net">hola@traduccionesjuradas.net</a>.</p>
-  `;
-  return wrapClientEmailHtml(`<div style="white-space:pre-wrap; font-size:14px; line-height:1.5;">${safe}</div>
-    <hr style="margin:16px 0 12px 0; border:0; border-top:1px solid #e5e7eb;" />
-    ${signatureHtml}`);
+  return emailLayout({
+    content: `<div style="white-space:pre-wrap;">${safe}</div>`,
+    signature: opts.houseSignature ? "house" : "juan",
+    legalNote: true,
+  });
 }
 
 export async function sendCustomClientEmail(data: {
@@ -280,8 +250,17 @@ export function buildTranslationReadyEmail(data: {
   correction?: boolean;
   // Enlace al formulario de facturación cuando faltan datos para la factura completa.
   billingRequestUrl?: string | null;
+  // Email del cliente: enlace mágico al área cliente (sin él, /area-cliente a secas).
+  clientEmail?: string | null;
+  // Traducciones que van adjuntas (tarjetas de descarga).
+  attachedFiles?: { name?: string | null }[];
+  // Firma de la casa (pares no FR): sin el nombre ni el nº de Juan.
+  houseSignature?: boolean;
+  // Cupón de recomendación: sin él no se pinta.
+  referral?: Referral | null;
 }): { subject: string; html: string } {
   const lang = data.lang || "es";
+  const reviewUrl = getReviewUrl();
   const base =
     (data.message || "").trim() ||
     buildDeliveryText({
@@ -290,12 +269,25 @@ export function buildTranslationReadyEmail(data: {
       reference: data.reference,
       invoiceNumber: data.invoiceNumber,
       correction: data.correction,
-      reviewUrl: getReviewUrl(),
+      reviewUrl,
     });
-  const text = appendBillingRequest(appendDownloadLinks(base, lang, data.fallbackLinks || []), lang, data.correction ? null : data.billingRequestUrl);
+  const text = appendBillingRequest(base, lang, data.correction ? null : data.billingRequestUrl);
   return {
     subject: (data.subject || "").trim() || deliverySubject(lang, data.reference, data.correction),
-    html: wrapClientEmailHtml(deliveryTextToHtml(text)),
+    html: renderDeliveryEmailHtml({
+      lang,
+      reference: data.reference,
+      text,
+      clientName: data.clientName,
+      correction: data.correction,
+      invoiceNumber: data.invoiceNumber,
+      attachedFiles: data.attachedFiles,
+      fallbackLinks: data.fallbackLinks,
+      reviewUrl,
+      clientEmail: data.clientEmail,
+      houseSignature: data.houseSignature,
+      referral: data.referral,
+    }),
   };
 }
 
@@ -312,8 +304,15 @@ export async function sendTranslationReadyEmail(data: {
   invoiceAttached?: boolean;
   correction?: boolean;
   billingRequestUrl?: string | null;
+  houseSignature?: boolean;
+  referral?: Referral | null;
 }): Promise<{ subject: string; html: string }> {
-  const composed = buildTranslationReadyEmail(data);
+  const inv = (data.invoiceNumber || "").trim();
+  const composed = buildTranslationReadyEmail({
+    ...data,
+    clientEmail: data.toEmail,
+    attachedFiles: (data.attachments || []).filter((a) => !(inv && a.name.startsWith(inv))).map((a) => ({ name: a.name })),
+  });
   await sendMail({
     to: data.toEmail,
     bcc: [DELIVERY_ARCHIVE_BCC],
@@ -614,7 +613,7 @@ export async function sendClientAccessLinkEmail(data: { toEmail: string; url: st
   const html = `
     <h2>Tu acceso a la zona de cliente</h2>
     <p>Pulsa el botón para entrar a tu zona, donde tienes <strong>presupuestos, pedidos, facturas y descargas</strong> en un solo sitio.</p>
-    <p style="margin:16px 0;"><a href="${data.url}" style="display:inline-block; background:#0f766e; color:#fff; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:600;">Entrar en mi zona de cliente</a></p>
+    ${emailButton("Entrar en mi zona de cliente", data.url)}
     <p style="font-size:13px; color:#6b7280;">El enlace es personal e intransferible y caduca en 30 días. Si no lo solicitaste, ignora este correo.</p>
   `;
   await sendMail({
