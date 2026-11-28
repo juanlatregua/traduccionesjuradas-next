@@ -1465,7 +1465,8 @@ export default function StaffExpedienteIntake({
   if (!hasEmail && !hasPhone) missing.push("email o teléfono del cliente");
   if (!sourceLang) missing.push("idioma origen");
   if (!targetLang) missing.push("idioma destino");
-  if (includedDocs.some((d) => d.groupNote && !d.priceNote && d.unitPrice === 0 && d.clientPrice == null)) missing.push("precio de los documentos agrupados a 0 €");
+  const zeroLines = includedDocs.filter((d) => d.autoPriced !== false && rowClientPrice(d) <= 0).length;
+  if (zeroLines) missing.push(`precio a mano de ${zeroLines === 1 ? "la línea" : `las ${zeroLines} líneas`} a 0 €`);
   const canSubmit = !submitting && !busy && missing.length === 0;
 
   // ── Solicitar PRECIO vía lavori (lead de WhatsApp, sin pedido) ──

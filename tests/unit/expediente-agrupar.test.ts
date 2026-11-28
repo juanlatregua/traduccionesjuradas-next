@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PDFDocument } from "pdf-lib";
 import { applyGrouping, buildGroupingMapping, expedienteAgruparOn, MERGED_PRICE_NOTE, needsMerge, undoGrouping, type GroupableRow, type GroupedDocument, type GroupingMapping } from "../../lib/expediente-agrupar.ts";
-import { mergeIntoPdf } from "../../lib/expediente-unir.ts";
+import { createHash } from "node:crypto";
+import { MAX_MERGE_BYTES, mergedAnalysisJson, mergeIntoPdf, mergeTooLarge } from "../../lib/expediente-unir.ts";
 import { computeBase } from "../../lib/pricing-engine/calculator.ts";
 import type { ModelReading, ReadDocumentRaw } from "../../lib/lectura/schema.ts";
 
@@ -53,7 +54,7 @@ test("árabe 18-nov: 5 archivos son 3 documentos (páginas JPG juntas, una líne
   assert.equal(r.rows.length, 3);
   const [d1, d2, d3] = r.rows;
   assert.equal(d1.pages, 2);
-  assert.equal(d1.words, 200);
+  assert.equal(d1.words, 300, "PDF unido: palabras de la lectura, las que guarda su análisis");
   assert.equal(d1.unitPrice, 0, "el precio lo pone el motor del constructor, no la agrupación");
   assert.equal(d1.autoPriced, true);
   assert.equal(d1.blobUrl, "https://blob/m-D1", "la línea apunta al PDF unido");
@@ -70,7 +71,7 @@ test("registro civil + apostilla en archivo aparte: una línea apostillada y nin
     row({ sourceAnalysisId: "rc", fileName: "registro.pdf", documentType: "birth_certificate", sourceLang: "fr", words: 180 }),
     row({ sourceAnalysisId: "ap", fileName: "apostilla.pdf", documentType: "apostille", sourceLang: "fr", words: 60, unitPrice: 0, priceNote: "Apostilla suelta" }),
   ];
-  const r = applyGrouping(rows, mapping({ documents: [doc("D1", [part("rc")], { parts: [part("ap")], onDocumentPage: false })] }), newId);
+  const r = applyGrouping(rows, mapping({ documents: [doc("D1", [part("rc")], { parts: [part("ap")], onDocumentPage: false }, 240)] }), newId);
   assert.equal(r.applied, true);
   assert.equal(r.rows.length, 1);
   const [line] = r.rows;
@@ -220,4 +221,75 @@ test("needsMerge: varios archivos o páginas salteadas del mismo PDF", () => {
   assert.equal(needsMerge({ parts: [part("a", 1, 2)], apostille: { parts: [part("a", 3)], onDocumentPage: false } }), false);
   assert.equal(needsMerge({ parts: [part("a", 1)], apostille: { parts: [part("a", 3)], onDocumentPage: false } }), true);
   assert.equal(needsMerge({ parts: [part("a")], apostille: { parts: [part("b")], onDocumentPage: false } }), true);
+});
+
+test("tope de 60 MB por documento: se pasa → no se une, queda por archivo con aviso", async () => {
+  assert.equal(mergeTooLarge([30 * 1024 * 1024, 30 * 1024 * 1024]), null);
+  assert.match(mergeTooLarge([40 * 1024 * 1024, 25 * 1024 * 1024]) || "", /65 MB.*60 MB/);
+  const big = new Uint8Array(MAX_MERGE_BYTES + 1);
+  big.set([0x25, 0x50, 0x44, 0x46]);
+  const r = await mergeIntoPdf([{ bytes: big, pageStart: 1, pageEnd: 1, name: "enorme.pdf" }]);
+  assert.equal(r.ok, false);
+  const rows = [row({ sourceAnalysisId: "a" }), row({ sourceAnalysisId: "b" })];
+  const tooBig: GroupedDocument = { key: "D1", labelEs: "Expediente", type: "other", words: 900, parts: [part("a"), part("b")], apostille: null, mergeError: mergeTooLarge([70 * 1024 * 1024])! };
+  const g = applyGrouping(rows, mapping({ documents: [tooBig] }), newId);
+  assert.equal(g.applied, false);
+  assert.deepEqual(g.rows, rows);
+  assert.match(g.warnings[0], /Expediente.*70 MB/);
+});
+
+test("análisis del PDF unido: palabras de la lectura (las de la línea) y páginas del unido", () => {
+  const host = { builderRun: { mode: "vision" }, document_type: { specific_type: "birth_certificate" }, document_metrics: { pages: 1, estimated_words: 120 }, requirements: { has_apostille: false } };
+  const d = doc("D1", [part("rc")], { parts: [part("ap")], onDocumentPage: false }, 240);
+  const json = mergedAnalysisJson(d, host, 2) as any;
+  assert.equal(json.document_metrics.estimated_words, 240);
+  assert.equal(json.document_metrics.pages, 2);
+  assert.equal(json.requirements.has_apostille, true);
+  assert.equal(json.requirements.apostille_separate_page, true);
+  assert.deepEqual(json.builderRun, { mode: "vision" });
+  const line = applyGrouping([row({ sourceAnalysisId: "rc", words: 120 }), row({ sourceAnalysisId: "ap", words: 30 })], mapping({ documents: [d] }), newId).rows[0];
+  assert.equal(line.words, json.document_metrics.estimated_words);
+  const seg = { segmented: true, builderRun: { mode: "text" }, documents: [{ pageStart: 1, pageEnd: 2, analysis: { document_metrics: { pages: 2, estimated_words: 10 } } }, { pageStart: 3, pageEnd: 4, analysis: { document_metrics: { pages: 2, estimated_words: 99 } } }] };
+  assert.equal((mergedAnalysisJson(doc("D2", [part("x", 3, 4), part("y")]), seg, 3) as any).document_metrics.estimated_words, 300);
+  assert.equal(mergedAnalysisJson(d, { document_metrics: {} }, 2), null, "sin marca del constructor no se inventa un análisis guardado");
+});
+
+test("unir es determinista: los mismos archivos dan el mismo sha256 (lo ve el guarda anti-duplicados)", async () => {
+  const src = await PDFDocument.create();
+  src.addPage([200, 200]);
+  src.addPage([300, 300]);
+  const pdf = await src.save();
+  const png = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"));
+  const sources = [{ bytes: pdf, pageStart: 1, pageEnd: 2, name: "acta.pdf" }, { bytes: png, pageStart: 1, pageEnd: 1, name: "apostilla.png" }];
+  const a = await mergeIntoPdf(sources);
+  await new Promise((r) => setTimeout(r, 1100));
+  const b = await mergeIntoPdf(sources.map((s) => ({ ...s, bytes: Uint8Array.from(s.bytes) })));
+  assert.ok(a.ok && b.ok);
+  if (a.ok && b.ok) {
+    const sha = (x: Uint8Array) => createHash("sha256").update(x).digest("hex");
+    assert.equal(sha(a.bytes), sha(b.bytes));
+    assert.ok(!Buffer.from(a.bytes).toString("latin1").includes("/Producer"));
+  }
+});
+
+test("orden de la lectura: páginas intercaladas o al revés se respetan y obligan a unir", () => {
+  const d = (id: string, parts: { fileIndex: number; page: number }[], apostille: ReadDocumentRaw["apostille"] = null) =>
+    ({ id, type: "other", category: "other", typeLabelEs: "Doc", holder: null, issuingCountry: null, sourceLang: "fr", parts, annexes: [], apostille, declaredPages: null, missingPages: [], legibility: "good", estimatedWords: 100, hasTables: false, hasHandwriting: false, isBilingualDuplicate: false, confidence: 0.9, groupingReason: "" }) as ReadDocumentRaw;
+  const reading: ModelReading = {
+    documents: [
+      d("D1", [{ fileIndex: 1, page: 3 }, { fileIndex: 1, page: 2 }, { fileIndex: 1, page: 1 }]),
+      d("D2", [{ fileIndex: 2, page: 1 }, { fileIndex: 3, page: 1 }, { fileIndex: 2, page: 2 }], { parts: [{ fileIndex: 3, page: 2 }], onDocumentPage: false, number: null, matchedBy: "weak" }),
+    ],
+    notToTranslate: [], duplicates: [], instructions: null, targetLang: "es", targetLangBasis: "unknown", deadline: null, clientLang: null, questions: [],
+  };
+  const files = [1, 2, 3].map((position) => ({ position, url: `u${position}`, sha256: `s${position}`, pageCount: 3, state: "ok", name: `f${position}.pdf` }));
+  const analyses = [1, 2, 3].map((i) => ({ id: `A${i}`, fileUrl: `u${i}`, fileName: `f${i}.pdf`, pageCount: 3 }));
+  const m = buildGroupingMapping(reading, files, analyses, new Map());
+  assert.deepEqual(m.documents[0].parts, [part("A1", 3), part("A1", 2), part("A1", 1)]);
+  assert.equal(needsMerge(m.documents[0]), true, "al revés: hay que unir para que el PDF salga en el orden de la lectura");
+  assert.deepEqual(m.documents[1].parts, [part("A2", 1), part("A3", 1), part("A2", 2)]);
+  assert.deepEqual(m.documents[1].apostille?.parts, [part("A3", 2)]);
+  const ascending = buildGroupingMapping({ ...reading, documents: [d("D1", [{ fileIndex: 1, page: 1 }, { fileIndex: 1, page: 2 }, { fileIndex: 1, page: 3 }])] }, files, analyses, new Map());
+  assert.deepEqual(ascending.documents[0].parts, [part("A1", 1, 3)]);
+  assert.equal(needsMerge(ascending.documents[0]), false);
 });

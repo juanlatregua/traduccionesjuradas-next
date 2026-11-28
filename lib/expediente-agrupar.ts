@@ -31,16 +31,16 @@ export type GroupingMapping = {
 export type LoteFile = { position: number | null; url: string | null; sha256: string | null; pageCount: number | null; state: string; name: string };
 export type GroupAnalysis = { id: string; fileUrl: string; fileName: string; pageCount: number };
 
+/** Pages in the reading's order (interleaved files, reversed pages): only runs of consecutive pages of one file are joined. */
 function toRanges(pages: { analysisId: string; page: number }[]): GroupPart[] {
-  const byFile = new Map<string, number[]>();
-  for (const p of pages) byFile.set(p.analysisId, [...(byFile.get(p.analysisId) ?? []), p.page]);
+  const seen = new Set<string>();
   const out: GroupPart[] = [];
-  for (const [analysisId, list] of byFile) {
-    for (const page of [...new Set(list)].sort((a, b) => a - b)) {
-      const last = out[out.length - 1];
-      if (last && last.analysisId === analysisId && page === last.pageEnd + 1) last.pageEnd = page;
-      else out.push({ analysisId, pageStart: page, pageEnd: page });
-    }
+  for (const { analysisId, page } of pages) {
+    if (seen.has(`${analysisId}#${page}`)) continue;
+    seen.add(`${analysisId}#${page}`);
+    const last = out[out.length - 1];
+    if (last && last.analysisId === analysisId && page === last.pageEnd + 1) last.pageEnd = page;
+    else out.push({ analysisId, pageStart: page, pageEnd: page });
   }
   return out;
 }
@@ -105,12 +105,10 @@ export function buildGroupingMapping(
 /** Pages of the document in physical order: body (and annexes), then the apostille sheets. */
 export const documentParts = (d: Pick<GroupedDocument, "parts" | "apostille">): GroupPart[] => [...d.parts, ...(d.apostille?.parts ?? [])];
 
-/** One line points at one file and one page range: anything else needs its pages joined into a new PDF. */
+/** One line points at one file and one ascending page range: anything else (several files, gaps, another order) is joined into a new PDF. */
 export function needsMerge(d: Pick<GroupedDocument, "parts" | "apostille">): boolean {
   const parts = documentParts(d);
-  if (new Set(parts.map((p) => p.analysisId)).size > 1) return true;
-  const sorted = [...parts].sort((a, b) => a.pageStart - b.pageStart);
-  return sorted.some((p, i) => i > 0 && p.pageStart !== sorted[i - 1].pageEnd + 1);
+  return parts.some((p, i) => i > 0 && (p.analysisId !== parts[i - 1].analysisId || p.pageStart !== parts[i - 1].pageEnd + 1));
 }
 
 export type GroupableRow = {
@@ -262,7 +260,8 @@ export function applyGrouping<R extends GroupableRow>(rows: readonly R[], mappin
     const host = rows[candidates.reduce((best, i) => ((rows[i].words || 0) > (rows[best].words || 0) ? i : best), candidates[0])];
     const fullRows = allRows.every((i) => whole(i, set));
     const rowWords = allRows.reduce((s, i) => s + (rows[i].words || 0), 0);
-    const words = fullRows && rowWords > 0 ? rowWords : g.doc.words || rowWords || undefined;
+    // Joined PDF: the reading's words, the same its saved analysis keeps (they do not drop when re-editing).
+    const words = g.doc.merged ? g.doc.words || rowWords || undefined : fullRows && rowWords > 0 ? rowWords : g.doc.words || rowWords || undefined;
     const segs = segments(all);
     const start = Math.min(...segs.map((s) => s.start));
     const end = Math.max(...segs.map((s) => s.end));

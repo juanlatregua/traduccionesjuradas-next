@@ -8,7 +8,7 @@ import { download, startDeps } from "@/lib/lectura-constructor/server.ts";
 import { startReading } from "@/lib/lectura-constructor/run.ts";
 import { put } from "@vercel/blob";
 import { buildGroupingMapping, documentParts, expedienteAgruparOn, needsMerge, type GroupedDocument, type MergedFile } from "@/lib/expediente-agrupar";
-import { mergeIntoPdf } from "@/lib/expediente-unir";
+import { mergedAnalysisJson, mergeIntoPdf, mergeTooLarge } from "@/lib/expediente-unir";
 import { hashFileBuffer } from "@/lib/document-dedup";
 import { safeDocName } from "@/lib/pdf-extract";
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
   const found = await prisma.documentAnalysis.findMany({
     where: { id: { in: ids } },
-    select: { id: true, fileName: true, fileUrl: true, mimeType: true, pageCount: true, sessionToken: true, casoId: true, analysisJson: true },
+    select: { id: true, fileName: true, fileUrl: true, fileSize: true, mimeType: true, pageCount: true, sessionToken: true, casoId: true, analysisJson: true },
   });
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   const analyses = ids.map((id) => found.find((a) => a.id === id)).filter((a): a is NonNullable<typeof a> => !!a && isOwnBlobUrl(a.fileUrl, token));
@@ -86,29 +86,12 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true, reused: started.reused, mapping });
 }
 
-type Analysis = { id: string; fileName: string; fileUrl: string; mimeType: string; pageCount: number; sessionToken: string | null; casoId: string | null; analysisJson: unknown };
-
-// Análisis del archivo del que sale el documento, con las cifras del documento unido: así
-// el constructor lo rehidrata al editar sin volver a llamar a la IA.
-function savedAnalysisFor(doc: GroupedDocument, host: Analysis, pageCount: number): object | null {
-  const json = host.analysisJson as any;
-  const mode = json?.builderRun?.mode;
-  if (mode !== "text" && mode !== "vision") return null;
-  const first = doc.parts[0];
-  const base = json.segmented
-    ? (json.documents as any[] | undefined)?.find((d) => d.pageStart <= first.pageStart && first.pageStart <= d.pageEnd)?.analysis
-    : (({ builderRun, ...rest }) => rest)(json);
-  if (!base?.document_metrics) return null;
-  return {
-    ...base,
-    document_metrics: { ...base.document_metrics, pages: pageCount, estimated_words: doc.words || base.document_metrics.estimated_words },
-    requirements: { ...base.requirements, has_apostille: !!doc.apostille || !!base.requirements?.has_apostille, apostille_separate_page: (doc.apostille?.parts.length ?? 0) > 0 || base.requirements?.apostille_separate_page === true },
-    builderRun: { mode },
-  };
-}
+type Analysis = { id: string; fileName: string; fileUrl: string; fileSize: number; mimeType: string; pageCount: number; sessionToken: string | null; casoId: string | null; analysisJson: unknown };
 
 async function mergeDocument(doc: GroupedDocument, analyses: Analysis[], fileOf: (id: string) => Promise<Uint8Array>): Promise<MergedFile> {
   const parts = documentParts(doc);
+  const tooLarge = mergeTooLarge([...new Set(parts.map((p) => p.analysisId))].map((id) => analyses.find((x) => x.id === id)?.fileSize ?? 0));
+  if (tooLarge) throw new Error(tooLarge);
   const sources = [];
   for (const p of parts) {
     const a = analyses.find((x) => x.id === p.analysisId);
@@ -121,7 +104,7 @@ async function mergeDocument(doc: GroupedDocument, analyses: Analysis[], fileOf:
   const buffer = Buffer.from(merged.bytes);
   const fileName = `${safeDocName(doc.labelEs)}.pdf`;
   const blob = await put(`expedientes/${Date.now()}-${fileName}`, buffer, { access: "public", addRandomSuffix: true, contentType: "application/pdf" });
-  const analysisJson = savedAnalysisFor(doc, host, merged.pageCount);
+  const analysisJson = mergedAnalysisJson(doc, host.analysisJson, merged.pageCount);
   const row = await prisma.documentAnalysis.create({
     data: {
       fileName,
