@@ -7,8 +7,22 @@ export function expedienteAgruparOn(env: Record<string, string | undefined> = pr
 
 export type GroupPart = { analysisId: string; pageStart: number; pageEnd: number };
 
+export type MergedFile = { analysisId: string; url: string; fileName: string; pageCount: number };
+
+export type GroupedDocument = {
+  key: string;
+  labelEs: string;
+  type: string;
+  words: number;
+  parts: GroupPart[];
+  apostille: { parts: GroupPart[]; onDocumentPage: boolean } | null;
+  /** The document's pages joined into one PDF (only when they come from several files or are not contiguous). */
+  merged?: MergedFile;
+  mergeError?: string;
+};
+
 export type GroupingMapping = {
-  documents: { key: string; labelEs: string; type: string; words: number; parts: GroupPart[]; apostille: { parts: GroupPart[]; onDocumentPage: boolean } | null }[];
+  documents: GroupedDocument[];
   duplicates: { parts: GroupPart[]; ofDocument: string | null; reasonEs: string }[];
   notToTranslate: { parts: GroupPart[]; reasonEs: string }[];
   questions: { textEs: string; aboutDocument: string | null }[];
@@ -88,7 +102,16 @@ export function buildGroupingMapping(
   };
 }
 
-export type GroupFile = { url: string; fileName: string; pageStart: number; pageEnd: number };
+/** Pages of the document in physical order: body (and annexes), then the apostille sheets. */
+export const documentParts = (d: Pick<GroupedDocument, "parts" | "apostille">): GroupPart[] => [...d.parts, ...(d.apostille?.parts ?? [])];
+
+/** One line points at one file and one page range: anything else needs its pages joined into a new PDF. */
+export function needsMerge(d: Pick<GroupedDocument, "parts" | "apostille">): boolean {
+  const parts = documentParts(d);
+  if (new Set(parts.map((p) => p.analysisId)).size > 1) return true;
+  const sorted = [...parts].sort((a, b) => a.pageStart - b.pageStart);
+  return sorted.some((p, i) => i > 0 && p.pageStart !== sorted[i - 1].pageEnd + 1);
+}
 
 export type GroupableRow = {
   localId: string;
@@ -114,10 +137,11 @@ export type GroupableRow = {
   absorbedPages?: number[];
   analysisId?: string;
   groupNote?: string;
-  groupFiles?: GroupFile[];
 };
 
-export type GroupingResult<R> = { rows: R[]; applied: boolean; documents: number; excluded: number; reasonEs?: string };
+export type GroupingResult<R> = { rows: R[]; applied: boolean; documents: number; excluded: number; warnings: string[]; reasonEs?: string };
+
+export const MERGED_PRICE_NOTE = "Documento agrupado: revisa el precio";
 
 const GROUPABLE = new Set(["done", "split"]);
 const key = (analysisId: string, page: number) => `${analysisId}#${page}`;
@@ -130,41 +154,73 @@ const expand = (parts: readonly GroupPart[]) =>
   parts.flatMap((p) => Array.from({ length: Math.max(1, p.pageEnd - p.pageStart + 1) }, (_, i) => key(p.analysisId, p.pageStart + i)));
 const baseName = (s: string) => s.replace(/ · págs? .*$/, "");
 
-type Group = { kind: "doc"; doc: GroupingMapping["documents"][number]; body: string[]; apostille: string[] } | { kind: "out"; note: string; keys: string[] };
+/** A row with a price someone set (by hand, a previous quote, the jurado's figure, a per-word/per-document rate) is never regrouped. */
+export const lockedRow = (r: GroupableRow) => r.autoPriced === false || !!r.priorFrom || !!r.basis;
+
+type Group = { kind: "doc"; doc: GroupedDocument; body: string[]; apostille: string[] } | { kind: "out"; note: string; keys: string[] };
 
 /**
  * Per-file rows of the intake + the lectura of the whole batch → one row per document.
- * Merged rows come back «autoPriced» with no price: the intake prices them with its usual engine.
- * Rows the lectura does not cover stay as they were; if a row would be split between a document and
- * nothing, nothing is grouped (better per file than a page charged twice or lost).
+ * Merged rows come back «autoPriced» with no price and a note: the intake prices them with its usual engine.
+ * Rows the lectura does not cover stay as they were. A document stays per file (with a warning) when its pages
+ * could not be joined into one PDF, when one of its rows already carries a set price, or when one of its pages is
+ * not in a groupable row; if that leaves a row half grouped, nothing is grouped (no page charged twice or lost).
  */
 export function applyGrouping<R extends GroupableRow>(rows: readonly R[], mapping: GroupingMapping, newId: () => string): GroupingResult<R> {
-  const none = (reasonEs?: string): GroupingResult<R> => ({ rows: [...rows], applied: false, documents: 0, excluded: 0, reasonEs });
+  const warnings: string[] = [];
+  const none = (reasonEs?: string): GroupingResult<R> => ({ rows: [...rows], applied: false, documents: 0, excluded: 0, warnings, reasonEs });
   const owner = new Map<string, number>();
   rows.forEach((r, i) => {
     if (!r.sourceAnalysisId || !GROUPABLE.has(r.status)) return;
     for (const p of pagesOf(r)) owner.set(key(r.sourceAnalysisId, p), i);
   });
   const known = (keys: string[]) => keys.filter((k) => owner.has(k));
-  const groups: Group[] = [
-    ...mapping.documents.map((doc): Group => ({ kind: "doc", doc, body: known(expand(doc.parts)), apostille: known(expand(doc.apostille?.parts ?? [])) })),
-    ...mapping.duplicates.map((d): Group => ({ kind: "out", note: `${d.reasonEs}: fuera del presupuesto`, keys: known(expand(d.parts)) })),
-    ...mapping.notToTranslate.map((n): Group => ({ kind: "out", note: n.reasonEs, keys: known(expand(n.parts)) })),
-  ].filter((g) => (g.kind === "doc" ? g.body.length > 0 : g.keys.length > 0));
-  if (groups.length === 0) return none("La lectura no reconoce ninguna de las líneas.");
+  const rowsOf = (keys: string[]) => [...new Set(known(keys).map((k) => owner.get(k)!))].sort((a, b) => a - b);
 
-  const claimed = new Map<string, number>();
-  groups.forEach((g, gi) => {
-    for (const k of g.kind === "doc" ? [...g.body, ...g.apostille] : g.keys) if (!claimed.has(k)) claimed.set(k, gi);
-  });
-  const rowsOf = (keys: string[]) => [...new Set(keys.map((k) => owner.get(k)!))].sort((a, b) => a - b);
+  const groups: Group[] = [];
+  const skippedRows = new Set<number>();
+  const skip = (keys: string[], why: string) => {
+    for (const i of rowsOf(keys)) skippedRows.add(i);
+    warnings.push(why);
+  };
+  for (const doc of mapping.documents) {
+    const all = expand(documentParts(doc));
+    const body = known(expand(doc.parts));
+    if (body.length === 0) continue;
+    const apostille = known(expand(doc.apostille?.parts ?? []));
+    const docRows = rowsOf(all);
+    const untouched = docRows.length === 1 && known(all).length === all.length && pagesOf(rows[docRows[0]]).length === all.length;
+    if (untouched) groups.push({ kind: "doc", doc, body, apostille });
+    else if (known(all).length !== all.length) skip(all, `«${doc.labelEs}»: tiene páginas en líneas que no se pueden agrupar; se queda por archivo.`);
+    else if (docRows.some((i) => lockedRow(rows[i]))) skip(all, `«${doc.labelEs}»: una de sus líneas ya tiene precio puesto; se queda por archivo.`);
+    else if (needsMerge(doc) && !doc.merged) skip(all, `«${doc.labelEs}»: no se pudieron unir sus archivos en un PDF${doc.mergeError ? ` (${doc.mergeError})` : ""}; se queda por archivo.`);
+    else groups.push({ kind: "doc", doc, body, apostille });
+  }
+  const outs = [
+    ...mapping.duplicates.map((d) => ({ note: `${d.reasonEs}: fuera del presupuesto`, parts: d.parts })),
+    ...mapping.notToTranslate.map((n) => ({ note: n.reasonEs, parts: n.parts })),
+  ];
+  for (const o of outs) {
+    const keys = known(expand(o.parts));
+    if (keys.length === 0) continue;
+    if (rowsOf(keys).some((i) => lockedRow(rows[i]))) skip(keys, `${o.note}: la línea ya tiene precio puesto; se queda.`);
+    else groups.push({ kind: "out", note: o.note, keys });
+  }
+  const claimed = new Set(groups.flatMap((g) => (g.kind === "doc" ? [...g.body, ...g.apostille] : g.keys)));
   const touched = new Set(groups.flatMap((g) => rowsOf(g.kind === "doc" ? [...g.body, ...g.apostille] : g.keys)));
   for (const i of touched) {
     const r = rows[i];
-    if (pagesOf(r).some((p) => !claimed.has(key(r.sourceAnalysisId!, p)))) return none(`La lectura no cubre todas las páginas de «${baseName(r.fileName)}».`);
+    if (skippedRows.has(i) || pagesOf(r).some((p) => !claimed.has(key(r.sourceAnalysisId!, p)))) return none(`La lectura no cubre todas las páginas de «${baseName(r.fileName)}»: se queda la lista por archivo.`);
   }
 
   const whole = (i: number, keys: Set<string>) => pagesOf(rows[i]).every((p) => keys.has(key(rows[i].sourceAnalysisId!, p)));
+  const unchanged = (g: Group) => {
+    if (g.kind === "out") return false;
+    const all = [...g.body, ...g.apostille];
+    const r = rowsOf(all);
+    return r.length === 1 && g.apostille.length === 0 && whole(r[0], new Set(all));
+  };
+  if (groups.every(unchanged)) return none(warnings[0] ?? "La lectura no cambia nada: cada archivo ya es un documento.");
   const segments = (keys: string[]) => {
     const byRow = new Map<number, number[]>();
     for (const k of keys) {
@@ -173,6 +229,7 @@ export function applyGrouping<R extends GroupableRow>(rows: readonly R[], mappin
     }
     return [...byRow.entries()].sort((a, b) => a[0] - b[0]).map(([i, pages]) => ({ i, start: Math.min(...pages), end: Math.max(...pages), count: pages.length }));
   };
+  const range = (start: number, end: number) => (end > start ? `págs ${start}-${end}` : `pág ${start}`);
 
   let documents = 0;
   let excluded = 0;
@@ -184,7 +241,7 @@ export function applyGrouping<R extends GroupableRow>(rows: readonly R[], mappin
       const set = new Set(g.keys);
       for (const s of segments(g.keys)) {
         const r = rows[s.i];
-        const out = whole(s.i, set) ? { ...r } : { ...r, localId: newId(), pageStart: s.start, pageEnd: s.end, pages: s.count, words: undefined, fileName: `${baseName(r.fileName)} · ${s.end > s.start ? `págs ${s.start}-${s.end}` : `pág ${s.start}`}` };
+        const out = whole(s.i, set) ? { ...r } : { ...r, localId: newId(), pageStart: s.start, pageEnd: s.end, pages: s.count, words: undefined, fileName: `${baseName(r.fileName)} · ${range(s.start, s.end)}` };
         push(s.i, { ...out, include: false, autoPriced: false, unitPrice: 0, clientPrice: undefined, priceNote: undefined, groupNote: g.note } as R);
         excluded += 1;
       }
@@ -200,27 +257,25 @@ export function applyGrouping<R extends GroupableRow>(rows: readonly R[], mappin
       push(first, rows[first]);
       continue;
     }
-    const bodySegs = segments(g.body);
-    const host = rows[bodyRows.reduce((best, i) => ((rows[i].words || 0) > (rows[best].words || 0) && rows[i].documentType !== "apostille" ? i : best), first)];
-    const own = bodySegs[0];
+    const notApostille = bodyRows.filter((i) => rows[i].documentType !== "apostille");
+    const candidates = notApostille.length ? notApostille : bodyRows;
+    const host = rows[candidates.reduce((best, i) => ((rows[i].words || 0) > (rows[best].words || 0) ? i : best), candidates[0])];
     const fullRows = allRows.every((i) => whole(i, set));
     const rowWords = allRows.reduce((s, i) => s + (rows[i].words || 0), 0);
     const words = fullRows && rowWords > 0 ? rowWords : g.doc.words || rowWords || undefined;
-    const files: GroupFile[] = segments(all)
-      .map((s) => ({ url: rows[s.i].blobUrl || "", fileName: baseName(rows[s.i].fileName), pageStart: s.start, pageEnd: s.end }))
-      .filter((f) => f.url);
-    const names = [...new Set(files.map((f) => f.fileName))];
+    const segs = segments(all);
+    const start = Math.min(...segs.map((s) => s.start));
+    const end = Math.max(...segs.map((s) => s.end));
+    const file = g.doc.merged
+      ? { sourceAnalysisId: g.doc.merged.analysisId, blobUrl: g.doc.merged.url, pageStart: 1, pageEnd: g.doc.merged.pageCount, fileName: g.doc.merged.fileName }
+      : { sourceAnalysisId: rows[first].sourceAnalysisId, blobUrl: rows[first].blobUrl, pageStart: start, pageEnd: end, fileName: `${baseName(host.fileName)} · ${range(start, end)}` };
     const apostilleOwnPages = g.apostille.length > 0;
-    const merged = {
+    push(first, {
       ...host,
+      ...file,
       localId: newId(),
       status: "split",
       include: true,
-      fileName: names.join(" + ") || baseName(host.fileName),
-      sourceAnalysisId: rows[own.i].sourceAnalysisId,
-      blobUrl: rows[own.i].blobUrl,
-      pageStart: own.start,
-      pageEnd: own.end,
       pages: all.length,
       words,
       hasApostille: !!g.doc.apostille || !!host.hasApostille,
@@ -230,14 +285,12 @@ export function applyGrouping<R extends GroupableRow>(rows: readonly R[], mappin
       autoPriced: true,
       basis: undefined,
       priorFrom: undefined,
-      priceNote: undefined,
+      priceNote: MERGED_PRICE_NOTE,
       minApplied: false,
       absorbedPages: undefined,
       analysisId: undefined,
       groupNote: `Agrupado: ${allRows.length} línea${allRows.length === 1 ? "" : "s"} → 1 documento${apostilleOwnPages ? " con su apostilla" : ""}`,
-      groupFiles: files.length > 1 ? files : undefined,
-    } as R;
-    push(first, merged);
+    } as R);
   }
 
   const out: R[] = [];
@@ -245,5 +298,18 @@ export function applyGrouping<R extends GroupableRow>(rows: readonly R[], mappin
     if (emit.has(i)) out.push(...emit.get(i)!);
     else if (!touched.has(i)) out.push(r);
   });
-  return { rows: out, applied: true, documents, excluded };
+  return { rows: out, applied: true, documents, excluded, warnings };
+}
+
+/**
+ * «Deshacer agrupación»: back to the per-file rows, keeping the rows added after grouping.
+ * `lost` counts the grouped rows edited or removed since (those changes go away with the undo).
+ */
+export function undoGrouping<R extends { localId: string }>(before: readonly R[], after: readonly R[], current: readonly R[], signature: (r: R) => string) {
+  const afterById = new Map(after.map((r) => [r.localId, r]));
+  const currentIds = new Set(current.map((r) => r.localId));
+  const added = current.filter((r) => !afterById.has(r.localId));
+  const edited = current.filter((r) => afterById.has(r.localId) && signature(afterById.get(r.localId)!) !== signature(r)).length;
+  const removed = after.filter((r) => !currentIds.has(r.localId)).length;
+  return { rows: [...before, ...added], lost: edited + removed, added: added.length };
 }

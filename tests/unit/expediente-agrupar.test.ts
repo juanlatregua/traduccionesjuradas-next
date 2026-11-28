@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyGrouping, buildGroupingMapping, expedienteAgruparOn, type GroupableRow, type GroupingMapping } from "../../lib/expediente-agrupar.ts";
+import { PDFDocument } from "pdf-lib";
+import { applyGrouping, buildGroupingMapping, expedienteAgruparOn, MERGED_PRICE_NOTE, needsMerge, undoGrouping, type GroupableRow, type GroupedDocument, type GroupingMapping } from "../../lib/expediente-agrupar.ts";
+import { mergeIntoPdf } from "../../lib/expediente-unir.ts";
 import { computeBase } from "../../lib/pricing-engine/calculator.ts";
 import type { ModelReading, ReadDocumentRaw } from "../../lib/lectura/schema.ts";
 
@@ -28,8 +30,10 @@ function row(p: Partial<Row> & { sourceAnalysisId: string }): Row {
 }
 
 const part = (analysisId: string, pageStart = 1, pageEnd = pageStart) => ({ analysisId, pageStart, pageEnd });
-const doc = (key: string, parts: ReturnType<typeof part>[], apostille: GroupingMapping["documents"][number]["apostille"] = null, words = 300) =>
-  ({ key, labelEs: key, type: "birth_certificate", words, parts, apostille });
+const doc = (key: string, parts: ReturnType<typeof part>[], apostille: GroupedDocument["apostille"] = null, words = 300): GroupedDocument => {
+  const d: GroupedDocument = { key, labelEs: key, type: "birth_certificate", words, parts, apostille };
+  return needsMerge(d) ? { ...d, merged: { analysisId: `m-${key}`, url: `https://blob/m-${key}`, fileName: `${key}.pdf`, pageCount: parts.length + (apostille?.parts.length ?? 0) } } : d;
+};
 const mapping = (m: Partial<GroupingMapping>): GroupingMapping => ({ documents: [], duplicates: [], notToTranslate: [], questions: [], ...m });
 
 test("interruptor: solo «on» activa la agrupación", () => {
@@ -52,9 +56,10 @@ test("árabe 18-nov: 5 archivos son 3 documentos (páginas JPG juntas, una líne
   assert.equal(d1.words, 200);
   assert.equal(d1.unitPrice, 0, "el precio lo pone el motor del constructor, no la agrupación");
   assert.equal(d1.autoPriced, true);
-  assert.deepEqual(d1.groupFiles?.map((f) => f.url), ["https://blob/a1", "https://blob/a2"]);
-  assert.equal(d1.pageStart, 1);
-  assert.equal(d1.pageEnd, 1);
+  assert.equal(d1.blobUrl, "https://blob/m-D1", "la línea apunta al PDF unido");
+  assert.equal(d1.sourceAnalysisId, "m-D1");
+  assert.deepEqual([d1.pageStart, d1.pageEnd], [1, 2]);
+  assert.equal(d1.priceNote, MERGED_PRICE_NOTE, "sin precio aún, marcada a mano hasta que el motor la precie");
   assert.equal(d2, rows[2], "un documento de un solo archivo se queda tal cual");
   assert.equal(d3.pages, 2);
   assert.equal(r.rows.filter((x) => x.include).length, 3);
@@ -74,8 +79,8 @@ test("registro civil + apostilla en archivo aparte: una línea apostillada y nin
   assert.equal(line.apostilleSeparatePage, true);
   assert.equal(line.pages, 2);
   assert.equal(line.words, 240);
-  assert.equal(line.priceNote, undefined);
-  assert.equal(line.blobUrl, "https://blob/rc");
+  assert.equal(line.blobUrl, "https://blob/m-D1");
+  assert.deepEqual([line.pageStart, line.pageEnd], [1, 2]);
   assert.ok(!r.rows.some((x) => x.documentType === "apostille"));
   // Mismo precio que hoy un acta de una hoja con su apostilla en el mismo PDF (+5 €, no una línea suelta a 0 €).
   const price = computeBase({ specificType: line.documentType!, foreignLang: "fr", words: line.words!, pages: line.pages!, hasApostille: line.hasApostille, apostilleSeparatePage: line.apostilleSeparatePage, inbound: true });
@@ -153,4 +158,66 @@ test("buildGroupingMapping: archivo N.p de la lectura → páginas de cada Docum
   assert.equal(m.documents[0].words, 200);
   assert.deepEqual(m.duplicates, [{ parts: [{ analysisId: "C", pageStart: 1, pageEnd: 2 }], ofDocument: "D1", reasonEs: "Copia exacta de «acta.pdf»" }]);
   assert.deepEqual(m.questions, [{ textEs: "¿La apostilla es de esta acta?", aboutDocument: "Acta de nacimiento" }]);
+});
+
+test("sin PDF unido (formato que no se puede unir): ese documento se queda por archivo con aviso; el resto se agrupa", () => {
+  const rows = ["h1", "h2", "a", "b"].map((id) => row({ sourceAnalysisId: id }));
+  const heic: GroupedDocument = { key: "D1", labelEs: "Pasaporte", type: "passport", words: 50, parts: [part("h1"), part("h2")], apostille: null, mergeError: "«h1.heic» no es PDF, JPG ni PNG" };
+  const r = applyGrouping(rows, mapping({ documents: [heic, doc("D2", [part("a"), part("b")])] }), newId);
+  assert.equal(r.applied, true);
+  assert.deepEqual(r.rows.slice(0, 2), rows.slice(0, 2));
+  assert.equal(r.rows.length, 3);
+  assert.match(r.warnings[0], /Pasaporte.*no se pudieron unir/);
+});
+
+test("cifra del jurado o precio a mano: esa fila nunca se agrupa y conserva su precio", () => {
+  const jurado = row({ sourceAnalysisId: "j1", autoPriced: false, unitPrice: 55, clientPrice: 70 });
+  const prior = row({ sourceAnalysisId: "p1", priorFrom: "2026-00100", unitPrice: 30 });
+  const rows = [jurado, row({ sourceAnalysisId: "j2" }), prior, row({ sourceAnalysisId: "p2" })];
+  const r = applyGrouping(rows, mapping({ documents: [doc("D1", [part("j1"), part("j2")]), doc("D2", [part("p1"), part("p2")])] }), newId);
+  assert.equal(r.applied, false);
+  assert.deepEqual(r.rows, rows);
+  assert.equal(r.warnings.length, 2);
+  const dup = applyGrouping([row({ sourceAnalysisId: "x" }), jurado], mapping({ documents: [doc("D1", [part("x")])], duplicates: [{ parts: [part("j1")], ofDocument: "D1", reasonEs: "Duplicado" }] }), newId);
+  assert.equal(dup.rows.find((x) => x.localId === jurado.localId)?.include, true, "un duplicado con cifra no sale del presupuesto en silencio");
+});
+
+test("deshacer: vuelve la lista por archivo, conserva las filas añadidas y cuenta lo que se pierde", () => {
+  const before = [row({ sourceAnalysisId: "a" }), row({ sourceAnalysisId: "b" })];
+  const after = applyGrouping(before, mapping({ documents: [doc("D1", [part("a"), part("b")])] }), newId).rows;
+  const sig = (r: Row) => JSON.stringify({ ...r, unitPrice: r.autoPriced === false ? r.unitPrice : 0, priceNote: undefined });
+  const added = row({ sourceAnalysisId: "c", localId: "nueva" });
+  const repriced = [{ ...after[0], unitPrice: 35, priceNote: undefined }, added];
+  const u1 = undoGrouping(before, after, repriced, sig);
+  assert.deepEqual(u1.rows.map((r) => r.localId), [before[0].localId, before[1].localId, "nueva"]);
+  assert.equal(u1.lost, 0, "el precio que pone el motor no cuenta como edición");
+  const edited = [{ ...after[0], autoPriced: false, unitPrice: 80 }];
+  assert.equal(undoGrouping(before, after, edited, sig).lost, 1);
+  assert.equal(undoGrouping(before, after, [], sig).lost, 1);
+});
+
+test("unir en un PDF: rango de un PDF + JPG/PNG en orden; HEIC, PDF dañado o página que no existe fallan", async () => {
+  const src = await PDFDocument.create();
+  src.addPage([200, 200]);
+  src.addPage([300, 300]);
+  src.addPage([400, 400]);
+  const pdf = await src.save();
+  const png = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64"));
+  const ok = await mergeIntoPdf([{ bytes: pdf, pageStart: 2, pageEnd: 3, name: "acta.pdf" }, { bytes: png, pageStart: 1, pageEnd: 1, name: "apostilla.png" }]);
+  assert.equal(ok.ok, true);
+  if (ok.ok) {
+    const out = await PDFDocument.load(ok.bytes);
+    assert.equal(out.getPageCount(), 3);
+    assert.equal(out.getPage(0).getWidth(), 300);
+  }
+  const heic = Uint8Array.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
+  assert.equal((await mergeIntoPdf([{ bytes: heic, pageStart: 1, pageEnd: 1, name: "foto.heic" }])).ok, false);
+  assert.equal((await mergeIntoPdf([{ bytes: pdf, pageStart: 3, pageEnd: 4, name: "acta.pdf" }])).ok, false);
+  assert.equal((await mergeIntoPdf([{ bytes: Uint8Array.from(Buffer.from("%PDF-roto")), pageStart: 1, pageEnd: 1, name: "roto.pdf" }])).ok, false);
+});
+
+test("needsMerge: varios archivos o páginas salteadas del mismo PDF", () => {
+  assert.equal(needsMerge({ parts: [part("a", 1, 2)], apostille: { parts: [part("a", 3)], onDocumentPage: false } }), false);
+  assert.equal(needsMerge({ parts: [part("a", 1)], apostille: { parts: [part("a", 3)], onDocumentPage: false } }), true);
+  assert.equal(needsMerge({ parts: [part("a")], apostille: { parts: [part("b")], onDocumentPage: false } }), true);
 });
