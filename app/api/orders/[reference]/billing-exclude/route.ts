@@ -6,6 +6,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { voidReferralForOrder } from "@/lib/referral";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getStaffRole } from "@/lib/staff-access";
 
@@ -43,6 +44,9 @@ export async function POST(req: Request, { params }: Params) {
       where: { id: order.id },
       data: { billingExcluded: excluded, billingExcludedReason: excluded ? reason : null },
     });
+
+    // Prueba, reembolso, duplicado o cobro no confirmado: el dueño del código no gana nada por él.
+    if (excluded) await voidReferralForOrder(order.id, `excluido de facturación: ${reason}`);
 
     await prisma.orderEvent
       .create({

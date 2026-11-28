@@ -111,97 +111,97 @@ enum AuthState {
 }
 
 model Order {
-  id                 String         @id @default(cuid())
-  reference          String         @unique
-  idempotencyKey     String?        @unique
-  clientEmail        String
-  clientName         String?
-  clientPhone        String?
-  clientLocale       String?        @default("es") // idioma del cliente (es|fr) para SMS/email/UI
-  clientNotes        String?
-  source             String
-  title              String
-  langPair           String?
-  words              Int?
-  pagesLabel         String?
-  amountCents        Int
-  currency           String         @default("eur")
-  status             OrderStatus    @default(PENDING_PAYMENT)
-  paymentStatus      PaymentStatus  @default(PENDING)
-  paymentMethod      PaymentMethod?
-  externalPaymentId  String?
-  deliveryState      DeliveryState  @default(PRESUPUESTO)
-  deliveryType       String         @default("pdf")
-  translatedFileUrl  String?
-  quotePreviewFileKey String?
-  quotePreviewFileUrl String?
-  quoteSnapshotJson   Json?
-  paymentProofFileKey String?
+  id                    String         @id @default(cuid())
+  reference             String         @unique
+  idempotencyKey        String?        @unique
+  clientEmail           String
+  clientName            String?
+  clientPhone           String?
+  clientLocale          String?        @default("es") // idioma del cliente (es|fr) para SMS/email/UI
+  clientNotes           String?
+  source                String
+  title                 String
+  langPair              String?
+  words                 Int?
+  pagesLabel            String?
+  amountCents           Int
+  currency              String         @default("eur")
+  status                OrderStatus    @default(PENDING_PAYMENT)
+  paymentStatus         PaymentStatus  @default(PENDING)
+  paymentMethod         PaymentMethod?
+  externalPaymentId     String?
+  deliveryState         DeliveryState  @default(PRESUPUESTO)
+  deliveryType          String         @default("pdf")
+  translatedFileUrl     String?
+  quotePreviewFileKey   String?
+  quotePreviewFileUrl   String?
+  quoteSnapshotJson     Json?
+  paymentProofFileKey   String?
   // Lectura automática del justificante subido (cron /api/cron/justificantes):
   // CheckedAt null = pendiente de leer; subir otro justificante lo vuelve a null.
   paymentProofJson      Json?
   paymentProofCheckedAt DateTime?
   // Pedido en papel lanzado sin dirección: avisos al cliente (máx. 3, cada 48 h).
-  shippingRequestCount  Int       @default(0)
+  shippingRequestCount  Int            @default(0)
   shippingRequestedAt   DateTime?
-  finalDeliveryFileKey String?
-  finalDeliveryFileUrl String?
-  finalFilename       String?
-  finalMimeType       String?
-  deliveryFilesJson  Json?          // entrega MULTI-archivo A NIVEL PEDIDO: [{url, fileKey?, filename?, mimeType?}]; translatedFileUrl = el primero (compat). Distinto de OrderDocumentItem.deliveredFileUrl (por documento) y del assignment del colaborador.
-  trackingNumber     String?        // envío en papel (deliveryType "paper"): nº de seguimiento de la mensajería
-  shippedAt          DateTime?      // cuándo se notificó el envío al cliente
-  shippingCourier    String?        // transportista (Correos, MRW, SEUR…)
-  trackingUrl        String?        // enlace de seguimiento del transportista
-  shippingProofUrl   String?        // justificante del envío (foto/PDF del resguardo), Vercel Blob
-  shippingProofName  String?
+  finalDeliveryFileKey  String?
+  finalDeliveryFileUrl  String?
+  finalFilename         String?
+  finalMimeType         String?
+  deliveryFilesJson     Json? // entrega MULTI-archivo A NIVEL PEDIDO: [{url, fileKey?, filename?, mimeType?}]; translatedFileUrl = el primero (compat). Distinto de OrderDocumentItem.deliveredFileUrl (por documento) y del assignment del colaborador.
+  trackingNumber        String? // envío en papel (deliveryType "paper"): nº de seguimiento de la mensajería
+  shippedAt             DateTime? // cuándo se notificó el envío al cliente
+  shippingCourier       String? // transportista (Correos, MRW, SEUR…)
+  trackingUrl           String? // enlace de seguimiento del transportista
+  shippingProofUrl      String? // justificante del envío (foto/PDF del resguardo), Vercel Blob
+  shippingProofName     String?
   // TRÁMITE: agrupa N pedidos del mismo cliente que son UN solo encargo para él
   // (fue añadiendo documentos y cada uno nació como pedido propio). Formato
   // TRAM-XXXXXX. NO es expedienteRef (ese es el lote de ENTRADA, 1 lote → 1
   // presupuesto, y compartirlo entre pedidos duplicaría los OrderDocumentItem
   // en populateOrderItemsFromQuote). Cada pedido sigue cobrándose y facturándose
   // por separado: el trámite solo agrupa envío, vista de cliente y coste.
-  caseRef            String?
-  assignedTo         String?
-  translatorUploadToken String?     @unique
+  caseRef               String?
+  assignedTo            String?
+  translatorUploadToken String?        @unique
   translatorDeliveredAt DateTime?
-  dueDate            DateTime?
-  supplierCostCents  Int?
-  marginPct          Int?           @default(25)
-  quoteState         String?
-  quoteId            String?
-  draftFileKey       String?
-  draftFileUrl       String?
-  draftGeneratedAt   DateTime?
-  draftFilename      String?
-  draftContentJson   String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  paidAt             DateTime?
+  dueDate               DateTime?
+  supplierCostCents     Int?
+  marginPct             Int?           @default(25)
+  quoteState            String?
+  quoteId               String?
+  draftFileKey          String?
+  draftFileUrl          String?
+  draftGeneratedAt      DateTime?
+  draftFilename         String?
+  draftContentJson      String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  paidAt                DateTime?
   // Excluido del listado de facturación oficial (apartado aparte, reversible):
   // pruebas, reembolsos, duplicados o cobros no confirmados en banco. Mientras
   // esté excluido NO aparece en "pendientes de facturar" ni se factura.
-  billingExcluded       Boolean   @default(false)
+  billingExcluded       Boolean        @default(false)
   billingExcludedReason String?
 
-  quote    Quote?         @relation(fields: [quoteId], references: [id])
-  events   OrderEvent[]
-  paymentEvents OrderPaymentEvent[]
-  billing  BillingData?
-  shipping ShippingData?
-  documentAnalyses DocumentAnalysis[]
+  quote                   Quote?                   @relation(fields: [quoteId], references: [id])
+  events                  OrderEvent[]
+  paymentEvents           OrderPaymentEvent[]
+  billing                 BillingData?
+  shipping                ShippingData?
+  documentAnalyses        DocumentAnalysis[]
   collaboratorAssignments CollaboratorAssignment[]
-  documentItems    OrderDocumentItem[]
-  clientInvoice    ClientInvoice?
+  documentItems           OrderDocumentItem[]
+  clientInvoice           ClientInvoice?
   // Factura AGRUPADA del mes (Juan, 4-sep-2026, caso Marbella Translators):
   // varios pedidos de un cliente de credito cuelgan de UN borrador mensual que
   // se emite a fin de mes con vencimiento. Mientras cuelga de ese borrador el
   // pedido esta "asegurado" (lib/credit-terms.isOrderSecured) sin factura
   // propia. SetNull: borrar el borrador devuelve el pedido a "sin asegurar".
-  monthlyInvoiceId String?
-  monthlyInvoice   ClientInvoice? @relation("MonthlyInvoiceOrders", fields: [monthlyInvoiceId], references: [id], onDelete: SetNull)
-  casoId           String?
-  caso             Caso?          @relation(fields: [casoId], references: [id], onDelete: SetNull)
+  monthlyInvoiceId        String?
+  monthlyInvoice          ClientInvoice?           @relation("MonthlyInvoiceOrders", fields: [monthlyInvoiceId], references: [id], onDelete: SetNull)
+  casoId                  String?
+  caso                    Caso?                    @relation(fields: [casoId], references: [id], onDelete: SetNull)
 
   @@index([clientEmail])
   @@index([createdAt])
@@ -238,61 +238,61 @@ model OrderDocumentItem {
 // Factura emitida al cliente con numeración fiscal secuencial y persistencia.
 // Sustituye el "F-{ref}" generado al vuelo (sin valor legal).
 model ClientInvoice {
-  id            String    @id @default(cuid())
-  number        String?   @unique // AA_NNN secuencial; null mientras es BORRADOR
-  status        String    @default("DRAFT") // DRAFT | ISSUED
-  docKind       String    @default("invoice") // invoice | quote — los "presupuestos" emitidos por este módulo comparten la serie AA_NNN pero NO son facturas: quedan fuera de contabilidad/303/gestoría
-  simplified    Boolean   @default(false) // factura simplificada (≤400€, sin NIF del cliente; RD 1619/2012)
-  origin        String? // auditoría: lazy_pdf | reconcile_batch | manual | import | draft
-  brand         String    @default("traduccionesjuradas") // marca/actividad emisora (numeración compartida)
-  orderId       String?   @unique // null = factura libre (sin pedido)
-  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  issuedAt      DateTime? // se sella al emitir
+  id               String          @id @default(cuid())
+  number           String?         @unique // AA_NNN secuencial; null mientras es BORRADOR
+  status           String          @default("DRAFT") // DRAFT | ISSUED
+  docKind          String          @default("invoice") // invoice | quote — los "presupuestos" emitidos por este módulo comparten la serie AA_NNN pero NO son facturas: quedan fuera de contabilidad/303/gestoría
+  simplified       Boolean         @default(false) // factura simplificada (≤400€, sin NIF del cliente; RD 1619/2012)
+  origin           String? // auditoría: lazy_pdf | reconcile_batch | manual | import | draft
+  brand            String          @default("traduccionesjuradas") // marca/actividad emisora (numeración compartida)
+  orderId          String?         @unique // null = factura libre (sin pedido)
+  order            Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  issuedAt         DateTime? // se sella al emitir
   // Vencimiento pactado del cobro aplazado. Solo lo escribe /authorize-credit
   // (ADMIN/PM). dueDate != null ES la marca del carril de credito: no hay flag
   // en Order. Lo protege la serie fiscal, no un booleano que se copia por ahi.
-  dueDate       DateTime?
-  paidAt        DateTime? // cobrada: se sella al vincular un ingreso bancario o al adjuntar el justificante
+  dueDate          DateTime?
+  paidAt           DateTime? // cobrada: se sella al vincular un ingreso bancario o al adjuntar el justificante
   // Justificante bancario del pago (Vercel Blob). Adjuntarlo sella paidAt vía setInvoicePaid.
   paymentProofUrl  String?
   paymentProofKey  String?
   paymentProofName String?
-  holderNames   String? // titulares de los certificados (p.ej. clientes de Auream) — solo informativo
-  clientName    String? // nombre comercial / referencia interna (opcional)
-  fiscalName    String
-  nif           String?
-  address       String?
-  city          String?
-  postalCode    String?
-  country       String    @default("España")
-  email         String?
-  concept       String? // título general para el PDF (opcional)
-  poNumber      String? // Purchase Order / nº de pedido del cliente (p.ej. Oracle)
-  langPair      String?
-  lineItemsJson Json? // [{ description, detail?, amountCents }] (base sin IVA)
-  baseCents     Int
-  vatRate       Float     @default(0.21)
-  vatCents      Int
-  totalCents    Int
+  holderNames      String? // titulares de los certificados (p.ej. clientes de Auream) — solo informativo
+  clientName       String? // nombre comercial / referencia interna (opcional)
+  fiscalName       String
+  nif              String?
+  address          String?
+  city             String?
+  postalCode       String?
+  country          String          @default("España")
+  email            String?
+  concept          String? // título general para el PDF (opcional)
+  poNumber         String? // Purchase Order / nº de pedido del cliente (p.ej. Oracle)
+  langPair         String?
+  lineItemsJson    Json? // [{ description, detail?, amountCents }] (base sin IVA)
+  baseCents        Int
+  vatRate          Float           @default(0.21)
+  vatCents         Int
+  totalCents       Int
   // ── VeriFactu (RD 1007/2023) ───────────────────────────────────────────────
   // El EMISOR es un dato, no una marca: en lavori cada jurado es su propio
   // obligado (NIF, serie, numeración). Aquí hoy siempre es la S.L.
-  emitterNif    String?
+  emitterNif       String?
   // TipoFactura del registro: F1 completa, F2 simplificada, R1..R5 rectificativa.
-  invoiceType   String    @default("F1")
+  invoiceType      String          @default("F1")
   // Rectificativa: id y número de la factura que rectifica (R1). Sin relación
   // Prisma a propósito: es una referencia fiscal, no navegación.
-  rectifiesId   String?
-  rectifiesNumber String?
+  rectifiesId      String?
+  rectifiesNumber  String?
   // Anulada mediante registro de anulación (la fila NO se borra nunca).
-  annulledAt    DateTime?
+  annulledAt       DateTime?
   // Factura agrupada del mes: "YYYY-MM" del periodo. null = factura normal.
-  periodKey     String?
-  monthlyOrders Order[]   @relation("MonthlyInvoiceOrders")
-  records       InvoiceRecord[]
-  events        InvoiceEvent[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
+  periodKey        String?
+  monthlyOrders    Order[]         @relation("MonthlyInvoiceOrders")
+  records          InvoiceRecord[]
+  events           InvoiceEvent[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @default(now()) @updatedAt
 
   @@index([issuedAt])
   @@index([status])
@@ -306,32 +306,33 @@ model ClientInvoice {
 // (lib/verifactu/hash.ts reproduce el ejemplo oficial de la AEAT). Inmutable:
 // no hay update de contenido ni delete en el código; corregir = nuevo registro.
 model InvoiceRecord {
-  id            String   @id @default(cuid())
-  invoiceId     String
-  invoice       ClientInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  kind          String   // ALTA | ANULACION
-  emitterNif    String
-  chainIndex    Int      // posición en la cadena de ESTE emisor (1..n)
-  numSerie      String
-  issueDate     String   // dd-mm-aaaa tal cual va en la cadena
-  invoiceType   String   // F1 | F2 | R1..R5 (vacío en anulación)
+  id                String        @id @default(cuid())
+  invoiceId         String
+  invoice           ClientInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  kind              String // ALTA | ANULACION
+  emitterNif        String
+  chainIndex        Int // posición en la cadena de ESTE emisor (1..n)
+  numSerie          String
+  issueDate         String // dd-mm-aaaa tal cual va en la cadena
+  invoiceType       String // F1 | F2 | R1..R5 (vacío en anulación)
   cuotaTotalCents   Int
   importeTotalCents Int
-  prevHash      String?
-  hash          String   @unique
-  canonical     String   // cadena hasheada, para verificar sin recomputar formatos
-  generatedAt   DateTime
-  generatedAtIso String  // FechaHoraHusoGenRegistro exactamente como se hasheó
+  prevHash          String?
+  hash              String        @unique
+  canonical         String // cadena hasheada, para verificar sin recomputar formatos
+  generatedAt       DateTime
+  generatedAtIso    String // FechaHoraHusoGenRegistro exactamente como se hasheó
   // Envío a la AEAT (modalidad VERI*FACTU, vía proveedor colaborador social):
   // LOCAL = sin proveedor configurado (cadena solo interna) · PENDING = en cola
   // · SENT · ACCEPTED · ACCEPTED_WITH_ERRORS · REJECTED
-  sendStatus    String   @default("LOCAL")
-  provider      String?
-  providerRef   String?
-  providerResponse Json?
-  sentAt        DateTime?
-  acceptedAt    DateTime?
-  createdAt     DateTime @default(now())
+  sendStatus        String        @default("LOCAL")
+  provider          String?
+  providerRef       String?
+  providerResponse  Json?
+  sentAt            DateTime?
+  acceptedAt        DateTime?
+  createdAt         DateTime      @default(now())
+
   @@unique([emitterNif, chainIndex])
   @@index([invoiceId])
   @@index([sendStatus])
@@ -340,14 +341,15 @@ model InvoiceRecord {
 // REGISTRO DE EVENTOS del sistema de facturación (RD 1007/2023 art. 8.2 y
 // Orden HAC/1177/2024): quién hizo qué y cuándo sobre cada factura. Solo inserta.
 model InvoiceEvent {
-  id         String   @id @default(cuid())
-  invoiceId  String?
-  invoice    ClientInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  type       String   // invoice.issued | record.alta | record.sent | record.accepted | record.rejected | invoice.paid | invoice.rectified | invoice.annulled | draft.deleted | invoice.imported | issue.attempt_on_issued
-  actor      String?  // email del staff o "system"
-  message    String?
-  payload    Json?
-  at         DateTime @default(now())
+  id        String         @id @default(cuid())
+  invoiceId String?
+  invoice   ClientInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  type      String // invoice.issued | record.alta | record.sent | record.accepted | record.rejected | invoice.paid | invoice.rectified | invoice.annulled | draft.deleted | invoice.imported | issue.attempt_on_issued
+  actor     String? // email del staff o "system"
+  message   String?
+  payload   Json?
+  at        DateTime       @default(now())
+
   @@index([invoiceId])
   @@index([type])
   @@index([at])
@@ -356,32 +358,32 @@ model InvoiceEvent {
 // Gasto manual del libro de contabilidad (IVA soportado). No ligado a pedidos:
 // el traductor lo introduce a mano o lo importa. Fuente principal de gastos.
 model Expense {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   date                  DateTime // fecha del gasto/factura recibida
-  brand                 String   @default("traduccionesjuradas")
+  brand                 String    @default("traduccionesjuradas")
   supplier              String? // proveedor
   supplierNif           String?
   supplierInvoiceNumber String? // nº de factura del proveedor (libro de recibidas)
   concept               String
   category              String? // p.ej. software, suministros, colaborador, cuota
   baseCents             Int
-  vatRate               Float    @default(0.21)
+  vatRate               Float     @default(0.21)
   vatCents              Int // IVA soportado
-  ivaDeducible          Boolean  @default(true) // false = no deducible (atenciones, comidas… art. 96 LIVA)
-  taxTreatment          String   @default("general") // general | isp_intracom | isp_import | exempt
-  needsReview           Boolean  @default(false)
-  irpfRetentionPct      Float    @default(0) // retención IRPF de colaboradores (modelo 111/190)
-  irpfCents             Int      @default(0)
+  ivaDeducible          Boolean   @default(true) // false = no deducible (atenciones, comidas… art. 96 LIVA)
+  taxTreatment          String    @default("general") // general | isp_intracom | isp_import | exempt
+  needsReview           Boolean   @default(false)
+  irpfRetentionPct      Float     @default(0) // retención IRPF de colaboradores (modelo 111/190)
+  irpfCents             Int       @default(0)
   totalCents            Int // base + IVA (importe de la factura)
   payableCents          Int? // base + IVA − IRPF (lo que se transfiere al proveedor)
   paidAt                DateTime? // pagado: se sella al vincular un cargo bancario
-  paymentStatus         String   @default("PENDING") // PENDING | PAID
+  paymentStatus         String    @default("PENDING") // PENDING | PAID
   attachmentUrl         String? // justificante (Vercel Blob)
   attachmentKey         String?
   attachmentName        String?
   notes                 String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @default(now()) @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now()) @updatedAt
 
   // Cuenta corriente por colaborador: el gasto auto-creado al adjudicar un encargo
   // es un DEVENGO interno (isAccrual) — pendiente de la factura real del traductor,
@@ -503,13 +505,13 @@ model OrderEvent {
 
 model OrderPaymentEvent {
   id              String        @id @default(cuid())
-  orderId          String
-  provider         PaymentMethod
-  providerEventId  String
-  idempotencyKey   String        @unique
-  source           String
-  payload          Json?
-  createdAt        DateTime      @default(now())
+  orderId         String
+  provider        PaymentMethod
+  providerEventId String
+  idempotencyKey  String        @unique
+  source          String
+  payload         Json?
+  createdAt       DateTime      @default(now())
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -548,104 +550,105 @@ model ShippingData {
 }
 
 model Customer {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  phone     String?
+  id                 String     @id @default(uuid())
+  name               String
+  email              String     @unique
+  phone              String?
   // Pack fiscal del cliente (B2B recurrente, p.ej. Auream). Antes solo vivía
   // suelto en cada ClientInvoice; aquí es la ficha del cliente para el portal.
-  companyName String?
-  nif         String?
-  fiscalName  String?
-  address     String?
-  city        String?
-  postalCode  String?
-  country     String?  @default("España")
-  notes       String?
-  isBusiness  Boolean  @default(false)
+  companyName        String?
+  nif                String?
+  fiscalName         String?
+  address            String?
+  city               String?
+  postalCode         String?
+  country            String?    @default("España")
+  notes              String?
+  isBusiness         Boolean    @default(false)
   // Cliente de confianza (B2B recurrente, p.ej. Auream): al subir el justificante
   // de transferencia se auto-confirma el pago y se emite la factura, sin esperar a
   // que el staff verifique en el banco. Para el resto sigue requiriendo confirmacion
   // manual (anti-fraude de justificante falso, audit 25-jun).
-  autoConfirmPayment Boolean @default(false)
+  autoConfirmPayment Boolean    @default(false)
   // Cliente de credito (decision de Juan, 2-sep-2026): empresas que aprueban, se
   // trabaja, se ENTREGA y pagan despues. El permiso vive en el CLIENTE, no en el
   // pedido -- "se puede entregar y trabajar con determinados clientes". Sin tope
   // de importe: el carril es para trabajos propios de Juan, asi que no hay coste
   // de traductor externo que adelantar. Lo activa ADMIN/PM en la ficha.
-  creditEnabled Boolean @default(false)
-  creditDays    Int     @default(30)
+  creditEnabled      Boolean    @default(false)
+  creditDays         Int        @default(30)
   // Como se factura el credito (4-sep-2026): PER_ORDER = una factura por pedido
   // al autorizar; MONTHLY = los pedidos cuelgan de una factura agrupada que se
   // emite a fin de mes (Marbella Translators, agencias).
-  billingCycle  String  @default("PER_ORDER")
+  billingCycle       String     @default("PER_ORDER")
   // Intermediario que trajo a este cliente (p.ej. Ahmed). Autorrelación nullable:
   // "es intermediario" se infiere si tiene `referrals`. onDelete SetNull = borrar al
   // intermediario no borra a sus clientes, solo los deja sueltos.
-  intermediaryId String?
-  intermediary   Customer?  @relation("CustomerIntermediary", fields: [intermediaryId], references: [id], onDelete: SetNull)
-  referrals      Customer[] @relation("CustomerIntermediary")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  intermediaryId     String?
+  intermediary       Customer?  @relation("CustomerIntermediary", fields: [intermediaryId], references: [id], onDelete: SetNull)
+  referrals          Customer[] @relation("CustomerIntermediary")
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
-  quotes Quote[]
-  casos  Caso[]
+  quotes        Quote[]
+  casos         Caso[]
+  referralCodes ReferralCode[] @relation("ReferralOwner")
 
   @@index([email])
   @@index([intermediaryId])
 }
 
 model Quote {
-  id             String            @id @default(uuid())
-  quoteNumber    String            @unique
-  status         QuoteStatus       @default(DRAFT)
-  customerId     String
-  customerName   String
-  customerEmail  String
-  customerPhone  String?
-  sourceLang     String
-  targetLang     String
-  deliveryType   QuoteDeliveryType @default(DIGITAL_PDF)
-  deliveryTerm   String?           // plazo de entrega ("2-3 días hábiles"): bloque Entrega, no notas legales
-  shippingBase   Decimal           @default(0) @db.Decimal(12, 2)
-  vatRate        Decimal           @default(0.21) @db.Decimal(5, 4)
-  currency       String            @default("EUR")
-  discountType   QuoteDiscountType @default(NONE)
-  discountValue  Decimal           @default(0) @db.Decimal(12, 2)
-  notesLegal     String?
-  holderNames    String? // titulares de los certificados (p.ej. clientes de Auream) — solo informativo
-  validityDays   Int               @default(15)
-  issuedAt       DateTime          @default(now())
-  validUntil     DateTime
-  sentAt         DateTime?
-  openedAt       DateTime?
-  paidAt         DateTime?
-  deliveredAt    DateTime?
-  publicToken    String            @unique
-  tokenExpiresAt DateTime?
-  pdfUrl         String?
-  pdfHash        String?
-  subtotal       Decimal           @default(0) @db.Decimal(12, 2)
-  discountAmount Decimal           @default(0) @db.Decimal(12, 2)
-  shippingAmount Decimal           @default(0) @db.Decimal(12, 2)
-  vatAmount      Decimal           @default(0) @db.Decimal(12, 2)
-  total          Decimal           @default(0) @db.Decimal(12, 2)
-  adminCreatedBy String?
-  adminSentBy    String?
+  id                  String            @id @default(uuid())
+  quoteNumber         String            @unique
+  status              QuoteStatus       @default(DRAFT)
+  customerId          String
+  customerName        String
+  customerEmail       String
+  customerPhone       String?
+  sourceLang          String
+  targetLang          String
+  deliveryType        QuoteDeliveryType @default(DIGITAL_PDF)
+  deliveryTerm        String? // plazo de entrega ("2-3 días hábiles"): bloque Entrega, no notas legales
+  shippingBase        Decimal           @default(0) @db.Decimal(12, 2)
+  vatRate             Decimal           @default(0.21) @db.Decimal(5, 4)
+  currency            String            @default("EUR")
+  discountType        QuoteDiscountType @default(NONE)
+  discountValue       Decimal           @default(0) @db.Decimal(12, 2)
+  notesLegal          String?
+  holderNames         String? // titulares de los certificados (p.ej. clientes de Auream) — solo informativo
+  validityDays        Int               @default(15)
+  issuedAt            DateTime          @default(now())
+  validUntil          DateTime
+  sentAt              DateTime?
+  openedAt            DateTime?
+  paidAt              DateTime?
+  deliveredAt         DateTime?
+  publicToken         String            @unique
+  tokenExpiresAt      DateTime?
+  pdfUrl              String?
+  pdfHash             String?
+  subtotal            Decimal           @default(0) @db.Decimal(12, 2)
+  discountAmount      Decimal           @default(0) @db.Decimal(12, 2)
+  shippingAmount      Decimal           @default(0) @db.Decimal(12, 2)
+  vatAmount           Decimal           @default(0) @db.Decimal(12, 2)
+  total               Decimal           @default(0) @db.Decimal(12, 2)
+  adminCreatedBy      String?
+  adminSentBy         String?
   // Marca de "se está enviando": la toma finalizeAndSendQuote ANTES de generar el
   // PDF y mandar el email, y la suelta al cerrar. Mientras está puesta, nadie
   // reescribe precios por detrás (el relleno automático con la cifra del jurado).
-  sendingAt      DateTime?
-  expedienteRef  String?           // ref del expediente entrante (exp:REF) que originó el presupuesto
-  marginPct      Int?              // margen % aplicado sobre el coste del traductor (solo interno)
+  sendingAt           DateTime?
+  expedienteRef       String? // ref del expediente entrante (exp:REF) que originó el presupuesto
+  marginPct           Int? // margen % aplicado sobre el coste del traductor (solo interno)
   // Identidad del jurado que realizará la traducción (directriz Juan 12-ago:
   // "da seriedad") — sale en email/WhatsApp/PDF de la cotización si está.
   // Autorrellenados desde la solicitud lavori del expediente; editables.
-  translatorName String?
-  translatorMaec String?           // nº MAEC / T-IJ, tal cual se muestra
-  paymentMethods String[]          // métodos de pago a mostrar en el PDF: bbva/openbank/bizum/paypal
-  contactWhatsapp String?          // WhatsApp/teléfono a mostrar en este presupuesto (override)
-  pdfLang         String?          // idioma del PDF del presupuesto (es|en|fr|it|pt|de); null = es. Petición Juan 21-ago
+  translatorName      String?
+  translatorMaec      String? // nº MAEC / T-IJ, tal cual se muestra
+  paymentMethods      String[] // métodos de pago a mostrar en el PDF: bbva/openbank/bizum/paypal
+  contactWhatsapp     String? // WhatsApp/teléfono a mostrar en este presupuesto (override)
+  pdfLang             String? // idioma del PDF del presupuesto (es|en|fr|it|pt|de); null = es. Petición Juan 21-ago
   // Tarifario aprendido (27-ago-2026): presupuesto emitido solo por el agente de
   // precios con tarifa aprobada; el jurado que la dio recibe el encargo al pagar
   // con su cifra ya cerrada (paraTi = suma de supplierUnitCost de las líneas).
@@ -655,25 +658,25 @@ model Quote {
   // Presupuesto perdido: motivo dado por el cliente (1 clic desde el email de
   // expirado, confirmado con POST en /q/[token]) + post-mortem determinista
   // calculado al expirar (cron reminders); el digest los lee, no los recalcula.
-  lostReason     QuoteLostReason?
-  lostReasonNote String?
-  lostFeedbackAt DateTime?
-  postMortemJson Json?
+  lostReason          QuoteLostReason?
+  lostReasonNote      String?
+  lostFeedbackAt      DateTime?
+  postMortemJson      Json?
   // Instante real del marcado EXPIRED (cron reminders o flip de la página pública).
   // validUntil NO sirve como ventana del digest: el cron corre horas después.
-  expiredAt      DateTime?
-  deletedAt      DateTime?         // papelera: presupuesto no formalizado movido a "Eliminados"
+  expiredAt           DateTime?
+  deletedAt           DateTime? // papelera: presupuesto no formalizado movido a "Eliminados"
   // Pago en dos plazos (23-sep, loisa 40/60): `total` es el primer plazo; el
   // resto se cobra después por /q/[token] sobre el MISMO pedido, sin otro Quote.
-  installmentPct Int?              // reservado (rama feat/plazos-ficha, sin usar en main): no borrar, la columna ya existe en BD
-  balanceAmount  Decimal?          @db.Decimal(12, 2) // segundo plazo, IVA incluido
-  balanceDueAt   DateTime?
-  balancePaidAt  DateTime?
+  installmentPct      Int? // reservado (rama feat/plazos-ficha, sin usar en main): no borrar, la columna ya existe en BD
+  balanceAmount       Decimal?          @db.Decimal(12, 2) // segundo plazo, IVA incluido
+  balanceDueAt        DateTime?
+  balancePaidAt       DateTime?
   // Caso (lib/caso): liveCasoKey = casoId solo en la versión vigente del caso; el
   // @unique impide dos vigentes. null = sustituida, borrada o sin caso.
-  casoId         String?
-  liveCasoKey    String?           @unique
-  supersededAt   DateTime?
+  casoId              String?
+  liveCasoKey         String?           @unique
+  supersededAt        DateTime?
   // Pago CONGELADO (lib/precio-tras-envio): la cifra del jurado llegó tras enviar
   // el presupuesto y deja pérdida. /q no deja pagar y los endpoints de pago dan 409
   // hasta que el staff lo desbloquea. paymentFreezeKey = la cifra que lo congeló
@@ -681,8 +684,8 @@ model Quote {
   paymentFrozenAt     DateTime?
   paymentFrozenReason String?
   paymentFreezeKey    String?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   caso         Caso?            @relation(fields: [casoId], references: [id], onDelete: SetNull)
   customer     Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
@@ -701,19 +704,19 @@ model Quote {
 }
 
 model QuoteLine {
-  id          String   @id @default(uuid())
-  quoteId     String
-  description String
-  quantity    Decimal  @db.Decimal(10, 2)
-  unitPrice   Decimal  @db.Decimal(12, 2)
+  id               String   @id @default(uuid())
+  quoteId          String
+  description      String
+  quantity         Decimal  @db.Decimal(10, 2)
+  unitPrice        Decimal  @db.Decimal(12, 2)
   supplierUnitCost Decimal? @db.Decimal(12, 2) // coste traductor (sin IVA) — solo interno
-  lineTotal   Decimal  @db.Decimal(12, 2)
-  sourceFileUrl String? // PDF origen (Blob) de este documento, para ver/descargar
-  pageStart   Int?      // rango de páginas del documento dentro del PDF origen
-  pageEnd     Int?
-  docKind     String?   // tipo de documento del análisis (specific_type): casa precios con presupuestos anteriores
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  lineTotal        Decimal  @db.Decimal(12, 2)
+  sourceFileUrl    String? // PDF origen (Blob) de este documento, para ver/descargar
+  pageStart        Int? // rango de páginas del documento dentro del PDF origen
+  pageEnd          Int?
+  docKind          String? // tipo de documento del análisis (specific_type): casa precios con presupuestos anteriores
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
@@ -770,11 +773,11 @@ model AccessEvent {
 }
 
 model StripeEventLog {
-  id         String   @id @default(uuid())
-  eventId    String   @unique
-  eventType  String
-  quoteId    String?
-  payload    Json?
+  id          String   @id @default(uuid())
+  eventId     String   @unique
+  eventType   String
+  quoteId     String?
+  payload     Json?
   processedAt DateTime @default(now())
 
   quote Quote? @relation(fields: [quoteId], references: [id], onDelete: SetNull)
@@ -814,8 +817,8 @@ model OrderSession {
   paymentMethod String?
   reference     String      @unique
   deliveryType  String?     @default("pdf") // "pdf" | "paper"
-  shippingJson  Json?       // dirección de envío en papel (nombre, dirección, ciudad, provincia, CP)
-  billingJson   Json?       // datos de factura de la casilla «Quiero factura»; pasan a BillingData con el pedido
+  shippingJson  Json? // dirección de envío en papel (nombre, dirección, ciudad, provincia, CP)
+  billingJson   Json? // datos de factura de la casilla «Quiero factura»; pasan a BillingData con el pedido
 
   docs OrderDocument[]
 
@@ -871,87 +874,87 @@ model ChatSession {
 // ─────────────────────────────────────────────────────────────────
 
 model DocumentAnalysis {
-  id               String                 @id @default(cuid())
+  id String @id @default(cuid())
 
   // Archivo
-  fileName         String
-  fileUrl          String
-  fileSize         Int
-  mimeType         String
+  fileName  String
+  fileUrl   String
+  fileSize  Int
+  mimeType  String
   // sha256 del fichero (19-sep-2026): identifica el DOCUMENTO por su contenido,
   // no por la subida. Sin esto, el mismo PDF subido otra vez era un documento
   // nuevo y se volvía a pagar el análisis — y podía devolver otro conteo de
   // palabras, o sea OTRO PRECIO por el mismo papel (titulopau.pdf: 1.850 y
   // luego 1.254; CamScanner.pdf analizado 7 veces).
-  fileHash         String?
-  pageCount        Int                    @default(1)
+  fileHash  String?
+  pageCount Int     @default(1)
 
   // Análisis IA (respuesta completa de Claude)
   analysisJson     Json?
-  documentType     String?                // birth_certificate, marriage_certificate, etc.
-  documentCategory String?                // civil_registry, identity, academic, legal, etc.
-  sourceLanguage   String?                // ISO 639-1
-  targetLanguage   String?                @default("es")
-  countryOrigin    String?                // ISO 3166-1 alpha-2
+  documentType     String? // birth_certificate, marriage_certificate, etc.
+  documentCategory String? // civil_registry, identity, academic, legal, etc.
+  sourceLanguage   String? // ISO 639-1
+  targetLanguage   String? @default("es")
+  countryOrigin    String? // ISO 3166-1 alpha-2
   estimatedWords   Int?
-  complexity       String?                // standard, complex, highly_complex
-  confidence       Float?                 // 0-1
+  complexity       String? // standard, complex, highly_complex
+  confidence       Float? // 0-1
 
   // Datos extraídos (censurados para RGPD)
-  extractedNames   String[]
-  extractedDates   String[]
+  extractedNames String[]
+  extractedDates String[]
 
   // Presupuesto generado
-  quoteAmount      Float?
-  quoteUrgent      Float?
-  estimatedDays    String?
+  quoteAmount         Float?
+  quoteUrgent         Float?
+  estimatedDays       String?
   estimatedDaysUrgent String?
-  quoteBreakdown   Json?
+  quoteBreakdown      Json?
 
   // Estado
-  status           DocAnalysisStatus      @default(UPLOADED)
+  status DocAnalysisStatus @default(UPLOADED)
 
   // Origen de captación (preset ?p=… de la puerta: uge-ce, regularizacion-2026)
-  source           String?
+  source String?
 
   // Cliente (anónimo hasta que paga)
-  sessionToken     String?
-  clientEmail      String?
-  clientName       String?
-  clientPhone      String?
-  ipHash           String?
-  gdprConsent      Boolean                @default(false)
-  gdprConsentAt    DateTime?
+  sessionToken       String?
+  clientEmail        String?
+  clientName         String?
+  clientPhone        String?
+  ipHash             String?
+  gdprConsent        Boolean   @default(false)
+  gdprConsentAt      DateTime?
   // Consentimiento SEPARADO y no premarcado para el envío del presupuesto por
   // email y su recordatorio. El gdprConsent de arriba solo cubre el tratamiento
   // de los DOCUMENTOS para generar el presupuesto: no ampara enviar correo.
   // La LSSI (art. 21.1) exige autorización expresa y previa para el email
   // comercial, y su excepción (21.2) pide relación contractual previa — un lead
   // que nunca compró no la tiene. El cron de recordatorios filtra por este campo.
-  marketingConsent   Boolean              @default(false)
+  marketingConsent   Boolean   @default(false)
   marketingConsentAt DateTime?
 
   // Relación con Order (se crea al pagar)
-  orderId          String?
-  order            Order?                 @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId        String?
+  order          Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
   // Referencia de la OrderSession de la puerta (== Order.reference). Soft-link
   // estampado en /api/puerta/checkout; createOrderFromSession lo usa para fijar
   // orderId cuando el Order nace en el webhook de pago.
-  orderReference   String?
+  orderReference String?
 
-  reminderSentAt   DateTime?
+  reminderSentAt DateTime?
 
   // Plazo del cliente en la puerta (26-oct-2026): ASAP | DATE | FLEXIBLE (lib/needed-by.ts)
-  urgency          String?
-  neededBy         DateTime?
+  urgency  String?
+  neededBy DateTime?
 
-  casoId           String?
-  caso             Caso?                  @relation(fields: [casoId], references: [id], onDelete: SetNull)
+  casoId String?
+  caso   Caso?   @relation(fields: [casoId], references: [id], onDelete: SetNull)
 
-  contadorTrabajo  ContadorTrabajo?
+  contadorTrabajo ContadorTrabajo?
 
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([sessionToken])
   @@index([fileHash])
@@ -1008,16 +1011,16 @@ model TaxPeriodClose {
 // Solicitud de PRECIO a lavori para un LEAD (WhatsApp/teléfono) sin pedido aún:
 // ancla de la ida (idempotencia por ref) y de la vuelta (precio_propuesto).
 model LavoriPriceRequest {
-  id            String   @id @default(cuid())
-  ref           String   @unique // motorRef del sobre sin el sufijo -precio (LEAD-xxxxxxxxxx)
+  id            String    @id @default(cuid())
+  ref           String    @unique // motorRef del sobre sin el sufijo -precio (LEAD-xxxxxxxxxx)
   par           String
   candidatos    String[]
   expedienteRef String?
   customerHint  String? // nombre/teléfono del lead SOLO para staff; jamás viaja a lavori
-  docsCount     Int      @default(0)
+  docsCount     Int       @default(0)
   words         Int?
   encargoId     String?
-  status        String   @default("SENT") // SENT | PRICED | ACCEPTED
+  status        String    @default("SENT") // SENT | PRICED | ACCEPTED
   priceCents    Int?
   plazoDias     Int?
   notas         String?
@@ -1027,12 +1030,12 @@ model LavoriPriceRequest {
   // presupuesto, el emisor precio_aceptado localiza la solicitud por aquí (con
   // fallback por expedienteRef) y comunica al encargo existente en lavori.
   quoteId       String?
-  contentKey    String?   // huella documentos+par: un cliente nunca tiene dos encargos vivos con lo mismo (Juan, 24-sep)
+  contentKey    String? // huella documentos+par: un cliente nunca tiene dos encargos vivos con lo mismo (Juan, 24-sep)
   heldByJuanAt  DateTime? // «lo llevo yo» marcado en lavori (contrato 3-oct): el motor no acepta precios solo
   createdBy     String?
   casoId        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   caso Caso? @relation(fields: [casoId], references: [id], onDelete: SetNull)
 
@@ -1186,24 +1189,24 @@ model InboundEmail {
 // (precio_propuesto de lavori) y precio neto que pagó el cliente. Con una tarifa
 // APPROVED, la puerta presupuesta sola y no vuelve a preguntar al traductor.
 model LearnedRate {
-  id            String   @id @default(cuid())
-  lang          String   // lengua no española del par (en, de, pt, he…); nunca fr
-  direction     String   // "to_es" | "from_es"
-  docType       String   // documentType de DocumentAnalysis normalizado; "any" = comodín por palabra
-  apostille     Boolean  @default(false)
-  unit          String   // "doc" (por documento) | "kword" (por 1000 palabras)
-  costCents     Int      // coste del jurado por unidad, sin IVA
-  clientCents   Int?     // precio neto al cliente por unidad (último pagado / enviado)
-  wordsRef      Int?     // tamaño medio (palabras/doc) de las muestras; tolerancia ±30 % para unit=doc
+  id            String              @id @default(cuid())
+  lang          String // lengua no española del par (en, de, pt, he…); nunca fr
+  direction     String // "to_es" | "from_es"
+  docType       String // documentType de DocumentAnalysis normalizado; "any" = comodín por palabra
+  apostille     Boolean             @default(false)
+  unit          String // "doc" (por documento) | "kword" (por 1000 palabras)
+  costCents     Int // coste del jurado por unidad, sin IVA
+  clientCents   Int? // precio neto al cliente por unidad (último pagado / enviado)
+  wordsRef      Int? // tamaño medio (palabras/doc) de las muestras; tolerancia ±30 % para unit=doc
   plazoDias     Int?
   miembroId     String?
   miembroNombre String?
-  status        String   @default("CANDIDATE") // CANDIDATE | APPROVED | VETOED
-  samples       Int      @default(0)
+  status        String              @default("CANDIDATE") // CANDIDATE | APPROVED | VETOED
+  samples       Int                 @default(0)
   lastSampleAt  DateTime?
   note          String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   sampleRows    LearnedRateSample[]
 
   @@unique([lang, direction, docType, apostille])
@@ -1211,9 +1214,9 @@ model LearnedRate {
 }
 
 model LearnedRateSample {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   rateId      String
-  kind        String   // translator_price | client_paid | seed | manual | auto_quote
+  kind        String // translator_price | client_paid | seed | manual | auto_quote
   costCents   Int?
   clientCents Int?
   words       Int?
@@ -1223,8 +1226,8 @@ model LearnedRateSample {
   orderRef    String?
   miembroId   String?
   note        String?
-  createdAt   DateTime @default(now())
-  rate LearnedRate @relation(fields: [rateId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now())
+  rate        LearnedRate @relation(fields: [rateId], references: [id], onDelete: Cascade)
 
   @@index([rateId, createdAt])
 }
@@ -1237,14 +1240,14 @@ model Caso {
   id             String    @id @default(cuid())
   ref            String    @unique // CASO-XXXXXX, solo staff
   estado         String    @default("ABIERTO") // CASO_ESTADOS (validado en código)
-  identityKey    String    // "e:<email>" | "p:<9 dígitos>" | "anon:<ancla>"
-  email          String?   // email REAL normalizado; nunca el marcador @whatsapp.local
+  identityKey    String // "e:<email>" | "p:<9 dígitos>" | "anon:<ancla>"
+  email          String? // email REAL normalizado; nunca el marcador @whatsapp.local
   phone9         String?
   nombre         String?
-  pares          String[]  // "EN>ES"…; vacío = aún no se sabe
-  origen         String    // entrada que lo creó (puerta, whatsapp, constructor…, backfill)
+  pares          String[] // "EN>ES"…; vacío = aún no se sabe
+  origen         String // entrada que lo creó (puerta, whatsapp, constructor…, backfill)
   esAgencia      Boolean   @default(false)
-  urgency        String?   // plazo del cliente: ASAP | DATE | FLEXIBLE
+  urgency        String? // plazo del cliente: ASAP | DATE | FLEXIBLE
   neededBy       DateTime?
   dudoso         Boolean   @default(false) // el resolver no supo a qué caso pertenece: revisar a mano
   customerId     String?
@@ -1274,7 +1277,7 @@ model CasoEvento {
   casoId    String?
   tipo      String
   dedupeKey String?
-  actor     String   // email staff | system:<x>
+  actor     String // email staff | system:<x>
   payload   Json?
   createdAt DateTime @default(now())
 
@@ -1411,4 +1414,55 @@ model Entrada {
   @@index([casoId])
   @@index([estado, updatedAt])
   @@index([email])
+}
+
+// Código de recomendación (Juan, 28-nov-2026): uno por cliente con pedido
+// entregado, de UN solo uso y 12 meses. El invitado tiene un 10 % en su encargo;
+// el dueño gana un 10 % de un solo uso para su siguiente encargo SOLO cuando el
+// pedido del invitado queda PAGADO. El crédito del dueño vive en esta misma fila
+// (rewardStatus): NONE sin usar · PENDING aplicado y sin pagar · EARNED pagado ·
+// REDEEMED canjeado · VOID devuelto/cancelado. Lógica en lib/referral-core.ts.
+enum ReferralRewardStatus {
+  NONE
+  PENDING
+  EARNED
+  REDEEMED
+  VOID
+}
+
+model ReferralCode {
+  id                      String               @id @default(cuid())
+  code                    String               @unique
+  ownerCustomerId         String
+  owner                   Customer             @relation("ReferralOwner", fields: [ownerCustomerId], references: [id], onDelete: Restrict)
+  ownerEmail              String // instantánea: el autouso se compara también con el email del pedido de origen
+  ownerPhone              String?
+  sourceOrderId           String               @unique // idempotente por pedido entregado
+  createdAt               DateTime             @default(now())
+  expiresAt               DateTime
+  // Uso por el invitado. usedByCustomerId @unique = un invitado, un código en su vida.
+  usedAt                  DateTime?
+  usedByCustomerId        String?              @unique
+  usedByEmail             String?
+  usedByPhone             String?
+  usedOnQuoteId           String?              @unique
+  usedOnOrderId           String?              @unique
+  // Rastro del descuento del invitado (base sin IVA, céntimos).
+  discountCents           Int?
+  requestedDiscountCents  Int?
+  floorClamped            Boolean              @default(false)
+  floorNote               String?
+  // Crédito del dueño.
+  rewardStatus            ReferralRewardStatus @default(NONE)
+  rewardEarnedAt          DateTime?
+  rewardRedeemedOnQuoteId String?              @unique
+  rewardRedeemedAt        DateTime?
+  rewardDiscountCents     Int?
+  rewardVoidedAt          DateTime?
+  rewardVoidReason        String?
+  updatedAt               DateTime             @updatedAt
+
+  @@index([ownerCustomerId, rewardStatus])
+  @@index([usedByEmail])
+  @@index([usedByPhone])
 }

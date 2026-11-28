@@ -10,6 +10,7 @@ import { transitionWorkflowState } from "@/lib/workflow-server";
 import { findTranslatorProfile } from "@/lib/translators";
 import { sendTranslationStartedAssignedEmail } from "@/lib/email";
 import { adjuntarPedidoACaso } from "@/lib/caso/sombra";
+import { markReferralEarnedForPaidOrder } from "@/lib/referral-core";
 import type { BillingForm } from "@/lib/q-journey";
 
 /* ------------------------------------------------------------------ */
@@ -697,6 +698,9 @@ export async function updateOrderPayment(
 
       return { changed: false as const, alreadyPaid: true as const, duplicate: false as const };
     }
+
+    // Recomendación: el pago del invitado (y solo el pago) da su crédito al dueño. Misma transacción.
+    await markReferralEarnedForPaidOrder(tx, { orderId: order.id, quoteId: order.quoteId });
 
     // Cierre suave por falta de respuesta: si el pedido enlazado se paga, el presupuesto no está perdido.
     if (order.quoteId) {

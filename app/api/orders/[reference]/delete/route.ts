@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { voidReferralForOrder } from "@/lib/referral";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { getStaffRole } from "@/lib/staff-access";
 
@@ -46,6 +47,7 @@ export async function POST(req: Request, { params }: Params) {
     // Con onDelete SetNull, la ClientInvoice vinculada NO se borra en cascada:
     // los borradores y presupuestos se limpian (no son documentos fiscales);
     // una factura EMITIDA se conserva huérfana a propósito (inmutable).
+    await voidReferralForOrder(order.id, "pedido borrado");
     await prisma.clientInvoice.deleteMany({
       where: { orderId: order.id, OR: [{ status: "DRAFT" }, { docKind: "quote" }] },
     });
