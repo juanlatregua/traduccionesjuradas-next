@@ -62,10 +62,10 @@ export const startDeps: StartDeps = {
   store: lecturaStore,
   listFiles: filesOfSource,
   download,
-  read: (files, context, { attempt }) => {
+  read: (files, context, { attempt, deadlineAt }) => {
     const ceiling = explicitRssCeilingMb();
     if (ceiling === null) throw new Error("falta LECTURA_RSS_CEILING_MB");
-    return readBatch(files, context, { attempt, limits: { ...DEFAULT_LIMITS, rssCeilingMb: ceiling } });
+    return readBatch(files, context, { attempt, deadlineAt, limits: { ...DEFAULT_LIMITS, rssCeilingMb: ceiling } });
   },
   now: () => new Date(),
   newId: randomUUID,

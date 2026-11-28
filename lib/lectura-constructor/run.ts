@@ -22,7 +22,7 @@ export type StartDeps = {
   listFiles(source: LoteSource): Promise<SourceRef[]>;
   download(ref: SourceRef): Promise<Uint8Array>;
   /** `attempt` always comes from the stored lote, never from the request. */
-  read(files: SourceFile[], context: ReadingContext, opts: { attempt: number }): Promise<Reading>;
+  read(files: SourceFile[], context: ReadingContext, opts: { attempt: number; deadlineAt: number }): Promise<Reading>;
   now(): Date;
   newId(): string;
 };
@@ -35,6 +35,8 @@ export type StartResult =
 
 /** A running lote untouched for longer than the route can live is considered dead and may be claimed again. */
 export const STALE_RUNNING_MS = 6 * 60 * 1000;
+/** The routes live 300 s: the reading (transcription included) must be over this long after the start, leaving room to store it. */
+export const READ_DEADLINE_MS = 240_000;
 
 export function fingerprintOf(refs: readonly SourceRef[], targetLang: string | null, sourceLang: string | null): string {
   const urls = [...new Set(refs.map((r) => r.url))].sort();
@@ -96,6 +98,7 @@ export function outcomeOf(reading: Exclude<Reading, { status: "busy" }>, inputs:
 }
 
 export async function startReading(deps: StartDeps, input: StartInput): Promise<StartResult> {
+  const deadlineAt = deps.now().getTime() + READ_DEADLINE_MS;
   const refs = await deps.listFiles(input.source);
   if (refs.length === 0) return { kind: "no_files" };
   const fingerprint = fingerprintOf(refs, input.targetLang, input.sourceLang);
@@ -136,7 +139,7 @@ export async function startReading(deps: StartDeps, input: StartInput): Promise<
     reading = await deps.read(
       inputs.map((i) => ({ name: i.ref.name, mimeType: i.ref.mimeType, bytes: i.bytes })),
       { declaredTargetLang: input.targetLang, declaredSourceLang: input.sourceLang, caseNotes: input.notes, clientLang: input.clientLang ?? null },
-      { attempt },
+      { attempt, deadlineAt },
     );
   } catch (err) {
     const detailEs = `fallo inesperado: ${err instanceof Error ? err.message : String(err)}`.slice(0, 500);

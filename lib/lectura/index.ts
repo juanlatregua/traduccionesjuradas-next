@@ -7,6 +7,9 @@ import { addUsage, costOf, ZERO_USAGE, DEFAULT_EUR_PER_USD, type Cost, type Mode
 import type { ModelReading, Part, ReadDocumentRaw } from "./schema.ts";
 import type { ReadingContext } from "./prompt.ts";
 import { assessReading, type Assessment } from "./assess.ts";
+import { transcribeDocuments, transcribeOn, type TranscribeDeps, type Transcription, type WordsBasis } from "./transcribe.ts";
+import { HeavyWorker } from "./heavy.ts";
+import { ASSEMBLY_TIMEOUT_MS } from "./assemble.ts";
 
 export type { SourceFile, PreparedBatch, BatchLimits, Busy } from "./prepare.ts";
 export type { ReadingContext } from "./prompt.ts";
@@ -20,8 +23,9 @@ export { priceHint, type PriceHint } from "./price-hint.ts";
 export { assessReading, type Assessment, type ReviewReason } from "./assess.ts";
 export { costOf, MODEL_PRICES } from "./cost.ts";
 export { PROMPT_VERSION } from "./prompt.ts";
+export { transcribeOn, type Transcription, type WordsBasis } from "./transcribe.ts";
 
-export type ReadDocument = ReadDocumentRaw & { pageCount: number; words: number; wordsBasis: "exact" | "estimated" };
+export type ReadDocument = ReadDocumentRaw & { pageCount: number; words: number; wordsBasis: WordsBasis; transcription?: Transcription };
 
 type Meter = { attempts: number; usage: TokenUsage; usages: ModelUsage[]; cost: Cost; ms: number; servedBy: string[] };
 
@@ -43,6 +47,9 @@ export type ReadDeps = CallOptions & {
   attempt?: number;
   eurPerUsd?: number;
   now?: () => number;
+  /** Epoch ms by which the reading must be over; transcription (LECTURA_TRANSCRIBIR=on) only uses the time left before it. */
+  deadlineAt?: number;
+  transcribe?: Omit<TranscribeDeps, "deadlineAt" | "now">;
 };
 
 function exactWords(batch: PreparedBatch, doc: ReadDocumentRaw): number | null {
@@ -58,7 +65,7 @@ function exactWords(batch: PreparedBatch, doc: ReadDocumentRaw): number | null {
 }
 
 export function withWords(batch: PreparedBatch, reading: ModelReading): ReadDocument[] {
-  return reading.documents.map((d) => {
+  return reading.documents.map((d): ReadDocument => {
     const exact = exactWords(batch, d);
     return {
       ...d,
@@ -108,7 +115,18 @@ export async function readBatch(files: readonly SourceFile[], context: ReadingCo
       lastReading = outcome.reading;
       errors = [...outcome.wireErrors, ...validateReading(batch, outcome.reading, context)];
       if (errors.length === 0) {
-        const documents = withWords(batch, outcome.reading);
+        let documents = withWords(batch, outcome.reading);
+        if (transcribeOn()) {
+          const limits = deps.limits ?? DEFAULT_LIMITS;
+          const heavy = deps.transcribe?.heavy ?? new HeavyWorker({ memoryMb: limits.workerMemoryMb, rssCeilingMb: limits.rssCeilingMb, timeoutMs: ASSEMBLY_TIMEOUT_MS });
+          try {
+            const t = await transcribeDocuments(batch, documents, { ...deps.transcribe, heavy, deadlineAt: deps.deadlineAt, now });
+            documents = t.documents;
+            usages.push(...t.usages);
+          } finally {
+            if (!deps.transcribe?.heavy) await heavy.close();
+          }
+        }
         const assessment = assessReading(batch, { ...outcome.reading, documents });
         if (documents.length === 0) return { status: "nothing_to_translate", batch, reading: outcome.reading, assessment, ...meter(attempt) };
         return { status: "ok", batch, reading: outcome.reading, documents, assessment, ...meter(attempt) };
