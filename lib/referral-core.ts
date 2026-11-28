@@ -406,6 +406,8 @@ export async function referralUndiscountedTotalCents(db: ReferralDb, quoteId: st
   const rows = await db.referralCode.findMany({ where: linkedRowsWhere(quoteId) });
   if (rows.length !== 1) return null;
   const q = await db.quote.findUnique({ where: { id: quoteId }, select: QUOTE_SELECT });
+  // Ya pagado: un segundo cobro al precio entero es un doble cobro, nunca un pago válido.
+  if (!q || q.paidAt || q.status === "PAID") return null;
   const before = undiscountedTotals(q, rowDiscountCents(rows[0], quoteId));
   return before ? Math.round(before.total * 100) : null;
 }
