@@ -10,6 +10,7 @@ import { getLast303Close } from "@/lib/tax-close-store";
 import { isOwnBlobUrl } from "@/lib/q-journey";
 import { escapeHtml } from "@/lib/collaborator-emails";
 import { cierreEfectivo, decidirFacturaColaborador, referenciaPedido, MOTIVO_TEXTO, type FacturaLeida, type MotivoParada } from "@/lib/agente-contable-logic";
+import { readBlob } from "@/lib/blob-store";
 
 const MAX_LECTURAS_POR_PASADA = 10; // lo ya leído se vuelve a decidir sin coste
 const TIEMPO_MAX_LECTURAS_MS = 200_000; // el cron corta a 300 s y aún debe enviar el resumen
@@ -40,7 +41,7 @@ export type PasadaContable = { resultados: ResultadoFactura[] } | { skipped: str
 
 async function leerFactura(url: string | null, nombre: string | null): Promise<FacturaLeida> {
   if (!isOwnBlobUrl(url, process.env.BLOB_READ_WRITE_TOKEN)) throw new Error("adjunto fuera de nuestro Blob");
-  const res = await fetch(url as string);
+  const res = await readBlob(url as string);
   if (!res.ok) throw new Error(`adjunto no disponible (${res.status})`);
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length === 0 || buf.length > MAX_BYTES) throw new Error("adjunto vacío o demasiado grande");

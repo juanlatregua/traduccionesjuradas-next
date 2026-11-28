@@ -51,6 +51,7 @@ import {
   unreadAttachmentsReason,
 } from "@/lib/agente-bandeja-math";
 import { abs, hrefBandeja, hrefConstructor, hrefPresupuesto } from "./staff-links.ts";
+import { readBlob } from "./blob-store.ts";
 
 const SITE = "https://www.traduccionesjuradas.net";
 const ACTOR = "system:agente-bandeja";
@@ -158,7 +159,7 @@ async function dedupeByHash(docs: { id: string; fileName: string; fileUrl: strin
   for (const d of docs) {
     let hash = d.fileHash;
     if (!hash) {
-      const res = await fetch(d.fileUrl);
+      const res = await readBlob(d.fileUrl);
       if (!res.ok) throw new Error(`no se pudo bajar ${d.fileName} (${res.status})`);
       hash = createHash("sha256").update(Buffer.from(await res.arrayBuffer())).digest("hex");
       await prisma.documentAnalysis.update({ where: { id: d.id }, data: { fileHash: hash } });

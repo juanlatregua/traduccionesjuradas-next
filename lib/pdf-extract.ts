@@ -6,10 +6,10 @@
 // La comprobación de host vive aquí: cualquier llamador que reciba una URL de
 // fuera tiene que pasar por ella o abre un proxy SSRF.
 
-export const BLOB_HOST_RE = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//;
+import { isOurBlobHost, readBlob } from "./blob-store.ts";
 
 export function isAllowedBlobUrl(url: string): boolean {
-  return BLOB_HOST_RE.test(url);
+  return isOurBlobHost(url);
 }
 
 export function safeDocName(name: string | null | undefined): string {
@@ -34,7 +34,7 @@ export async function extractPageRange(opts: {
   const start = sinRango ? 1 : Math.round(Number(opts.start));
   const endRaw = sinRango ? Number.MAX_SAFE_INTEGER : Math.round(Number(opts.end) || start);
 
-  const res = await fetch(opts.url);
+  const res = await readBlob(opts.url);
   if (!res.ok) throw new Error(`fetch ${res.status}`);
   const contentType = res.headers.get("content-type") || "application/octet-stream";
   const buffer = Buffer.from(await res.arrayBuffer());

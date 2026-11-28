@@ -10,6 +10,7 @@ import { prismaLecturaStore } from "./prisma-store.ts";
 import { startReading, type SourceRef, type StartDeps } from "./run.ts";
 import type { LoteSource } from "./store.ts";
 import { REGULARIZACION_SOURCE } from "../entrada/fr-auto.ts";
+import { readBlob } from "../blob-store.ts";
 
 const MAX_FILES = DEFAULT_LIMITS.maxFiles;
 const MAX_BYTES = DEFAULT_LIMITS.maxRequestBytes;
@@ -49,7 +50,7 @@ export async function filesOfSource(source: LoteSource): Promise<SourceRef[]> {
 
 export async function download(ref: SourceRef): Promise<Uint8Array> {
   if (!isOwnBlobUrl(ref.url, process.env.BLOB_READ_WRITE_TOKEN)) throw new Error(`«${ref.name}» no está en nuestro almacén`);
-  const res = await fetch(ref.url, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
+  const res = await readBlob(ref.url, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`«${ref.name}»: HTTP ${res.status}`);
   const declared = Number(res.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > MAX_BYTES) throw new Error(`«${ref.name}» pasa de ${MAX_BYTES / 1024 / 1024} MB`);

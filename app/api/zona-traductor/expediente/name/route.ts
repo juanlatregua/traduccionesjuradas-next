@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { isOwnBlobUrl } from "@/lib/q-journey";
 import { suggestDocumentName } from "@/lib/ai/suggest-name";
+import { readBlob } from "@/lib/blob-store";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const r = await fetch(blobUrl);
+    const r = await readBlob(blobUrl);
     if (!r.ok) {
       return NextResponse.json({ ok: false, error: "No se pudo acceder al archivo." }, { status: 422 });
     }

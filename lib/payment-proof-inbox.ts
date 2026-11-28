@@ -17,6 +17,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { extractPaymentProof, type PaymentProofRead } from "@/lib/ai/extract-payment-proof";
 import { abs, hrefBandeja, hrefPresupuesto } from "./staff-links.ts";
+import { readBlob } from "./blob-store.ts";
 
 export type QuoteCandidate = {
   id: string;
@@ -160,7 +161,7 @@ export async function scanInboxForPaymentProofs(opts?: { diasAtras?: number; max
     let read: PaymentProofRead | null = null;
     let match: ProofMatch = { quote: null, motivo: "sin analizar", candidatos: 0 };
     try {
-      const bin = await fetch(a.url as string);
+      const bin = await readBlob(a.url as string);
       const base64 = Buffer.from(await bin.arrayBuffer()).toString("base64");
       read = await extractPaymentProof({
         fileBase64: base64,

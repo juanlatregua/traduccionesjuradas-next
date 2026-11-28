@@ -64,7 +64,7 @@ export async function POST(req: Request, { params }: Params) {
 
   // Host de NUESTRA tienda de Blob (id en el token); si no se deduce, se comprueba cada URL con head().
   const host = blobHostFromToken(process.env.BLOB_READ_WRITE_TOKEN);
-  const parsed = parseCompletionFiles(body?.files, quote.id, host);
+  const parsed = parseCompletionFiles(body?.files, quote.id, host, process.env.BLOB_PRIVATE_READ_WRITE_TOKEN);
   if (!parsed.ok) {
     return NextResponse.json({ ok: false, error: "Archivos no válidos.", code: parsed.code }, { status: 400 });
   }

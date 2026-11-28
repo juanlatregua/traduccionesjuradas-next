@@ -9,6 +9,7 @@ import { TRANSLATION_DRAFT_SYSTEM_PROMPT } from "@/lib/translation-prompts";
 import type { TranslationDraftResult } from "@/lib/translation-prompts";
 import { generateDraftDocx } from "@/lib/draft-docx";
 import { SONNET_MODEL } from "@/lib/ai/models";
+import { readBlob } from "@/lib/blob-store";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -38,7 +39,7 @@ function getMediaType(
 
 async function fetchDocumentBase64(url: string): Promise<{ base64: string; mimeType: string }> {
   const t0 = Date.now();
-  const res = await fetch(url);
+  const res = await readBlob(url);
   const elapsed = Date.now() - t0;
   if (!res.ok) {
     console.error("[traduccion-automatica] doc fetch failed", {

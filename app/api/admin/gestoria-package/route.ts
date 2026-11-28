@@ -18,6 +18,7 @@ import { buildInvoicesCsv, buildExpensesCsv } from "@/lib/gestoria-csv";
 import { aggregateFiscal } from "@/lib/fiscal-aggregation";
 import { draftToText } from "@/lib/tax-drafts";
 import { listPaidUnbilledOrders } from "@/lib/reconcile-invoices";
+import { readBlob } from "@/lib/blob-store";
 
 export const runtime = "nodejs";
 // PDFs por factura + descarga secuencial de justificantes: la ruta más pesada.
@@ -138,7 +139,7 @@ export async function GET(req: Request) {
     for (const e of expenses) {
       if (!e.attachmentUrl) continue;
       try {
-        const res = await fetch(e.attachmentUrl);
+        const res = await readBlob(e.attachmentUrl);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const buf = Buffer.from(await res.arrayBuffer());
         const ext = attachmentExt(e.attachmentUrl, res.headers.get("content-type"));

@@ -7,6 +7,7 @@ import { put } from "@vercel/blob";
 import { hashFileBuffer } from "@/lib/document-dedup";
 import { prisma } from "@/lib/prisma";
 import { decodeZipName, isZipDocument, usableZipEntry } from "@/lib/zip-entries";
+import { readBlob } from "@/lib/blob-store";
 
 export { isZipDocument };
 
@@ -18,7 +19,7 @@ export async function expandZipDocument(docId: string): Promise<{ created: numbe
   const doc = await prisma.documentAnalysis.findUnique({ where: { id: docId } });
   if (!doc || !isZipDocument(doc)) return { created: 0, ids: [], skipped: [] };
 
-  const res = await fetch(doc.fileUrl);
+  const res = await readBlob(doc.fileUrl);
   if (!res.ok) throw new Error(`No se pudo descargar el ZIP (${res.status})`);
   const zip = await JSZip.loadAsync(Buffer.from(await res.arrayBuffer()), { decodeFileName: decodeZipName as any });
 

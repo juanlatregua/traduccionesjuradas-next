@@ -11,6 +11,7 @@ import { PAGE_PRICED_LANGS } from "@/lib/pricing-engine/page-pricing";
 import { expandZipDocument, isZipDocument } from "@/lib/expediente-unzip";
 import { getLanguageName, isAutoPriceable, manualPriceReason, resolvePriceablePair } from "@/lib/pricing-engine/languages";
 import { submitContadorAfterAnalysis } from "@/lib/contador/server";
+import { readBlob } from "@/lib/blob-store";
 
 // Análisis ya hecho por este endpoint (marca builderRun): se reconstruye sin volver
 // a llamar a la IA. Antes cada apertura del builder con ?exp/?session/?lead volvía a
@@ -123,7 +124,7 @@ export async function analyzeDocumentRow(doc: AnalyzableDoc, targetLang?: string
   const blobUrl = doc.fileUrl;
 
   try {
-    const fileResponse = await fetch(blobUrl);
+    const fileResponse = await readBlob(blobUrl);
     if (!fileResponse.ok) {
       await prisma.documentAnalysis.update({
         where: { id: doc.id },

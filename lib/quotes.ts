@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { isOurBlobHost } from "./blob-hosts.ts";
 import {
   round2,
   DEFAULT_VAT_RATE,
@@ -138,7 +139,7 @@ export function normalizeQuoteLines(raw: unknown) {
     // Trazabilidad al PDF origen (para "ver/descargar" cada documento). Solo se
     // acepta una URL de Vercel Blob (evita SSRF / URLs arbitrarias).
     const rawUrl = String((item as any)?.sourceFileUrl || "").trim();
-    const sourceFileUrl = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//.test(rawUrl) ? rawUrl : undefined;
+    const sourceFileUrl = isOurBlobHost(rawUrl) ? rawUrl : undefined;
     const ps = Number((item as any)?.pageStart);
     const pe = Number((item as any)?.pageEnd);
     const pageStart = Number.isFinite(ps) && ps >= 1 ? Math.round(ps) : undefined;

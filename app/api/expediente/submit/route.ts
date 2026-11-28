@@ -18,6 +18,7 @@ import { paresDe } from "@/lib/caso/sombra-plan";
 import { expandZipDocument } from "@/lib/expediente-unzip";
 import { expedienteAbiertoDelCaso } from "@/lib/caso/expediente-abierto";
 import { COMPLETION_EVENT } from "@/lib/q-journey";
+import { isOurBlobHost } from "@/lib/blob-hosts";
 
 export const runtime = "nodejs";
 
@@ -83,14 +84,7 @@ export async function POST(req: Request) {
       mimeType: String(d?.mimeType || "application/octet-stream"),
     }))
     // Solo ficheros de un almacén Vercel Blob (lo que sube la propia página).
-    .filter((d) => {
-      try {
-        const u = new URL(d.blobUrl);
-        return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com");
-      } catch {
-        return false;
-      }
-    });
+    .filter((d) => isOurBlobHost(d.blobUrl));
 
   if (clean.length === 0) {
     return NextResponse.json({ ok: false, error: "No se recibió ningún archivo válido." }, { status: 400 });

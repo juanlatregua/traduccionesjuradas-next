@@ -17,6 +17,7 @@ import { sendQuoteFollowupEmail } from "@/lib/emails/quote-followup";
 import { createResumeToken } from "@/lib/puerta-resume-token";
 import { alertStaffAiOutage, alertStaffAnalysisFailure, isAiAccountError } from "@/lib/ai/outage-alert";
 import { expandZipDocument, isZipDocument } from "@/lib/expediente-unzip";
+import { readBlob } from "@/lib/blob-store";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // Allow up to 120s for IA analysis (PDFs pesados)
@@ -156,7 +157,7 @@ export async function POST(req: Request) {
     });
 
     // Fetch the file to get base64
-    const fileResponse = await fetch(doc.fileUrl);
+    const fileResponse = await readBlob(doc.fileUrl);
     if (!fileResponse.ok) {
       await prisma.documentAnalysis.update({
         where: { id: documentId },

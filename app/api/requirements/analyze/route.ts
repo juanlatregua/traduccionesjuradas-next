@@ -11,6 +11,7 @@ import { checkRateLimit, getClientIp, checkRequirementsCap } from "@/lib/rate-li
 import { analyzeRequirement } from "@/lib/ai/requirements";
 import type { RequirementsExtraction } from "@/lib/ai/requirements";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { readBlob } from "@/lib/blob-store";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
       data: { status: "ANALYZING" },
     });
 
-    const fileResponse = await fetch(doc.fileUrl);
+    const fileResponse = await readBlob(doc.fileUrl);
     if (!fileResponse.ok) {
       await prisma.documentAnalysis.update({
         where: { id: documentId },

@@ -10,6 +10,7 @@ import { verifactuPdfExtras } from "@/lib/verifactu/pdf";
 import { getOrderDetail } from "@/lib/orders";
 import { prisma } from "@/lib/prisma";
 import type { MailAttachment } from "@/lib/azure-mail";
+import { readBlob } from "@/lib/blob-store";
 
 const MAX_ATTACH_BYTES = 15 * 1024 * 1024; // límite prudente para email
 
@@ -19,7 +20,7 @@ export async function fetchFileAsAttachment(
   name: string
 ): Promise<MailAttachment | null> {
   try {
-    const res = await fetch(url);
+    const res = await readBlob(url);
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length === 0 || buf.length > MAX_ATTACH_BYTES) return null;

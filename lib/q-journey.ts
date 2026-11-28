@@ -2,6 +2,9 @@
 // facturación antes de pagar y su prefill. Sin Prisma: se prueba con node --test.
 
 import { needsNif, resolveBillingPrefill, type BillingFields } from "./delivery-billing.ts";
+import { blobAccessOfHost, isOurPrivateBlob, isOwnStoreUrl } from "./blob-hosts.ts";
+
+export { blobHostFromToken } from "./blob-hosts.ts";
 
 /* ------------------------------ documentos que faltan ------------------------------ */
 
@@ -20,24 +23,16 @@ export const BILLING_EVENT = "client.billing_data";
 export const COMPLETION_MAX_SUBMITS_PER_DAY = 3;
 export const COMPLETION_MAX_TOTAL_FILES = 10;
 
-/** Host público de NUESTRA tienda de Blob: vercel_blob_rw_<storeId>_<secreto> → <storeid>.public.blob.vercel-storage.com. */
-export function blobHostFromToken(token: string | null | undefined): string | null {
-  const m = /^vercel_blob_rw_([A-Za-z0-9]+)_/.exec((token || "").trim());
-  return m ? `${m[1].toLowerCase()}.public.blob.vercel-storage.com` : null;
-}
-
-/** ¿Es una URL https de NUESTRA tienda de Blob? Sin id en el token, cae al sufijo común de Vercel Blob. */
-export function isOwnBlobUrl(url: unknown, token: string | null | undefined): boolean {
-  if (typeof url !== "string") return false;
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    return false;
-  }
-  if (u.protocol !== "https:" || u.username || u.password || u.port) return false;
-  const host = blobHostFromToken(token);
-  return host ? u.hostname === host : u.hostname.endsWith(".public.blob.vercel-storage.com");
+/**
+ * ¿Es una URL https de NUESTRA tienda de Blob? Pública: la del token (sin id, el
+ * sufijo común). Privada: la del token privado (BLOB_PRIVATE_READ_WRITE_TOKEN).
+ */
+export function isOwnBlobUrl(
+  url: unknown,
+  token: string | null | undefined,
+  privateToken: string | null | undefined = typeof process !== "undefined" ? process.env.BLOB_PRIVATE_READ_WRITE_TOKEN : undefined
+): boolean {
+  return isOwnStoreUrl(url, { publicToken: token, privateToken });
 }
 
 export type CompletionBlock = "deleted" | "expired" | "status" | "paid";
@@ -105,7 +100,8 @@ export type CompletionFile = { url: string; name: string; size: number };
 export function parseCompletionFiles(
   raw: unknown,
   quoteId: string,
-  host: string | null = null
+  host: string | null = null,
+  privateToken: string | null | undefined = null
 ): { ok: true; files: CompletionFile[] } | { ok: false; code: CompletionError | "url" } {
   if (!Array.isArray(raw)) return { ok: false, code: "none" };
   const files: CompletionFile[] = [];
@@ -120,7 +116,9 @@ export function parseCompletionFiles(
     } catch {
       return { ok: false, code: "url" };
     }
-    const hostOk = host ? u.hostname.toLowerCase() === host : u.hostname.endsWith(".public.blob.vercel-storage.com");
+    const hostOk =
+      isOurPrivateBlob(url, privateToken) ||
+      (host ? u.hostname.toLowerCase() === host : blobAccessOfHost(u.hostname) === "public");
     if (u.protocol !== "https:" || !hostOk) {
       return { ok: false, code: "url" };
     }

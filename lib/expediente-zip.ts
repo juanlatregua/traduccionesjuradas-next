@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getSourceDocumentsFromEvents } from "@/lib/order-source-documents";
 import { clientVisibleDeliveryFiles } from "@/lib/client-delivery";
 import { extractPageRange } from "@/lib/pdf-extract";
+import { readBlob } from "@/lib/blob-store";
 
 const EXPEDIENTE_VERSION = 1;
 
@@ -38,7 +39,7 @@ function extFromUrl(url: string): string {
 
 async function fetchBytes(url: string): Promise<Buffer | null> {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(45_000) });
+    const res = await readBlob(url, { signal: AbortSignal.timeout(45_000) });
     if (!res.ok) return null;
     return Buffer.from(await res.arrayBuffer());
   } catch {

@@ -19,6 +19,7 @@ import { transferAccountsLast4 } from "@/lib/payment-labels";
 import { getWorkflowState } from "@/lib/workflow";
 import { confirmManualPaymentWithSideEffects } from "@/lib/payments-confirm";
 import { abs, hrefPedido } from "./staff-links.ts";
+import { readBlob } from "./blob-store.ts";
 
 const HIGH_AMOUNT_CENTS = 30000;
 const FRESH_PROOF_MS = 7 * 24 * 60 * 60 * 1000;
@@ -155,7 +156,7 @@ export async function processUploadedProofs(opts?: { max?: number; now?: Date })
     let decision: ProofDecision;
     let fileHash: string | null = payload.fileHash || null;
     try {
-      const bin = await fetch(payload.fileUrl);
+      const bin = await readBlob(payload.fileUrl);
       if (!bin.ok) throw new Error(`descarga ${bin.status}`);
       const buf = Buffer.from(await bin.arrayBuffer());
       fileHash = fileHash || crypto.createHash("sha256").update(buf).digest("hex");

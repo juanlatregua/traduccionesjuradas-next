@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { leadDocKeys, leadDocKeyVariants } from "@/lib/lavori-doc-keys";
 import { clientIdentityKeys } from "@/lib/client-identity";
 import { put } from "@vercel/blob";
+import { isOurBlobHost } from "@/lib/blob-hosts";
 import { prisma } from "@/lib/prisma";
 import { casoEnSombra, compararGuarda, descartarCasoSiVacio, recalcularCaso, sombraBloqueo, type Sombra } from "@/lib/caso/sombra";
 import { anclasDeExpediente, entradaDeCreador } from "@/lib/caso/sombra-plan";
@@ -35,7 +36,6 @@ import { TYPE_LABELS } from "@/lib/diagnosis";
 import { documentTypeLabel } from "@/lib/document-labels";
 import { deadlineOf } from "@/lib/needed-by";
 
-export const LEAD_BLOB_HOST_RE = /^https:\/\/[\w.-]+\.public\.blob\.vercel-storage\.com\//;
 export const LEAD_MAX_DOCS = 300; // = SOBRE_MAX_DOCS de lavori (fase 1 de ficheros grandes, 24-sep)
 
 export type LeadDoc = {
@@ -227,7 +227,7 @@ type LeadPreparado = {
 async function prepararLead(input: LeadRequestInput): Promise<LeadPreparado | { ok: false; status: 400; error: string }> {
   const docs = Array.isArray(input.docs) ? input.docs.slice(0, LEAD_MAX_DOCS) : [];
   if (docs.length === 0) return { ok: false, status: 400, error: "Sin documentos que enviar." };
-  if (docs.some((d) => !LEAD_BLOB_HOST_RE.test(String(d?.url || "")))) {
+  if (docs.some((d) => !isOurBlobHost(String(d?.url || "")))) {
     return { ok: false, status: 400, error: "URL de documento no permitida." };
   }
   const sourceLang = String(input.sourceLang || "").trim().toLowerCase();

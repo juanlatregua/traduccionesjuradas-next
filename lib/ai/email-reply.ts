@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/quotes";
 import { SONNET_MODEL, assertNotRefused } from "./models";
+import { readBlob } from "@/lib/blob-store";
 
 const DRAFT_MODEL = SONNET_MODEL;
 
@@ -276,7 +277,7 @@ export async function generateEmailDraft(input: EmailDraftInput): Promise<EmailD
       const isImage = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"].includes(ct);
       const isPdf = ct === "application/pdf";
       if (!isImage && !isPdf) continue;
-      const r = await fetch(m.url);
+      const r = await readBlob(m.url);
       if (!r.ok) continue;
       const buf = Buffer.from(await r.arrayBuffer());
       if (buf.length === 0 || buf.length > 4_500_000) continue;

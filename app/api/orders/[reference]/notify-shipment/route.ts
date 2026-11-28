@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
+import { isOwnBlobUrl } from "@/lib/q-journey";
 import { sendShipmentNotificationEmail } from "@/lib/email";
 import { sendEmailWithRetry } from "@/lib/email-retry";
 import { getCaseMembers, selectShippableMembers } from "@/lib/order-case";
@@ -141,7 +142,5 @@ function isOwnShipmentBlob(url: string, reference: string): boolean {
   } catch {
     return false;
   }
-  const store = (process.env.BLOB_READ_WRITE_TOKEN || "").match(/^vercel_blob_rw_([A-Za-z0-9]+)_/)?.[1]?.toLowerCase();
-  const hostOk = store ? u.hostname === `${store}.public.blob.vercel-storage.com` : u.hostname.endsWith(".public.blob.vercel-storage.com");
-  return u.protocol === "https:" && hostOk && u.pathname.startsWith(`/shipments/${reference}/`);
+  return isOwnBlobUrl(url, process.env.BLOB_READ_WRITE_TOKEN) && u.pathname.startsWith(`/shipments/${reference}/`);
 }
