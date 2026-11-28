@@ -7,7 +7,7 @@ import { blobDownloadUrl } from "@/lib/blob-download-url";
 import type { MailAttachment } from "@/lib/azure-mail";
 import { sendStaffAlertSMS } from "@/lib/sms";
 import { escapeHtml } from "@/lib/collaborator-emails";
-import { emailButton, emailLayout } from "@/lib/email-layout";
+import { emailButton, emailLayout, stripTextSignature } from "@/lib/email-layout";
 import { renderDeliveryEmailHtml, type Referral } from "@/lib/emails/delivery-email";
 import {
   type DownloadLink,
@@ -65,7 +65,7 @@ export function wrapClientEmailHtml(content: string) {
 // Compartido entre sendCustomClientEmail y la respuesta desde /admin/inbox
 // para que TODO mensaje manual salga con el mismo formato.
 export function renderClientMessageHtml(bodyText: string, opts: { houseSignature?: boolean } = {}) {
-  const safe = String(bodyText)
+  const safe = stripTextSignature(String(bodyText))
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");

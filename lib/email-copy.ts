@@ -1,0 +1,100 @@
+// Textos de la imagen de la casa en los emails (plantilla, presupuesto, entrega). Todo de USTED
+// mientras Juan no confirme tú o usted (28-nov-2026): cambiar el tratamiento es tocar solo este fichero.
+
+export const LAYOUT_COPY = {
+  whatsapp: "Escríbanos por WhatsApp",
+  privacy: "Tratamos sus datos solo para gestionar su encargo.",
+  privacyLink: "Privacidad y sus derechos",
+};
+
+export type CopyLang = "es" | "fr" | "en" | "pt" | "it" | "de";
+
+export const QUESTIONS_COPY: Record<CopyLang, { title: string; body: string }> = {
+  es: { title: "Dos preguntas para no fallarle", body: "¿Para qué fecha la necesita y ante qué organismo la va a presentar? Responda a este email o por WhatsApp y ajusto el plazo." },
+  fr: { title: "Deux questions pour ne pas vous décevoir", body: "Pour quelle date en avez-vous besoin et devant quel organisme allez-vous la présenter ? Répondez à cet email ou sur WhatsApp et j'ajuste le délai." },
+  en: { title: "Two questions so we get it right", body: "By what date do you need it, and which authority will you submit it to? Reply to this email or on WhatsApp and we will adjust the turnaround." },
+  pt: { title: "Duas perguntas para não falharmos", body: "Para que data precisa e perante que organismo a vai apresentar? Responda a este email ou por WhatsApp e ajustamos o prazo." },
+  it: { title: "Due domande per non sbagliare", body: "Per quale data le serve e a quale ente la presenterà? Risponda a questa email o su WhatsApp e adattiamo i tempi." },
+  de: { title: "Zwei Fragen, damit alles passt", body: "Bis wann benötigen Sie die Übersetzung und bei welcher Behörde reichen Sie sie ein? Antworten Sie auf diese E-Mail oder per WhatsApp, dann passen wir die Frist an." },
+};
+
+export const PAY_COPY: Record<CopyLang, { title: string; quote: string; vat: string; discount: string; shipping: string; secondInstalment: string; quoteTotal: string; payNow: (amount: string) => string }> = {
+  es: { title: "Su presupuesto está listo", quote: "Presupuesto", vat: "IVA", discount: "Descuento", shipping: "Envío en papel", secondInstalment: "Segundo plazo", quoteTotal: "Total del presupuesto", payNow: (a) => `Ahora paga: ${a} (primer plazo)` },
+  en: { title: "Your quote is ready", quote: "Quote", vat: "VAT", discount: "Discount", shipping: "Paper shipping", secondInstalment: "Second instalment", quoteTotal: "Quote total", payNow: (a) => `You pay now: ${a} (first instalment)` },
+  fr: { title: "Votre devis est prêt", quote: "Devis", vat: "TVA", discount: "Remise", shipping: "Envoi papier", secondInstalment: "Second versement", quoteTotal: "Total du devis", payNow: (a) => `Vous payez maintenant : ${a} (premier versement)` },
+  pt: { title: "O seu orçamento está pronto", quote: "Orçamento", vat: "IVA", discount: "Desconto", shipping: "Envio em papel", secondInstalment: "Segunda prestação", quoteTotal: "Total do orçamento", payNow: (a) => `Paga agora: ${a} (primeira prestação)` },
+  it: { title: "Il suo preventivo è pronto", quote: "Preventivo", vat: "IVA", discount: "Sconto", shipping: "Spedizione cartacea", secondInstalment: "Seconda rata", quoteTotal: "Totale del preventivo", payNow: (a) => `Ora paga: ${a} (prima rata)` },
+  de: { title: "Ihr Angebot ist fertig", quote: "Angebot", vat: "MwSt.", discount: "Rabatt", shipping: "Papierversand", secondInstalment: "Zweite Rate", quoteTotal: "Gesamtbetrag des Angebots", payNow: (a) => `Jetzt zahlen Sie: ${a} (erste Rate)` },
+};
+
+export const DELIVERY_COPY = {
+  es: {
+    label: (ref: string, c: boolean) => `Pedido ${ref} · ${c ? "Corregido" : "Entregado"}`,
+    title: (n: string, c: boolean) => (c ? `Su traducción corregida${n ? `, ${n}` : ""}` : `Su traducción jurada está lista${n ? `, ${n}` : ""}`),
+    translation: "Traducción jurada",
+    attached: "PDF firmado · adjunto a este email",
+    direct: "PDF firmado · descarga directa",
+    invoice: (n: string) => `Factura ${n}`,
+    invoiceMeta: "PDF · adjunta a este email",
+    download: "Descargar",
+    rateTitle: "¿Qué tal lo hemos hecho?",
+    rateBody: "Pulse una estrella. Un segundo, y ayuda mucho a quien busca traductor.",
+    rateGoogle: "o déjenos su opinión directamente en Google",
+    star: (i: number) => `${i} estrella${i > 1 ? "s" : ""}`,
+    areaTitle: "Su archivo, siempre a mano",
+    areaBody: "Guardamos su traducción en su área personal. Si un organismo le pide otra copia, la descarga en un minuto, sin volver a pagar la traducción. Entra con un enlace a su email: sin contraseñas.",
+    areaCta: "Entrar en mi área",
+    refTag: "Recomiéndenos",
+    refTitle: "Regale un 10 % y gane otro 10 %",
+    refBody: "Pásele su código a quien necesite una traducción jurada. Tendrá un 10 % en su encargo y, cuando lo pague, usted recibirá otro 10 % para el suyo.",
+    refShare: "Compartir por WhatsApp",
+    refNote: "Código de un solo uso, válido 12 meses. No se suma a otros descuentos.",
+    refWa: (code: string) => `Con el código ${code} hay un 10 % en una traducción jurada:`,
+  },
+  fr: {
+    label: (ref: string, c: boolean) => `Commande ${ref} · ${c ? "Corrigée" : "Livrée"}`,
+    title: (n: string, c: boolean) => (c ? `Votre traduction corrigée${n ? `, ${n}` : ""}` : `Votre traduction assermentée est prête${n ? `, ${n}` : ""}`),
+    translation: "Traduction assermentée",
+    attached: "PDF signé · joint à cet email",
+    direct: "PDF signé · téléchargement direct",
+    invoice: (n: string) => `Facture ${n}`,
+    invoiceMeta: "PDF · jointe à cet email",
+    download: "Télécharger",
+    rateTitle: "Comment l'avons-nous fait ?",
+    rateBody: "Touchez une étoile. Une seconde, et cela aide beaucoup ceux qui cherchent un traducteur.",
+    rateGoogle: "ou laissez-nous votre avis directement sur Google",
+    star: (i: number) => `${i} étoile${i > 1 ? "s" : ""}`,
+    areaTitle: "Votre dossier, toujours à portée de main",
+    areaBody: "Nous gardons votre traduction dans votre espace personnel. Si un organisme vous demande une autre copie, vous la téléchargez en une minute, sans payer à nouveau la traduction. Vous entrez avec un lien envoyé à votre email : sans mot de passe.",
+    areaCta: "Accéder à mon espace",
+    refTag: "Recommandez-nous",
+    refTitle: "Offrez 10 % et gagnez 10 %",
+    refBody: "Donnez votre code à quelqu'un qui a besoin d'une traduction assermentée. Il aura 10 % sur sa commande et, quand il la paiera, vous recevrez 10 % pour la vôtre.",
+    refShare: "Partager sur WhatsApp",
+    refNote: "Code à usage unique, valable 12 mois. Non cumulable avec d'autres réductions.",
+    refWa: (code: string) => `Avec le code ${code}, 10 % sur une traduction assermentée :`,
+  },
+  en: {
+    label: (ref: string, c: boolean) => `Order ${ref} · ${c ? "Corrected" : "Delivered"}`,
+    title: (n: string, c: boolean) => (c ? `Your corrected translation${n ? `, ${n}` : ""}` : `Your sworn translation is ready${n ? `, ${n}` : ""}`),
+    translation: "Sworn translation",
+    attached: "Signed PDF · attached to this email",
+    direct: "Signed PDF · direct download",
+    invoice: (n: string) => `Invoice ${n}`,
+    invoiceMeta: "PDF · attached to this email",
+    download: "Download",
+    rateTitle: "How did we do?",
+    rateBody: "Tap a star. It takes a second and helps people looking for a translator.",
+    rateGoogle: "or leave us your review directly on Google",
+    star: (i: number) => `${i} star${i > 1 ? "s" : ""}`,
+    areaTitle: "Your file, always at hand",
+    areaBody: "We keep your translation in your personal area. If an authority asks you for another copy, you can download it in a minute without paying for the translation again. You sign in with a link sent to your email: no passwords.",
+    areaCta: "Go to my area",
+    refTag: "Recommend us",
+    refTitle: "Give 10 % and get 10 %",
+    refBody: "Pass your code to someone who needs a sworn translation. They get 10 % off their order and, once they pay, you get another 10 % for yours.",
+    refShare: "Share on WhatsApp",
+    refNote: "Single-use code, valid for 12 months. Cannot be combined with other discounts.",
+    refWa: (code: string) => `With code ${code} there is 10 % off a sworn translation:`,
+  },
+} as const;

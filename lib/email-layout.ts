@@ -1,5 +1,6 @@
 // Plantilla única de los emails (maqueta aprobada por Juan, 28-nov-2026). HTML de email:
 // tablas e inline styles, sin webfonts ni SVG. Puro: sin imports de servidor.
+import { LAYOUT_COPY, QUESTIONS_COPY, type CopyLang } from "./email-copy.ts";
 
 export const SITE = "https://www.traduccionesjuradas.net";
 export const EMAIL_LOGO_URL = `${SITE}/brand/logo-email.png`;
@@ -57,7 +58,7 @@ export function emailSignature(kind: SignatureKind = "juan"): string {
   const role = juan ? "Traductor jurado de francés · MAEC nº 3850" : "HBTJ Consultores Lingüísticos S.L.";
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0 0;border-top:1px solid ${C.rule};"><tr>
 <td width="48" valign="middle" style="padding:22px 14px 0 0;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="48" height="48" align="center" valign="middle" bgcolor="${C.navy}" style="width:48px;height:48px;background:${C.navy};border-radius:24px;font-family:${SERIF};font-size:17px;color:${C.white};">${initials}</td></tr></table></td>
-<td valign="middle" style="padding:22px 0 0 0;font-family:${SANS};font-size:14px;line-height:1.5;color:${C.muted};"><strong style="color:${C.navy};">${name}</strong><br>${role}<br>951 333 614 · <a href="${WHATSAPP_URL}" style="color:${C.navy};">Escríbenos por WhatsApp</a></td>
+<td valign="middle" style="padding:22px 0 0 0;font-family:${SANS};font-size:14px;line-height:1.5;color:${C.muted};"><strong style="color:${C.navy};">${name}</strong><br>${role}<br>951 333 614 · <a href="${WHATSAPP_URL}" style="color:${C.navy};">${LAYOUT_COPY.whatsapp}</a></td>
 </tr></table>`;
 }
 
@@ -73,8 +74,8 @@ export function emailLayout(opts: {
   legalNote?: boolean;
   preheader?: string | null;
 }): string {
-  const house = opts.signature === "house";
-  const subtitle = house ? "MÁLAGA" : "MÁLAGA · MAEC Nº 3850";
+  // El nº 3850 solo con la firma de Juan pedida a propósito (pares FR).
+  const subtitle = opts.signature === "juan" ? "MÁLAGA · MAEC Nº 3850" : "MÁLAGA";
   const label = opts.label
     ? `<div style="font-family:${SANS};font-size:12px;font-weight:bold;letter-spacing:1.6px;text-transform:uppercase;color:${opts.labelColor || C.goldText};margin:0 0 14px 0;">${escapeHtml(opts.label)}</div>`
     : "";
@@ -98,7 +99,7 @@ ${label}${title}${opts.content}${opts.signature ? emailSignature(opts.signature)
 <tr><td bgcolor="${C.soft}" style="background:${C.soft};padding:18px 40px 24px 40px;border-radius:0 0 14px 14px;font-family:${SANS};font-size:12px;line-height:1.55;color:${C.muted};">
 HBTJ Consultores Lingüísticos S.L. · CIF B93712784 · Calle Esperanto, 9 · 29007 Málaga<br>
 <a href="mailto:hola@traduccionesjuradas.net" style="color:${C.muted};">hola@traduccionesjuradas.net</a> · <a href="tel:+34951333614" style="color:${C.muted};">951 333 614</a><br>
-Tratamos tus datos solo para gestionar tu encargo. <a href="${SITE}/privacidad" style="color:${C.muted};">Privacidad y tus derechos</a>${opts.legalNote ? `<br><br>${LEGAL_NOTE}` : ""}
+${LAYOUT_COPY.privacy} <a href="${SITE}/privacidad" style="color:${C.muted};">${LAYOUT_COPY.privacyLink}</a>${opts.legalNote ? `<br><br>${LEGAL_NOTE}` : ""}
 </td></tr>
 </table>
 </td></tr></table>`;
@@ -137,17 +138,24 @@ export function textLinesToHtml(text: string, opts: { onFirstButton?: string } =
     .concat(!injected && opts.onFirstButton ? opts.onFirstButton : "");
 }
 
-type QLang = "es" | "fr" | "en" | "pt" | "it" | "de";
-const QUESTIONS: Record<QLang, { title: string; body: string }> = {
-  es: { title: "Dos preguntas para no fallarte", body: "¿Para qué fecha la necesitas y ante qué organismo la vas a presentar? Responde a este email o por WhatsApp y ajusto el plazo." },
-  fr: { title: "Deux questions pour ne pas vous décevoir", body: "Pour quelle date en avez-vous besoin et devant quel organisme allez-vous la présenter ? Répondez à cet email ou sur WhatsApp et j'ajuste le délai." },
-  en: { title: "Two questions so we get it right", body: "By what date do you need it, and which authority will you submit it to? Reply to this email or on WhatsApp and we will adjust the turnaround." },
-  pt: { title: "Duas perguntas para não falharmos", body: "Para que data precisa e perante que organismo a vai apresentar? Responda a este email ou por WhatsApp e ajustamos o prazo." },
-  it: { title: "Due domande per non sbagliare", body: "Per quale data le serve e a quale ente la presenterà? Risponda a questa email o su WhatsApp e adattiamo i tempi." },
-  de: { title: "Zwei Fragen, damit alles passt", body: "Bis wann benötigen Sie die Übersetzung und bei welcher Behörde reichen Sie sie ein? Antworten Sie auf diese E-Mail oder per WhatsApp, dann passen wir die Frist an." },
-};
-
 export function emailQuestionsBox(lang: string | null | undefined): string {
-  const q = QUESTIONS[(lang && lang in QUESTIONS ? lang : "es") as QLang];
+  const q = QUESTIONS_COPY[(lang && lang in QUESTIONS_COPY ? lang : "es") as CopyLang];
   return emailCard(`<strong style="color:${C.navy};">${q.title}</strong><br>${q.body}`, { background: C.soft, border: C.soft, padding: "18px 20px", margin: "24px 0 8px 0" });
+}
+
+// Con la tarjeta de firma, la firma del texto («Juan Silva — …», «… – Juan Silva») sobra: se quita
+// el nombre y se conserva la despedida.
+export function stripTextSignature(text: string): string {
+  return String(text)
+    .split("\n")
+    .map((line) => {
+      if (/^\s*(?:[–—-]\s*)?Juan Silva\b/.test(line)) return null;
+      const lead = /^(.*?,)\s*Juan Silva\b.*$/.exec(line);
+      if (lead) return lead[1];
+      return line.replace(/\s+[–—-]\s*Juan Silva\b.*$/, "");
+    })
+    .filter((l): l is string => l !== null)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }

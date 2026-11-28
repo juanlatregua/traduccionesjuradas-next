@@ -12,7 +12,7 @@ export default async function Image({ params }: { params: { token: string } }) {
   const row = await prisma.quote
     .findUnique({
       where: { publicToken: params.token },
-      select: { quoteNumber: true, status: true, pdfLang: true, tokenExpiresAt: true, total: true, balanceAmount: true, vatRate: true },
+      select: { quoteNumber: true, status: true, pdfLang: true, tokenExpiresAt: true, total: true, balanceAmount: true, vatRate: true, deletedAt: true, supersededAt: true },
     })
     .catch(() => null);
   const share = quoteShare(

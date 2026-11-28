@@ -142,7 +142,7 @@ export async function POST(req: Request) {
         billingRequestUrl,
         clientEmail,
         attachedFiles: translations.map((f) => ({ name: f.filename })),
-        houseSignature: !!langPair && !includesFrench(langPair),
+        houseSignature: !includesFrench(langPair),
       });
       await prisma.orderEvent
         .create({
@@ -165,7 +165,7 @@ export async function POST(req: Request) {
         const attachments = [...transAttachments, ...(invAttach ? [invAttach] : [])];
         const fallbackLinks = translations.filter((_, i) => !fileAttachments[i]).map((f) => ({ url: f.url, name: f.filename }));
         await sendEmailWithRetry(() =>
-          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach, billingRequestUrl, houseSignature: !!langPair && !includesFrench(langPair) })
+          sendTranslationReadyEmail({ toEmail: clientEmail, reference, lang, clientName: order.clientName, invoiceNumber, fallbackLinks, attachments, invoiceAttached: !!invAttach, billingRequestUrl, houseSignature: !includesFrench(langPair) })
         );
       })().catch((e) => console.error("[customers-deliver] ready email failed", e));
     }

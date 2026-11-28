@@ -2,7 +2,8 @@ import { formatDateEs } from "./quotes.ts";
 import { PAYMENT_LABELS } from "./payment-labels.ts";
 import { localeFor, pickPublicLang, type PublicLang } from "./quote-public-i18n.ts";
 import { includesFrench } from "./price-request-ack.ts";
-import { C, SANS, SERIF, emailLayout, emailQuestionsBox, escapeHtml, textLinesToHtml, type SignatureKind } from "./email-layout.ts";
+import { C, SANS, SERIF, emailLayout, emailQuestionsBox, escapeHtml, stripTextSignature, textLinesToHtml, type SignatureKind } from "./email-layout.ts";
+import { PAY_COPY } from "./email-copy.ts";
 
 export { PAYMENT_LABELS };
 
@@ -295,49 +296,71 @@ export function renderSimpleEmailHtml(body: string, opts: { label?: string | nul
   return emailLayout({ content: textLinesToHtml(body), ...opts });
 }
 
-const PAY_TITLE: Record<PublicLang, string> = {
-  es: "Su presupuesto está listo",
-  en: "Your quote is ready",
-  fr: "Votre devis est prêt",
-  pt: "O seu orçamento está pronto",
-  it: "Il suo preventivo è pronto",
-  de: "Ihr Angebot ist fertig",
-};
-const QUOTE_LABEL: Record<PublicLang, string> = { es: "Presupuesto", en: "Quote", fr: "Devis", pt: "Orçamento", it: "Preventivo", de: "Angebot" };
-const VAT_LABEL: Record<PublicLang, string> = { es: "IVA", en: "VAT", fr: "TVA", pt: "IVA", it: "IVA", de: "MwSt." };
-
 export type PayLinkDecor = {
   lang?: string | null;
   quoteNumber?: string | null;
   lines?: { description: string; amountEur: number }[];
+  discountEur?: number | null;
+  shippingEur?: number | null;
   vatRate?: number | null;
   vatEur?: number | null;
+  // Lo que se cobra ahora (Quote.total); con plazos, el primero.
   totalEur?: number | null;
+  // Segundo plazo (Quote.balanceAmount, IVA incluido).
+  balanceEur?: number | null;
   houseSignature?: boolean;
 };
 
-function breakdownTable(d: PayLinkDecor, lang: PublicLang) {
+export type BreakdownRow = { kind: "line" | "discount" | "shipping" | "vat" | "balance"; label: string; amountEur: number };
+
+const r2 = (n: number) => Math.round(n * 100) / 100;
+
+// Filas del desglose con su signo (el descuento resta) y el total del presupuesto: lo mismo que
+// cobra /q (líneas − descuento + envío + IVA = primer pago; + segundo plazo = total).
+export function payLinkBreakdown(d: PayLinkDecor, lang: PublicLang = pickPublicLang(d.lang)): { rows: BreakdownRow[]; quoteTotalEur: number; payNowEur: number | null } | null {
   const lines = d.lines || [];
-  if (!lines.length || d.totalEur == null) return "";
-  const td = `font-family:${SANS};font-size:15px;color:${C.navy};`;
-  const rows = lines
-    .map(
-      (l) =>
-        `<tr><td style="${td}padding:14px 20px;border-bottom:1px solid ${C.rule};font-weight:bold;">${escapeHtml(l.description)}</td><td align="right" style="${td}padding:14px 20px;border-bottom:1px solid ${C.rule};white-space:nowrap;">${moneyIn(l.amountEur, lang)}</td></tr>`
-    )
+  if (!lines.length || d.totalEur == null) return null;
+  const c = PAY_COPY[lang];
+  const rows: BreakdownRow[] = lines.map((l) => ({ kind: "line", label: l.description, amountEur: l.amountEur }));
+  if (d.discountEur && d.discountEur > 0) rows.push({ kind: "discount", label: c.discount, amountEur: -d.discountEur });
+  if (d.shippingEur && d.shippingEur > 0) rows.push({ kind: "shipping", label: c.shipping, amountEur: d.shippingEur });
+  if (d.vatEur && d.vatEur > 0) {
+    const pct = d.vatRate ? ` ${Math.round(d.vatRate <= 1 ? d.vatRate * 100 : d.vatRate)} %` : "";
+    rows.push({ kind: "vat", label: `${c.vat}${pct}`, amountEur: d.vatEur });
+  }
+  const split = d.balanceEur != null && d.balanceEur > 0;
+  if (split) rows.push({ kind: "balance", label: c.secondInstalment, amountEur: d.balanceEur as number });
+  return { rows, quoteTotalEur: r2(d.totalEur + (split ? (d.balanceEur as number) : 0)), payNowEur: split ? d.totalEur : null };
+}
+
+function breakdownTable(d: PayLinkDecor, lang: PublicLang) {
+  const b = payLinkBreakdown(d, lang);
+  if (!b) return "";
+  const c = PAY_COPY[lang];
+  const cell = (strong: boolean) =>
+    strong
+      ? `font-family:${SANS};font-size:15px;color:${C.navy};padding:14px 20px;border-bottom:1px solid ${C.rule};`
+      : `font-family:${SANS};font-size:14px;color:${C.muted};padding:10px 20px;border-bottom:1px solid ${C.rule};`;
+  const rows = b.rows
+    .map((r) => {
+      const st = cell(r.kind === "line");
+      const amount = r.amountEur < 0 ? `− ${moneyIn(-r.amountEur, lang)}` : moneyIn(r.amountEur, lang);
+      return `<tr><td style="${st}${r.kind === "line" ? "font-weight:bold;" : ""}">${escapeHtml(r.label)}</td><td align="right" style="${st}white-space:nowrap;">${amount}</td></tr>`;
+    })
     .join("");
-  const vat =
-    d.vatEur != null && d.vatEur > 0
-      ? `<tr><td style="font-family:${SANS};font-size:14px;color:${C.muted};padding:12px 20px 4px 20px;">${VAT_LABEL[lang]}${d.vatRate ? ` ${Math.round(d.vatRate <= 1 ? d.vatRate * 100 : d.vatRate)} %` : ""}</td><td align="right" style="font-family:${SANS};font-size:14px;color:${C.muted};padding:12px 20px 4px 20px;white-space:nowrap;">${moneyIn(d.vatEur, lang)}</td></tr>`
+  const totalLabel = b.payNowEur != null ? c.quoteTotal : MSG[lang].total;
+  const total = `<tr><td style="font-family:${SANS};font-size:16px;font-weight:bold;color:${C.navy};padding:14px 20px 18px 20px;">${totalLabel}</td><td align="right" style="font-family:${SERIF};font-size:26px;color:${C.navy};padding:14px 20px 18px 20px;white-space:nowrap;">${moneyIn(b.quoteTotalEur, lang)}</td></tr>`;
+  const payNow =
+    b.payNowEur != null
+      ? `<tr><td colspan="2" bgcolor="${C.soft}" style="background:${C.soft};font-family:${SANS};font-size:15px;font-weight:bold;color:${C.navy};padding:12px 20px;border-radius:0 0 10px 10px;">${escapeHtml(c.payNow(moneyIn(b.payNowEur, lang)))}</td></tr>`
       : "";
-  const total = `<tr><td style="font-family:${SANS};font-size:16px;font-weight:bold;color:${C.navy};padding:6px 20px 18px 20px;">${MSG[lang].total}</td><td align="right" style="font-family:${SERIF};font-size:26px;color:${C.navy};padding:6px 20px 18px 20px;white-space:nowrap;">${moneyIn(d.totalEur, lang)}</td></tr>`;
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.white}" style="background:${C.white};border:1px solid ${C.border};border-radius:10px;border-collapse:separate;margin:8px 0 20px 0;">${rows}${vat}${total}</table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${C.white}" style="background:${C.white};border:1px solid ${C.border};border-radius:10px;border-collapse:separate;margin:8px 0 20px 0;">${rows}${total}${payNow}</table>`;
 }
 
 type Num = number | string | { toString(): string } | null | undefined;
 const num = (v: Num) => (v == null ? null : Number(v.toString()));
 
-// Decorado del email a partir del presupuesto: desglose (base por línea), IVA y total.
+// Decorado del email a partir del presupuesto: desglose como en /q, IVA, plazos y total.
 export function payLinkDecorFromQuote(q: {
   pdfLang?: string | null;
   quoteNumber: string;
@@ -345,30 +368,37 @@ export function payLinkDecorFromQuote(q: {
   targetLang?: string | null;
   vatRate?: Num;
   vatAmount?: Num;
+  discountAmount?: Num;
+  shippingAmount?: Num;
   total?: Num;
+  balanceAmount?: Num;
   lines?: { description: string; lineTotal: Num }[];
 }): PayLinkDecor {
   return {
     lang: q.pdfLang,
     quoteNumber: q.quoteNumber,
     lines: (q.lines || []).map((l) => ({ description: l.description, amountEur: num(l.lineTotal) ?? 0 })),
+    discountEur: num(q.discountAmount),
+    shippingEur: num(q.shippingAmount),
     vatRate: num(q.vatRate),
     vatEur: num(q.vatAmount),
     totalEur: num(q.total),
+    balanceEur: num(q.balanceAmount),
     houseSignature: !includesFrench(q.sourceLang, q.targetLang),
   };
 }
 
 // Email del presupuesto (/q) con la imagen de la casa: el cuerpo (el estándar o el que edita
 // el staff) manda; el desglose va antes del botón y la caja de las dos preguntas al final.
+// Sin par FR explícito, firma de la casa.
 export function renderPayLinkEmailHtml(body: string, d: PayLinkDecor = {}) {
   const lang = pickPublicLang(d.lang);
-  const content = textLinesToHtml(body, { onFirstButton: breakdownTable(d, lang) }) + emailQuestionsBox(lang);
+  const content = textLinesToHtml(stripTextSignature(body), { onFirstButton: breakdownTable(d, lang) }) + emailQuestionsBox(lang);
   return emailLayout({
     content,
-    label: d.quoteNumber ? `${QUOTE_LABEL[lang]} ${d.quoteNumber}` : null,
-    title: PAY_TITLE[lang],
-    signature: d.houseSignature ? "house" : "juan",
+    label: d.quoteNumber ? `${PAY_COPY[lang].quote} ${d.quoteNumber}` : null,
+    title: PAY_COPY[lang].title,
+    signature: d.houseSignature === false ? "juan" : "house",
   });
 }
 

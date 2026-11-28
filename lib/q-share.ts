@@ -9,7 +9,12 @@ export type QuoteShareRow = {
   total?: number | null;
   balanceAmount?: number | null;
   vatRate?: number | null;
+  deletedAt?: Date | null;
+  supersededAt?: Date | null;
 };
+
+// Solo un presupuesto vivo y pendiente de pago enseña su importe.
+const SHAREABLE_STATUSES = new Set(["SENT", "OPENED"]);
 
 export type QuoteShare = { quoteNumber: string; amount: string; vatIncluded: boolean; lang: "es" | "fr" | "en" };
 
@@ -28,10 +33,10 @@ export function formatEur(eur: number): string {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(eur);
 }
 
-// null → imagen y textos genéricos de marca (token inválido, caducado, borrador o sin precio).
+// null → imagen y textos genéricos de marca (token inválido, caducado, pagado, borrado, sustituido o sin precio).
 export function quoteShare(row: QuoteShareRow | null, now: Date = new Date()): QuoteShare | null {
   if (!row) return null;
-  if (row.status === "EXPIRED" || row.status === "DRAFT") return null;
+  if (!SHAREABLE_STATUSES.has(row.status) || row.deletedAt || row.supersededAt) return null;
   if (row.tokenExpiresAt && row.tokenExpiresAt < now) return null;
   const full = Number(row.total ?? 0) + Number(row.balanceAmount ?? 0);
   if (!(full > 0)) return null;

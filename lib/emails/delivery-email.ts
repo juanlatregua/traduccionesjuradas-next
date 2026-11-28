@@ -3,7 +3,8 @@
 // el que edita el staff) manda; los bloques de diseño se mantienen. Puro salvo los tokens firmados.
 import { generateOrderToken } from "../order-token.ts";
 import { buildClientPortalUrl } from "../client-token.ts";
-import { C, SANS, SERIF, SITE, emailButton, emailCard, emailLayout, escapeHtml } from "../email-layout.ts";
+import { C, SANS, SERIF, SITE, emailButton, emailCard, emailLayout, escapeHtml, stripTextSignature } from "../email-layout.ts";
+import { DELIVERY_COPY } from "../email-copy.ts";
 import { deliveryTextToHtml, documentDisplayName, greetingName, type DeliveryLang } from "../delivery-message.ts";
 
 export type Referral = { code: string; shareUrl: string };
@@ -11,77 +12,7 @@ export type DeliveryCardFile = { name?: string | null; url?: string | null };
 
 const RATING_TTL_SECONDS = 365 * 24 * 60 * 60;
 
-const T = {
-  es: {
-    label: (ref: string, c: boolean) => `Pedido ${ref} · ${c ? "Corregido" : "Entregado"}`,
-    title: (n: string, c: boolean) => (c ? `Tu traducción corregida, ${n}` : `Tu traducción jurada está lista${n ? `, ${n}` : ""}`),
-    titleNoName: (c: boolean) => (c ? "Tu traducción corregida" : "Tu traducción jurada está lista"),
-    translation: "Traducción jurada",
-    attached: "PDF firmado · adjunto a este email",
-    direct: "PDF firmado · descarga directa",
-    invoice: (n: string) => `Factura ${n}`,
-    invoiceMeta: "PDF · adjunta a este email",
-    download: "Descargar",
-    rateTitle: "¿Qué tal lo hemos hecho?",
-    rateBody: "Toca una estrella. Un segundo, y ayuda mucho a quien busca traductor.",
-    star: (i: number) => `${i} estrella${i > 1 ? "s" : ""}`,
-    areaTitle: "Tu archivo, siempre a mano",
-    areaBody: "Guardamos tu traducción en tu área personal. Si un organismo te pide otra copia, la descargas en un minuto, sin volver a pagar la traducción. Entras con un enlace a tu email: sin contraseñas.",
-    areaCta: "Entrar en mi área",
-    refTag: "Recomiéndanos",
-    refTitle: "Regala un 10 % y gana otro 10 %",
-    refBody: "Pásale tu código a quien necesite una traducción jurada. Tendrá un 10 % en su encargo y, cuando lo pague, tú recibirás otro 10 % para el tuyo.",
-    refShare: "Compartir por WhatsApp",
-    refNote: "Código de un solo uso, válido 12 meses. No se suma a otros descuentos.",
-    refWa: (code: string) => `Te paso mi código ${code}: tienes un 10 % en tu traducción jurada.`,
-  },
-  fr: {
-    label: (ref: string, c: boolean) => `Commande ${ref} · ${c ? "Corrigée" : "Livrée"}`,
-    title: (n: string, c: boolean) => (c ? `Votre traduction corrigée, ${n}` : `Votre traduction assermentée est prête${n ? `, ${n}` : ""}`),
-    titleNoName: (c: boolean) => (c ? "Votre traduction corrigée" : "Votre traduction assermentée est prête"),
-    translation: "Traduction assermentée",
-    attached: "PDF signé · joint à cet email",
-    direct: "PDF signé · téléchargement direct",
-    invoice: (n: string) => `Facture ${n}`,
-    invoiceMeta: "PDF · jointe à cet email",
-    download: "Télécharger",
-    rateTitle: "Comment l'avons-nous fait ?",
-    rateBody: "Touchez une étoile. Une seconde, et cela aide beaucoup ceux qui cherchent un traducteur.",
-    star: (i: number) => `${i} étoile${i > 1 ? "s" : ""}`,
-    areaTitle: "Votre dossier, toujours à portée de main",
-    areaBody: "Nous gardons votre traduction dans votre espace personnel. Si un organisme vous demande une autre copie, vous la téléchargez en une minute, sans payer à nouveau la traduction. Vous entrez avec un lien envoyé à votre email : sans mot de passe.",
-    areaCta: "Accéder à mon espace",
-    refTag: "Recommandez-nous",
-    refTitle: "Offrez 10 % et gagnez 10 %",
-    refBody: "Donnez votre code à quelqu'un qui a besoin d'une traduction assermentée. Il aura 10 % sur sa commande et, quand il la paiera, vous recevrez 10 % pour la vôtre.",
-    refShare: "Partager sur WhatsApp",
-    refNote: "Code à usage unique, valable 12 mois. Non cumulable avec d'autres réductions.",
-    refWa: (code: string) => `Voici mon code ${code} : 10 % sur ta traduction assermentée.`,
-  },
-  en: {
-    label: (ref: string, c: boolean) => `Order ${ref} · ${c ? "Corrected" : "Delivered"}`,
-    title: (n: string, c: boolean) => (c ? `Your corrected translation, ${n}` : `Your sworn translation is ready${n ? `, ${n}` : ""}`),
-    titleNoName: (c: boolean) => (c ? "Your corrected translation" : "Your sworn translation is ready"),
-    translation: "Sworn translation",
-    attached: "Signed PDF · attached to this email",
-    direct: "Signed PDF · direct download",
-    invoice: (n: string) => `Invoice ${n}`,
-    invoiceMeta: "PDF · attached to this email",
-    download: "Download",
-    rateTitle: "How did we do?",
-    rateBody: "Tap a star. It takes a second and helps people looking for a translator.",
-    star: (i: number) => `${i} star${i > 1 ? "s" : ""}`,
-    areaTitle: "Your file, always at hand",
-    areaBody: "We keep your translation in your personal area. If an authority asks you for another copy, you can download it in a minute without paying for the translation again. You sign in with a link sent to your email: no passwords.",
-    areaCta: "Go to my area",
-    refTag: "Recommend us",
-    refTitle: "Give 10 % and get 10 %",
-    refBody: "Pass your code to someone who needs a sworn translation. They get 10 % off their order and, once they pay, you get another 10 % for yours.",
-    refShare: "Share on WhatsApp",
-    refNote: "Single-use code, valid for 12 months. Cannot be combined with other discounts.",
-    refWa: (code: string) => `Here is my code ${code}: 10 % off your sworn translation.`,
-  },
-} as const;
+const T = DELIVERY_COPY;
 
 export function ratingUrls(reference: string, token: string): string[] {
   return [1, 2, 3, 4, 5].map((r) => `${SITE}/opinion/${encodeURIComponent(reference)}?t=${encodeURIComponent(token)}&r=${r}`);
@@ -120,7 +51,7 @@ function fileCard(title: string, meta: string, url: string, action: string): str
   );
 }
 
-function starsBlock(lang: DeliveryLang, urls: string[]): string {
+function starsBlock(lang: DeliveryLang, urls: string[], reviewUrl: string): string {
   const t = T[lang];
   const stars = urls
     .map(
@@ -132,6 +63,7 @@ function starsBlock(lang: DeliveryLang, urls: string[]): string {
 <div style="font-family:${SERIF};font-size:21px;color:${C.white};margin:0 0 8px 0;">${t.rateTitle}</div>
 <div style="font-family:${SANS};font-size:15px;line-height:1.5;color:${C.cream};margin:0 0 16px 0;">${t.rateBody}</div>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"><tr>${stars}</tr></table>
+<div style="font-family:${SANS};font-size:13px;margin:14px 0 0 0;"><a href="${escapeHtml(reviewUrl)}" target="_blank" rel="noopener noreferrer" style="color:${C.cream};">${t.rateGoogle}</a></div>
 </td></tr></table>`;
 }
 
@@ -155,6 +87,20 @@ ${emailButton(t.refShare, wa, { size: "sm" })}
   );
 }
 
+// La línea que pide la reseña de Google se va; si la URL va dentro de otra frase, se va solo la URL.
+export function removeReviewLine(text: string, reviewUrl: string): string {
+  return text
+    .split("\n")
+    .flatMap((l) => {
+      if (!l.includes(reviewUrl)) return [l];
+      if (/google|reseña|valoraci|opini|avis|review/i.test(l)) return [];
+      const rest = l.split(reviewUrl).join("").replace(/\s*:\s*$/, "").trimEnd();
+      return rest.trim() ? [rest] : [];
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export function renderDeliveryEmailHtml(input: {
   lang: DeliveryLang;
   reference: string;
@@ -166,6 +112,7 @@ export function renderDeliveryEmailHtml(input: {
   fallbackLinks?: DeliveryCardFile[];
   reviewUrl: string;
   clientEmail?: string | null;
+  // false = firma de Juan (pares FR); sin decir nada, la de la casa.
   houseSignature?: boolean;
   referral?: Referral | null;
 }): string {
@@ -185,16 +132,17 @@ export function renderDeliveryEmailHtml(input: {
     ...(input.invoiceNumber && !c ? [fileCard(t.invoice(input.invoiceNumber), t.invoiceMeta, links.areaUrl, t.download)] : []),
   ].join("");
   const cardsHtml = `<div style="margin:6px 0 18px 0;">${cards}</div>`;
-  const stars = links.ratingToken ? starsBlock(input.lang, ratingUrls(input.reference, links.ratingToken)) : "";
+  const stars = links.ratingToken ? starsBlock(input.lang, ratingUrls(input.reference, links.ratingToken), input.reviewUrl) : "";
 
-  const paras = input.text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-  const reviewIdx = stars ? paras.findIndex((p) => p.includes(input.reviewUrl)) : -1;
+  // Con estrellas, fuera solo la línea de la reseña de Google (o su URL): el resto del texto se queda.
+  // Con la tarjeta de firma, fuera el nombre de la firma del texto.
+  const withoutReview = stars ? removeReviewLine(input.text, input.reviewUrl) : input.text;
+  const paras = stripTextSignature(withoutReview).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   const signoff = paras.length > 1 ? paras[paras.length - 1] : null;
   const html: string[] = [];
   let cardsIn = false;
   paras.forEach((p, i) => {
     if (signoff !== null && i === paras.length - 1) return;
-    if (i === reviewIdx) return;
     html.push(deliveryTextToHtml(p));
     if (i >= 1 && !cardsIn) {
       html.push(cardsHtml);
@@ -211,7 +159,7 @@ export function renderDeliveryEmailHtml(input: {
     content: html.join(""),
     label: t.label(input.reference, c),
     labelColor: C.green,
-    title: name ? t.title(name, c) : t.titleNoName(c),
-    signature: input.houseSignature ? "house" : "juan",
+    title: t.title(name, c),
+    signature: input.houseSignature === false ? "juan" : "house",
   });
 }

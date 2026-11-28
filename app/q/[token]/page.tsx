@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: Pick<Props, "params">): Promi
   const row = await prisma.quote
     .findUnique({
       where: { publicToken: params.token },
-      select: { pdfLang: true, quoteNumber: true, status: true, tokenExpiresAt: true, total: true, balanceAmount: true, vatRate: true },
+      select: { pdfLang: true, quoteNumber: true, status: true, tokenExpiresAt: true, total: true, balanceAmount: true, vatRate: true, deletedAt: true, supersededAt: true },
     })
     .catch(() => null);
   const title = row ? `${publicDict(pickPublicLang(row.pdfLang)).pageTitle} ${row.quoteNumber}` : "Presupuesto";

@@ -47,6 +47,8 @@ export async function GET(req: Request, { params }: Params) {
       deliveryTerm: true,
       vatRate: true,
       vatAmount: true,
+      discountAmount: true,
+      shippingAmount: true,
       lines: { orderBy: { createdAt: "asc" }, select: { description: true, lineTotal: true } },
     },
   });
