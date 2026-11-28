@@ -10,6 +10,7 @@ import { transitionWorkflowState } from "@/lib/workflow-server";
 import { findTranslatorProfile } from "@/lib/translators";
 import { sendTranslationStartedAssignedEmail } from "@/lib/email";
 import { adjuntarPedidoACaso } from "@/lib/caso/sombra";
+import { markReferralEarnedForPaidOrder, type PaidReferralResult } from "@/lib/referral-core";
 import type { BillingForm } from "@/lib/q-journey";
 
 /* ------------------------------------------------------------------ */
@@ -628,7 +629,8 @@ export async function updateOrderPayment(
     throw new Error("Identificador externo de pago requerido.");
   }
 
-  return prisma.$transaction(async (tx) => {
+  const referralAlert: { value: { quoteId: string; mismatch: NonNullable<PaidReferralResult["mismatch"]> } | null } = { value: null };
+  const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { reference },
       select: {
@@ -637,6 +639,7 @@ export async function updateOrderPayment(
         paymentMethod: true,
         externalPaymentId: true,
         quoteId: true,
+        amountCents: true,
       },
     });
     if (!order) {
@@ -698,6 +701,11 @@ export async function updateOrderPayment(
       return { changed: false as const, alreadyPaid: true as const, duplicate: false as const };
     }
 
+    // Recomendación: el pago del invitado (y solo el pago) da su crédito al dueño. Misma transacción.
+    // Si lo cobrado no es el total vigente (sesión de pago abierta antes del código), el descuento no cuenta.
+    const referral = await markReferralEarnedForPaidOrder(tx, { orderId: order.id, quoteId: order.quoteId, paidCents: order.amountCents });
+    if (referral.mismatch && order.quoteId) referralAlert.value = { quoteId: order.quoteId, mismatch: referral.mismatch };
+
     // Cierre suave por falta de respuesta: si el pedido enlazado se paga, el presupuesto no está perdido.
     if (order.quoteId) {
       await tx.quote.updateMany({
@@ -723,6 +731,27 @@ export async function updateOrderPayment(
 
     return { changed: true as const, alreadyPaid: false as const, duplicate: false as const };
   });
+
+  if (referralAlert.value) {
+    const { quoteId, mismatch } = referralAlert.value;
+    await import("@/lib/money-alerts")
+      .then((m) =>
+        m.alertPaymentAmountMismatch({
+          via: `${method} (código de recomendación)`,
+          ref: reference,
+          orderReference: reference,
+          quoteId,
+          expectedCents: mismatch.quoteTotalCents,
+          receivedCents: mismatch.paidCents,
+          paidAnyway: true,
+          detail: `Cobrado con una sesión de pago anterior al código ${mismatch.codes.join(", ")}: el pago SÍ queda registrado, pero el descuento NO cuenta (código liberado o crédito devuelto al dueño). ${
+            mismatch.restoredTotalCents != null ? "El presupuesto vuelve al precio sin descuento, que es lo cobrado." : "⚠ Lo cobrado tampoco es el precio sin descuento: regulariza a mano."
+          }`,
+        })
+      )
+      .catch((e) => console.error("[updateOrderPayment] aviso de recomendación falló", e));
+  }
+  return result;
 }
 
 export async function confirmManualPayment(

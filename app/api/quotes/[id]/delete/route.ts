@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { recalcularCaso, tomarVigente } from "@/lib/caso/sombra";
+import { releaseReferralForQuote } from "@/lib/referral";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   await prisma.quote.update({ where: { id: params.id }, data: { deletedAt: new Date(), liveCasoKey: null } });
+  await releaseReferralForQuote(params.id, "presupuesto borrado");
   await recalcularCaso(quote.casoId, access.email || "staff", "presupuesto borrado");
   return NextResponse.json({ ok: true, deleted: true });
 }

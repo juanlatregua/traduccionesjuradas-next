@@ -132,6 +132,14 @@ export function middleware(req: NextRequest) {
     return redirectPermanent(req, "/");
   }
 
+  // ?ref=CÓDIGO (recomendación): se guarda 30 días para precargarlo en /q (lib/referral).
+  const ref = (searchParams.get("ref") || "").trim().toUpperCase();
+  if (/^[A-Z]{2,10}-?[A-HJKMNP-Z2-9]{4}$/.test(ref)) {
+    const res = NextResponse.next();
+    res.cookies.set("tj_ref", ref, { maxAge: 30 * 86400, path: "/", sameSite: "lax", httpOnly: true, secure: true });
+    return res;
+  }
+
   return NextResponse.next();
 }
 

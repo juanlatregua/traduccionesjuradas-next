@@ -139,11 +139,14 @@ export async function alertPaymentAmountMismatch(input: {
   expectedCents: number;
   receivedCents: number | null;
   detail?: string;
+  paidAnyway?: boolean; // el cobro se registró igualmente (p. ej. descuento por recomendación anulado)
 }): Promise<void> {
   const eur = (c: number | null) => (c == null ? "desconocido" : `${(c / 100).toFixed(2)} €`);
   const texto = [
     `IMPORTE NO COINCIDE (${input.via}) en ${input.ref}: cobrado ${eur(input.receivedCents)}, esperado ${eur(input.expectedCents)}.`,
-    "El pedido/presupuesto NO se ha marcado como pagado. Revisa el cobro en la pasarela y devuélvelo o regulariza a mano.",
+    input.paidAnyway
+      ? "El pago SÍ se ha registrado. Revisa que el cliente pague lo que dice su factura."
+      : "El pedido/presupuesto NO se ha marcado como pagado. Revisa el cobro en la pasarela y devuélvelo o regulariza a mano.",
     input.detail || "",
   ]
     .filter(Boolean)
@@ -176,7 +179,7 @@ export async function alertPaymentAmountMismatch(input: {
       console.error("[pago-importe] email fallo:", err)
     ),
     sendStaffAlertSMS(
-      `TraduccionesJuradas: IMPORTE NO COINCIDE ${input.via} ${input.ref}, cobrado ${eur(input.receivedCents)} vs esperado ${eur(input.expectedCents)}. NO marcado pagado. Mira el email.`,
+      `TraduccionesJuradas: IMPORTE NO COINCIDE ${input.via} ${input.ref}, cobrado ${eur(input.receivedCents)} vs esperado ${eur(input.expectedCents)}. ${input.paidAnyway ? "Pago registrado" : "NO marcado pagado"}. Mira el email.`,
       `importe_no_coincide ${input.ref}`
     ).catch(() => {}),
   ]);

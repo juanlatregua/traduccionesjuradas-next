@@ -251,6 +251,13 @@ export async function transitionWorkflowState(options: TransitionOptions): Promi
   if (result.changed || redeliveredMilestone) {
     void notifyClientMilestone(options.reference, result.to, options.payload);
   }
+  // Código de recomendación del cliente al entregar (idempotente por pedido; solo si está pagado).
+  if (result.changed && result.to === "TRADUCIDO_ENTREGADO") {
+    void prisma.order
+      .findUnique({ where: { reference: options.reference }, select: { id: true } })
+      .then((o) => (o ? import("@/lib/referral").then((m) => m.issueReferralForOrder(o.id)) : null))
+      .catch((e) => console.error("[workflow] referral issue failed", e));
+  }
   // Pedido en papel lanzado sin dirección: se lanza igual y se le pide al cliente.
   // Punto común de todos los cobros (Stripe, Redsys, PayPal, manual, crédito).
   if (result.changed && result.to === "PAGO_VALIDADO") {

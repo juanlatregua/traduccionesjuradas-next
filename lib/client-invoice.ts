@@ -11,6 +11,7 @@
 //    elige el IVA, edita libremente y al EMITIR se le asigna el número y se congela.
 
 import { prisma } from "@/lib/prisma";
+import { referralInvoiceLines } from "@/lib/referral-core";
 import type { Prisma } from "@prisma/client";
 import { assertNotInClosedPeriod } from "@/lib/tax-close-store";
 import { createAltaRecord, createAnulacionRecord, flushAfterCommit, logInvoiceEvent } from "@/lib/verifactu/records";
@@ -83,6 +84,23 @@ type BillingSnapshot = {
   email: string;
 };
 
+async function referralInvoiceLinesForOrder(orderId: string, baseCents: number) {
+  const order = await prisma.order.findUnique({ where: { id: orderId }, select: { quoteId: true } });
+  const ref = await prisma.referralCode.findFirst({
+    where: {
+      OR: [
+        { usedOnOrderId: orderId, discountCents: { gt: 0 } },
+        ...(order?.quoteId ? [{ usedOnQuoteId: order.quoteId, discountCents: { gt: 0 } }, { rewardRedeemedOnQuoteId: order.quoteId, rewardDiscountCents: { gt: 0 } }] : []),
+      ],
+    },
+    select: { code: true, usedOnQuoteId: true, usedOnOrderId: true, discountCents: true, rewardRedeemedOnQuoteId: true, rewardDiscountCents: true },
+  });
+  if (!ref) return null;
+  const isInvitee = ref.usedOnOrderId === orderId || (!!order?.quoteId && ref.usedOnQuoteId === order.quoteId);
+  const discountCents = (isInvitee ? ref.discountCents : ref.rewardDiscountCents) || 0;
+  return referralInvoiceLines({ baseCents, discountCents, code: ref.code, kind: isInvitee ? "invitee" : "owner_credit" });
+}
+
 // ── Camino pedido pagado: emite/actualiza factura ya numerada (ISSUED) ──────────
 // number opcional: si no se pasa, se auto-sugiere; si se pasa, se valida formato y
 // unicidad. Idempotente por orderId.
@@ -130,6 +148,8 @@ export async function issueOrUpdateInvoice(input: {
   if (input.issuedAt) await assertNotInClosedPeriod(input.issuedAt);
   const forYear = (input.issuedAt ?? new Date()).getFullYear();
   const { baseCents, vatCents, totalCents } = totalsFromGross(input.amountCents, 0.21);
+  // Descuento por recomendación: la base ya viene descontada (el IVA va sobre ella); la línea lo dice.
+  const referralLines = await referralInvoiceLinesForOrder(input.orderId, baseCents);
 
   // Auto-numeración con reintento anti-colisión (carrera con otra emisión); con
   // número manual no se reintenta: la colisión es un error del operador.
@@ -170,6 +190,7 @@ export async function issueOrUpdateInvoice(input: {
       // issuedAt en update solo si se pasa explícito (no re-sellar una emitida)
       ...(input.issuedAt ? { issuedAt: input.issuedAt } : {}),
       ...(input.simplified !== undefined ? { simplified: input.simplified } : {}),
+      ...(referralLines ? { lineItemsJson: referralLines as unknown as Prisma.InputJsonValue } : {}),
     };
 
     try {

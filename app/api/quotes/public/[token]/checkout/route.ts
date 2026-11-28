@@ -4,6 +4,7 @@ import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 import { decimalToNumber, isQuotePayableStatus, moneyToCents, normalizeQuoteStatus } from "@/lib/quotes";
 import { createQuoteStripeCheckoutSession } from "@/lib/quote-stripe";
 import { FROZEN_PAYMENT_ERROR, isPaymentFrozen } from "@/lib/precio-tras-envio-math";
+import { releaseReferralForQuote } from "@/lib/referral";
 
 export const runtime = "nodejs";
 
@@ -90,6 +91,7 @@ export async function POST(req: Request, { params }: Params) {
         where: { id: quote.id },
         data: { status: "EXPIRED" },
       });
+      await releaseReferralForQuote(quote.id, "caducado");
       return NextResponse.json({ ok: false, error: "Este presupuesto ha expirado." }, { status: 400 });
     }
 

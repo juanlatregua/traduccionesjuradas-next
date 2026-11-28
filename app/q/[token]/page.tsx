@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { openTracking } from "@/lib/cierre-math";
 import { quoteShare, quoteShareText } from "@/lib/q-share";
@@ -26,6 +26,8 @@ import { pickPublicLang, publicDict, statusLabel, localeFor } from "@/lib/quote-
 import { buildSignedOrderUrl } from "@/lib/order-token";
 import { buildWhatsAppLinkFromText, EMAIL } from "@/lib/contact";
 import { isPaymentFrozen } from "@/lib/precio-tras-envio-math";
+import QuoteReferralField from "@/components/QuoteReferralField";
+import { hasReferralCredit, normalizeCodeInput, REFERRAL_COOKIE, releaseReferralForQuote } from "@/lib/referral";
 
 type Props = {
   params: { token: string };
@@ -35,6 +37,7 @@ type Props = {
     fb?: string;
     pago?: string;
     paso?: string;
+    ref?: string;
   };
 };
 
@@ -140,6 +143,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       if (searchParams?.fb) qs.set("fb", String(searchParams.fb));
       if (searchParams?.pago) qs.set("pago", String(searchParams.pago));
       if (searchParams?.paso) qs.set("paso", String(searchParams.paso));
+      if (searchParams?.ref) qs.set("ref", String(searchParams.ref));
       const suffix = qs.toString() ? `?${qs.toString()}` : "";
       redirect(`https://www.traduccionesjuradas.net/q/${encodeURIComponent(params.token)}${suffix}`);
     }
@@ -151,6 +155,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       where: { id: quote.id },
       data: { status: "EXPIRED", expiredAt: new Date() },
     });
+    await releaseReferralForQuote(quote.id, "caducado");
   }
 
   await trackOpen({
@@ -177,6 +182,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       paidAt: true,
       pdfUrl: true,
       customerEmail: true,
+      customerId: true,
       expedienteRef: true,
       customer: {
         select: { fiscalName: true, companyName: true, nif: true, address: true, city: true, postalCode: true, country: true },
@@ -271,6 +277,22 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       console.error("[q/token] track url failed", err);
     }
   }
+
+  // Código de recomendación: ?ref= o la cookie que deja el middleware al llegar con ?ref=.
+  const referralRow = await prisma.referralCode
+    .findFirst({
+      where: { OR: [{ usedOnQuoteId: refreshed.id }, { rewardRedeemedOnQuoteId: refreshed.id }] },
+      select: { code: true, usedOnQuoteId: true },
+    })
+    .catch(() => null);
+  const referralApplied = referralRow
+    ? referralRow.usedOnQuoteId === refreshed.id
+      ? `Código ${referralRow.code} aplicado: −${money(discountAmount)}.`
+      : `Tu 10 % por recomendar está aplicado: −${money(discountAmount)}.`
+    : null;
+  const showReferral = !paid && !frozen && isPayable && (!!referralApplied || discountAmount === 0);
+  const referralPrefill = normalizeCodeInput(searchParams?.ref) || normalizeCodeInput(cookies().get(REFERRAL_COOKIE)?.value) || null;
+  const referralCredit = showReferral && !referralApplied ? await hasReferralCredit(refreshed.customerId).catch(() => false) : false;
 
   // Recorrido guiado (documentos → facturación → pago) mientras el presupuesto se puede pagar.
   const showJourney = isPayable && !paid;
@@ -455,6 +477,9 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
                   <p className="text-xs text-sepia">{t.secondPayLater}</p>
                 )}
               </div>
+            )}
+            {showReferral && (
+              <QuoteReferralField token={params.token} prefill={referralPrefill} appliedLabel={referralApplied} hasCredit={referralCredit} />
             )}
             {!paid && !frozen && (
               <div id="pago" className="scroll-mt-4">

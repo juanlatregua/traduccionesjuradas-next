@@ -39,6 +39,8 @@ import { pendingLavoriEntregas, reviewedFileUrls, translatorFileUrls, unsentLavo
 import { resolveBillingPrefill } from "@/lib/delivery-billing";
 import OrderDocumentsPanel from "@/components/OrderDocumentsPanel";
 import OrderFinancePanel from "@/components/OrderFinancePanel";
+import OrderReferralStaffPanel from "@/components/OrderReferralStaffPanel";
+import { getReferralStaffView } from "@/lib/referral";
 import OrderLifecyclePanel from "@/components/OrderLifecyclePanel";
 import OrderWorkflowPanel from "@/components/OrderWorkflowPanel";
 import SourceDocumentUpload from "@/components/SourceDocumentUpload";
@@ -214,6 +216,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
     },
   });
   if (!order) redirect("/zona-traductor");
+  const referral = await getReferralStaffView({ id: order.id, quoteId: order.quoteId }).catch(() => ({ issued: null, used: null }));
 
   const casoDeadline = order.caso ? { urgency: order.caso.urgency, neededBy: order.caso.neededBy } : null;
   const casoDeadlineLine = deadlineLine(casoDeadline);
@@ -884,6 +887,7 @@ export default async function PedidoWorkspacePage({ params }: Params) {
         {/* SECCIÓN 4 — Finanzas. Plegada hasta la entrega (conciliación, IRPF y
             cierre no pintan nada en un pedido recién pagado); los avisos del
             snapshot quedan visibles en el pliegue para no ocultar un margen bajo. */}
+        <OrderReferralStaffPanel issued={referral.issued} used={referral.used} orderId={order.id} quoteId={order.quoteId} />
         <section id="finanzas" className="scroll-mt-20 rounded-3xl border border-[#D5DAE1] bg-[#fff] p-6 shadow-sm">
           <details open={isDeliveredStage}>
             <summary className="flex cursor-pointer flex-wrap items-center gap-3">

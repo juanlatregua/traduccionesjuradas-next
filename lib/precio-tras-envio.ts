@@ -68,7 +68,7 @@ async function avisar(input: { logId: string | null; subject: string; lines: str
 /** Expira las sesiones de Stripe abiertas del presupuesto. Fail-safe: nunca lanza.
  *  Las sesiones no se guardan al crearse (solo al cobrar, en QuotePayment), así que
  *  se buscan en Stripe las abiertas de las últimas 24 h con metadata.quoteId. */
-async function expireOpenStripeSessions(quoteId: string): Promise<{ expired: string[]; error: string | null }> {
+export async function expireOpenStripeSessions(quoteId: string): Promise<{ expired: string[]; error: string | null }> {
   const expired: string[] = [];
   try {
     const { getStripe } = await import("@/lib/stripe");
