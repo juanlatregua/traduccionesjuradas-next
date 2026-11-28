@@ -9,6 +9,7 @@ import {
   normalizeCodeInput,
   redeemOwnerCreditOnQuote,
   referralInvoiceLines,
+  releaseReferralOnDeadQuote,
   voidReferralRewardForOrder,
 } from "../../lib/referral-core.ts";
 
@@ -332,10 +333,10 @@ test("EARNED solo al pagar, nunca al aplicar; y el dueño lo canjea una vez", as
   const early = await redeemOwnerCreditOnQuote(db, { quoteId: "q-owner", now: NOW });
   assert.equal(!early.ok && early.reason, "SIN_CREDITO", "sin pago del invitado no hay crédito");
 
-  assert.equal(await markReferralEarnedForPaidOrder(db, { orderId: "ord-inv", quoteId: "q1", now: NOW }), 1);
+  assert.equal((await markReferralEarnedForPaidOrder(db, { orderId: "ord-inv", quoteId: "q1", now: NOW })).earned, 1);
   assert.equal(db.store.referralCode[0].rewardStatus, "EARNED");
   assert.equal(db.store.referralCode[0].usedOnOrderId, "ord-inv");
-  assert.equal(await markReferralEarnedForPaidOrder(db, { orderId: "ord-inv", quoteId: "q1", now: NOW }), 0, "webhook repetido: nada");
+  assert.equal((await markReferralEarnedForPaidOrder(db, { orderId: "ord-inv", quoteId: "q1", now: NOW })).earned, 0, "webhook repetido: nada");
 
   const red = await redeemOwnerCreditOnQuote(db, { quoteId: "q-owner", now: NOW });
   assert.equal(red.ok, true);
@@ -350,7 +351,7 @@ test("devolución o cancelación del invitado → VOID si no se canjeó; si ya s
   const r = await voidReferralRewardForOrder(db, { orderId: "ord-inv", quoteId: "q1", reason: "reembolso", now: NOW });
   assert.equal(r.voided, 1);
   assert.equal(db.store.referralCode[0].rewardStatus, "VOID");
-  assert.equal(await markReferralEarnedForPaidOrder(db, { orderId: "ord-inv", quoteId: "q1", now: NOW }), 0, "VOID no revive");
+  assert.equal((await markReferralEarnedForPaidOrder(db, { orderId: "ord-inv", quoteId: "q1", now: NOW })).earned, 0, "VOID no revive");
 
   const pending = makeDb({ codes: [code({ usedAt: NOW, usedOnQuoteId: "q1", rewardStatus: "PENDING" })] });
   assert.equal((await voidReferralRewardForOrder(pending, { orderId: "x", quoteId: "q1", reason: "cancelado", now: NOW })).voided, 1);
@@ -384,4 +385,159 @@ test("factura: línea con el descuento a la vista y base ya descontada", () => {
   assert.equal(lines?.[0].amountCents, 5400);
   assert.match(String(lines?.[0].detail), /60,00 € − descuento por código de recomendación MARIE-7K2Q 6,00 € = base imponible 54,00 €/);
   assert.equal(referralInvoiceLines({ baseCents: 5400, discountCents: 0, code: "X", kind: "invitee" }), null);
+});
+
+// ── Sesión de pago vieja: lo cobrado manda ──────────────────────────────────
+
+const cents = (eur: number) => Math.round(eur * 100);
+
+test("sesión vieja: cobra el precio entero → el descuento no cuenta, código libre y presupuesto al precio cobrado", async () => {
+  const db = makeDb({ quotes: [quote("q1")], customers: [OWNER], codes: [code()] });
+  const fullCents = cents(db.store.quote[0].total); // 72,60 €: lo que fijó la sesión abierta antes del código
+  assert.equal((await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW })).ok, true);
+  assert.equal(db.store.quote[0].total, 65.34);
+
+  const r = await db.$transaction((tx: any) => markReferralEarnedForPaidOrder(tx, { orderId: "ord-inv", quoteId: "q1", paidCents: fullCents, now: NOW }));
+  assert.equal(r.earned, 0, "el dueño no gana nada por un cobro sin descuento");
+  assert.deepEqual(r.mismatch?.codes, ["MARIE-7K2Q"]);
+  assert.equal(r.mismatch?.restoredTotalCents, fullCents);
+  const c = db.store.referralCode[0];
+  assert.equal(c.usedAt, null);
+  assert.equal(c.usedByCustomerId, null);
+  assert.equal(c.usedOnQuoteId, null);
+  assert.equal(c.rewardStatus, "NONE");
+  const q = db.store.quote[0];
+  assert.equal(q.discountType, "NONE");
+  assert.equal(q.discountAmount, 0);
+  assert.equal(cents(q.total), fullCents, "la factura sale por lo cobrado, sin línea de descuento");
+});
+
+test("cobro que sí cuadra con el total descontado → EARNED sin aviso", async () => {
+  const db = makeDb({ quotes: [quote("q1")], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  const r = await markReferralEarnedForPaidOrder(db, { orderId: "ord-inv", quoteId: "q1", paidCents: 6534, now: NOW });
+  assert.equal(r.earned, 1);
+  assert.equal(r.mismatch, null);
+  assert.equal(db.store.quote[0].total, 65.34);
+});
+
+test("sesión vieja con crédito del dueño canjeado → el crédito vuelve a estar disponible", async () => {
+  const db = makeDb({
+    quotes: [quote("q-owner", { customerId: "cust-owner", customerEmail: "marie@ejemplo.fr" })],
+    customers: [OWNER],
+    codes: [code({ usedAt: NOW, usedByCustomerId: "cust-inv", usedOnQuoteId: "q1", usedOnOrderId: "ord-inv", rewardStatus: "EARNED", rewardEarnedAt: NOW })],
+  });
+  const fullCents = cents(db.store.quote[0].total);
+  assert.equal((await redeemOwnerCreditOnQuote(db, { quoteId: "q-owner", now: NOW })).ok, true);
+  const r = await markReferralEarnedForPaidOrder(db, { orderId: "ord-owner", quoteId: "q-owner", paidCents: fullCents, now: NOW });
+  assert.ok(r.mismatch);
+  const c = db.store.referralCode[0];
+  assert.equal(c.rewardStatus, "EARNED");
+  assert.equal(c.rewardRedeemedOnQuoteId, null);
+  assert.equal(c.usedOnOrderId, "ord-inv", "el uso del invitado (pagado) no se toca");
+  assert.equal(cents(db.store.quote[0].total), fullCents);
+});
+
+test("carrera: el código entra entre la lectura del webhook y el registro del pago → no cuenta", async () => {
+  const db = makeDb({ quotes: [quote("q1")], customers: [OWNER], codes: [code()] });
+  // El webhook lee el total (y lo valida contra Stripe) ANTES de que el código se aplique.
+  const webhook = (async () => {
+    const paidCents = cents(db.store.quote[0].total);
+    for (let i = 0; i < 40; i++) await tick();
+    return db.$transaction(async (tx: any) => {
+      await tx.quote.updateMany({ where: { id: "q1", paidAt: null }, data: { paidAt: NOW, status: "PAID" } });
+      return markReferralEarnedForPaidOrder(tx, { orderId: "ord-inv", quoteId: "q1", paidCents, now: NOW });
+    });
+  })();
+  const [applied, paid] = await Promise.all([applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW }), webhook]);
+  assert.equal(applied.ok, true, "el código llegó antes que el registro del pago");
+  assert.equal(paid.earned, 0);
+  assert.ok(paid.mismatch);
+  assert.equal(db.store.referralCode[0].usedAt, null);
+  assert.equal(db.store.quote[0].total, 72.6);
+});
+
+test("carrera: el pago se registra mientras se aplica el código → el código pierde y queda libre", async () => {
+  const db = makeDb({ quotes: [quote("q1")], customers: [OWNER], codes: [code()] });
+  const paidCents = cents(db.store.quote[0].total);
+  const [applied, paid] = await Promise.all([
+    applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW }),
+    db.$transaction(async (tx: any) => {
+      await tx.quote.updateMany({ where: { id: "q1", paidAt: null }, data: { paidAt: NOW, status: "PAID" } });
+      return markReferralEarnedForPaidOrder(tx, { orderId: "ord-inv", quoteId: "q1", paidCents, now: NOW });
+    }),
+  ]);
+  assert.equal(applied.ok, false);
+  assert.equal(paid.earned, 0);
+  assert.equal(paid.mismatch, null);
+  assert.equal(db.store.referralCode[0].usedAt, null, "rollback del reclamo");
+  assert.equal(db.store.quote[0].discountAmount, 0);
+});
+
+// ── Código gastado sin venta ────────────────────────────────────────────────
+
+test("caducado sin pagar → código libre, dueño sin crédito y el invitado puede usarlo en otro presupuesto", async () => {
+  const db = makeDb({ quotes: [quote("q1"), quote("q2", { customerId: "cust-q1", customerEmail: "q1@cliente.es" })], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  Object.assign(db.store.quote[0], { status: "EXPIRED", expiredAt: NOW });
+  const r = await releaseReferralOnDeadQuote(db, { quoteId: "q1" });
+  assert.deepEqual(r.released, ["MARIE-7K2Q"]);
+  const c = db.store.referralCode[0];
+  assert.equal(c.usedAt, null);
+  assert.equal(c.usedByCustomerId, null);
+  assert.equal(c.usedByEmail, null);
+  assert.equal(c.usedOnQuoteId, null);
+  assert.equal(c.rewardStatus, "NONE");
+  assert.equal(db.store.quote[0].discountAmount, 0, "el presupuesto muerto pierde el descuento");
+  assert.equal((await applyReferralCodeToQuote(db, { quoteId: "q2", code: "MARIE-7K2Q", now: NOW })).ok, true);
+  assert.equal((await releaseReferralOnDeadQuote(db, { quoteId: "q1" })).released.length, 0, "idempotente");
+});
+
+test("borrado o vivo/pagado: solo se libera el que murió sin pagar", async () => {
+  const db = makeDb({ quotes: [quote("q1")], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  assert.equal((await releaseReferralOnDeadQuote(db, { quoteId: "q1" })).released.length, 0, "vivo: nada");
+  Object.assign(db.store.quote[0], { deletedAt: NOW, paidAt: NOW });
+  assert.equal((await releaseReferralOnDeadQuote(db, { quoteId: "q1" })).released.length, 0, "pagado: nada");
+  db.store.quote[0].paidAt = null;
+  assert.deepEqual((await releaseReferralOnDeadQuote(db, { quoteId: "q1" })).released, ["MARIE-7K2Q"]);
+});
+
+test("sustituido por una versión con el mismo descuento → el código pasa a la nueva", async () => {
+  const db = makeDb({ quotes: [quote("q1", { casoId: "caso-1" })], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  const old = db.store.quote[0];
+  db.store.quote.push(quote("q1b", { casoId: "caso-1", status: "DRAFT", discountType: "FIXED", discountValue: 6, discountAmount: 6, createdAt: NOW }));
+  old.supersededAt = NOW;
+  const r = await releaseReferralOnDeadQuote(db, { quoteId: "q1" });
+  assert.equal(r.transferredTo, "q1b");
+  assert.equal(db.store.referralCode[0].usedOnQuoteId, "q1b");
+  assert.equal(db.store.referralCode[0].rewardStatus, "PENDING");
+  assert.equal(old.discountAmount, 0);
+  assert.equal((await markReferralEarnedForPaidOrder(db, { orderId: "ord-b", quoteId: "q1b", now: NOW })).earned, 1);
+});
+
+test("sustituido por una versión sin el descuento → se libera", async () => {
+  const db = makeDb({ quotes: [quote("q1", { casoId: "caso-1" })], customers: [OWNER], codes: [code()] });
+  await applyReferralCodeToQuote(db, { quoteId: "q1", code: "MARIE-7K2Q", now: NOW });
+  db.store.quote.push(quote("q1b", { casoId: "caso-1", createdAt: NOW }));
+  db.store.quote[0].supersededAt = NOW;
+  const r = await releaseReferralOnDeadQuote(db, { quoteId: "q1" });
+  assert.equal(r.transferredTo, null);
+  assert.deepEqual(r.released, ["MARIE-7K2Q"]);
+});
+
+test("crédito del dueño canjeado en un presupuesto que caduca → vuelve a EARNED", async () => {
+  const db = makeDb({
+    quotes: [quote("q-owner", { customerId: "cust-owner", customerEmail: "marie@ejemplo.fr" })],
+    customers: [OWNER],
+    codes: [code({ usedAt: NOW, usedByCustomerId: "cust-inv", usedOnQuoteId: "q1", usedOnOrderId: "ord-inv", rewardStatus: "EARNED", rewardEarnedAt: NOW })],
+  });
+  await redeemOwnerCreditOnQuote(db, { quoteId: "q-owner", now: NOW });
+  Object.assign(db.store.quote[0], { status: "EXPIRED", expiredAt: NOW });
+  await releaseReferralOnDeadQuote(db, { quoteId: "q-owner" });
+  const c = db.store.referralCode[0];
+  assert.equal(c.rewardStatus, "EARNED");
+  assert.equal(c.rewardRedeemedOnQuoteId, null);
+  assert.equal(c.usedOnOrderId, "ord-inv");
 });

@@ -6,6 +6,7 @@ import {
   applyReferralCodeToQuote,
   ensureReferralCodeForOrder,
   redeemOwnerCreditOnQuote,
+  releaseReferralOnDeadQuote,
   shareUrlFor,
   voidReferralRewardForOrder,
   type ApplyResult,
@@ -33,6 +34,7 @@ export async function issueReferralForOrder(orderId: string) {
 async function afterQuoteDiscount(quoteId: string, result: ApplyResult) {
   if (!result.ok) return;
   if (result.clamped) console.warn(`[referral] ${result.code} recortado al suelo en presupuesto ${quoteId}: ${result.note}`);
+  await expireSessionsAfterPriceChange(quoteId);
   // El PDF de /q enseñaba el total viejo: se regenera (best-effort, el total vivo ya es el bueno).
   try {
     const quote = await prisma.quote.findUnique({ where: { id: quoteId }, include: { lines: { orderBy: { createdAt: "asc" } } } });
@@ -43,6 +45,26 @@ async function afterQuoteDiscount(quoteId: string, result: ApplyResult) {
     await prisma.quote.update({ where: { id: quote.id }, data: { pdfUrl: pdf.pdfUrl, pdfHash: pdf.pdfHash } });
   } catch (e) {
     console.error("[referral] PDF no regenerado", quoteId, e);
+  }
+}
+
+// El total cambió: una sesión de Stripe abierta antes cobraría el precio viejo. /q solo
+// cobra con tarjeta (Stripe), transferencia o crédito; Redsys/PayPal no pagan presupuestos.
+async function expireSessionsAfterPriceChange(quoteId: string) {
+  const { expireOpenStripeSessions } = await import("@/lib/precio-tras-envio");
+  const r = await expireOpenStripeSessions(quoteId);
+  if (r.error) console.error(`[referral] sesiones de Stripe de ${quoteId} sin revisar: ${r.error} (el cobro con importe viejo no se lleva el descuento)`);
+}
+
+/** Presupuesto caducado, sustituido o borrado sin pagar: el código pasa a la versión nueva o se libera. Nunca lanza. */
+export async function releaseReferralForQuote(quoteId: string, reason: string): Promise<void> {
+  try {
+    const r = await releaseReferralOnDeadQuote(prisma, { quoteId });
+    if (r.released.length) console.info(`[referral] ${reason}: código ${r.released.join(", ")} liberado (presupuesto ${quoteId} sin venta)`);
+    if (r.transferredTo) console.info(`[referral] ${reason}: código pasado de ${quoteId} a ${r.transferredTo}`);
+    if (r.strippedTotal != null) await expireSessionsAfterPriceChange(quoteId);
+  } catch (e) {
+    console.error("[referral] liberar código falló", quoteId, e);
   }
 }
 

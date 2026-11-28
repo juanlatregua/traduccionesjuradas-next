@@ -26,7 +26,7 @@ import { buildSignedOrderUrl } from "@/lib/order-token";
 import { buildWhatsAppLinkFromText, EMAIL } from "@/lib/contact";
 import { isPaymentFrozen } from "@/lib/precio-tras-envio-math";
 import QuoteReferralField from "@/components/QuoteReferralField";
-import { hasReferralCredit, normalizeCodeInput, REFERRAL_COOKIE } from "@/lib/referral";
+import { hasReferralCredit, normalizeCodeInput, REFERRAL_COOKIE, releaseReferralForQuote } from "@/lib/referral";
 
 type Props = {
   params: { token: string };
@@ -142,6 +142,7 @@ export default async function PublicQuotePage({ params, searchParams }: Props) {
       where: { id: quote.id },
       data: { status: "EXPIRED", expiredAt: new Date() },
     });
+    await releaseReferralForQuote(quote.id, "caducado");
   }
 
   await trackOpen({

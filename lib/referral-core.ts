@@ -363,14 +363,153 @@ export async function redeemOwnerCreditOnQuote(db: ReferralDb, input: { quoteId:
   }
 }
 
-/** Pedido del invitado PAGADO → crédito del dueño EARNED. Llamar dentro de la transacción del pago. */
-export async function markReferralEarnedForPaidOrder(tx: ReferralDb, input: { orderId: string; quoteId: string | null; now?: Date }): Promise<number> {
+// Sin venta (o cobrado a otro precio): el código vuelve a estar libre y el dueño sin crédito.
+const RELEASE_CODE = {
+  usedAt: null, usedByCustomerId: null, usedByEmail: null, usedByPhone: null, usedOnQuoteId: null, usedOnOrderId: null,
+  discountCents: null, requestedDiscountCents: null, floorClamped: false, floorNote: null, rewardStatus: "NONE",
+};
+// Crédito del dueño canjeado en un presupuesto sin venta: vuelve a estar disponible.
+const UNREDEEM_CREDIT = { rewardStatus: "EARNED", rewardRedeemedOnQuoteId: null, rewardRedeemedAt: null, rewardDiscountCents: null };
+
+function linkedRowsWhere(quoteId: string) {
+  return { OR: [{ usedOnQuoteId: quoteId, rewardStatus: "PENDING" }, { rewardRedeemedOnQuoteId: quoteId, rewardStatus: "REDEEMED" }] };
+}
+
+function rowDiscountCents(row: any, quoteId: string): number {
+  return Number(row.rewardRedeemedOnQuoteId === quoteId ? row.rewardDiscountCents : row.discountCents) || 0;
+}
+
+async function freeRow(tx: ReferralDb, row: any, quoteId: string): Promise<number> {
+  const res =
+    row.rewardRedeemedOnQuoteId === quoteId
+      ? await tx.referralCode.updateMany({ where: { id: row.id, rewardRedeemedOnQuoteId: quoteId, rewardStatus: "REDEEMED" }, data: UNREDEEM_CREDIT })
+      : await tx.referralCode.updateMany({ where: { id: row.id, usedOnQuoteId: quoteId, rewardStatus: "PENDING" }, data: RELEASE_CODE });
+  return res.count;
+}
+
+/** Quita del presupuesto el descuento FIXED que puso el código (y solo ese); devuelve el total sin descuento. */
+async function stripQuoteDiscount(tx: ReferralDb, quoteId: string, discountCents: number, onlyIfTotalCents?: number): Promise<number | null> {
+  const q = await tx.quote.findUnique({ where: { id: quoteId }, select: QUOTE_SELECT });
+  if (!q || String(q.discountType) !== "FIXED" || Math.round(Number(q.discountValue) * 100) !== discountCents) return null;
+  const before = computeQuoteTotals({
+    lines: q.lines.map((l: any) => ({ description: l.description, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice) })),
+    vatRate: Number(q.vatRate),
+    deliveryType: String(q.deliveryType) as QuoteDeliveryType,
+    shippingBase: Number(q.shippingBase),
+    discountType: "NONE",
+    discountValue: 0,
+  });
+  if (onlyIfTotalCents != null && Math.round(before.total * 100) !== onlyIfTotalCents) return null;
+  const res = await tx.quote.updateMany({
+    where: { id: quoteId, discountType: "FIXED", discountValue: round2(discountCents / 100) },
+    data: {
+      discountType: "NONE",
+      discountValue: 0,
+      subtotal: before.subtotal,
+      discountAmount: before.discountAmount,
+      shippingAmount: before.shippingAmount,
+      vatAmount: before.vatAmount,
+      total: before.total,
+    },
+  });
+  return res.count === 1 ? before.total : null;
+}
+
+export type PaidReferralResult = {
+  earned: number;
+  // Cobrado un importe distinto del total vigente (sesión de pago abierta antes del código,
+  // o el código entró mientras llegaba el pago): el descuento NO cuenta.
+  mismatch: null | { codes: string[]; paidCents: number; quoteTotalCents: number; restoredTotalCents: number | null };
+};
+
+/** Pedido del invitado PAGADO → crédito del dueño EARNED. Llamar dentro de la transacción del pago.
+ *  Con paidCents: si no cuadra con el total vigente, el código se libera (o el crédito vuelve
+ *  al dueño) y, si se cobró el precio sin descuento, el presupuesto vuelve a ese precio. */
+export async function markReferralEarnedForPaidOrder(
+  tx: ReferralDb,
+  input: { orderId: string; quoteId: string | null; paidCents?: number | null; now?: Date }
+): Promise<PaidReferralResult> {
   const now = input.now ?? new Date();
+  if (input.quoteId && input.paidCents != null) {
+    const rows = await tx.referralCode.findMany({ where: linkedRowsWhere(input.quoteId) });
+    if (rows.length > 0) {
+      const q = await tx.quote.findUnique({ where: { id: input.quoteId }, select: { total: true } });
+      const quoteTotalCents = Math.round(Number(q?.total) * 100);
+      if (quoteTotalCents !== input.paidCents) {
+        let restoredTotalCents: number | null = null;
+        for (const row of rows) {
+          const discountCents = rowDiscountCents(row, input.quoteId);
+          if ((await freeRow(tx, row, input.quoteId)) !== 1) continue;
+          // El presupuesto vuelve al precio sin descuento solo si es lo que de verdad se cobró.
+          const full = await stripQuoteDiscount(tx, input.quoteId, discountCents, input.paidCents);
+          if (full != null) restoredTotalCents = Math.round(full * 100);
+        }
+        return { earned: 0, mismatch: { codes: rows.map((r: any) => r.code), paidCents: input.paidCents, quoteTotalCents, restoredTotalCents } };
+      }
+    }
+  }
   const where = input.quoteId
     ? { rewardStatus: "PENDING", usedOnQuoteId: input.quoteId }
     : { rewardStatus: "PENDING", usedOnOrderId: input.orderId };
   const res = await tx.referralCode.updateMany({ where, data: { rewardStatus: "EARNED", rewardEarnedAt: now, usedOnOrderId: input.orderId } });
-  return res.count;
+  return { earned: res.count, mismatch: null };
+}
+
+const SUCCESSOR_STATUSES = ["DRAFT", ...OPEN_QUOTE_STATUSES];
+
+export type DeadQuoteResult = { released: string[]; transferredTo: string | null; strippedTotal: number | null };
+
+/** Presupuesto caducado, sustituido o borrado SIN pagarse: el código pasa a la versión nueva
+ *  del caso si ya lleva el mismo descuento; si no, se libera (y el crédito vuelve al dueño). */
+export async function releaseReferralOnDeadQuote(db: ReferralDb, input: { quoteId: string }): Promise<DeadQuoteResult> {
+  return db.$transaction(async (tx: ReferralDb) => {
+    const none: DeadQuoteResult = { released: [], transferredTo: null, strippedTotal: null };
+    const q = await tx.quote.findUnique({
+      where: { id: input.quoteId },
+      select: {
+        id: true, status: true, paidAt: true, deletedAt: true, supersededAt: true, expiredAt: true, casoId: true, sourceLang: true, targetLang: true,
+        orders: { select: { id: true, paymentStatus: true } },
+      },
+    });
+    if (!q || q.paidAt || q.orders.some((o: any) => o.paymentStatus === "PAID")) return none;
+    if (!(q.deletedAt || q.supersededAt || q.expiredAt || String(q.status) === "EXPIRED")) return none;
+    const rows = await tx.referralCode.findMany({ where: linkedRowsWhere(q.id) });
+    if (rows.length === 0) return none;
+
+    const out: DeadQuoteResult = { ...none, released: [] };
+    for (const row of rows) {
+      const cents = rowDiscountCents(row, q.id);
+      const isCredit = row.rewardRedeemedOnQuoteId === q.id;
+      const next = q.casoId
+        ? await tx.quote.findFirst({
+            where: {
+              casoId: q.casoId, id: { not: q.id }, sourceLang: q.sourceLang, targetLang: q.targetLang,
+              deletedAt: null, supersededAt: null, expiredAt: null, paidAt: null, status: { in: SUCCESSOR_STATUSES },
+              discountType: "FIXED", discountValue: round2(cents / 100),
+            },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          })
+        : null;
+      const taken = next
+        ? await tx.referralCode.findFirst({ where: { OR: [{ usedOnQuoteId: next.id }, { rewardRedeemedOnQuoteId: next.id }] }, select: { id: true } })
+        : null;
+      if (next && !taken) {
+        const moved = await tx.referralCode.updateMany({
+          where: isCredit ? { id: row.id, rewardRedeemedOnQuoteId: q.id, rewardStatus: "REDEEMED" } : { id: row.id, usedOnQuoteId: q.id, rewardStatus: "PENDING" },
+          data: isCredit ? { rewardRedeemedOnQuoteId: next.id } : { usedOnQuoteId: next.id },
+        });
+        if (moved.count === 1) out.transferredTo = next.id;
+      } else if ((await freeRow(tx, row, q.id)) === 1) {
+        out.released.push(row.code);
+      } else {
+        continue;
+      }
+      // El presupuesto muerto no se queda con un descuento que ya no respalda ningún código.
+      out.strippedTotal = (await stripQuoteDiscount(tx, q.id, cents)) ?? out.strippedTotal;
+    }
+    return out;
+  });
 }
 
 /** Devolución, cancelación o exclusión del pedido del invitado → crédito VOID si no se ha canjeado. */

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireStaffAccess } from "@/lib/staff-auth";
 import { QUOTE_LOST_REASONS, type QuoteLostReasonCode } from "@/lib/quote-lost-reasons";
 import { recalcularCaso } from "@/lib/caso/sombra";
+import { releaseReferralForQuote } from "@/lib/referral";
 
 export const runtime = "nodejs";
 
@@ -60,6 +61,7 @@ export async function POST(req: Request, { params }: Params) {
       lostFeedbackAt: now,
     },
   });
+  await releaseReferralForQuote(quote.id, "no aceptado");
   await recalcularCaso(quote.casoId, access.email || "staff", "no aceptado");
 
   return NextResponse.json({ ok: true });

@@ -402,6 +402,7 @@ async function handle(req: Request, allowStaff: boolean) {
       },
     });
     expiredUpdated += 1;
+    await import("@/lib/referral").then((m) => m.releaseReferralForQuote(quote.id, "caducado"));
     await recalcularCaso(quote.casoId, "system:cierre", "caducado");
 
     // Post-mortem determinista (una sola vez, en el instante de expirar): el

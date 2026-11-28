@@ -171,6 +171,8 @@ export async function tomarVigente(
           : []),
         prisma.quote.updateMany({ where: { id: quoteId, casoId, deletedAt: null, liveCasoKey: null }, data: { liveCasoKey: casoId } }),
       ]);
+      // La versión sustituida sin venta no se queda el código de recomendación: pasa a la nueva o se libera.
+      if (ocupada && ocupada.id !== quoteId) await import("@/lib/referral").then((m) => m.releaseReferralForQuote(ocupada.id, "presupuesto sustituido"));
     }
     await registrarComparacion({
       entrada,
