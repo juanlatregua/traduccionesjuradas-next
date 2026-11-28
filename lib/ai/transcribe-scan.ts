@@ -105,7 +105,7 @@ export const SCAN_PROMPT = (k: number) =>
   `Cada página debe empezar con una línea exacta con este formato (numeración 1..${k} dentro de este PDF):\n=== PÁGINA 1 ===\n` +
   `y a continuación el texto de esa página. Devuelve solo las transcripciones, nada más.`;
 
-async function defaultCallModel(input: ScanCallInput): Promise<ScanCallOutput> {
+export async function defaultCallModel(input: ScanCallInput): Promise<ScanCallOutput> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY no configurada.");
   const client = new Anthropic({ apiKey, maxRetries: 2 });

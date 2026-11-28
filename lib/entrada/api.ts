@@ -246,7 +246,7 @@ export async function handleRemoveFile(req: Request, token: string, fileId: stri
   return fromOutcome(await quitarArchivo(deps, g.entrada, fileId));
 }
 
-export async function handleRead(req: Request, token: string, deps: EntradaApiDeps): Promise<ApiResponse> {
+export async function handleRead(req: Request, token: string, deps: EntradaApiDeps, receivedAt = Date.now()): Promise<ApiResponse> {
   const g = await gated(req, token, deps, "read", 30, HOUR);
   if ("status" in g) return g;
   const e = g.entrada;
@@ -263,7 +263,7 @@ export async function handleRead(req: Request, token: string, deps: EntradaApiDe
     }
     if (!global.ok) return json(503, { ok: false, error: "Hoy estamos revisando muchos documentos. Juan verá los tuyos personalmente: déjalos subidos y te escribimos." }, { "Retry-After": String(global.retryAfterSec) });
   }
-  return fromOutcome(await leerEntrada(deps, e, { continuing }));
+  return fromOutcome(await leerEntrada(deps, e, { continuing, receivedAt }));
 }
 
 export async function handleEdit(req: Request, token: string, deps: EntradaApiDeps): Promise<ApiResponse> {

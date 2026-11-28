@@ -15,6 +15,8 @@ export type StartInput = {
   clientLang?: string | null;
   reread: boolean;
   by: string;
+  /** Epoch ms the request came in: the reading deadline counts from it. */
+  receivedAt?: number;
 };
 
 export type StartDeps = {
@@ -35,8 +37,8 @@ export type StartResult =
 
 /** A running lote untouched for longer than the route can live is considered dead and may be claimed again. */
 export const STALE_RUNNING_MS = 6 * 60 * 1000;
-/** The routes live 300 s: the reading (transcription included) must be over this long after the start, leaving room to store it. */
-export const READ_DEADLINE_MS = 240_000;
+/** The routes live 300 s: the reading (transcription included) must be over this long after the request came in, leaving 30 s to store it. */
+export const READ_DEADLINE_MS = 270_000;
 
 export function fingerprintOf(refs: readonly SourceRef[], targetLang: string | null, sourceLang: string | null): string {
   const urls = [...new Set(refs.map((r) => r.url))].sort();
@@ -98,7 +100,7 @@ export function outcomeOf(reading: Exclude<Reading, { status: "busy" }>, inputs:
 }
 
 export async function startReading(deps: StartDeps, input: StartInput): Promise<StartResult> {
-  const deadlineAt = deps.now().getTime() + READ_DEADLINE_MS;
+  const deadlineAt = (input.receivedAt ?? deps.now().getTime()) + READ_DEADLINE_MS;
   const refs = await deps.listFiles(input.source);
   if (refs.length === 0) return { kind: "no_files" };
   const fingerprint = fingerprintOf(refs, input.targetLang, input.sourceLang);

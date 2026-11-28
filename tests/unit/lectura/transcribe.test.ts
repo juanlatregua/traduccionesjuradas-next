@@ -4,6 +4,7 @@ import { readBatch } from "../../../lib/lectura/index.ts";
 import { READING_MODEL } from "../../../lib/lectura/read.ts";
 import { toWire, type ModelReading } from "../../../lib/lectura/schema.ts";
 import { transcribeOn } from "../../../lib/lectura/transcribe.ts";
+import { assessReading } from "../../../lib/lectura/assess.ts";
 import type { ScanCallInput, ScanCallOutput } from "../../../lib/ai/transcribe-scan.ts";
 import { doc, lorem, makeImage, makePdf, reading } from "./fixtures.ts";
 
@@ -162,4 +163,49 @@ test("switch off: identical to today (estimate, no transcription, same reasons)"
     assert.equal(r.usages.length, 1);
   }
   if (off.status === "ok" && other.status === "ok") assert.deepEqual(off.assessment, other.assessment);
+});
+
+const transcribed = (words: number, estimatedWords: number, extra = {}) =>
+  ({ ...doc("D1", [[1, 1]], { estimatedWords, ...extra }), words, wordsBasis: "transcribed" as const });
+const codesOf = (d: ReturnType<typeof transcribed>) => assessReading({ skipped: [] }, reading([d])).reasons.map((r) => r.code);
+
+test("transcribed 820 vs estimated 1000 crosses the 900-word long document band: goes to a person", () => {
+  const codes = codesOf(transcribed(820, 1000, { type: "contract", category: "legal", declaredPages: 1 }));
+  assert.ok(!codes.includes("words_mismatch"));
+  assert.ok(codes.includes("words_near_threshold"));
+});
+
+test("transcribed near a per-word minimum (688 words = 55 €) goes to a person", () => {
+  assert.ok(codesOf(transcribed(700, 760, { type: "contract", category: "legal", declaredPages: 1 })).includes("words_near_threshold"));
+  assert.ok(!codesOf(transcribed(330, 300)).includes("words_near_threshold"));
+});
+
+test("at most 6 model calls in flight for the whole batch, all documents together", async () => {
+  let active = 0;
+  let peak = 0;
+  const callModel = async (input: ScanCallInput): Promise<ScanCallOutput> => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise((r) => setTimeout(r, 20));
+    active--;
+    return { text: marked(new Array(input.pageCount).fill(200)), stopReason: "end_turn", usage: { input: 1, output: 1 } };
+  };
+  const files = [{ name: "lote.pdf", bytes: await makePdf(new Array(32).fill("")) }];
+  const types = ["contract", "divorce_decree", "power_of_attorney", "bank_statement"] as const;
+  const docs = types.map((type, k) => doc(`D${k + 1}`, Array.from({ length: 8 }, (_, p): [number, number] => [1, k * 8 + p + 1]), { type, category: "legal", estimatedWords: 1600 }));
+  const r = await withSwitch("on", () => readBatch(files, {}, { callModel: readingModel(reading(docs)), transcribe: { scan: { callModel, slicePdf: async (s: number, e: number) => `${s}-${e}` } } }));
+  assert.equal(r.status, "ok");
+  if (r.status !== "ok") return;
+  assert.ok(r.documents.every((d) => d.wordsBasis === "transcribed" && d.words === 1600));
+  assert.ok(peak <= 6, `peak ${peak}`);
+  assert.ok(peak >= 2);
+});
+
+test("not enough time for assembling and transcribing: nothing is assembled or sent", async () => {
+  const fake = scanModel([180, 170]);
+  const r = await withSwitch("on", async () => readBatch(await scan2(), {}, { callModel: readingModel(twoPages()), transcribe: fake.deps, deadlineAt: Date.now() + 24_000 }));
+  assert.equal(r.status, "ok");
+  if (r.status !== "ok") return;
+  assert.equal(r.documents[0].wordsBasis, "estimated");
+  assert.equal(fake.calls.length, 0);
 });

@@ -7,5 +7,6 @@ export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  return respond(await handleStart(req, apiDeps));
+  const receivedAt = Date.now();
+  return respond(await handleStart(req, apiDeps, receivedAt));
 }

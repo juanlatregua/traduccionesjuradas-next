@@ -109,9 +109,13 @@ export function assessReading(
     const agrees = Math.abs(words - d.estimatedWords) <= WORDS_AGREEMENT * Math.max(1, d.estimatedWords);
     if (counted && !agrees) add("words_mismatch", `${words} palabras ${d.wordsBasis === "transcribed" ? "transcritas" : "contadas"} frente a ${d.estimatedWords} estimadas`, d.id);
     const exact = counted && agrees;
-    if (!exact) {
-      const near = WORD_THRESHOLDS.find((t) => Math.abs(words - t) <= t * THRESHOLD_MARGIN);
-      if (near !== undefined) add("words_near_threshold", `${words} palabras estimadas, cerca del umbral de ${near}`, d.id);
+    // A transcription is a count of what the model read: near a price band, either figure may be the right one.
+    const checked = d.wordsBasis === "transcribed" ? [words, d.estimatedWords] : exact ? [] : [words];
+    const near = WORD_THRESHOLDS.find((t) => checked.some((w) => Math.abs(w - t) <= t * THRESHOLD_MARGIN) || (checked.length === 2 && (checked[0] < t) !== (checked[1] < t)));
+    if (near !== undefined) {
+      add("words_near_threshold", d.wordsBasis === "transcribed"
+        ? `${words} palabras transcritas y ${d.estimatedWords} estimadas, cerca del umbral de ${near}`
+        : `${words} palabras estimadas, cerca del umbral de ${near}`, d.id);
     }
     if ((d.sourceLang || "").trim().toLowerCase() === "fr" && target === "es") {
       const price = priceFrToEs({ docType: d.type, category: d.category, pages: body, words, apostille: d.apostille !== null, apostilleOnSeparatePage: false });
