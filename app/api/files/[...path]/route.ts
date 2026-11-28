@@ -41,12 +41,15 @@ export async function GET(req: Request) {
   try {
     fileName = decodeURIComponent(segments[segments.length - 1] || "documento");
   } catch {}
-  const download = reqUrl.searchParams.get("download") === "1";
+  const contentType = (res.headers.get("content-type") || "application/octet-stream").toLowerCase();
+  const inlineSafe = /^(application\/pdf|image\/(png|jpe?g|webp|gif|heic|heif|tiff))\b/.test(contentType);
+  const download = reqUrl.searchParams.get("download") === "1" || !inlineSafe;
   const headers = new Headers({
     ...NO_STORE,
-    "Content-Type": res.headers.get("content-type") || "application/octet-stream",
+    "Content-Type": inlineSafe ? contentType : "application/octet-stream",
     "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${safeDocName(fileName)}"`,
     "X-Content-Type-Options": "nosniff",
+    "Content-Security-Policy": "sandbox",
   });
   const len = res.headers.get("content-length");
   if (len) headers.set("Content-Length", len);
