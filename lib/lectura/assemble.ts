@@ -38,6 +38,7 @@ export async function assembleDocumentPdfs(
   batch: Pick<PreparedBatch, "files">,
   documents: readonly AssemblyDocument[],
   heavy?: HeavyWorker,
+  timeoutMs = ASSEMBLY_TIMEOUT_MS,
 ): Promise<AssembledPdf[]> {
   const fail = (reasonEs: string): AssembledPdf => ({ ok: false, kind: "cannot_assemble", reasonEs });
   const results: (AssembledPdf | null)[] = [];
@@ -68,7 +69,7 @@ export async function assembleDocumentPdfs(
     const worker = heavy ?? new HeavyWorker(DEFAULT_HEAVY);
     let out: { ok: boolean; bytes?: Uint8Array; pageCount?: number; reasonEs?: string }[];
     try {
-      out = (await worker.run<{ results: typeof out }>("assemble", { files, documents: jobs }, ASSEMBLY_TIMEOUT_MS)).results;
+      out = (await worker.run<{ results: typeof out }>("assemble", { files, documents: jobs }, timeoutMs)).results;
     } catch (err) {
       if (err instanceof HeavyBusy) {
         if (!heavy) await worker.close();

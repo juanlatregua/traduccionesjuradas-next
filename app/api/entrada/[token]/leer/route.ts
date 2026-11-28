@@ -10,5 +10,6 @@ const respond = (r: { status: number; body: unknown; headers?: Record<string, st
 type Ctx = { params: { token: string } };
 
 export async function POST(req: Request, { params }: Ctx) {
-  return respond(await handleRead(req, params.token, entradaApiDeps));
+  const receivedAt = Date.now();
+  return respond(await handleRead(req, params.token, entradaApiDeps, receivedAt));
 }

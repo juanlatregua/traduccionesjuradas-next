@@ -109,7 +109,7 @@ export function viewOf(data: { lote: LoteRow; files: FileRow[]; documents: Worki
 const campaign = async (deps: ApiDeps, data: { lote: LoteRow }) => ({ regularization: deps.regularization ? await deps.regularization(data.lote.sessionKey).catch(() => false) : false });
 const viewWith = async (deps: ApiDeps, data: { lote: LoteRow; files: FileRow[]; documents: WorkingDocument[] }) => viewOf(data, await campaign(deps, data));
 
-export async function handleStart(req: Request, deps: ApiDeps): Promise<ApiResponse> {
+export async function handleStart(req: Request, deps: ApiDeps, receivedAt = Date.now()): Promise<ApiResponse> {
   const g = await gate(req, deps, "start", 20);
   if ("status" in g) return g;
   const notReady = deps.readyToRead();
@@ -122,7 +122,7 @@ export async function handleStart(req: Request, deps: ApiDeps): Promise<ApiRespo
     sessionKey: b.source.kind === "session" ? b.source.sessionKey : null,
     quoteId: b.source.kind === "quote" ? b.source.quoteId : null,
   };
-  const r = await deps.start({ source, targetLang: b.targetLang ?? null, sourceLang: b.sourceLang ?? null, notes: b.notes ?? null, reread: b.reread ?? false, by: g.email });
+  const r = await deps.start({ source, targetLang: b.targetLang ?? null, sourceLang: b.sourceLang ?? null, notes: b.notes ?? null, reread: b.reread ?? false, by: g.email, receivedAt });
   if (r.kind === "no_files") return json(404, { ok: false, error: "Ese caso no tiene archivos que leer." });
   if (r.kind === "in_progress") return json(409, { ok: false, error: "Ya se está leyendo este lote: espera a que termine.", loteId: r.loteId });
   if (r.kind === "busy") {

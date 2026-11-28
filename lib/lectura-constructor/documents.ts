@@ -1,6 +1,7 @@
 import { documentLabel } from "../lectura/label.ts";
 import type { ReviewReason } from "../lectura/assess.ts";
 import type { DocumentType, Part, ReadDocumentRaw } from "../lectura/schema.ts";
+import type { WordsBasis } from "../lectura/transcribe.ts";
 
 /** One apostille as read, or several once documents are joined: one entry in `numbers` per apostille (null = not legible). */
 export type Apostille = (NonNullable<ReadDocumentRaw["apostille"]> & { numbers?: (string | null)[] }) | null;
@@ -20,7 +21,7 @@ export type WorkingDocument = {
   apostille: Apostille;
   pageCount: number;
   words: number;
-  wordsBasis: "exact" | "estimated";
+  wordsBasis: WordsBasis;
   estimatedWords: number;
   legibility: string;
   confidence: number;
@@ -33,7 +34,7 @@ export type WorkingDocument = {
   editedBy: string | null;
 };
 
-export type ReadDocumentLike = ReadDocumentRaw & { pageCount: number; words: number; wordsBasis: "exact" | "estimated" };
+export type ReadDocumentLike = ReadDocumentRaw & { pageCount: number; words: number; wordsBasis: WordsBasis };
 
 export const apostilleCount = (a: Apostille): number => (!a ? 0 : Array.isArray(a.numbers) && a.numbers.length > 0 ? a.numbers.length : 1);
 const apostilleNumbers = (a: NonNullable<Apostille>): (string | null)[] => a.numbers ?? [a.number];
@@ -136,7 +137,7 @@ export function applyEdit(documents: readonly WorkingDocument[], edit: EditOp, b
       annexes: bodies.flatMap((d) => d.annexes),
       apostille: mergeApostilles([...bodies.map((d) => d.apostille), ...looseAsApostille]),
       words: picked.reduce((n, d) => n + d.words, 0),
-      wordsBasis: picked.every((d) => d.wordsBasis === "exact") ? "exact" : "estimated",
+      wordsBasis: picked.every((d) => d.wordsBasis === "exact") ? "exact" : picked.every((d) => d.wordsBasis !== "estimated") ? "transcribed" : "estimated",
       estimatedWords: picked.reduce((n, d) => n + d.estimatedWords, 0),
       confidence: Math.min(...picked.map((d) => d.confidence)),
       reasons: [...picked.flatMap((d) => d.reasons.filter((r) => r.code !== "loose_apostille")), personReason(`unido a mano por ${by} (${picked.length} documentos)`, first.docKey)],

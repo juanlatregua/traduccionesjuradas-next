@@ -185,7 +185,7 @@ export default function LecturaConstructor({ source, initialView, customer, expe
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-[#1A2E4A]">{d.label}</p>
                     <p className="text-sm text-[#52606D]">
-                      {d.pageCount} pág. · {d.words} palabras ({d.wordsBasis === "exact" ? "contadas" : "estimadas"}) · {d.sourceLang}→{view.lines.targetLang || "?"} · legibilidad {d.legibility} · {d.docKey}
+                      {d.pageCount} pág. · {d.words} palabras ({d.wordsBasis === "exact" ? "contadas" : d.wordsBasis === "transcribed" ? "transcritas" : "estimadas"}) · {d.sourceLang}→{view.lines.targetLang || "?"} · legibilidad {d.legibility} · {d.docKey}
                     </p>
                     {!d.included && <p className="text-sm text-[#7A5A10]">No incluido: {d.excludedReason}</p>}
                     {d.reasons.length > 0 && (

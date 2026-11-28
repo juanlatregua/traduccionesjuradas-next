@@ -49,6 +49,8 @@ export type ScanDeps = {
   now?: () => number;
   // Aborta toda la transcripción (p. ej. si el análisis paralelo falla).
   signal?: AbortSignal;
+  // Cuenta las palabras de una página transcrita; por defecto billableWordCount.
+  countWords?: (text: string) => number;
 };
 export type ScanOptions = {
   pageCount: number;
@@ -103,7 +105,7 @@ export const SCAN_PROMPT = (k: number) =>
   `Cada página debe empezar con una línea exacta con este formato (numeración 1..${k} dentro de este PDF):\n=== PÁGINA 1 ===\n` +
   `y a continuación el texto de esa página. Devuelve solo las transcripciones, nada más.`;
 
-async function defaultCallModel(input: ScanCallInput): Promise<ScanCallOutput> {
+export async function defaultCallModel(input: ScanCallInput): Promise<ScanCallOutput> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY no configurada.");
   const client = new Anthropic({ apiKey, maxRetries: 2 });
@@ -166,17 +168,18 @@ export async function transcribeScannedPdf(
   const budget = opts.totalBudgetMs ?? SCAN_TOTAL_BUDGET_MS;
   const n = opts.pageCount;
   const bil = opts.bilingualDuplicate === true;
+  const count = deps.countWords ?? ((text: string) => billableWordCount(text, { bilingualDuplicate: bil }));
 
   let srcPromise: Promise<any> | null = null;
   const slicePdf =
     deps.slicePdf ??
     (async (start: number, end: number) => {
-      const { PDFDocument } = require("pdf-lib");
+      const { PDFDocument } = await import("pdf-lib");
       srcPromise ??= PDFDocument.load(buffer, { ignoreEncryption: true });
       const src = await srcPromise;
       const out = await PDFDocument.create();
       const copied = await out.copyPages(src, Array.from({ length: end - start + 1 }, (_, i) => start + i));
-      copied.forEach((p: any) => out.addPage(p));
+      copied.forEach((p) => out.addPage(p));
       return Buffer.from(await out.save()).toString("base64");
     });
 
@@ -237,9 +240,9 @@ export async function transcribeScannedPdf(
       return { words, block: anyBlock };
     }
     const pages = parseMarkedPages(out.text, k);
-    if (pages) return { words: pages.map((t) => billableWordCount(t, { bilingualDuplicate: bil })), block: false };
+    if (pages) return { words: pages.map(count), block: false };
     // Marcadores que no cuadran: la tanda cuenta como un bloque, repartido a partes iguales.
-    const total = billableWordCount(out.text.replace(MARKER_RE, ""), { bilingualDuplicate: bil });
+    const total = count(out.text.replace(MARKER_RE, ""));
     return { words: new Array(k).fill(0).map(() => Math.round(total / k)), block: true };
   }
 

@@ -6,6 +6,8 @@ export const MODEL_PRICES: Record<string, { input: number; output: number; cache
   "claude-opus-5-5": { input: 400, output: 2000, cacheRead: 20, cacheWrite: 500 },
   "claude-opus-5": { input: 500, output: 2500, cacheRead: 50, cacheWrite: 625 },
   "claude-opus-4-8": { input: 500, output: 2500, cacheRead: 50, cacheWrite: 625 },
+  "claude-sonnet-5-5": { input: 200, output: 1000, cacheRead: 10, cacheWrite: 250 },
+  "claude-haiku-5-5": { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 },
 };
 
 export const DEFAULT_EUR_PER_USD = 0.86;
@@ -23,7 +25,7 @@ export function addUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
 export function usageMicroCents(usage: ModelUsage): number | null {
   const p = MODEL_PRICES[usage.model];
   if (!p) return null;
-  return usage.input * p.input + usage.output * p.output + usage.cacheRead * p.cacheRead + usage.cacheWrite * p.cacheWrite;
+  return Math.round(usage.input * p.input + usage.output * p.output + usage.cacheRead * p.cacheRead + usage.cacheWrite * p.cacheWrite);
 }
 
 export type Cost = { usd: number; eurCents: number; unpricedModels: string[] };

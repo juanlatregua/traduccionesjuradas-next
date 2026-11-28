@@ -111,3 +111,15 @@ test("no files → nothing is created", async () => {
   assert.equal((await startReading({ ...deps, listFiles: async () => [] }, input)).kind, "no_files");
   assert.equal(mem.rows.size, 0);
 });
+
+test("the reading deadline counts from when the request came in, leaving 30 s of the 300 s route to store it", async () => {
+  const { deps } = setup([() => okReading()]);
+  let deadline = 0;
+  const read = deps.read;
+  deps.read = (files, ctx, opts) => {
+    deadline = opts.deadlineAt;
+    return read(files, ctx, opts);
+  };
+  await startReading(deps, { ...input, receivedAt: 1_000_000 });
+  assert.equal(deadline, 1_000_000 + 270_000);
+});

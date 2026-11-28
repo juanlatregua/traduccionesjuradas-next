@@ -1,6 +1,7 @@
 import { FR_DOC_LONG_WORDS, FR_DOC_MAX_PAGES, FR_WORD_CENTS, FR_WORD_MIN_CENTS, FR_WORD_MIN_MULTIPAGE_CENTS, priceFrToEs } from "../dinero/tariff-fr.ts";
 import type { PreparedBatch } from "./prepare.ts";
 import type { DocumentType, ModelReading, ReadDocumentRaw } from "./schema.ts";
+import type { Transcription, WordsBasis } from "./transcribe.ts";
 
 // Deterministic guard. What the model declares cannot be checked in code, so «clean» only rests on structure:
 // every received page is a body page (one apostille sheet per document at most), nothing set aside, nothing merged
@@ -16,7 +17,7 @@ export type ReviewCode =
   | "words_near_threshold" | "words_estimated_price" | "price_below_floor" | "same_type_repeated" | "multi_file_document"
   | "skipped_files" | "target_basis" | "questions" | "annexes" | "apostille_number_unread" | "apostille_pairing_weak" | "not_assessed"
   | "long_document" | "per_word_price" | "words_mismatch" | "bilingual_duplicate" | "file_split" | "pages_out_of_order"
-  | "no_tariff" | "pair_without_tariff";
+  | "no_tariff" | "pair_without_tariff" | "transcription_incomplete" | "transcription_low_pages";
 export type ReviewReason = { code: ReviewCode; detail: string; documentId?: string };
 export type Assessment = { clean: boolean; reasons: ReviewReason[] };
 
@@ -44,7 +45,7 @@ export const NUMBERED_TYPES: ReadonlySet<DocumentType> = new Set<DocumentType>([
   "contract", "power_of_attorney", "divorce_decree", "company_registration", "bank_statement", "tax_return", "grades", "transcript", "medical_report", "other",
 ]);
 
-type DocWords = ReadDocumentRaw & { words?: number; wordsBasis?: "exact" | "estimated" };
+type DocWords = ReadDocumentRaw & { words?: number; wordsBasis?: WordsBasis; transcription?: Transcription };
 
 export function assessReading(
   batch: Pick<PreparedBatch, "skipped">,
@@ -99,13 +100,22 @@ export function assessReading(
     const pages = body + (d.annexes ?? []).reduce((n, a) => n + a.parts.length, 0);
     if (pages > CLEAN_MAX_PAGES) add("long_document", `${pages} páginas (más de ${CLEAN_MAX_PAGES} siempre se revisan)`, d.id);
     if (d.isBilingualDuplicate) add("bilingual_duplicate", "contenido duplicado en dos idiomas: las palabras se cuentan a la mitad", d.id);
+    const t = d.transcription;
+    if (t && !t.complete) add("transcription_incomplete", t.detailEs ?? "transcripción incompleta: se queda la estimación", d.id);
+    if (t && t.lowPages.length > 0) add("transcription_low_pages", `página(s) ${t.lowPages.join(", ")} con muchas menos palabras que la mediana tras releerlas`, d.id);
+    if (t && t.blockPages.length > 0) add("transcription_low_pages", `página(s) ${t.blockPages.join(", ")} transcritas en bloque: palabras repartidas a partes iguales`, d.id);
     const words = d.words ?? d.estimatedWords;
+    const counted = d.wordsBasis === "exact" || d.wordsBasis === "transcribed";
     const agrees = Math.abs(words - d.estimatedWords) <= WORDS_AGREEMENT * Math.max(1, d.estimatedWords);
-    if (d.wordsBasis === "exact" && !agrees) add("words_mismatch", `${words} palabras contadas frente a ${d.estimatedWords} estimadas`, d.id);
-    const exact = d.wordsBasis === "exact" && agrees;
-    if (!exact) {
-      const near = WORD_THRESHOLDS.find((t) => Math.abs(words - t) <= t * THRESHOLD_MARGIN);
-      if (near !== undefined) add("words_near_threshold", `${words} palabras estimadas, cerca del umbral de ${near}`, d.id);
+    if (counted && !agrees) add("words_mismatch", `${words} palabras ${d.wordsBasis === "transcribed" ? "transcritas" : "contadas"} frente a ${d.estimatedWords} estimadas`, d.id);
+    const exact = counted && agrees;
+    // A transcription is a count of what the model read: near a price band, either figure may be the right one.
+    const checked = d.wordsBasis === "transcribed" ? [words, d.estimatedWords] : exact ? [] : [words];
+    const near = WORD_THRESHOLDS.find((t) => checked.some((w) => Math.abs(w - t) <= t * THRESHOLD_MARGIN) || (checked.length === 2 && (checked[0] < t) !== (checked[1] < t)));
+    if (near !== undefined) {
+      add("words_near_threshold", d.wordsBasis === "transcribed"
+        ? `${words} palabras transcritas y ${d.estimatedWords} estimadas, cerca del umbral de ${near}`
+        : `${words} palabras estimadas, cerca del umbral de ${near}`, d.id);
     }
     if ((d.sourceLang || "").trim().toLowerCase() === "fr" && target === "es") {
       const price = priceFrToEs({ docType: d.type, category: d.category, pages: body, words, apostille: d.apostille !== null, apostilleOnSeparatePage: false });

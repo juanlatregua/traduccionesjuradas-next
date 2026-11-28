@@ -25,7 +25,7 @@ function toDoc(r: DocRecord): WorkingDocument {
     id: r.id, position: r.position, docKey: r.docKey, type: r.type, category: r.category, typeLabelEs: r.typeLabelEs, holder: r.holder,
     sourceLang: r.sourceLang, parts: r.parts as WorkingDocument["parts"], annexes: r.annexes as WorkingDocument["annexes"],
     apostille: (r.apostille ?? null) as WorkingDocument["apostille"], pageCount: r.pageCount, words: r.words,
-    wordsBasis: r.wordsBasis === "exact" ? "exact" : "estimated", estimatedWords: r.estimatedWords, legibility: r.legibility,
+    wordsBasis: r.wordsBasis === "exact" || r.wordsBasis === "transcribed" ? r.wordsBasis : "estimated", estimatedWords: r.estimatedWords, legibility: r.legibility,
     confidence: r.confidence, isBilingualDuplicate: r.isBilingualDuplicate, reasons: r.reasonsJson as WorkingDocument["reasons"],
     included: r.included, excludedReason: r.excludedReason, manualPriceCents: r.manualPriceCents, manualCostCents: r.manualCostCents, editedBy: r.editedBy,
   };
