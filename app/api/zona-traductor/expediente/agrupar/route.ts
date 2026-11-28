@@ -16,6 +16,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 export async function POST(req: Request) {
+  const receivedAt = Date.now();
   const access = await requireStaffAccess(req);
   if (!access.ok) return NextResponse.json({ ok: false, error: access.error }, { status: 403 });
   if (!expedienteAgruparOn()) return NextResponse.json({ ok: false, error: "Agrupación desactivada." }, { status: 404 });
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
   const refs = analyses.map((a) => ({ name: a.fileName, url: a.fileUrl, mimeType: a.mimeType }));
   const started = await startReading(
     { ...startDeps, listFiles: async () => refs },
-    { source: { casoId: null, sessionKey: null, quoteId: null }, targetLang, sourceLang: null, notes: null, reread: false, by: access.email }
+    { source: { casoId: null, sessionKey: null, quoteId: null }, targetLang, sourceLang: null, notes: null, reread: false, by: access.email, receivedAt }
   );
   if (started.kind === "busy" || started.kind === "in_progress") {
     return NextResponse.json({ ok: false, retry: true, error: started.kind === "busy" ? started.reasonEs : "Lectura en curso." }, { status: 409 });
