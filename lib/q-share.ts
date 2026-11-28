@@ -19,7 +19,7 @@ const SHAREABLE_STATUSES = new Set(["SENT", "OPENED"]);
 export type QuoteShare = { quoteNumber: string; amount: string; vatIncluded: boolean; lang: "es" | "fr" | "en" };
 
 const COPY = {
-  es: { title: (n: string, a: string) => `Tu presupuesto ${n} · ${a}`, description: "Paga en un minuto con tarjeta o Bizum", tag: "PRESUPUESTO", doc: "Presupuesto", vat: "IVA incluido", total: "Total" },
+  es: { title: (n: string, a: string) => `Su presupuesto ${n} · ${a}`, description: "Pague en un minuto con tarjeta o Bizum", tag: "PRESUPUESTO", doc: "Presupuesto", vat: "IVA incluido", total: "Total" },
   fr: { title: (n: string, a: string) => `Votre devis ${n} · ${a}`, description: "Payez en une minute par carte ou Bizum", tag: "DEVIS", doc: "Devis", vat: "TVA incluse", total: "Total" },
   en: { title: (n: string, a: string) => `Your quote ${n} · ${a}`, description: "Pay in a minute by card or Bizum", tag: "QUOTE", doc: "Quote", vat: "VAT included", total: "Total" },
 } as const;

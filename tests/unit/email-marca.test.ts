@@ -111,7 +111,7 @@ test("un rastreador de vistas previas no marca abierto ni cuenta apertura", () =
 
 test("tarjeta al compartir: número y total, genérica si caduca o no existe", () => {
   const row = { quoteNumber: "2026-00431", status: "SENT", total: 84.7, vatRate: 0.21, pdfLang: "es" };
-  assert.equal(quoteShareText(quoteShare(row)).title, "Tu presupuesto 2026-00431 · 84,70\u00a0€");
+  assert.equal(quoteShareText(quoteShare(row)).title, "Su presupuesto 2026-00431 · 84,70\u00a0€");
   assert.equal(quoteShare({ ...row, status: "EXPIRED" }), null);
   assert.equal(quoteShare({ ...row, tokenExpiresAt: new Date("2020-01-01") }), null);
   assert.equal(quoteShareText(null).title, "Traducciones Juradas");
